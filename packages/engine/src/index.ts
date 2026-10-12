@@ -8,3 +8,4 @@ export { applyAction, applyOrThrow, isLegal, cloneState } from './rules/reducer'
 export { longestCausewayLength } from './rules/longest-road';
 export { legalActions, chooseDiscard } from './rules/legal';
 export * from './replay';
+export * from './ai';

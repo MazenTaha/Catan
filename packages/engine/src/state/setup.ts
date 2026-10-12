@@ -113,6 +113,7 @@ export function createGame(config: GameConfig): GameState {
     dice: null,
     hasRolled: false,
     omenPlayedThisTurn: false,
+    offersThisTurn: 0,
     longestCauseway: { holder: null, lengths: players.map(() => 0) },
     greatestHost: { holder: null },
     handoff: null,

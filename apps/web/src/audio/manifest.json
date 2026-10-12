@@ -1,0 +1,25 @@
+{
+  "$comment": "Map each sound to a file under public/audio (e.g. \"dice\": \"dice.ogg\"). null = synthesized fallback.",
+  "sfx": {
+    "dice": null,
+    "card": null,
+    "collect": null,
+    "causeway": null,
+    "outpost": null,
+    "citadel": null,
+    "wraith": null,
+    "steal": null,
+    "trade": null,
+    "omen": null,
+    "warden": null,
+    "tithe": null,
+    "turn": null,
+    "victory": null,
+    "error": null,
+    "click": null,
+    "discard": null
+  },
+  "music": {
+    "ambient": null
+  }
+}

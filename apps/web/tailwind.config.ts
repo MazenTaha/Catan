@@ -6,6 +6,7 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      screens: { md2: '900px' },
       colors: {
         abyss: v('abyss'),
         surface: { 1: v('surface-1'), 2: v('surface-2'), raised: v('raised') },

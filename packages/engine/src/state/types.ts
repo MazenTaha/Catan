@@ -135,6 +135,8 @@ export interface GameState {
   dice: [number, number] | null;
   hasRolled: boolean;
   omenPlayedThisTurn: boolean;
+  /** Domestic trade offers proposed by the active player this turn. */
+  offersThisTurn: number;
   longestCauseway: { holder: number | null; lengths: number[] };
   greatestHost: { holder: number | null };
   /** Seat the device must be passed to (hot-seat privacy) or null. */

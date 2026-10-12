@@ -1,7 +1,66 @@
+import { AnimatePresence } from 'framer-motion';
+import { Suspense, lazy, useEffect } from 'react';
+import { audio } from './audio/engine';
+import { Embers } from './components/fx/Embers';
+import { CreditsModal, ImportModal, SettingsModal } from './components/modals/InfoModals';
+import { GameScreen } from './components/screens/GameScreen';
+import { NewGameScreen } from './components/screens/NewGameScreen';
+import { TitleScreen } from './components/screens/TitleScreen';
+import { prefersReducedMotion, useStore } from './state/store';
+
+const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
+const ArtBoard = lazy(() => import('./components/screens/ArtBoard'));
+
 export function App() {
+  const screen = useStore((s) => s.screen);
+  const modal = useStore((s) => s.modal);
+  const announce = useStore((s) => s.announce);
+  const reduce = useStore((s) => prefersReducedMotion(s.settings));
+
+  // Audio may only start after a user gesture (autoplay policy).
+  useEffect(() => {
+    const start = () => {
+      audio.unlock();
+      audio.startAmbient();
+    };
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, []);
+
+  if (import.meta.env.DEV && typeof location !== 'undefined' && location.hash.startsWith('#artboard')) {
+    return (
+      <Suspense fallback={null}>
+        <ArtBoard />
+      </Suspense>
+    );
+  }
+
   return (
-    <main className="grid h-full place-items-center">
-      <h1 className="font-logo text-5xl text-gold">Hexfall</h1>
-    </main>
+    <div className={`grain relative min-h-screen ${reduce ? 'reduce-motion' : ''}`}>
+      <div className="vignette" aria-hidden />
+      <Embers disabled={reduce} count={screen === 'game' ? 28 : 40} />
+      <div className="relative z-10 min-h-screen">
+        {screen === 'title' && <TitleScreen />}
+        {screen === 'setup' && <NewGameScreen />}
+        {screen === 'game' && <GameScreen />}
+      </div>
+      <AnimatePresence>
+        {modal === 'settings' && <SettingsModal key="settings" />}
+        {modal === 'credits' && <CreditsModal key="credits" />}
+        {modal === 'import' && <ImportModal key="import" />}
+      </AnimatePresence>
+      {modal === 'rules' && (
+        <Suspense fallback={null}>
+          <RulebookModal />
+        </Suspense>
+      )}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announce}
+      </div>
+    </div>
   );
 }

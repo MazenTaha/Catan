@@ -55,6 +55,7 @@ export function proposeTrade(
     declined: [],
     counterOf: null,
   };
+  s.offersThisTurn++;
   s.phase = { kind: 'trade', offer };
   ctx.ev.push({ type: 'TradeProposed', offer: deepClone(offer) });
 }

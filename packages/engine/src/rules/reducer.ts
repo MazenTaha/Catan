@@ -41,6 +41,7 @@ function endTurn(ctx: Ctx, player: number): void {
   s.currentPlayer = next;
   s.hasRolled = false;
   s.omenPlayedThisTurn = false;
+  s.offersThisTurn = 0;
   s.phase = { kind: 'roll' };
   ctx.ev.push({ type: 'TurnStarted', player: next, turn: s.turn, round: s.round });
 }

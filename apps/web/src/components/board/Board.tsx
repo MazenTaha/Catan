@@ -35,6 +35,12 @@ import {
 } from './geometry';
 import { HexTooltip } from './HexTooltip';
 
+/** Fades the square sea into the page so the isle floats in the dark. */
+const SEA_MASK = {
+  maskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
+  WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
+};
+
 type Targets =
   | { kind: 'vertex'; spots: VertexId[]; piece: 'outpost' | 'citadel'; make: (v: VertexId) => Action }
   | { kind: 'edge'; spots: EdgeId[]; make: (e: EdgeId) => Action }
@@ -275,6 +281,7 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       <svg
         viewBox={VIEWBOX_STR}
         className="absolute inset-0 h-full w-full select-none"
+        style={decorative ? undefined : SEA_MASK}
         role="group"
         aria-label="The Isle"
         onMouseLeave={() => setHoverHex(null)}

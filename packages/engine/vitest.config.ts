@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     testTimeout: 120_000,
+    // Sequential files keep peak memory low (the fuzz and simulation suites are heavy).
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

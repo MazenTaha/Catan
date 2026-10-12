@@ -97,7 +97,7 @@ export function GameScreen() {
       {layout !== 'wide' && <PlayersPanel state={state} seat={seat} horizontal />}
       <div
         className={`grid flex-1 gap-3 ${
-          layout === 'wide' ? 'grid-cols-[290px_minmax(0,1fr)_370px]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[46vh]'
+          layout === 'wide' ? 'grid-cols-[290px_minmax(0,1fr)_370px]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
         }`}
       >
         {layout === 'wide' && (
@@ -130,7 +130,7 @@ export function GameScreen() {
             <Icon name="arrow" size={12} className={sheetOpen ? 'rotate-90' : '-rotate-90'} /> {sheetOpen ? 'Hide hand' : 'Show hand & actions'}
           </button>
           {sheetOpen && (
-            <div className="scroll-thin flex max-h-[44vh] flex-col gap-2 overflow-y-auto px-2 pb-2">
+            <div className="scroll-thin max-h-[48vh] space-y-2 overflow-y-auto px-2 pb-2">
               <HandPanel state={state} seat={seat} />
               <ActionsPanel state={state} seat={seat} />
             </div>

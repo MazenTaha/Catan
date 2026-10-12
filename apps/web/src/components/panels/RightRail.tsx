@@ -130,7 +130,11 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
         else if (state.phase.kind === 'roll') status = 'Roll first';
         else if (!inMain) status = 'Not now';
         else if (supply <= 0) status = item.key === 'omen' ? 'Deck empty' : 'None left';
-        else if (!affordable) status = `Need ${missingList.map((r) => (missing[r]! > 1 ? `${missing[r]} ${RESOURCE_NAME[r]}` : RESOURCE_NAME[r])).join(', ')}`;
+        else if (!affordable) {
+          const first = missingList[0];
+          const rest = totalCards(missing) - missing[first]!;
+          status = `Need ${missing[first]! > 1 ? `${missing[first]} ` : ''}${RESOURCE_NAME[first]}${rest > 0 ? ` +${rest}` : ''}`;
+        }
         else if (spots === 0) status = 'No legal spot';
         else {
           status = item.key === 'omen' ? 'Buy' : 'Build';
@@ -160,12 +164,16 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
             <CostPips cost={cost} hand={p.hand} />
             <div className="text-[13px] text-muted">{item.blurb}</div>
             <button
-              className={`btn mt-auto !py-1.5 text-[11px] ${enabled ? 'btn-primary' : ''}`}
+              className={`btn mt-auto !py-1.5 ${enabled || selected ? 'btn-primary text-[11px]' : '!px-2 !font-body !text-[14px] !normal-case !tracking-normal'}`}
               onClick={onClick}
               disabled={!enabled}
               aria-pressed={item.mode ? selected : undefined}
               data-testid={`build-${item.key}`}
-              title={status}
+              title={
+                missingList.length
+                  ? `Missing: ${missingList.map((r) => `${missing[r]} ${RESOURCE_NAME[r]}`).join(', ')}`
+                  : status
+              }
             >
               {selected ? 'Cancel (Esc)' : status}
             </button>

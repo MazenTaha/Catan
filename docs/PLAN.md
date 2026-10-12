@@ -61,5 +61,5 @@ hexfall/
 - [x] **M5** Board rendering: SVG terrain art, tokens, harbors, pieces, Wraith, placement modes, tooltips
 - [x] **M6** Full interaction: dice, production fx, modals, tabs, trade, omens, curtain, log, rulebook
 - [x] **M7** Art & atmosphere: fog, embers, lighting, motion, audio manifest + synth, victory sequence
-- [ ] **M8** Bots, simulation test, settings, autosave/continue, export/import, a11y, responsive
+- [x] **M8** Bots, simulation test, settings, autosave/continue, export/import, a11y, responsive
 - [ ] **M9** Hardening: perf, bundle size, scripted full games, README, CREDITS, verification

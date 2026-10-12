@@ -24,7 +24,7 @@ export const ResourceCard = memo(function ResourceCard({
   return (
     <div
       className={`relative flex flex-col items-center justify-between rounded-[3px] border px-1 pb-1 pt-1.5 transition-opacity ${
-        compact ? 'h-[74px] w-[52px]' : 'h-[92px] w-[60px]'
+        compact ? 'h-[74px] w-[54px]' : 'h-[92px] w-[62px]'
       } ${dim || count === 0 ? 'opacity-55' : ''}`}
       style={{
         borderColor: '#3a3f4b',
@@ -44,7 +44,7 @@ export const ResourceCard = memo(function ResourceCard({
       <span className={`num ${compact ? 'text-[18px]' : 'text-[22px]'} leading-none text-bone`}>
         {hidden ? '?' : count}
       </span>
-      <span className="w-full truncate text-center font-display text-[8.5px] uppercase tracking-[0.06em] text-muted">
+      <span className="w-full truncate text-center font-body text-[11px] leading-none text-muted">
         {RESOURCE_NAME[res]}
       </span>
       <AnimatePresence>

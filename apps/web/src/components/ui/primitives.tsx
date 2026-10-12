@@ -3,7 +3,7 @@ import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { RESOURCES, type Resource, type ResourceCounts } from '@hexfall/engine';
 import { Icon, RES_COLOR, ResourceGlyph } from '../../art/icons/Icon';
 import { RESOURCE_NAME } from '../../lexicon';
-import { useStore } from '../../state/store';
+import { prefersReducedMotion, useStore } from '../../state/store';
 
 /** Engraved runic resource card. */
 export const ResourceCard = memo(function ResourceCard({
@@ -167,6 +167,7 @@ export function Modal({
   icon?: Parameters<typeof Icon>[0]['name'];
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const reduce = useStore((s) => prefersReducedMotion(s.settings));
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const first = ref.current?.querySelector<HTMLElement>(
@@ -203,10 +204,10 @@ export function Modal({
   return (
     <motion.div
       className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-[2px]"
-      initial={{ opacity: 0 }}
+      initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
+      exit={reduce ? undefined : { opacity: 0 }}
+      transition={{ duration: reduce ? 0 : 0.18 }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && dismissable) onClose?.();
       }}
@@ -217,9 +218,9 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={`panel rivets panel-raised max-h-[90vh] w-full overflow-hidden ${wide ? 'max-w-3xl' : 'max-w-lg'}`}
-        initial={{ y: 16, scale: 0.98 }}
+        initial={reduce ? false : { y: 16, scale: 0.98 }}
         animate={{ y: 0, scale: 1 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+        transition={{ duration: reduce ? 0 : 0.2, ease: 'easeOut' }}
       >
         <header className="relative flex items-center gap-3 border-b border-iron/80 px-6 pb-3 pt-5">
           {icon && <Icon name={icon} size={20} className="text-gold" />}

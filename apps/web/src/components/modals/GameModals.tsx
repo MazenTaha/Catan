@@ -14,7 +14,7 @@ import {
 import { Icon, RES_COLOR, ResourceGlyph } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
 import { OMEN_NAME, OMEN_TEXT, RESOURCE_NAME } from '../../lexicon';
-import { useStore } from '../../state/store';
+import { prefersReducedMotion, useStore } from '../../state/store';
 import { DieFace } from '../hud/Dice';
 import { NAME_COLOR } from '../panels/LogLineView';
 import { CountsInline, Modal, ResourceCard, Stepper } from '../ui/primitives';
@@ -277,6 +277,7 @@ export function TitheModal({ seat }: { seat: number }) {
 
 export function PassDeviceCurtain({ state }: { state: GameState }) {
   const dispatch = useStore((s) => s.dispatch);
+  const reduce = useStore((s) => prefersReducedMotion(s.settings));
   if (state.handoff === null) return null;
   const to = state.players[state.handoff];
   const ph = state.phase;
@@ -289,7 +290,7 @@ export function PassDeviceCurtain({ state }: { state: GameState }) {
     <motion.div
       className="fixed inset-0 z-[70] grid place-items-center p-4"
       style={{ background: 'radial-gradient(ellipse at 50% 40%, #1a1510 0%, #050506 70%)' }}
-      initial={{ opacity: 0 }}
+      initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       role="dialog"
       aria-modal="true"

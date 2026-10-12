@@ -4,6 +4,7 @@ import {
   activeActor,
   applyAction,
   createGame,
+  decideAction,
   emptyCounts,
   isUndoable,
   privacyEnabled,
@@ -531,5 +532,7 @@ export function displaySeat(state: GameState): number {
 
 // Debug/test handle (dev and e2e only).
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __hexfall: typeof useStore }).__hexfall = useStore;
+  const w = window as unknown as { __hexfall: typeof useStore; __hexfallAI: typeof decideAction };
+  w.__hexfall = useStore;
+  w.__hexfallAI = decideAction;
 }

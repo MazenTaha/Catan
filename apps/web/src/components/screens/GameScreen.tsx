@@ -152,7 +152,8 @@ export function GameScreen() {
         {modal === 'log' && <LogModal key="log" state={state} seat={seat} />}
         {modal === 'confirm-new' && <ConfirmNewModal key="confirm" />}
       </AnimatePresence>
-      <AnimatePresence>{state.handoff !== null && <PassDeviceCurtain state={state} />}</AnimatePresence>
+      {/* Keyed per hand-off and outside AnimatePresence: a curtain must never be lost to an exit animation. */}
+      {state.handoff !== null && <PassDeviceCurtain key={`${state.handoff}:${state.actionCount}`} state={state} />}
       {ph.kind === 'ended' && (
         <Suspense fallback={null}>
           <VictoryScreen state={state} />

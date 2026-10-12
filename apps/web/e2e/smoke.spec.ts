@@ -32,7 +32,8 @@ test.afterEach(() => {
 async function handleInterrupts(page: Page): Promise<boolean> {
   const offer = page.getByRole('dialog', { name: 'An offer arrives' });
   if (await offer.isVisible()) {
-    await offer.getByRole('button', { name: /Decline/ }).click();
+    await offer.getByRole('button', { name: /Decline/ }).click({ timeout: 2000 }).catch(() => undefined);
+    await expect(offer).toBeHidden();
     return true;
   }
   const discard = page.getByRole('dialog', { name: /Discard \d+ cards/ });
@@ -42,12 +43,14 @@ async function handleInterrupts(page: Page): Promise<boolean> {
       const more = discard.locator('button[aria-label^="More "]:not([disabled])').first();
       await more.click();
     }
-    await confirm.click();
+    await confirm.click({ timeout: 2000 }).catch(() => undefined);
+    await expect(discard).toBeHidden();
     return true;
   }
   const steal = page.getByRole('dialog', { name: 'Choose whom to rob' });
   if (await steal.isVisible()) {
-    await steal.locator('button').nth(0).click();
+    await steal.locator('button').nth(0).click({ timeout: 2000 }).catch(() => undefined);
+    await expect(steal).toBeHidden();
     return true;
   }
   const wraith = page.locator('[aria-label^="Send the Wraith"]').first();

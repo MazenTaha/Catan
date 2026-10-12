@@ -24,7 +24,18 @@ export function Embers({ count = 40, disabled = false }: { count?: number; disab
     if (!ctx) return;
     let w = 0;
     let h = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Soft glows don't need retina resolution.
+    const dpr = 1;
+    // One pre-rendered ember sprite, stamped with varying alpha/size (no per-frame gradients).
+    const sprite = document.createElement('canvas');
+    sprite.width = sprite.height = 32;
+    const sctx = sprite.getContext('2d')!;
+    const sg = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    sg.addColorStop(0, 'rgba(255,190,110,1)');
+    sg.addColorStop(0.4, 'rgba(224,112,42,0.5)');
+    sg.addColorStop(1, 'rgba(224,112,42,0)');
+    sctx.fillStyle = sg;
+    sctx.fillRect(0, 0, 32, 32);
     const resize = () => {
       w = canvas.clientWidth;
       h = canvas.clientHeight;
@@ -51,6 +62,9 @@ export function Embers({ count = 40, disabled = false }: { count?: number; disab
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      // ~30 fps is plenty for slow drifting embers.
+      if (now - last < 32) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       ctx.clearRect(0, 0, w, h);
@@ -65,17 +79,11 @@ export function Embers({ count = 40, disabled = false }: { count?: number; disab
           continue;
         }
         const t = e.life / e.max;
-        const alpha = Math.sin(Math.PI * t) * 0.85;
-        const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 4);
-        g.addColorStop(0, `rgba(255,190,110,${alpha})`);
-        g.addColorStop(0.4, `rgba(224,112,42,${alpha * 0.5})`);
-        g.addColorStop(1, 'rgba(224,112,42,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r * 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = Math.sin(Math.PI * t) * 0.85;
+        const size = e.r * 8;
+        ctx.drawImage(sprite, e.x - size / 2, e.y - size / 2, size, size);
       }
-      raf = requestAnimationFrame(tick);
+      ctx.globalAlpha = 1;
     };
     const onVis = () => {
       cancelAnimationFrame(raf);

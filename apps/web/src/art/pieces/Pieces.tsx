@@ -148,8 +148,7 @@ export const WraithPawn = memo(function WraithPawn() {
         stroke="#9fd2ff"
         strokeWidth={5}
         fill="none"
-        opacity={0.35}
-        filter="url(#f-blur2)"
+        opacity={0.25}
       />
       <g className="anim-bob">
         <path
@@ -221,7 +220,7 @@ export const HarborBadge = memo(function HarborBadge({ kind }: { kind: HarborKin
       )}
       {/* lantern */}
       <g transform="translate(19 -16)">
-        <circle r={6} fill="url(#g-torch)" className="anim-pulse" />
+        <circle r={6} fill="url(#g-torch)" />
         <rect x={-1.8} y={-2.4} width={3.6} height={4.8} rx={0.8} fill="#ffcf6b" stroke="#2a2016" strokeWidth={0.8} />
       </g>
     </g>

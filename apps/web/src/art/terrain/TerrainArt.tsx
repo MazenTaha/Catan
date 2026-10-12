@@ -112,7 +112,7 @@ function AshenHills({ seed }: { seed: string }) {
       {vents.map((v, i) => (
         <g key={i}>
           <circle cx={r1(v.x)} cy={r1(v.y)} r={13} fill="url(#g-ember)" opacity={0.8} />
-          <ellipse cx={r1(v.x)} cy={r1(v.y)} rx={4.5} ry={2.4} fill="#ffb26b" className="anim-pulse" />
+          <ellipse cx={r1(v.x)} cy={r1(v.y)} rx={4.5} ry={2.4} fill="#ffb26b" />
           <path
             d={`M${r1(v.x)} ${r1(v.y - 3)}q-5 -10 2 -18t-2 -18`}
             stroke="#a89c92"
@@ -154,7 +154,7 @@ function GloomMoors({ seed }: { seed: string }) {
       ))}
       <ellipse cx={0} cy={r1(J.j(25))} rx={120} ry={20} fill="#cfdccd" opacity={0.16} filter="url(#f-blur6)" />
       {wisps.map((w, i) => (
-        <g key={i} className="anim-pulse" style={{ animationDelay: `${w.d}s` }}>
+        <g key={i} style={{ animationDelay: `${w.d}s` }}>
           <circle cx={r1(w.x)} cy={r1(w.y)} r={9} fill="url(#g-wisp)" />
           <circle cx={r1(w.x)} cy={r1(w.y)} r={1.8} fill="#e6fff3" />
         </g>
@@ -261,8 +261,7 @@ function ObsidianPeaks({ seed }: { seed: string }) {
             fill="#d4c6ff"
             stroke="#c7b5ff"
             strokeWidth={0.6}
-            className={i % 2 ? 'anim-pulse' : undefined}
-            style={{ animationDelay: `${i * 0.4}s` }}
+           
           />
         );
       })}

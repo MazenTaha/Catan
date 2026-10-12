@@ -41,6 +41,9 @@ const SEA_MASK = {
   WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
 };
 
+/** Promote each board layer so the browser caches it independently. */
+const LAYER = { willChange: 'transform' } as const;
+
 type Targets =
   | { kind: 'vertex'; spots: VertexId[]; piece: 'outpost' | 'citadel'; make: (v: VertexId) => Action }
   | { kind: 'edge'; spots: EdgeId[]; make: (e: EdgeId) => Action }
@@ -111,6 +114,12 @@ const Sea = memo(function Sea() {
             />
           );
         })}
+      </g>
+      {/* slow fog drifting over the sea edges */}
+      <g className="anim-drift" opacity={0.5}>
+        <ellipse cx={-380} cy={-430} rx={260} ry={50} fill="#9fb3b6" opacity={0.12} filter="url(#f-blur14)" />
+        <ellipse cx={360} cy={460} rx={300} ry={60} fill="#9fb3b6" opacity={0.12} filter="url(#f-blur14)" />
+        <ellipse cx={480} cy={-120} rx={90} ry={200} fill="#9fb3b6" opacity={0.08} filter="url(#f-blur14)" />
       </g>
     </g>
   );
@@ -192,7 +201,7 @@ const Harbors = memo(function Harbors({ board }: { board: BoardT }) {
   );
 }, sameBoard);
 
-const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: BoardT; glowRoll: number | null; colorblind: boolean }) {
+const Tokens = memo(function Tokens({ board, colorblind }: { board: BoardT; colorblind: boolean }) {
   return (
     <g pointerEvents="none">
       {board.hexes.map((h) => {
@@ -202,7 +211,7 @@ const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: Bo
           <g key={h.id} transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}>
             {h.token !== null && (
               <g transform="translate(0 6)">
-                <NumberToken n={h.token} glow={glowRoll === h.token} />
+                <NumberToken n={h.token} />
               </g>
             )}
             {colorblind && res && (
@@ -216,7 +225,7 @@ const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: Bo
       })}
     </g>
   );
-}, (a, b) => sameBoard(a, b) && a.glowRoll === b.glowRoll && a.colorblind === b.colorblind);
+}, (a, b) => sameBoard(a, b) && a.colorblind === b.colorblind);
 
 // ------------------------------------------------------------------ board
 
@@ -278,18 +287,26 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
 
   return (
     <div className="relative mx-auto w-full" style={{ aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` }}>
+      {/* Three stacked layers: the animated sea, the static isle (painted once and cached),
+          and a light dynamic layer. Keeping animation out of the filtered isle keeps frames cheap. */}
+      <div className="pointer-events-none absolute inset-0" style={decorative ? undefined : SEA_MASK}>
+        <svg viewBox={VIEWBOX_STR} className="absolute inset-0 h-full w-full" style={LAYER} aria-hidden>
+          <BoardDefs />
+          <Sea />
+        </svg>
+        <svg viewBox={VIEWBOX_STR} className="absolute inset-0 h-full w-full" style={LAYER} aria-hidden>
+          <Island board={state.board} />
+          <Harbors board={state.board} />
+          <Tokens board={state.board} colorblind={colorblind} />
+        </svg>
+      </div>
       <svg
         viewBox={VIEWBOX_STR}
         className="absolute inset-0 h-full w-full select-none"
-        style={decorative ? undefined : SEA_MASK}
         role="group"
         aria-label="The Isle"
         onMouseLeave={() => setHoverHex(null)}
       >
-        <BoardDefs />
-        <Sea />
-        <Island board={state.board} />
-        <Harbors board={state.board} />
 
         {/* hex hover / wraith targets */}
         {!decorative &&
@@ -343,10 +360,22 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
             );
           })}
 
-        <Tokens board={state.board} glowRoll={production ? production.roll : null} colorblind={colorblind} />
+        {/* the rolled number's tokens glow */}
+        {production &&
+          state.board.hexes
+            .filter((h) => h.token === production.roll)
+            .map((h) => {
+              const c = hexCenter(h.id);
+              return (
+                <g key={`g${production.seq}-${h.id}`} transform={`translate(${c.x.toFixed(1)} ${(c.y + 6).toFixed(1)})`} className="pointer-events-none">
+                  <circle r={30} fill="none" stroke="#ffd77a" strokeOpacity={0.35} strokeWidth={6} className="anim-pulse" />
+                  <circle r={24.5} fill="none" stroke="#f3cf73" strokeWidth={2.5} />
+                </g>
+              );
+            })}
 
         {/* torchlight pooled around buildings */}
-        <g className="pointer-events-none" style={{ mixBlendMode: 'screen' }}>
+        <g className="pointer-events-none">
           {Object.keys(state.buildings).map((v) => {
             const p = vertexXY(v);
             return <circle key={v} cx={p.x} cy={p.y} r={state.buildings[v].kind === 'citadel' ? 90 : 70} fill="url(#g-torchlight)" />;
@@ -514,12 +543,6 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
         {/* floating gain chips over owners' pieces */}
         {production && <GainChips key={production.seq} state={state} hexes={production.hexes} />}
 
-        {/* slow fog over the sea edges */}
-        <g className="pointer-events-none anim-drift" opacity={0.5}>
-          <ellipse cx={-380} cy={-430} rx={260} ry={50} fill="#9fb3b6" opacity={0.12} filter="url(#f-blur14)" />
-          <ellipse cx={360} cy={460} rx={300} ry={60} fill="#9fb3b6" opacity={0.12} filter="url(#f-blur14)" />
-          <ellipse cx={480} cy={-120} rx={90} ry={200} fill="#9fb3b6" opacity={0.08} filter="url(#f-blur14)" />
-        </g>
       </svg>
       {!decorative && hoverHex !== null && !targets && <HexTooltip state={state} hex={hoverHex} />}
     </div>

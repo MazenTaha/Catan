@@ -184,7 +184,7 @@ const Harbors = memo(function Harbors({ board }: { board: BoardT }) {
 
 const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: BoardT; glowRoll: number | null; colorblind: boolean }) {
   return (
-    <g>
+    <g pointerEvents="none">
       {board.hexes.map((h) => {
         const c = hexCenter(h.id);
         const res = TERRAIN_RESOURCE[h.terrain];
@@ -444,21 +444,24 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
                 onClick={() => fire(a)}
                 onKeyDown={keyFire(a)}
               >
+                <g pointerEvents="none">
+                  {hovered ? (
+                    <g transform="scale(1.3)">
+                      {targets.piece === 'outpost' ? (
+                        <OutpostPiece color={me.color} sigil={me.sigil} ghost />
+                      ) : (
+                        <CitadelPiece color={me.color} sigil={me.sigil} ghost />
+                      )}
+                    </g>
+                  ) : (
+                    <g className="anim-pulse">
+                      <circle r={12} fill="url(#g-ember)" />
+                      <circle r={5} fill="#ffcf8a" stroke="#e0702a" strokeWidth={1.5} />
+                    </g>
+                  )}
+                </g>
+                {/* persistent hit target on top so re-renders never swallow the click */}
                 <circle r={22} fill="transparent" />
-                {hovered ? (
-                  <g transform="scale(1.3)">
-                    {targets.piece === 'outpost' ? (
-                      <OutpostPiece color={me.color} sigil={me.sigil} ghost />
-                    ) : (
-                      <CitadelPiece color={me.color} sigil={me.sigil} ghost />
-                    )}
-                  </g>
-                ) : (
-                  <g className="anim-pulse">
-                    <circle r={12} fill="url(#g-ember)" />
-                    <circle r={5} fill="#ffcf8a" stroke="#e0702a" strokeWidth={1.5} />
-                  </g>
-                )}
               </g>
             );
           })}
@@ -482,15 +485,17 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
                 onClick={() => fire(a)}
                 onKeyDown={keyFire(a)}
               >
+                <g pointerEvents="none">
+                  {hovered ? (
+                    <CausewayPiece color={me.color} ghost />
+                  ) : (
+                    <g className="anim-pulse">
+                      <rect x={-24} y={-3.5} width={48} height={7} rx={3.5} fill="#ffcf8a" opacity={0.85} />
+                      <rect x={-27} y={-7} width={54} height={14} rx={7} fill="url(#g-ember)" opacity={0.8} />
+                    </g>
+                  )}
+                </g>
                 <rect x={-30} y={-13} width={60} height={26} fill="transparent" />
-                {hovered ? (
-                  <CausewayPiece color={me.color} ghost />
-                ) : (
-                  <g className="anim-pulse">
-                    <rect x={-24} y={-3.5} width={48} height={7} rx={3.5} fill="#ffcf8a" opacity={0.85} />
-                    <rect x={-27} y={-7} width={54} height={14} rx={7} fill="url(#g-ember)" opacity={0.8} />
-                  </g>
-                )}
               </g>
             );
           })}

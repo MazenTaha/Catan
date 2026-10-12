@@ -59,7 +59,7 @@ hexfall/
 - [x] **M3** Engine advanced: trading, Omen deck, Longest Causeway, Greatest Host, undo/replay, fuzz tests
 - [x] **M4** Web shell: 3-column layout, token system, store wiring, title + new-game screens
 - [x] **M5** Board rendering: SVG terrain art, tokens, harbors, pieces, Wraith, placement modes, tooltips
-- [ ] **M6** Full interaction: dice, production fx, modals, tabs, trade, omens, curtain, log, rulebook
+- [x] **M6** Full interaction: dice, production fx, modals, tabs, trade, omens, curtain, log, rulebook
 - [ ] **M7** Art & atmosphere: fog, embers, lighting, motion, audio manifest + synth, victory sequence
 - [ ] **M8** Bots, simulation test, settings, autosave/continue, export/import, a11y, responsive
 - [ ] **M9** Hardening: perf, bundle size, scripted full games, README, CREDITS, verification

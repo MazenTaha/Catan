@@ -6,6 +6,7 @@ import { CreditsModal, ImportModal, SettingsModal } from './components/modals/In
 import { GameScreen } from './components/screens/GameScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
 import { TitleScreen } from './components/screens/TitleScreen';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { prefersReducedMotion, useStore } from './state/store';
 
 const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
@@ -44,9 +45,11 @@ export function App() {
       <div className="vignette" aria-hidden />
       <Embers disabled={reduce} count={screen === 'game' ? 28 : 40} />
       <div className="relative z-10 min-h-screen">
-        {screen === 'title' && <TitleScreen />}
-        {screen === 'setup' && <NewGameScreen />}
-        {screen === 'game' && <GameScreen />}
+        <ErrorBoundary onReset={() => useStore.getState().go('title')}>
+          {screen === 'title' && <TitleScreen />}
+          {screen === 'setup' && <NewGameScreen />}
+          {screen === 'game' && <GameScreen />}
+        </ErrorBoundary>
       </div>
       <AnimatePresence>
         {modal === 'settings' && <SettingsModal key="settings" />}

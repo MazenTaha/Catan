@@ -4,7 +4,6 @@ import {
   RESOURCES,
   TERRAIN_RESOURCE,
   activeActor,
-  pips,
   type GameState,
   type Terrain,
 } from '@hexfall/engine';
@@ -104,7 +103,7 @@ export function instruction(state: GameState, seat: number): string {
         ? `${state.players[ph.offer.proposer].name} offers you a trade`
         : `Waiting for ${a.name} to answer the offer`;
     case 'main':
-      return 'Build & trade in any order, then end your turn (Space)';
+      return 'Build & trade, then end your turn (Space)';
     case 'ended':
       return `${state.players[ph.winner].name} claims the Isle`;
   }
@@ -282,7 +281,7 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
       <div className="panel-title mb-2">Odds vs. this game's rolls ({total})</div>
       <div className="flex h-28 items-end gap-1.5">
         {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => {
-          const p = pips(n === 7 ? 0 : n) || (n === 7 ? 6 : 0);
+          const p = 6 - Math.abs(7 - n);
           const expected = p / 36 / maxExpected;
           const seen = total ? rolls[n] / maxSeen : 0;
           return (

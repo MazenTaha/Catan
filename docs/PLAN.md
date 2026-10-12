@@ -62,4 +62,4 @@ hexfall/
 - [x] **M6** Full interaction: dice, production fx, modals, tabs, trade, omens, curtain, log, rulebook
 - [x] **M7** Art & atmosphere: fog, embers, lighting, motion, audio manifest + synth, victory sequence
 - [x] **M8** Bots, simulation test, settings, autosave/continue, export/import, a11y, responsive
-- [ ] **M9** Hardening: perf, bundle size, scripted full games, README, CREDITS, verification
+- [x] **M9** Hardening: perf, bundle size, scripted full games, README, CREDITS, verification

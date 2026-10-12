@@ -1,7 +1,5 @@
 import { test } from '@playwright/test';
 
-declare const process: { env: Record<string, string | undefined> };
-
 /** Opt-in: `PERF=1 pnpm e2e perf` logs main-thread cost while the game screen idles. */
 test.skip(!process.env.PERF, 'set PERF=1 to profile');
 

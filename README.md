@@ -26,8 +26,12 @@ Then open http://localhost:5173.
 | `pnpm coverage` | Engine test coverage (≈98% statements) |
 | `pnpm lint` | ESLint (zero warnings allowed) |
 | `pnpm typecheck` | `tsc --noEmit` for every package |
-| `pnpm e2e` | Playwright smoke tests (starts its own dev server on port 4319) |
+| `pnpm e2e` | Playwright end-to-end tests (starts its own dev server on port 4319): setup → roll → build → bank trade → reload & continue, hot-seat curtains, export/import replay, phone/tablet layouts, and two complete games to the victory screen with a console-error guard |
 | `pnpm verify` | typecheck → lint → test → build |
+
+Opt-in diagnostics: `SHOTS=1 pnpm e2e shots` saves desktop/tablet/phone screenshots to `apps/web/test-results/shots`; `PERF=1 pnpm e2e perf` logs idle frame rate and main-thread cost (`PERF_GPU=1` to use the GPU).
+
+Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright install chromium` once if its browser is not installed yet.
 
 ## How to play
 

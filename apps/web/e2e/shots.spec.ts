@@ -1,7 +1,5 @@
 import { test } from '@playwright/test';
 
-declare const process: { env: Record<string, string | undefined> };
-
 /** Opt-in visual capture: `SHOTS=1 pnpm e2e shots` writes PNGs to test-results/shots. */
 test.skip(!process.env.SHOTS, 'set SHOTS=1 to capture screenshots');
 

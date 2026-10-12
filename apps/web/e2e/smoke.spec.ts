@@ -168,3 +168,45 @@ test('rulebook and settings open from the title screen', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
 });
+
+test('export a game record from the log and replay it via Load record', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('new-game').click();
+  await page.getByRole('button', { name: '3 players' }).click();
+  await page.getByTestId('seed').fill('record-isle-5');
+  await page.getByRole('button', { name: 'Seat 1' }).click();
+  await page.getByTestId('begin').click();
+  for (let i = 0; i < 2; i++) {
+    await page.locator('[aria-label^="Place an Outpost"]').first().click({ force: true });
+    await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+  }
+  await waitForMyRoll(page);
+  await page.getByTestId('roll').click();
+  for (let i = 0; i < 20 && !(await page.getByTestId('end-turn').isEnabled()); i++) {
+    if (!(await handleInterrupts(page))) await page.waitForTimeout(50);
+  }
+  await page.getByTestId('end-turn').click();
+  await waitForMyRoll(page);
+
+  const labels = () =>
+    page.locator('[data-testid=hand] [role=img]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  const before = await labels();
+  const round = await page.getByLabel(/^Round \d+$/).getAttribute('aria-label');
+
+  await page.getByRole('button', { name: 'Full log' }).first().click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Export JSON/ }).click()]);
+  const fs = await import('node:fs/promises');
+  const json = await fs.readFile((await download.path())!, 'utf8');
+  expect(JSON.parse(json)).toMatchObject({ format: 'hexfall-record', version: 1, config: { seed: 'record-isle-5' } });
+  await page.keyboard.press('Escape');
+
+  // Start something else, then load the record: the exact position returns.
+  await page.getByRole('button', { name: 'New isle' }).click();
+  await page.getByRole('button', { name: 'Main menu' }).click();
+  await page.getByRole('button', { name: 'Load record' }).click();
+  await page.getByLabel('Game record JSON').fill(json);
+  await page.getByRole('button', { name: 'Replay record' }).click();
+  await expect(page.getByTestId('roll')).toBeVisible();
+  expect(await labels()).toEqual(before);
+  await expect(page.getByLabel(/^Round \d+$/)).toHaveAttribute('aria-label', round!);
+});

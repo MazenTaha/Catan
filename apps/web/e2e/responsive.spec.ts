@@ -22,7 +22,7 @@ for (const vp of [
     await expect(page.getByTestId('hand')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    const board = await page.locator('[data-board] svg').boundingBox();
+    const board = await page.getByRole('group', { name: 'The Isle' }).boundingBox();
     expect(board!.width).toBeLessThanOrEqual(vp.width);
     if (vp.width < 900) {
       await expect(page.getByRole('button', { name: /Hide hand/ })).toBeVisible();

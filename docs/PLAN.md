@@ -55,7 +55,7 @@ hexfall/
 
 - [x] **M0** Repo scaffold, tooling, tokens, fonts, CI scripts, PLAN.md
 - [x] **M1** Engine board: coordinates, vertices/edges, generator + validator, harbors, seeded RNG, tests
-- [ ] **M2** Engine rules: setup, turn flow, production, building, bank, 7/Wraith/discard/steal, scoring, win. Tests
+- [x] **M2** Engine rules: setup, turn flow, production, building, bank, 7/Wraith/discard/steal, scoring, win. Tests
 - [ ] **M3** Engine advanced: trading, Omen deck, Longest Causeway, Greatest Host, undo/replay, fuzz tests
 - [ ] **M4** Web shell: 3-column layout, token system, store wiring, title + new-game screens
 - [ ] **M5** Board rendering: SVG terrain art, tokens, harbors, pieces, Wraith, placement modes, tooltips

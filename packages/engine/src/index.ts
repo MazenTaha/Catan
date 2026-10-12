@@ -1,3 +1,10 @@
 export * from './rng';
 export * from './lexicon-keys';
 export * from './board';
+export * from './state/types';
+export * from './state/setup';
+export * from './state/selectors';
+export { applyAction, applyOrThrow, isLegal, cloneState } from './rules/reducer';
+export { longestCausewayLength } from './rules/longest-road';
+export { legalActions, chooseDiscard } from './rules/legal';
+export * from './replay';

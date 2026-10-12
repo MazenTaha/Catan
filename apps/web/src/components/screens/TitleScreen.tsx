@@ -78,7 +78,7 @@ export function TitleScreen() {
         >
           Hexfall
         </motion.h1>
-        <motion.p className="mt-3 font-display text-[13px] uppercase tracking-[0.5em] text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
+        <motion.p className="mt-3 font-display text-[14px] uppercase tracking-[0.5em] text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
           Trade · Build · Endure
         </motion.p>
         <div className="divider-ornament my-8 w-72 text-[10px]">✦</div>
@@ -91,7 +91,7 @@ export function TitleScreen() {
           {item('Credits', 'scroll', () => openModal('credits'))}
         </motion.nav>
         {save && (
-          <p className="mt-4 text-[13px] text-muted">
+          <p className="mt-4 text-[14px] text-muted">
             Saved isle “{save.config.seed}” · round {save.state.round || 'founding'}
           </p>
         )}

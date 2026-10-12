@@ -60,7 +60,7 @@ export function LogModal({ state, seat }: { state: GameState; seat: number }) {
       <div className="flex flex-col gap-1.5">
         {lines.map(({ item, line }) => (
           <div key={item.seq} className="flex gap-3 border-b border-iron/30 pb-1">
-            <span className="num w-10 shrink-0 text-[12px] text-muted">{item.round ? `R${item.round}` : '—'}</span>
+            <span className="num w-10 shrink-0 text-[13px] text-muted">{item.round ? `R${item.round}` : '—'}</span>
             <LogLineView line={line} players={state.players} />
           </div>
         ))}
@@ -83,7 +83,7 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
         onChange={(e) => onChange(Number(e.target.value))}
         className="flex-1 accent-[#c9a24b]"
       />
-      <span className="num w-10 text-right text-[13px] text-muted">{Math.round(value * 100)}</span>
+      <span className="num w-10 text-right text-[14px] text-muted">{Math.round(value * 100)}</span>
     </label>
   );
 }
@@ -94,7 +94,7 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-[#c9a24b]" />
       <span>
         <span className="text-[15px]">{label}</span>
-        {hint && <span className="block text-[13px] text-muted">{hint}</span>}
+        {hint && <span className="block text-[14px] text-muted">{hint}</span>}
       </span>
     </label>
   );
@@ -130,6 +130,7 @@ export function SettingsModal() {
       <h3 className="panel-title mb-2 mt-5">Display</h3>
       <Toggle label="Reduce motion" hint="Disables particles and large movement (also follows your system setting)." checked={s.reduceMotion} onChange={set('reduceMotion')} />
       <Toggle label="Colorblind assist" hint="Adds resource glyphs on tiles; pieces always carry sigils." checked={s.colorblind} onChange={set('colorblind')} />
+      <Choice label="Theme" value={s.theme} options={[{ v: 'hexfall', l: 'Ember' }, { v: 'frostbound', l: 'Frostbound' }]} onChange={set('theme')} />
       <Choice label="UI scale" value={s.uiScale} options={[{ v: 0.9, l: '90%' }, { v: 1, l: '100%' }, { v: 1.1, l: '110%' }, { v: 1.25, l: '125%' }]} onChange={set('uiScale')} />
       <h3 className="panel-title mb-2 mt-5">Play</h3>
       <Choice label="Hot-seat" value={s.handPrivacy} options={[{ v: 'curtain', l: 'Pass-device curtain' }, { v: 'off', l: 'Open hands' }]} onChange={set('handPrivacy')} />
@@ -138,7 +139,7 @@ export function SettingsModal() {
       <Toggle label="Rookie tips" checked={s.rookieTips} onChange={(v) => up({ rookieTips: v, dismissedTips: v ? [] : s.dismissedTips })} />
       <Choice label="Bot speed" value={s.botSpeed} options={[{ v: 'slow', l: 'Slow' }, { v: 'normal', l: 'Normal' }, { v: 'fast', l: 'Fast' }, { v: 'instant', l: 'Instant' }]} onChange={set('botSpeed')} />
       <Choice label="Turn timer" value={s.turnTimer} options={[{ v: 0, l: 'Off' }, { v: 30, l: '30s' }, { v: 60, l: '60s' }, { v: 90, l: '90s' }]} onChange={set('turnTimer')} />
-      <p className="mt-3 text-[13px] text-muted">Hot-seat mode applies to new games.</p>
+      <p className="mt-3 text-[14px] text-muted">Hot-seat mode applies to new games.</p>
     </Modal>
   );
 }

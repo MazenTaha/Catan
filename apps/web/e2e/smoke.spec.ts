@@ -7,7 +7,14 @@ const FAST_SETTINGS = {
   reduceMotion: true,
 };
 
+let consoleProblems: string[] = [];
+
 test.beforeEach(async ({ page }) => {
+  consoleProblems = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warning') consoleProblems.push(`${msg.type()}: ${msg.text()}`);
+  });
+  page.on('pageerror', (err) => consoleProblems.push(`pageerror: ${err.message}`));
   await page.addInitScript((s) => {
     if (!sessionStorage.getItem('e2e-init')) {
       localStorage.clear();
@@ -15,6 +22,10 @@ test.beforeEach(async ({ page }) => {
       sessionStorage.setItem('e2e-init', '1');
     }
   }, FAST_SETTINGS);
+});
+
+test.afterEach(() => {
+  expect(consoleProblems, 'no console errors or warnings').toEqual([]);
 });
 
 /** Resolves interruptions caused by bots: trade offers, discards, steals, wraith moves. */

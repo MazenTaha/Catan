@@ -50,7 +50,7 @@ export default function RulebookModal() {
             {ROWS.map((r) => (
               <tr key={r.key} className="border-b border-iron/40">
                 <td className="py-1.5 pr-2">
-                  <span className="inline-flex items-center gap-1.5 font-display text-[13px] uppercase tracking-[0.08em]">
+                  <span className="inline-flex items-center gap-1.5 font-display text-[14px] uppercase tracking-[0.08em]">
                     <Icon name={r.icon} size={16} className="text-gold" /> {PIECE_NAME[r.key]}
                   </span>
                 </td>

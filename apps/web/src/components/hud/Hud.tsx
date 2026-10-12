@@ -290,12 +290,12 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
                 <div className="absolute bottom-0 w-full border border-tarnish/40 bg-tarnish/15" style={{ height: `${expected * 100}%` }} title={`${Math.round((p / 36) * 100)}% expected`} />
                 <div className={`relative w-2/3 ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-[#b8453f]' : 'bg-gold/80'}`} style={{ height: `${seen * 100}%` }} title={`${rolls[n]} rolled`} />
               </div>
-              <span className={`num text-[13px] ${n === 6 || n === 8 ? 'text-[#e0585f]' : 'text-muted'}`}>{n}</span>
+              <span className={`num text-[14px] ${n === 6 || n === 8 ? 'text-[#e0585f]' : 'text-muted'}`}>{n}</span>
             </div>
           );
         })}
       </div>
-      <p className="mt-1 text-[13px] text-muted">Outline: expected odds · Bars: rolled so far</p>
+      <p className="mt-1 text-[14px] text-muted">Outline: expected odds · Bars: rolled so far</p>
     </div>
   );
 }
@@ -305,7 +305,7 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
 export function PieceSupply({ state, seat }: { state: GameState; seat: number }) {
   const p = state.players[seat];
   return (
-    <div className="flex gap-3 text-[13px] text-muted">
+    <div className="flex gap-3 text-[14px] text-muted">
       <span>{p.supply.causeways} {PIECE_NAME.causeway}s</span>
       <span>{p.supply.outposts} {PIECE_NAME.outpost}s</span>
       <span>{p.supply.citadels} {PIECE_NAME.citadel}s</span>

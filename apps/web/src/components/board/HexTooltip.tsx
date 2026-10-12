@@ -19,7 +19,7 @@ export function HexTooltip({ state, hex }: { state: GameState; hex: number }) {
       role="tooltip"
     >
       <div className="panel px-3 py-2 text-[14px]" style={{ ['--chamfer' as string]: '6px' }}>
-        <div className="font-display text-[13px] uppercase tracking-[0.14em] text-gold">{TERRAIN_NAME[h.terrain]}</div>
+        <div className="font-display text-[14px] uppercase tracking-[0.14em] text-gold">{TERRAIN_NAME[h.terrain]}</div>
         {res ? (
           <div className="mt-0.5 flex items-center gap-1.5">
             <span style={{ color: RES_COLOR[res] }}>

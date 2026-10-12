@@ -110,6 +110,10 @@ const Sea = memo(function Sea() {
   );
 });
 
+/** The board is a pure function of (seed, mode); state clones must not re-render it. */
+const sameBoard = (a: { board: BoardT }, b: { board: BoardT }) =>
+  a.board.seed === b.board.seed && a.board.mode === b.board.mode;
+
 const Island = memo(function Island({ board }: { board: BoardT }) {
   return (
     <g>
@@ -150,7 +154,7 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
       })}
     </g>
   );
-});
+}, sameBoard);
 
 const Harbors = memo(function Harbors({ board }: { board: BoardT }) {
   return (
@@ -180,7 +184,7 @@ const Harbors = memo(function Harbors({ board }: { board: BoardT }) {
       })}
     </g>
   );
-});
+}, sameBoard);
 
 const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: BoardT; glowRoll: number | null; colorblind: boolean }) {
   return (
@@ -206,7 +210,7 @@ const Tokens = memo(function Tokens({ board, glowRoll, colorblind }: { board: Bo
       })}
     </g>
   );
-});
+}, (a, b) => sameBoard(a, b) && a.glowRoll === b.glowRoll && a.colorblind === b.colorblind);
 
 // ------------------------------------------------------------------ board
 

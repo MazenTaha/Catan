@@ -211,7 +211,7 @@ export function NewGameScreen() {
               <Icon name="refresh" />
             </button>
           </div>
-          <p className="mt-1 text-[13px] text-muted">Same seed, same isle. Share it to replay.</p>
+          <p className="mt-1 text-[14px] text-muted">Same seed, same isle. Share it to replay.</p>
           <div className="mt-3">{preview && <BoardView state={preview} canAct={false} decorative />}</div>
           {error && <p className="mt-2 text-ember">{error}</p>}
           <button

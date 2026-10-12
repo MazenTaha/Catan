@@ -114,7 +114,7 @@ export function TradeInboxModal({ state, seat }: { state: GameState; seat: numbe
           </div>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-1.5 text-[13px] text-muted">
+      <div className="mt-3 flex items-center gap-1.5 text-[14px] text-muted">
         Your hand: <CountsInline counts={me.hand} size={14} />
       </div>
       {!counter ? (
@@ -128,7 +128,7 @@ export function TradeInboxModal({ state, seat }: { state: GameState; seat: numbe
           <button className="btn btn-danger" onClick={() => dispatch({ type: 'RespondTrade', player: seat, response: 'decline' })}>
             <Icon name="close" size={16} /> Decline
           </button>
-          {!canAccept && <p className="w-full text-[13px] text-ember">You lack the cards they ask for.</p>}
+          {!canAccept && <p className="w-full text-[14px] text-ember">You lack the cards they ask for.</p>}
         </div>
       ) : (
         <CounterComposer
@@ -170,8 +170,8 @@ function CounterComposer({
     <div className="mt-4">
       <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-1 text-[14px]">
         <span />
-        <span className="text-center text-[12px] text-muted">You give</span>
-        <span className="text-center text-[12px] text-muted">You want</span>
+        <span className="text-center text-[13px] text-muted">You give</span>
+        <span className="text-center text-[13px] text-muted">You want</span>
         {RESOURCES.map((r) => (
           <div key={r} className="contents">
             <span className="inline-flex items-center gap-1.5">

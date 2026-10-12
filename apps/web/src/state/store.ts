@@ -235,6 +235,8 @@ function applyDocumentSettings(s: Settings) {
     s.reduceMotion || (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   root.classList.toggle('reduce-motion', reduce);
   root.classList.toggle('colorblind', s.colorblind);
+  if (s.theme === 'frostbound') root.setAttribute('data-theme', 'frostbound');
+  else root.removeAttribute('data-theme');
 }
 
 export function prefersReducedMotion(s: Settings): boolean {

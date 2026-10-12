@@ -14,7 +14,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "e2e": "pnpm --filter @hexfall/web e2e",
     "format": "prettier --write .",
-    "ci": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

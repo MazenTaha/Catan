@@ -21,9 +21,10 @@ import {
 } from '@hexfall/engine';
 import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
-import { OMEN_NAME, OMEN_TEXT, PIECE_NAME, RESOURCE_NAME } from '../../lexicon';
+import { OmenCardFront } from '../../art/cards/OmenCard';
+import { OMEN_FLAVOR, OMEN_NAME, OMEN_TEXT, PIECE_NAME, RESOURCE_NAME } from '../../lexicon';
 import { useStore, type PlaceMode, type Tab } from '../../state/store';
-import { CostPips, RookieTip, ResourceCard, Stepper } from '../ui/primitives';
+import { CostPips, Modal, RookieTip, ResourceCard, Stepper } from '../ui/primitives';
 import { NAME_COLOR } from './LogLineView';
 
 export function canSeatAct(state: GameState, seat: number): boolean {
@@ -151,13 +152,13 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
           >
             <div className="flex items-center gap-1.5">
               <Icon name={item.icon} size={18} className={enabled ? 'text-gold' : 'text-muted'} />
-              <span className="font-display text-[13px] uppercase tracking-[0.08em]">{PIECE_NAME[item.key]}</span>
-              <span className="num ml-auto text-[12px] text-muted" title={item.key === 'omen' ? 'Cards left in the Omen deck' : 'Left in your supply'}>
+              <span className="font-display text-[14px] uppercase tracking-[0.08em]">{PIECE_NAME[item.key]}</span>
+              <span className="num ml-auto text-[13px] text-muted" title={item.key === 'omen' ? 'Cards left in the Omen deck' : 'Left in your supply'}>
                 {supply} left
               </span>
             </div>
             <CostPips cost={cost} hand={p.hand} />
-            <div className="text-[12px] text-muted">{item.blurb}</div>
+            <div className="text-[13px] text-muted">{item.blurb}</div>
             <button
               className={`btn mt-auto !py-1.5 text-[11px] ${enabled ? 'btn-primary' : ''}`}
               onClick={onClick}
@@ -181,6 +182,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
   const dispatch = useStore((s) => s.dispatch);
   const openModal = useStore((s) => s.openModal);
   const p = state.players[seat];
+  const [details, setDetails] = useState<OmenType | null>(null);
   const groups = useMemo(() => {
     const m = new Map<OmenType, { total: number; fresh: number }>();
     for (const o of p.omens) {
@@ -203,7 +205,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
       <div className="py-6 text-center text-muted">
         <Icon name="omen" size={28} className="mx-auto mb-2 text-iron" />
         No Omens yet. Buy one from the Build tab.
-        <div className="mt-2 text-[13px]">
+        <div className="mt-2 text-[14px]">
           Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
         </div>
       </div>
@@ -227,25 +229,36 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
             key={type}
             className={`flex items-start gap-3 border px-3 py-2 ${relic ? 'border-tarnish bg-[#1f1b12]' : 'border-iron/70 bg-surface-2/70'}`}
           >
-            <OmenCardBack type={type} />
+            <button onClick={() => setDetails(type)} aria-label={`${OMEN_NAME[type]} details`} className="shrink-0 transition-transform hover:-translate-y-0.5">
+              <OmenCardFront type={type} width={46} />
+            </button>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-display text-[13px] uppercase tracking-[0.08em] text-bone">{OMEN_NAME[type]}</span>
-                <span className="num text-[13px] text-muted">×{g.total}</span>
+                <span className="font-display text-[14px] uppercase tracking-[0.08em] text-bone">{OMEN_NAME[type]}</span>
+                <span className="num text-[14px] text-muted">×{g.total}</span>
                 {g.fresh > 0 && !relic && <span className="chip border-frost !py-0 text-[10px] text-frost">New · locked</span>}
               </div>
-              <p className="text-[13px] leading-snug text-muted">{OMEN_TEXT[type]}</p>
+              <p className="text-[14px] leading-snug text-muted">{OMEN_TEXT[type]}</p>
               {!relic && (
                 <button className={`btn mt-1.5 !py-1 text-[11px] ${enabled ? 'btn-primary' : ''}`} disabled={!enabled} onClick={() => play(type)}>
                   {status}
                 </button>
               )}
-              {relic && <div className="mt-1 text-[12px] text-tarnish">{status}</div>}
+              {relic && <div className="mt-1 text-[14px] text-gold">{status}</div>}
             </div>
           </div>
         );
       })}
-      <div className="text-[13px] text-muted">
+      {details && (
+        <Modal title={OMEN_NAME[details]} icon="omen" onClose={() => setDetails(null)}>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <OmenCardFront type={details} width={150} />
+            <p className="text-[16px]">{OMEN_TEXT[details]}</p>
+            <p className="italic text-muted">“{OMEN_FLAVOR[details]}”</p>
+          </div>
+        </Modal>
+      )}
+      <div className="text-[14px] text-muted">
         Relics: {relicCount(p)} · Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
       </div>
     </div>
@@ -281,9 +294,9 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <h3 className="font-display text-[12px] uppercase tracking-[0.14em] text-gold">Bank &amp; harbors</h3>
-        <span className="text-[12px] text-muted">best rate shown</span>
+        <span className="text-[13px] text-muted">best rate shown</span>
       </div>
-      <div className="text-[13px] text-muted">Give</div>
+      <div className="text-[14px] text-muted">Give</div>
       <div className="grid grid-cols-5 gap-1">
         {RESOURCES.map((r) => {
           const can = p.hand[r] >= rates[r];
@@ -309,7 +322,7 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
           );
         })}
       </div>
-      <div className="text-[13px] text-muted">Receive</div>
+      <div className="text-[14px] text-muted">Receive</div>
       <div className="grid grid-cols-5 gap-1">
         {RESOURCES.map((r) => (
           <button
@@ -367,9 +380,9 @@ function PlayerTrade({ state, seat, enabled }: { state: GameState; seat: number;
     <div className="flex flex-col gap-2">
       <h3 className="font-display text-[12px] uppercase tracking-[0.14em] text-gold">Offer to players</h3>
       <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1 text-[14px]">
-        <span className="text-[12px] text-muted" />
-        <span className="text-center text-[12px] text-muted">Give</span>
-        <span className="text-center text-[12px] text-muted">Want</span>
+        <span className="text-[13px] text-muted" />
+        <span className="text-center text-[13px] text-muted">Give</span>
+        <span className="text-center text-[13px] text-muted">Want</span>
         {RESOURCES.map((r) => (
           <div key={r} className="contents">
             <span className="inline-flex items-center gap-1.5">
@@ -439,7 +452,7 @@ function TradeTab({ state, seat, active }: { state: GameState; seat: number; act
   }
   return (
     <div className="flex flex-col gap-4">
-      {!enabled && <p className="text-[13px] text-muted">{active ? (state.phase.kind === 'roll' ? 'Roll first to trade.' : 'Trading is not possible right now.') : 'Only the active player may trade.'}</p>}
+      {!enabled && <p className="text-[14px] text-muted">{active ? (state.phase.kind === 'roll' ? 'Roll first to trade.' : 'Trading is not possible right now.') : 'Only the active player may trade.'}</p>}
       <BankTrade state={state} seat={seat} enabled={enabled} />
       <div className="divider-ornament text-[10px]">✦</div>
       <PlayerTrade state={state} seat={seat} enabled={enabled} />
@@ -495,7 +508,7 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
       >
         <Icon name="hourglass" size={18} /> End turn
       </button>
-      <p className="mt-1.5 text-center text-[13px] text-muted">
+      <p className="mt-1.5 text-center text-[14px] text-muted">
         Next up: <b style={{ color: NAME_COLOR[next.color] }}>{next.name}</b>
       </p>
     </section>

@@ -19,6 +19,7 @@ export interface Settings {
   turnTimer: 0 | 30 | 60 | 90;
   rookieTips: boolean;
   dismissedTips: string[];
+  theme: 'hexfall' | 'frostbound';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -36,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   turnTimer: 0,
   rookieTips: true,
   dismissedTips: [],
+  theme: 'hexfall',
 };
 
 const SETTINGS_KEY = 'hexfall.settings';

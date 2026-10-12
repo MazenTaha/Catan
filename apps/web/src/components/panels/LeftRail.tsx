@@ -15,6 +15,7 @@ import { BOT_NAME, HOST, LONGEST, TERRAIN_NAME } from '../../lexicon';
 import { describeEvent } from '../../state/log';
 import { useStore } from '../../state/store';
 import { LogLineView, NAME_COLOR } from './LogLineView';
+import { OmenCardBack } from './RightRail';
 
 export function PlayersPanel({ state, seat, horizontal = false }: { state: GameState; seat: number; horizontal?: boolean }) {
   const setHover = useStore((s) => s.setHoverPlayer);
@@ -64,7 +65,7 @@ export function PlayersPanel({ state, seat, horizontal = false }: { state: GameS
                     {pending && <span className="chip border-blood !py-0 text-[10px] text-ember">Discarding</span>}
                     {acting && !pending && <span className="chip !py-0 text-[10px] text-frost">Deciding</span>}
                     {p.kind === 'bot' && i === actor && state.handoff === null && state.phase.kind !== 'ended' && (
-                      <span className="text-[13px] text-muted anim-pulse" aria-hidden>
+                      <span className="text-[14px] text-muted anim-pulse" aria-hidden>
                         thinking…
                       </span>
                     )}
@@ -73,17 +74,17 @@ export function PlayersPanel({ state, seat, horizontal = false }: { state: GameS
                 <div className="text-right">
                   <div className="num text-[20px] leading-none text-gold">
                     {vp}
-                    {hidden > 0 && <span className="text-[13px] text-tarnish" title="Hidden Relics (only you see these)">+{hidden}</span>}
-                    <span className="text-[13px] text-muted">/{state.config.targetVp}</span>
+                    {hidden > 0 && <span className="text-[14px] text-gold" title="Hidden Relics (only you see these)">+{hidden}</span>}
+                    <span className="text-[14px] text-muted">/{state.config.targetVp}</span>
                   </div>
                 </div>
               </div>
-              <div className="mt-1.5 flex items-center gap-3 text-[13px] text-muted">
+              <div className="mt-1.5 flex items-center gap-3 text-[14px] text-muted">
                 <span className="inline-flex items-center gap-1" title="Resource cards">
                   <Icon name="scroll" size={13} /> <span className="num text-bone">{handTotal(p)}</span>
                 </span>
-                <span className="inline-flex items-center gap-1" title="Omen cards in hand">
-                  <Icon name="omen" size={13} /> <span className="num text-bone">{p.omens.length}</span>
+                <span className="inline-flex items-center gap-1" title="Omen cards in hand (face down)">
+                  <OmenCardBack size={17} /> <span className="num text-bone">{p.omens.length}</span>
                 </span>
                 <span className="inline-flex items-center gap-1" title="Wardens played">
                   <Icon name="sword" size={13} /> <span className="num text-bone">{p.playedWardens}</span>
@@ -118,12 +119,12 @@ export function BonusPanel({ state }: { state: GameState }) {
       <Icon name={icon} size={18} className={holder !== null ? 'text-gold' : 'text-muted'} />
       <div className="min-w-0 flex-1">
         <div className="font-display text-[12px] uppercase tracking-[0.1em] text-bone">{label}</div>
-        <div className="text-[13px] text-muted">{detail}</div>
+        <div className="text-[14px] text-muted">{detail}</div>
       </div>
       {holder !== null ? (
         <PlayerDisc color={state.players[holder].color} sigil={state.players[holder].sigil} size={24} label={state.players[holder].name} />
       ) : (
-        <span className="text-[12px] text-muted">unclaimed</span>
+        <span className="text-[13px] text-muted">unclaimed</span>
       )}
       <span className="num text-[14px] text-gold">+2</span>
     </div>

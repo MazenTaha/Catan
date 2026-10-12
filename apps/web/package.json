@@ -1,0 +1,36 @@
+{
+  "name": "@hexfall/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/cinzel": "^5.1.0",
+    "@fontsource/cinzel-decorative": "^5.1.0",
+    "@fontsource/crimson-pro": "^5.1.0",
+    "@hexfall/engine": "workspace:*",
+    "framer-motion": "^11.11.11",
+    "howler": "^2.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/howler": "^2.2.12",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.10"
+  }
+}

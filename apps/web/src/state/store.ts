@@ -279,7 +279,7 @@ export const useStore = create<StoreState>((set, get) => ({
       fx: emptyFx,
       toast: null,
       showRollOff: cfg.firstPlayer === 'rolloff',
-      announce: `A new isle rises. ${state.players[state.firstPlayer].name} goes first.`,
+      announce: `A new game begins. ${state.players[state.firstPlayer].name} goes first.`,
     });
   },
 

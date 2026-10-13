@@ -130,7 +130,7 @@ test('responsiveness across screens', async ({ page }) => {
   await probe(page, 'setup idle', () => page.waitForTimeout(3000));
   await probe(page, 'setup hover', () => wiggle(page, 200, 150, 1200, 800, 3000));
 
-  await page.getByTestId('seed').fill('lag-isle');
+  await page.getByTestId('seed').fill('lag-board');
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
   await page.locator('[aria-label^="Place a Settlement"]').first().waitFor();

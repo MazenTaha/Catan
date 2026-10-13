@@ -7,7 +7,7 @@ import { hasIdenticalAdjacency, hasRedAdjacency } from './validator';
 
 const TERRAIN_BAG: Terrain[] = TERRAINS.flatMap((t) => Array<Terrain>(TERRAIN_COUNTS[t]).fill(t));
 
-/** Hand-placed terrain for the beginner isle (row-major, Dead Waste in the middle). */
+/** Hand-placed terrain for the beginner board (row-major, desert in the middle). */
 const BEGINNER_TERRAIN: Terrain[] = [
   'peaks', 'moors', 'witchwood',
   'fields', 'ashen', 'moors', 'ashen',
@@ -41,7 +41,7 @@ function balancedHexes(rng: Rng, terrainsFixed?: Terrain[]): HexTile[] {
   }
   // Identical-number adjacency is avoided "where avoidable"; red adjacency never.
   if (fallback) return fallback;
-  throw new Error('Could not generate a balanced isle');
+  throw new Error('Could not generate a balanced board');
 }
 
 export function generateBoard(seed: string, mode: LayoutMode = 'balanced'): Board {

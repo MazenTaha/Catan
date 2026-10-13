@@ -24,7 +24,7 @@ for (const vp of [
     await page.screenshot({ path: `test-results/shots/${vp.name}-title.png` });
     await page.getByTestId('new-game').click();
     await page.screenshot({ path: `test-results/shots/${vp.name}-setup.png`, fullPage: true });
-    await page.getByTestId('seed').fill('shots-isle-3');
+    await page.getByTestId('seed').fill('shots-board-3');
     await page.getByRole('button', { name: 'Seat 1' }).click();
     await page.getByTestId('begin').click();
     // On phones the hand sheet covers the lower board; fold it away while placing.

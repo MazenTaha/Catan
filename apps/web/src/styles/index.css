@@ -213,11 +213,11 @@
 .anim-bob { animation: bob 3.2s ease-in-out infinite; }
 .anim-rim { animation: gold-rim 1.1s ease-in-out infinite; }
 .anim-drift { animation: drift 28s ease-in-out infinite alternate; }
-@keyframes isle-in {
+@keyframes board-in {
   from { opacity: 0; transform: scale(1.08); }
   to { opacity: 0.5; transform: scale(1); }
 }
-.anim-isle-in { animation: isle-in 2.4s ease-out both; }
+.anim-board-in { animation: board-in 2.4s ease-out both; }
 .anim-swell { animation: swell 24s ease-in-out infinite alternate; }
 .anim-swell-slow { animation: swell 37s ease-in-out infinite alternate-reverse; }
 .anim-torchlight { animation: torchlight 2.6s linear infinite; }

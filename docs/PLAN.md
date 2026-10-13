@@ -1,6 +1,6 @@
 # Hexfall — Build Plan
 
-Hexfall is an original dark-fantasy hex-isle resource/trading/building game for 3–4 players.
+Catan Night (originally built as Hexfall) is a hex-board resource/trading/building game for 3–4 players.
 This document is the architecture map and milestone checklist.
 
 ## Architecture

@@ -82,7 +82,7 @@ test('3-player game: setup, roll, build, bank trade, end turn, reload & continue
   await page.goto('/');
   await page.getByTestId('new-game').click();
   await page.getByRole('button', { name: '3 players' }).click();
-  await page.getByTestId('seed').fill('smoke-isle-7');
+  await page.getByTestId('seed').fill('smoke-board-7');
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
 
@@ -181,7 +181,7 @@ test('export a game record from the log and replay it via Load record', async ({
   await page.goto('/');
   await page.getByTestId('new-game').click();
   await page.getByRole('button', { name: '3 players' }).click();
-  await page.getByTestId('seed').fill('record-isle-5');
+  await page.getByTestId('seed').fill('record-board-5');
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
   for (let i = 0; i < 2; i++) {
@@ -205,7 +205,7 @@ test('export a game record from the log and replay it via Load record', async ({
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Export JSON/ }).click()]);
   const fs = await import('node:fs/promises');
   const json = await fs.readFile((await download.path())!, 'utf8');
-  expect(JSON.parse(json)).toMatchObject({ format: 'hexfall-record', version: 1, config: { seed: 'record-isle-5' } });
+  expect(JSON.parse(json)).toMatchObject({ format: 'hexfall-record', version: 1, config: { seed: 'record-board-5' } });
   await page.keyboard.press('Escape');
 
   // Start something else, then load the record: the exact position returns.

@@ -73,8 +73,6 @@ export const WRAITH = 'the robber';
 export const WRAITH_TITLE = 'The robber';
 export const LONGEST = 'Longest Road';
 export const HOST = 'Largest Army';
-export const ISLE = 'the island';
-export const NEW_ISLE = 'New game';
 
 export const HARBOR_NAME: Record<HarborKind, string> = {
   any: '3:1 harbor',

@@ -37,7 +37,7 @@ import {
 } from './geometry';
 import { HexTooltip } from './HexTooltip';
 
-/** Fades the square sea into the page so the isle floats in the dark. */
+/** Fades the square sea into the page so the board floats in the dark. */
 const SEA_MASK = {
   maskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
   WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
@@ -160,7 +160,7 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
           </g>
         );
       })}
-      {/* one shared grain pass over the whole isle */}
+      {/* one shared grain pass over the whole board */}
       <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.55} style={{ mixBlendMode: 'multiply' }} />
       {/* iron seams between tiles */}
       {board.hexes.map((h) => {
@@ -246,7 +246,7 @@ export interface BoardProps {
 }
 
 /** Stacking order of the board layers (all absolutely positioned in one box). */
-const Z = { sea: 0, swell: 1, isle: 2, glow: 3, pulse: 4, pieces: 5, wraith: 6, chips: 7, hits: 8, tip: 9 } as const;
+const Z = { sea: 0, swell: 1, land: 2, glow: 3, pulse: 4, pieces: 5, wraith: 6, chips: 7, hits: 8, tip: 9 } as const;
 const layer = (z: number) => ({ zIndex: z }) as const;
 
 export const BoardView = memo(function BoardView({ state, canAct, decorative = false, onAction }: BoardProps) {
@@ -282,7 +282,7 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
           </div>
         </div>
       )}
-      <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={{ ...LAYER, ...layer(Z.isle) }} aria-hidden>
+      <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={{ ...LAYER, ...layer(Z.land) }} aria-hidden>
         <Island board={state.board} />
         <Harbors board={state.board} />
         <Tokens board={state.board} colorblind={colorblind} />

@@ -8,8 +8,8 @@ import { useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
 import { DEFAULT_NAMES } from '../../lexicon';
 
-/** A decorative isle with founded holdings, played out by bots for the backdrop. */
-function demoIsle(): GameState {
+/** A decorative board with settlements and roads, played out by bots for the backdrop. */
+function demoBoard(): GameState {
   let s = createGame({
     seed: randomSeed(),
     layout: 'balanced',
@@ -35,7 +35,7 @@ export function TitleScreen() {
   const continueGame = useStore((s) => s.continueGame);
   const openModal = useStore((s) => s.openModal);
   const [save] = useState(() => peekAutosave());
-  const isle = useMemo(demoIsle, []);
+  const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
       className={`btn w-64 justify-start !py-3 text-[15px] ${primary ? 'btn-primary' : ''}`}
@@ -51,10 +51,10 @@ export function TitleScreen() {
   );
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-10">
-      {/* A still isle behind the menu: painted once, faded in by the compositor (no per-frame repaint). */}
-      <div className="anim-isle-in pointer-events-none absolute inset-0 grid place-items-center" aria-hidden>
+      {/* A still board behind the menu: painted once, faded in by the compositor (no per-frame repaint). */}
+      <div className="anim-board-in pointer-events-none absolute inset-0 grid place-items-center" aria-hidden>
         <div className="w-[min(1100px,140vw)]" style={{ maskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)', WebkitMaskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)' }}>
-          <BoardView state={isle} canAct={false} decorative />
+          <BoardView state={backdrop} canAct={false} decorative />
         </div>
       </div>
       <div

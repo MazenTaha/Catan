@@ -38,7 +38,7 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 
 ## How to play
 
-1. **New game** → choose 3 or 4 seats, human or bot (Wanderer / Warlord / Archdemon), target score, isle layout and seed. The same seed always raises the same isle.
+1. **New game** → choose 3 or 4 seats, human or bot (Easy / Medium / Hard), target score, board layout and seed. The same seed always gives the same board.
 2. **Founding:** place an Outpost and a Causeway, twice (snake order). Your second Outpost pays out immediately.
 3. **Each turn:** roll (Space), collect from every hex showing that number, then build and trade, then end your turn (Space).
 4. A **7** wakes the Wraith: big hands discard half, the roller moves the Wraith and robs a neighbour.

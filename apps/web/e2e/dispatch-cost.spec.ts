@@ -16,7 +16,7 @@ test('per-action cost', async ({ page }) => {
   }
   await page.goto('/');
   await page.getByTestId('new-game').click();
-  await page.getByTestId('seed').fill('lag-isle');
+  await page.getByTestId('seed').fill('lag-board');
   // Make every seat a bot so the game plays itself.
   const bots = page.getByRole('button', { name: /^Bot$/ });
   for (let i = 0; i < (await bots.count()); i++) await bots.nth(i).click();

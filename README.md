@@ -21,6 +21,7 @@ Then open http://localhost:5173.
 | Script | What it does |
 |---|---|
 | `pnpm dev` | Vite dev server for the web app |
+| `pnpm play` | Production build + local preview (smoothest way to play; works in any shell) |
 | `pnpm build` | Production build into `apps/web/dist` |
 | `pnpm test` | Engine unit tests, fuzz tests and the 200-game bot simulation (Vitest) |
 | `pnpm coverage` | Engine test coverage (≈98% statements) |

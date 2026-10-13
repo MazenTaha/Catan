@@ -8,6 +8,7 @@
     "dev": "pnpm --filter @hexfall/web dev",
     "build": "pnpm --filter @hexfall/web build",
     "preview": "pnpm --filter @hexfall/web preview",
+    "play": "pnpm build && pnpm preview",
     "test": "pnpm -r --if-present test",
     "coverage": "pnpm --filter @hexfall/engine coverage",
     "lint": "eslint . --max-warnings 0",

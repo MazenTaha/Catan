@@ -78,3 +78,4 @@ Every state change emits typed `GameEvent`s; the web app derives the log, toasts
 - **Palette:** design tokens are CSS variables in `apps/web/src/styles/tokens.css`; an alternate *Frostbound* theme is defined there as an example.
 
 Licenses and attributions: [docs/CREDITS.md](docs/CREDITS.md). Design decisions: [docs/DECISIONS.md](docs/DECISIONS.md).
+"# Catan" 

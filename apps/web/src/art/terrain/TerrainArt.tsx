@@ -37,6 +37,39 @@ const offToken = (x: number, y: number, r = 34) => Math.hypot(x, y - 6) > r;
 
 const Base = ({ id }: { id: string }) => <rect x={-100} y={-110} width={200} height={220} fill={`url(#${id})`} />;
 
+/**
+ * Landmarks the ambient layer animates (windmill sails, kiln smoke). They come from their own
+ * seeded stream so the tile art and the animated overlay always agree on where they stand.
+ */
+export function windmillHub(seed: string): { x: number; y: number; side: number } {
+  const J = new Jit(`${seed}:mill`);
+  const side = J.pick([-1, 1]);
+  return { x: side * 44, y: r1(-54 + J.j(4)), side };
+}
+
+export function kilnChimney(seed: string): { x: number; y: number; side: number } {
+  const J = new Jit(`${seed}:kiln`);
+  const side = J.pick([-1, 1]);
+  const y = r1(52 + J.j(4));
+  return { x: side * 44 + 8.5, y: y - 24, side };
+}
+
+/** Four canvas sails around a hub at 0,0 (drawn by the ambient layer so they can turn). */
+export function WindmillSails() {
+  return (
+    <g stroke="#4e3b22" strokeWidth={0.8}>
+      {[0, 90, 180, 270].map((a) => (
+        <g key={a} transform={`rotate(${a})`}>
+          <path d="M0 0V-24" strokeWidth={1.4} />
+          <rect x={0.6} y={-23} width={5} height={19} fill="#efe3c9" fillOpacity={0.9} />
+          <path d="M3 -23V-4" strokeWidth={0.4} opacity={0.6} />
+        </g>
+      ))}
+      <circle r={1.8} fill="#3a2a16" />
+    </g>
+  );
+}
+
 // ------------------------------------------------------------------ forest (lumber)
 
 function fir(x: number, y: number, h: number, k: number, J: Jit) {
@@ -79,13 +112,29 @@ function Forest({ seed }: { seed: string }) {
   }
   trees.sort((a, b) => a.y - b.y);
   const clearing = { x: J.pick([-44, 44]), y: 62 + J.j(6) };
+  const cabin = { x: -clearing.x * 0.95, y: -52 + J.j(5) };
   return (
     <g>
       <Base id="g-forest" />
       {[...Array(8)].map((_, i) => (
         <ellipse key={i} cx={r1(J.j(75))} cy={r1(J.j(85))} rx={r1(J.between(12, 24))} ry={r1(J.between(4, 8))} fill="#1d4a2c" opacity={0.6} />
       ))}
-      {trees.filter((t) => Math.hypot(t.x - clearing.x, t.y - clearing.y) > 26).map((t, i) => fir(t.x, t.y, t.h, i, J))}
+      {trees
+        .filter((t) => Math.hypot(t.x - clearing.x, t.y - clearing.y) > 26 && Math.hypot(t.x - cabin.x, t.y - cabin.y - 6) > 24)
+        .map((t, i) => fir(t.x, t.y, t.h, i, J))}
+      {/* woodcutter's cabin, lamp in the window */}
+      <g transform={`translate(${r1(cabin.x)} ${r1(cabin.y)})`}>
+        <ellipse cx={3} cy={10} rx={17} ry={4} fill="#06120b" opacity={0.6} />
+        <circle cx={-2} cy={2} r={14} fill="url(#g-torch)" opacity={0.6} />
+        <path d="M-11 10V-1H11V10Z" fill="#6b4524" stroke="#2a180a" strokeWidth={0.8} />
+        <path d="M-11 10V-1H0V10Z" fill="#82552d" />
+        <path d="M-11 3H11M-11 6.5H11" stroke="#3d2511" strokeWidth={0.6} />
+        <path d="M-14 0L0 -12L14 0Z" fill="#3b2a1c" stroke="#1a110a" strokeWidth={0.8} />
+        <path d="M-14 0L0 -12L0 0Z" fill="#5a4330" />
+        <rect x={6} y={-12} width={3.5} height={7} fill="#3a2414" />
+        <rect x={-7} y={1.5} width={4.5} height={4} fill="#ffcf6b" stroke="#2a180a" strokeWidth={0.6} />
+        <rect x={2} y={3} width={4} height={7} fill="#2a180a" />
+      </g>
       {/* log pile in a small clearing */}
       <g transform={`translate(${r1(clearing.x)} ${r1(clearing.y)})`}>
         <ellipse cx={2} cy={7} rx={18} ry={5} fill="#0b1c11" opacity={0.6} />
@@ -137,7 +186,8 @@ function BrickStack({ x, y, rows }: { x: number; y: number; rows: number }) {
 function Hills({ seed }: { seed: string }) {
   const J = new Jit(seed);
   const ridges = [-60, -20, 22, 64];
-  const side = J.pick([-1, 1]);
+  const kiln = kilnChimney(seed);
+  const side = kiln.side;
   return (
     <g>
       <Base id="g-hills" />
@@ -165,7 +215,7 @@ function Hills({ seed }: { seed: string }) {
       <BrickStack x={r1(-side * 40)} y={58} rows={3} />
       <BrickStack x={r1(side * 50)} y={-30} rows={2} />
       {/* brick kiln with a warm glow */}
-      <g transform={`translate(${r1(side * 44)} ${r1(52 + J.j(4))})`}>
+      <g transform={`translate(${r1(kiln.x - 8.5)} ${r1(kiln.y + 24)})`}>
         <ellipse cx={3} cy={10} rx={20} ry={5} fill="#2a0e06" opacity={0.6} />
         <circle cx={0} cy={3} r={16} fill="url(#g-ember)" opacity={0.7} />
         <path d="M-14 10V-2Q-14 -16 0 -16Q14 -16 14 -2V10Z" fill="#6c2f17" stroke="#2a0e06" strokeWidth={1} />
@@ -239,6 +289,14 @@ function Pasture({ seed }: { seed: string }) {
       {[...Array(10)].map((_, i) => (
         <circle key={i} cx={r1(J.j(80))} cy={r1(J.j(90))} r={0.9} fill={i % 2 ? '#f2e6a0' : '#e8eef8'} />
       ))}
+      {/* small pond holding the moon */}
+      <g transform={`translate(${r1(-fenceY * 58)} ${r1(J.j(6))})`}>
+        <ellipse cx={0} cy={0} rx={17} ry={7.5} fill="#3e6a2a" />
+        <ellipse cx={0} cy={0.5} rx={15} ry={6} fill="#1d3f52" />
+        <ellipse cx={-4} cy={-1} rx={6} ry={1.4} fill="#cfe2ff" opacity={0.55} />
+        <circle cx={5} cy={0} r={1.8} fill="#e9f2ff" opacity={0.8} />
+        <path d="M-15 -2q-2 -6 0 -9M-13 -2q1 -5 3 -7M14 -1q2 -6 0 -9" stroke="#2f5a1e" strokeWidth={1} fill="none" />
+      </g>
       {/* split-rail fence */}
       <g transform={`translate(0 ${fenceY * 68}) rotate(${fenceY * -4})`}>
         {[-60, -36, -12, 12, 36, 60].map((x) => (
@@ -282,7 +340,8 @@ function Fields({ seed }: { seed: string }) {
       );
     }
   }
-  const side = J.pick([-1, 1]);
+  const mill = windmillHub(seed);
+  const side = mill.side;
   return (
     <g>
       <Base id="g-fields" />
@@ -302,22 +361,14 @@ function Fields({ seed }: { seed: string }) {
         </g>
       ))}
       {/* windmill */}
-      <g transform={`translate(${r1(side * 44)} ${r1(-48 + J.j(4))})`}>
+      {/* windmill tower (its sails turn in the ambient layer) */}
+      <g transform={`translate(${r1(mill.x)} ${r1(mill.y + 6)})`}>
         <ellipse cx={4} cy={18} rx={13} ry={3.5} fill="#3d2a0a" opacity={0.55} />
         <path d="M-7 18L-5 -6H5L7 18Z" fill="#cbb79a" stroke="#4e3b22" strokeWidth={0.8} />
         <path d="M-7 18L-5 -6H0V18Z" fill="#e6d6ba" />
         <path d="M-7 -6L0 -14L7 -6Z" fill="#7a3c18" stroke="#3a1c0a" strokeWidth={0.8} />
         <rect x={-2} y={8} width={4} height={10} fill="#3a2a16" />
         <rect x={-1.6} y={0} width={3.2} height={3.6} fill="#ffcf6b" />
-        <g transform={`rotate(${r1(J.between(0, 90))} 0 -6)`} stroke="#4e3b22" strokeWidth={0.8}>
-          {[0, 90, 180, 270].map((a) => (
-            <g key={a} transform={`rotate(${a} 0 -6)`}>
-              <path d="M0 -6V-30" strokeWidth={1.4} />
-              <rect x={0.6} y={-29} width={5} height={19} fill="#e8dcc4" fillOpacity={0.85} />
-            </g>
-          ))}
-        </g>
-        <circle cx={0} cy={-6} r={1.8} fill="#3a2a16" />
       </g>
     </g>
   );
@@ -385,6 +436,8 @@ function Mountains({ seed }: { seed: string }) {
           />
         );
       })}
+      {/* a few pines at the mountain's foot */}
+      {[-70, -54, 58, 72].map((x, i) => fir(x + J.j(4), 92 + J.j(4), 22 + J.j(4), 100 + i, J))}
       {/* scree */}
       {[...Array(12)].map((_, i) => (
         <path key={i} d={`M${r1(J.j(85))} ${r1(80 + J.j(18))}l3.5 -4.5l3.5 4.5z`} fill={i % 2 ? '#2c3342' : '#5c677b'} />
@@ -428,6 +481,20 @@ function Desert({ seed }: { seed: string }) {
           </g>
         );
       })}
+      {/* oasis: a palm leaning over a pool */}
+      <g transform={`translate(${r1(-side * 44)} ${r1(-40 + J.j(5))})`}>
+        <ellipse cx={0} cy={10} rx={18} ry={6} fill="#5f8a4a" />
+        <ellipse cx={0} cy={10.5} rx={15} ry={4.5} fill="#1f5560" />
+        <ellipse cx={-4} cy={9.5} rx={6} ry={1.1} fill="#cfe2ff" opacity={0.5} />
+        <path d="M6 8Q4 -6 -2 -18" stroke="#6b4a2a" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+        <g transform="translate(-2 -18)" fill="#2f6a35" stroke="#1d4422" strokeWidth={0.5}>
+          <path d="M0 0Q-10 -6 -18 2Q-9 -2 0 0Z" />
+          <path d="M0 0Q8 -8 17 -2Q8 -3 0 0Z" />
+          <path d="M0 0Q-3 -10 -10 -14Q-3 -6 0 0Z" />
+          <path d="M0 0Q5 -9 10 -12Q4 -4 0 0Z" />
+          <path d="M0 0Q-12 2 -14 10Q-6 2 0 0Z" />
+        </g>
+      </g>
       {/* saguaro cactus */}
       <g transform={`translate(${r1(side * 46)} ${r1(-30 + J.j(6))})`} strokeLinecap="round">
         <ellipse cx={4} cy={22} rx={10} ry={3} fill="#5e4a24" opacity={0.5} />

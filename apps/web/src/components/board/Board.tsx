@@ -17,9 +17,9 @@ import {
   type Sigil,
   type VertexId,
 } from '@hexfall/engine';
-import { ResGlyphSvg, CausewayPiece, CitadelPiece, HarborBadge, NumberToken, OutpostPiece, WraithPawn } from '../../art/pieces/Pieces';
+import { ResGlyphSvg, CausewayPiece, CitadelPiece, NumberToken, OutpostPiece, WraithPawn } from '../../art/pieces/Pieces';
 import { TerrainArt } from '../../art/terrain/TerrainArt';
-import { HARBOR_NAME, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
+import { HARBOR_NAME, TERRAIN_NAME } from '../../lexicon';
 import { useStore, type Fx } from '../../state/store';
 import { BoardDefs } from './BoardDefs';
 import {
@@ -28,7 +28,6 @@ import {
   VIEWBOX,
   VIEWBOX_STR,
   edgeXY,
-  harborGeometry,
   hexCenter,
   hexPoints,
   toPercent,
@@ -36,6 +35,7 @@ import {
   vertexXY,
 } from './geometry';
 import { HexTooltip } from './HexTooltip';
+import { Ambient, Harbors, MoonShimmer, Moonlight, Sea, Shore } from './Scenery';
 
 /** Fades the square sea into the page so the board floats in the dark. */
 const SEA_MASK = {
@@ -88,22 +88,6 @@ export function useTargets(state: GameState | undefined, canAct: boolean): Targe
 
 // ------------------------------------------------------------------ static layers
 
-/** The sea is painted once; everything that moves lives in separately composited layers. */
-const Sea = memo(function Sea() {
-  return (
-    <g aria-hidden>
-      <rect x={VIEWBOX.x} y={VIEWBOX.y} width={VIEWBOX.w} height={VIEWBOX.h} fill="url(#g-sea)" />
-      <rect x={VIEWBOX.x} y={VIEWBOX.y} width={VIEWBOX.w} height={VIEWBOX.h} fill="url(#g-sea-light)" />
-      {/* distant jagged silhouettes at the board's edge */}
-      <path
-        d="M-575 -380L-540 -420L-520 -400L-495 -455L-470 -410L-450 -430L-430 -390L-410 -405V-545H-575Z M575 420L545 380L520 405L500 360L470 410L455 395L430 440L410 425V545H575Z M-575 380L-548 352L-530 372L-505 330L-488 360L-470 345L-455 385V545H-575Z M575 -420L550 -445L532 -425L510 -470L490 -430L470 -445L450 -400V-545H575Z"
-        fill="#05090b"
-        opacity={0.85}
-      />
-    </g>
-  );
-});
-
 /** Swell lines (and, on the first set, fog banks). The wrapper drifts them with a compositor-only transform. */
 const Swell = memo(function Swell({ rows, fog }: { rows: number[]; fog?: boolean }) {
   return (
@@ -141,11 +125,7 @@ const sameBoard = (a: { board: BoardT }, b: { board: BoardT }) =>
 const Island = memo(function Island({ board }: { board: BoardT }) {
   return (
     <g>
-      {/* foam rim and dark shallows */}
-      <path d={ISLAND_PATH} fill="none" stroke="#1d3a40" strokeWidth={70} strokeLinejoin="round" opacity={0.7} />
-      <path d={ISLAND_PATH} fill="none" stroke="#a9c3c0" strokeWidth={26} strokeLinejoin="round" opacity={0.16} filter="url(#f-blur6)" />
-      <path d={ISLAND_PATH} fill="none" stroke="#6d6250" strokeWidth={12} strokeLinejoin="round" opacity={0.9} />
-      <path d={ISLAND_PATH} fill="#000" />
+      <Shore />
       {board.hexes.map((h) => {
         const c = hexCenter(h.id);
         return (
@@ -154,14 +134,15 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
               <TerrainArt type={h.terrain} seed={`${board.seed}:${h.id}`} />
               <path d={HEX_PATH} fill="url(#g-tile-vignette)" />
             </g>
-            {/* bevel: dark inner edge, light upper-left rim */}
-            <polygon points={hexPoints(96)} fill="none" stroke="#000" strokeOpacity={0.55} strokeWidth={6} />
+            {/* bevel: soft inner edge, light upper-left rim */}
+            <polygon points={hexPoints(96.5)} fill="none" stroke="#000" strokeOpacity={0.3} strokeWidth={4} />
             <polygon points={hexPoints(98.5)} fill="none" stroke="url(#g-bevel-light)" strokeWidth={2.4} />
           </g>
         );
       })}
       {/* one shared grain pass over the whole board */}
-      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.55} style={{ mixBlendMode: 'multiply' }} />
+      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.22} style={{ mixBlendMode: 'multiply' }} />
+      <Moonlight />
       {/* iron seams between tiles */}
       {board.hexes.map((h) => {
         const c = hexCenter(h.id);
@@ -171,39 +152,10 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
             points={hexPoints(100)}
             transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
             fill="none"
-            stroke="#0b0c0f"
-            strokeWidth={2.5}
+            stroke="#15110a"
+            strokeOpacity={0.85}
+            strokeWidth={2}
           />
-        );
-      })}
-    </g>
-  );
-}, sameBoard);
-
-const Harbors = memo(function Harbors({ board }: { board: BoardT }) {
-  return (
-    <g>
-      {board.harbors.map((hb) => {
-        const g = harborGeometry(hb);
-        return (
-          <g key={hb.id}>
-            {[g.a, g.b].map((p, i) => (
-              <g key={i}>
-                <path d={`M${p.x} ${p.y}L${g.badge.x} ${g.badge.y}`} stroke="#120d08" strokeWidth={8} strokeLinecap="round" />
-                <path
-                  d={`M${p.x} ${p.y}L${g.badge.x} ${g.badge.y}`}
-                  stroke="#5d4630"
-                  strokeWidth={5}
-                  strokeLinecap="round"
-                  strokeDasharray="5 2"
-                />
-              </g>
-            ))}
-            <g transform={`translate(${g.badge.x.toFixed(1)} ${g.badge.y.toFixed(1)}) scale(1.3)`}>
-              <title>{`${HARBOR_NAME[hb.kind]} — ${hb.kind === 'any' ? '3:1 any resource' : `2:1 ${RESOURCE_NAME[hb.kind]}`}`}</title>
-              <HarborBadge kind={hb.kind} />
-            </g>
-          </g>
         );
       })}
     </g>
@@ -246,7 +198,7 @@ export interface BoardProps {
 }
 
 /** Stacking order of the board layers (all absolutely positioned in one box). */
-const Z = { sea: 0, swell: 1, land: 2, glow: 3, pulse: 4, pieces: 5, wraith: 6, chips: 7, hits: 8, tip: 9 } as const;
+const Z = { sea: 0, swell: 1, land: 2, ambient: 3, glow: 4, pulse: 5, pieces: 6, wraith: 7, chips: 8, hits: 9, tip: 10 } as const;
 const layer = (z: number) => ({ zIndex: z }) as const;
 
 export const BoardView = memo(function BoardView({ state, canAct, decorative = false, onAction }: BoardProps) {
@@ -280,6 +232,7 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
           <div className="anim-swell-slow absolute inset-0">
             <Swell rows={[1, 3, 5, 7]} />
           </div>
+          <MoonShimmer />
         </div>
       )}
       <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={{ ...LAYER, ...layer(Z.land) }} aria-hidden>
@@ -288,6 +241,9 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
         <Tokens board={state.board} colorblind={colorblind} />
       </svg>
 
+      <div className="pointer-events-none absolute inset-0" style={layer(Z.ambient)}>
+        <Ambient board={state.board} still={decorative} />
+      </div>
       <Torchlight buildings={state.buildings} still={decorative} />
       {production && <ProductionGlow board={state.board} production={production} />}
       <PiecesLayer state={state} decorative={decorative} />

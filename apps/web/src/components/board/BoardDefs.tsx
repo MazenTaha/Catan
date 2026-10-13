@@ -85,10 +85,10 @@ export const BoardDefs = memo(function BoardDefs() {
         <stop offset="100%" stopColor="#ffb357" stopOpacity="0" />
       </radialGradient>
 
-      <radialGradient id="g-token" cx="38%" cy="32%" r="75%">
-        <stop offset="0%" stopColor="#f3ead5" />
-        <stop offset="70%" stopColor="#d6c7a2" />
-        <stop offset="100%" stopColor="#a8976f" />
+      <radialGradient id="g-token" cx="38%" cy="30%" r="78%">
+        <stop offset="0%" stopColor="#fdf7e6" />
+        <stop offset="65%" stopColor="#ecdfbd" />
+        <stop offset="100%" stopColor="#c7b384" />
       </radialGradient>
       <radialGradient id="g-token-glow">
         <stop offset="40%" stopColor="#ffd77a" stopOpacity="0.7" />
@@ -105,21 +105,53 @@ export const BoardDefs = memo(function BoardDefs() {
         <stop offset="100%" stopColor="#8fc7ff" stopOpacity="0" />
       </radialGradient>
 
-      <linearGradient id="g-sea" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#0f2a33" />
-        <stop offset="50%" stopColor="#0c1f26" />
-        <stop offset="100%" stopColor="#071216" />
+      {/* moonlit sea: brighter water around the island, deep blue-black at the edges */}
+      <radialGradient id="g-sea" cx="50%" cy="48%" r="70%">
+        <stop offset="0%" stopColor="#1f6170" />
+        <stop offset="45%" stopColor="#123f4d" />
+        <stop offset="80%" stopColor="#0a2430" />
+        <stop offset="100%" stopColor="#06151c" />
+      </radialGradient>
+      <radialGradient id="g-moonglow" cx="87%" cy="-4%" r="62%">
+        <stop offset="0%" stopColor="#dce8ff" stopOpacity="0.42" />
+        <stop offset="35%" stopColor="#9fc0e8" stopOpacity="0.16" />
+        <stop offset="100%" stopColor="#9fc0e8" stopOpacity="0" />
+      </radialGradient>
+      <linearGradient id="g-moonlight" x1="0.85" y1="0" x2="0.15" y2="1">
+        <stop offset="0%" stopColor="#d8e6ff" stopOpacity="0.16" />
+        <stop offset="45%" stopColor="#d8e6ff" stopOpacity="0" />
+        <stop offset="100%" stopColor="#020611" stopOpacity="0.3" />
       </linearGradient>
-      {/* soft fog banks: a gradient instead of a blur filter, so they cost nothing to draw */}
-      <radialGradient id="g-fog">
-        <stop offset="0%" stopColor="#9fb3b6" stopOpacity="0.2" />
-        <stop offset="60%" stopColor="#9fb3b6" stopOpacity="0.08" />
-        <stop offset="100%" stopColor="#9fb3b6" stopOpacity="0" />
+      <filter id="f-water" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="9" />
+      </filter>
+      <filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="14" />
+      </filter>
+      <radialGradient id="g-firefly">
+        <stop offset="0%" stopColor="#f6ffa8" stopOpacity="0.9" />
+        <stop offset="40%" stopColor="#d8f27a" stopOpacity="0.35" />
+        <stop offset="100%" stopColor="#d8f27a" stopOpacity="0" />
       </radialGradient>
-      <radialGradient id="g-sea-light" cx="50%" cy="45%" r="60%">
-        <stop offset="0%" stopColor="#3d6b72" stopOpacity="0.35" />
-        <stop offset="100%" stopColor="#3d6b72" stopOpacity="0" />
+      <radialGradient id="g-cloudshadow">
+        <stop offset="0%" stopColor="#02060f" stopOpacity="0.32" />
+        <stop offset="60%" stopColor="#02060f" stopOpacity="0.14" />
+        <stop offset="100%" stopColor="#02060f" stopOpacity="0" />
       </radialGradient>
+      <radialGradient id="g-medallion" cx="40%" cy="30%" r="80%">
+        <stop offset="0%" stopColor="#24384a" />
+        <stop offset="100%" stopColor="#0b1520" />
+      </radialGradient>
+      <linearGradient id="g-medallion-rim" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#f3d98a" />
+        <stop offset="50%" stopColor="#b48a3a" />
+        <stop offset="100%" stopColor="#5e4318" />
+      </linearGradient>
+      <linearGradient id="g-token-rim" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#f6dc8e" />
+        <stop offset="55%" stopColor="#b88c3a" />
+        <stop offset="100%" stopColor="#6a4b19" />
+      </linearGradient>
 
       {PLAYER_COLORS.map((c) => (
         <linearGradient key={c} id={`g-piece-${c}`} x1="0" y1="0" x2="1" y2="1">

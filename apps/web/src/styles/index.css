@@ -222,6 +222,46 @@
 .anim-swell-slow { animation: swell 37s ease-in-out infinite alternate-reverse; }
 .anim-torchlight { animation: torchlight 2.6s linear infinite; }
 
+/* Board life: windmills, kiln smoke, fireflies, moon glitter, cloud shadows (compositor-only). */
+@keyframes spin { to { transform: rotate(360deg); } }
+.anim-spin { animation: spin 14s linear infinite; transform-origin: 50% 50%; }
+@keyframes puff {
+  0% { transform: translate3d(0, 0, 0) scale(0.4); opacity: 0; }
+  15% { opacity: 0.55; }
+  100% { transform: translate3d(6px, -34px, 0) scale(1.7); opacity: 0; }
+}
+.smoke-puff {
+  position: absolute;
+  left: 30%;
+  bottom: 0;
+  width: 40%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(205 205 215 / 0.55), rgb(205 205 215 / 0) 70%);
+  animation: puff 4.2s ease-out infinite;
+  opacity: 0;
+}
+@keyframes firefly {
+  0%, 100% { opacity: 0; transform: translate3d(0, 0, 0); }
+  30% { opacity: 1; }
+  50% { opacity: 0.35; transform: translate3d(0.4%, -0.5%, 0); }
+  70% { opacity: 0.9; }
+}
+.anim-firefly-0 { animation: firefly 3.4s ease-in-out infinite; }
+.anim-firefly-1 { animation: firefly 4.6s ease-in-out -1.5s infinite; }
+.anim-firefly-2 { animation: firefly 5.8s ease-in-out -3s infinite; }
+@keyframes shimmer {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+.anim-shimmer-a { animation: shimmer 2.2s ease-in-out infinite; }
+.anim-shimmer-b { animation: shimmer 2.2s ease-in-out -1.1s infinite; }
+@keyframes clouds {
+  from { transform: translate3d(-14%, -2%, 0); }
+  to { transform: translate3d(14%, 3%, 0); }
+}
+.anim-clouds { animation: clouds 70s ease-in-out infinite alternate; }
+
 .reduce-motion *,
 .reduce-motion *::before,
 .reduce-motion *::after {
@@ -238,8 +278,18 @@
 .fx-lite .anim-bob,
 .fx-lite .anim-pulse,
 .fx-lite .anim-flicker,
-.fx-lite .anim-rim {
+.fx-lite .anim-rim,
+.fx-lite .anim-spin,
+.fx-lite .anim-clouds,
+.fx-lite .anim-shimmer-a,
+.fx-lite .anim-shimmer-b {
   animation: none !important;
+}
+.fx-lite .smoke-puff,
+.fx-lite [class*='anim-firefly'],
+.reduce-motion .smoke-puff,
+.reduce-motion [class*='anim-firefly'] {
+  display: none;
 }
 
 .sr-only {

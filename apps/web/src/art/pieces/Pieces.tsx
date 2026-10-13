@@ -169,9 +169,11 @@ export const NumberToken = memo(function NumberToken({ n, glow = false }: { n: n
   return (
     <g aria-hidden>
       {glow && <circle r={34} fill="url(#g-token-glow)" className="anim-pulse" />}
-      <circle r={25} cy={2} fill="#000" opacity={0.5} />
-      <circle r={24} fill="url(#g-token)" stroke="#8a6d2f" strokeWidth={2} />
-      <circle r={20.5} fill="none" stroke="#6b5a3a" strokeWidth={0.8} opacity={0.7} />
+      <circle r={26} cy={3} fill="#000" opacity={0.45} />
+      <circle r={25} fill="url(#g-token-rim)" />
+      <circle r={21.5} fill="url(#g-token)" />
+      <circle r={19.5} fill="none" stroke="#a88a52" strokeWidth={0.7} opacity={0.6} />
+      <path d="M-17 -9A20 20 0 0 1 9 -19" stroke="#fff" strokeWidth={2} fill="none" opacity={0.45} strokeLinecap="round" />
       {glow && <circle r={24} fill="none" stroke="#f3cf73" strokeWidth={2.5} />}
       <text
         y={4}

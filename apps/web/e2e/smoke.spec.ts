@@ -32,8 +32,16 @@ test.afterEach(() => {
 async function handleInterrupts(page: Page): Promise<boolean> {
   const offer = page.getByRole('dialog', { name: 'An offer arrives' });
   if (await offer.isVisible()) {
+    const offerId = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __hexfall: { getState(): { session: { state: { phase: { kind: string; offer?: { id: number } } } } | null } } };
+        const ph = w.__hexfall.getState().session?.state.phase;
+        return ph?.kind === 'trade' ? (ph.offer?.id ?? null) : null;
+      });
+    const before = await offerId();
     await offer.getByRole('button', { name: /Decline/ }).click({ timeout: 2000 }).catch(() => undefined);
-    await expect(offer).toBeHidden();
+    // A bot may make a fresh (even identical) offer straight away: done once this one is gone.
+    await expect.poll(offerId).not.toBe(before);
     return true;
   }
   const discard = page.getByRole('dialog', { name: /Discard \d+ cards/ });

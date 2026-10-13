@@ -3,6 +3,7 @@ import { makeRecord, parseRecord, replay } from '@hexfall/engine';
 
 export type BotSpeed = 'slow' | 'normal' | 'fast' | 'instant';
 export type HandPrivacy = 'curtain' | 'off';
+export type Effects = 'auto' | 'full' | 'lite';
 
 export interface Settings {
   master: number;
@@ -20,6 +21,10 @@ export interface Settings {
   rookieTips: boolean;
   dismissedTips: string[];
   theme: 'hexfall' | 'frostbound';
+  /** Ambient animation level; 'auto' drops to lite when frames are slow. */
+  effects: Effects;
+  /** Set by the frame watchdog when 'auto' found this device too slow for full effects. */
+  autoLite: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   rookieTips: true,
   dismissedTips: [],
   theme: 'hexfall',
+  effects: 'auto',
+  autoLite: false,
 };
 
 const SETTINGS_KEY = 'hexfall.settings';
@@ -90,8 +97,16 @@ function migrate(data: { schema?: number } & Record<string, unknown>): AnySave |
   }
 }
 
-export function writeAutosave(config: GameConfig, actions: Action[], state: GameState): void {
-  const file: SaveFileV1 = { schema: SAVE_SCHEMA, savedAt: Date.now(), config, actions, state };
+let pendingSave: SaveFileV1 | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Writes the queued autosave now (also runs when the page is hidden or closed). */
+export function flushAutosave(): void {
+  if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = null;
+  const file = pendingSave;
+  pendingSave = null;
+  if (!file) return;
   try {
     storage()?.setItem(SAVE_KEY, JSON.stringify(file));
   } catch {
@@ -99,7 +114,24 @@ export function writeAutosave(config: GameConfig, actions: Action[], state: Game
   }
 }
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushAutosave);
+  document.addEventListener('visibilitychange', () => document.hidden && flushAutosave());
+}
+
+/**
+ * Queues an autosave. Serialising the whole game on every action stalled bot turns, so
+ * writes are coalesced (at most one per 400 ms) and flushed when the page goes away.
+ */
+export function writeAutosave(config: GameConfig, actions: Action[], state: GameState): void {
+  pendingSave = { schema: SAVE_SCHEMA, savedAt: Date.now(), config, actions, state };
+  if (saveTimer === null) saveTimer = setTimeout(flushAutosave, 400);
+}
+
 export function clearAutosave(): void {
+  pendingSave = null;
+  if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = null;
   try {
     storage()?.removeItem(SAVE_KEY);
   } catch {
@@ -108,6 +140,7 @@ export function clearAutosave(): void {
 }
 
 export function peekAutosave(): { savedAt: number; config: GameConfig; state: GameState } | null {
+  flushAutosave();
   try {
     const raw = storage()?.getItem(SAVE_KEY);
     if (!raw) return null;
@@ -124,6 +157,7 @@ export function peekAutosave(): { savedAt: number; config: GameConfig; state: Ga
  * log) and to verify the stored state; the stored state wins if the replay ever differs.
  */
 export function readAutosave(): { config: GameConfig; actions: Action[]; state: GameState } | null {
+  flushAutosave();
   try {
     const raw = storage()?.getItem(SAVE_KEY);
     if (!raw) return null;

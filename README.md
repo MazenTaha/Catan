@@ -29,7 +29,7 @@ Then open http://localhost:5173.
 | `pnpm e2e` | Playwright end-to-end tests (starts its own dev server on port 4319): setup → roll → build → bank trade → reload & continue, hot-seat curtains, export/import replay, phone/tablet layouts, and two complete games to the victory screen with a console-error guard |
 | `pnpm verify` | typecheck → lint → test → build |
 
-Opt-in diagnostics: `SHOTS=1 pnpm e2e shots` saves desktop/tablet/phone screenshots to `apps/web/test-results/shots`; `PERF=1 pnpm e2e perf` logs idle frame rate and main-thread cost (`PERF_GPU=1` to use the GPU).
+Opt-in diagnostics: `SHOTS=1 pnpm e2e shots` saves desktop/tablet/phone screenshots to `apps/web/test-results/shots`; `LAG=1 pnpm e2e lag` measures frame pacing and long tasks on the menu, new-game screen and board (idle, hovering, bots playing). Options: `LAG_GPU=1` hardware rendering, `LAG_CPU=4` CPU throttling, `LAG_DPR=2` hi-DPI, `LAG_EFFECTS=full|lite`, `LAG_URL=http://localhost:4173` to test a production preview, `LAG_PROFILE=1` to print hot functions. `LAG=1 pnpm e2e dispatch-cost` reports the store/render cost of each game action.
 
 Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright install chromium` once if its browser is not installed yet.
 
@@ -42,6 +42,8 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 5. Race to the target with Outposts (1), Citadels (2), the Longest Causeway (2), the Greatest Host (2) and hidden Relics (1 each).
 
 The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES.md](docs/RULES.md).
+
+**Smoothness:** Settings → Graphics is *Auto* by default. If the browser can’t hold ~42 fps with full effects (typically when hardware acceleration is off), it switches to *Lite*, which drops the embers and looping animations. Choose *Full* or *Lite* to override.
 
 **Hot-seat privacy:** with two or more humans, a pass-device curtain hides hands whenever the device must change hands (turns, discards, trade responses). Turn it off in Settings → Hot-seat → Open hands.
 

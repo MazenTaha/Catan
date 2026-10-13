@@ -236,8 +236,14 @@ function applyDocumentSettings(s: Settings) {
     s.reduceMotion || (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   root.classList.toggle('reduce-motion', reduce);
   root.classList.toggle('colorblind', s.colorblind);
+  root.classList.toggle('fx-lite', liteEffects(s));
   if (s.theme === 'frostbound') root.setAttribute('data-theme', 'frostbound');
   else root.removeAttribute('data-theme');
+}
+
+/** Lite effects: no ambient particles or looping animations (cheap on software rendering). */
+export function liteEffects(s: Settings): boolean {
+  return s.effects === 'lite' || (s.effects === 'auto' && s.autoLite);
 }
 
 export function prefersReducedMotion(s: Settings): boolean {

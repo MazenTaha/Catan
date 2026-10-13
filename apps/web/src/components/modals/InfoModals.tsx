@@ -130,6 +130,13 @@ export function SettingsModal() {
       <h3 className="panel-title mb-2 mt-5">Display</h3>
       <Toggle label="Reduce motion" hint="Disables particles and large movement (also follows your system setting)." checked={s.reduceMotion} onChange={set('reduceMotion')} />
       <Toggle label="Colorblind assist" hint="Adds resource glyphs on tiles; pieces always carry sigils." checked={s.colorblind} onChange={set('colorblind')} />
+      <Choice
+        label="Graphics"
+        value={s.effects}
+        options={[{ v: 'auto', l: s.effects === 'auto' && s.autoLite ? 'Auto (lite)' : 'Auto' }, { v: 'full', l: 'Full' }, { v: 'lite', l: 'Lite' }]}
+        onChange={(v) => up({ effects: v, autoLite: false })}
+      />
+      <p className="mb-1 text-[14px] text-muted">Lite turns off embers and looping animations. Auto switches to it when your browser can’t keep up.</p>
       <Choice label="Theme" value={s.theme} options={[{ v: 'hexfall', l: 'Ember' }, { v: 'frostbound', l: 'Frostbound' }]} onChange={set('theme')} />
       <Choice label="UI scale" value={s.uiScale} options={[{ v: 0.9, l: '90%' }, { v: 1, l: '100%' }, { v: 1.1, l: '110%' }, { v: 1.25, l: '125%' }]} onChange={set('uiScale')} />
       <h3 className="panel-title mb-2 mt-5">Play</h3>

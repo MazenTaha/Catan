@@ -51,17 +51,12 @@ export function TitleScreen() {
   );
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-10">
-      <motion.div
-        className="pointer-events-none absolute inset-0 grid place-items-center opacity-60"
-        initial={{ scale: 1.15, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.6, rotate: [0, 1.5, 0] }}
-        transition={{ duration: 3, rotate: { duration: 40, repeat: Infinity, ease: 'easeInOut' } }}
-        aria-hidden
-      >
-        <div className="w-[min(1100px,140vw)]" style={{ filter: 'saturate(0.85) brightness(0.8)', maskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)', WebkitMaskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)' }}>
+      {/* A still isle behind the menu: painted once, faded in by the compositor (no per-frame repaint). */}
+      <div className="anim-isle-in pointer-events-none absolute inset-0 grid place-items-center" aria-hidden>
+        <div className="w-[min(1100px,140vw)]" style={{ maskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)', WebkitMaskImage: 'radial-gradient(ellipse at center, #000 45%, transparent 72%)' }}>
           <BoardView state={isle} canAct={false} decorative />
         </div>
-      </motion.div>
+      </div>
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(10,11,13,0.25) 0%, rgba(10,11,13,0.85) 55%, #0a0b0d 85%)' }}
@@ -70,10 +65,10 @@ export function TitleScreen() {
 
       <div className="relative z-10 flex flex-col items-center">
         <motion.h1
-          className="font-logo text-[64px] leading-none text-gold sm:text-[92px]"
-          style={{ textShadow: '0 0 40px rgba(224,112,42,0.35), 0 4px 0 #000' }}
-          initial={{ opacity: 0, letterSpacing: '0.4em' }}
-          animate={{ opacity: 1, letterSpacing: '0.08em' }}
+          className="font-logo text-[64px] leading-none tracking-[0.08em] text-gold sm:text-[92px]"
+          style={{ textShadow: '0 0 40px rgba(224,112,42,0.35), 0 4px 0 #000', willChange: 'transform, opacity' }}
+          initial={{ opacity: 0, scaleX: 1.3 }}
+          animate={{ opacity: 1, scaleX: 1 }}
           transition={{ duration: 1.6, ease: 'easeOut' }}
         >
           Hexfall

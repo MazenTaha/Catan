@@ -22,7 +22,7 @@ export function FlyingGains({ state, seat, disabled }: { state: GameState; seat:
     if (!production || disabled) return;
     const gains = production.gains[seat];
     if (!gains || !RESOURCES.some((r) => gains[r] > 0)) return;
-    const svg = document.querySelector('[data-board] svg[role=group]');
+    const svg = document.querySelector('[data-board] [role=group]');
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     const scale = Math.min(rect.width / VIEWBOX.w, rect.height / VIEWBOX.h);

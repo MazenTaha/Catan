@@ -48,8 +48,8 @@ export const Torch = memo(function Torch({ x, y }: { x: number; y: number }) {
     <g transform={`translate(${x} ${y})`}>
       <circle r={9} fill="url(#g-torch)" />
       <path d="M0 2V9" stroke="#3a2a1a" strokeWidth={1.6} />
-      <path className="anim-flicker" d="M0 -6C2.5 -3 3 -1 2 1.5C1.4 3 -1.4 3 -2 1.5C-3 -1 -2 -3 0 -6Z" fill="#ffb347" />
-      <path className="anim-flicker" d="M0 -3C1.2 -1.5 1.3 0 .8 1.2C.5 1.8 -.5 1.8 -.8 1.2C-1.3 0 -1 -1.5 0 -3Z" fill="#fff1b8" />
+      <path d="M0 -6C2.5 -3 3 -1 2 1.5C1.4 3 -1.4 3 -2 1.5C-3 -1 -2 -3 0 -6Z" fill="#ffb347" />
+      <path d="M0 -3C1.2 -1.5 1.3 0 .8 1.2C.5 1.8 -.5 1.8 -.8 1.2C-1.3 0 -1 -1.5 0 -3Z" fill="#fff1b8" />
     </g>
   );
 });
@@ -96,7 +96,7 @@ export const CitadelPiece = memo(function CitadelPiece({ color, sigil, ghost, ri
       <path d="M-8 -6V-20L0 -36L8 -20V-6Z" fill={`url(#g-piece-${color})`} stroke={d} strokeWidth={1.4} />
       <path d="M-8 -20L0 -36L0 -20Z" fill="#fff" opacity={0.12} />
       <path d="M-2.4 -10V-15a2.4 2.4 0 0 1 4.8 0V-10Z" fill="#ffcf6b" />
-      {!ghost && <circle cx={0} cy={-13} r={7} fill="url(#g-torch)" opacity={0.8} className="anim-pulse" />}
+      {!ghost && <circle cx={0} cy={-13} r={7} fill="url(#g-torch)" opacity={0.8} />}
       <path d="M-19 4H19" stroke={d} strokeWidth={0.7} opacity={0.8} />
       <path d="M-4 15V9a4 4 0 0 1 8 0v6Z" fill="#0a0b0d" />
       <SigilMark sigil={sigil} color={color} x={-11.5} y={4} size={8} />
@@ -150,7 +150,7 @@ export const WraithPawn = memo(function WraithPawn() {
         fill="none"
         opacity={0.25}
       />
-      <g className="anim-bob">
+      <g>
         <path
           d="M0 -36C15 -36 19 -21 19 -6L23 22L15 16L11 25L5 18L-1 26L-7 18L-12 25L-16 16L-23 22L-19 -6C-19 -21 -15 -36 0 -36Z"
           fill="url(#g-wraith)"

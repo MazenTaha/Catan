@@ -7,7 +7,7 @@ import { GameScreen } from './components/screens/GameScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
 import { TitleScreen } from './components/screens/TitleScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import { prefersReducedMotion, useStore } from './state/store';
+import { liteEffects, prefersReducedMotion, useStore } from './state/store';
 
 const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
 const ArtBoard = lazy(() => import('./components/screens/ArtBoard'));
@@ -17,6 +17,7 @@ export function App() {
   const modal = useStore((s) => s.modal);
   const announce = useStore((s) => s.announce);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
+  const lite = useStore((s) => liteEffects(s.settings));
 
   // Audio may only start after a user gesture (autoplay policy).
   useEffect(() => {
@@ -41,9 +42,9 @@ export function App() {
   }
 
   return (
-    <div className={`grain relative min-h-screen ${reduce ? 'reduce-motion' : ''}`}>
+    <div className={`relative min-h-screen ${reduce ? 'reduce-motion' : ''}`}>
       <div className="vignette" aria-hidden />
-      <Embers disabled={reduce} count={screen === 'game' ? 28 : 40} />
+      <Embers disabled={reduce || lite} count={screen === 'game' ? 28 : 40} />
       <div className="relative z-10 min-h-screen">
         <ErrorBoundary onReset={() => useStore.getState().go('title')}>
           {screen === 'title' && <TitleScreen />}

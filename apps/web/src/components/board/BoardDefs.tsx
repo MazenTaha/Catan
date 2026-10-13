@@ -17,9 +17,6 @@ export const BoardDefs = memo(function BoardDefs() {
       <filter id="f-blur6" x="-50%" y="-50%" width="200%" height="200%">
         <feGaussianBlur stdDeviation="6" />
       </filter>
-      <filter id="f-blur14" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="14" />
-      </filter>
       <filter id="f-noise" x="0" y="0" width="100%" height="100%">
         <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7" result="n" />
         <feColorMatrix
@@ -113,6 +110,12 @@ export const BoardDefs = memo(function BoardDefs() {
         <stop offset="50%" stopColor="#0c1f26" />
         <stop offset="100%" stopColor="#071216" />
       </linearGradient>
+      {/* soft fog banks: a gradient instead of a blur filter, so they cost nothing to draw */}
+      <radialGradient id="g-fog">
+        <stop offset="0%" stopColor="#9fb3b6" stopOpacity="0.2" />
+        <stop offset="60%" stopColor="#9fb3b6" stopOpacity="0.08" />
+        <stop offset="100%" stopColor="#9fb3b6" stopOpacity="0" />
+      </radialGradient>
       <radialGradient id="g-sea-light" cx="50%" cy="45%" r="60%">
         <stop offset="0%" stopColor="#3d6b72" stopOpacity="0.35" />
         <stop offset="100%" stopColor="#3d6b72" stopOpacity="0" />

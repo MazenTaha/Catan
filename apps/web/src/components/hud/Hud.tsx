@@ -1,15 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import {
-  RESOURCES,
-  TERRAIN_RESOURCE,
-  activeActor,
-  type GameState,
-  type Terrain,
-} from '@hexfall/engine';
-import { Icon, RES_COLOR, ResourceGlyph } from '../../art/icons/Icon';
+import { useEffect, useState, type ReactNode } from 'react';
+import { RESOURCES, activeActor, type GameState } from '@hexfall/engine';
+import { Icon } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
-import { OMEN_NAME, PIECE_NAME, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
+import { OMEN_NAME, PIECE_NAME } from '../../lexicon';
 import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { DicePair } from './Dice';
 
@@ -29,16 +23,13 @@ export function TopBar({ state }: { state: GameState }) {
           <path d="M32 16 44 40H20z" fill="none" stroke="#e0702a" strokeWidth="3" />
           <circle cx="32" cy="33" r="3" fill="#c9a24b" />
         </svg>
-        <h1 className="font-logo text-[22px] leading-none tracking-[0.08em] text-gold">Hexfall</h1>
+        <h1 className="font-logo text-[22px] leading-none tracking-[0.08em] text-gold">Catan Night</h1>
       </div>
       <span className="chip num text-bone" aria-label={`Round ${state.round}`}>
-        {state.phase.kind === 'setup' ? 'Founding' : `Round ${state.round}`}
+        {state.phase.kind === 'setup' ? 'Setup' : `Round ${state.round}`}
       </span>
       <span className="chip text-muted">
         First to <b className="num text-gold">{state.config.targetVp}</b> points
-      </span>
-      <span className="chip hidden text-muted md:inline-flex" title="Seed — share it to replay this isle">
-        <Icon name="relic" size={12} /> {state.config.seed}
       </span>
       <div className="ml-auto flex items-center gap-1">
         <button className="btn btn-ghost !px-2" onClick={undo} disabled={!undoable} aria-label="Undo last action" title="Undo (placement, building and bank trades only)">
@@ -62,7 +53,7 @@ export function TopBar({ state }: { state: GameState }) {
           <Icon name="settings" />
         </button>
         <button className="btn ml-1" onClick={() => openModal('confirm-new')}>
-          <Icon name="refresh" size={16} /> New isle
+          <Icon name="refresh" size={16} /> New game
         </button>
       </div>
     </header>
@@ -77,27 +68,27 @@ export function instruction(state: GameState, seat: number): string {
   const mine = actor === seat;
   const ph = state.phase;
   if (state.handoff !== null) return `Pass the device to ${state.players[state.handoff].name}`;
-  if (a.kind === 'bot' && ph.kind !== 'ended') return `${a.name} is scheming…`;
+  if (a.kind === 'bot' && ph.kind !== 'ended') return `${a.name} is thinking…`;
   switch (ph.kind) {
     case 'setup':
       if (ph.step === 'outpost') {
         return ph.index < state.players.length
-          ? 'Place your first Outpost anywhere legal'
-          : 'Place your second Outpost — it yields resources at once';
+          ? 'Place your first Settlement'
+          : 'Place your second Settlement — it gives you resources at once';
       }
-      return 'Lay a Causeway from your new Outpost';
+      return 'Build a Road from your new Settlement';
     case 'roll':
-      return 'Roll the dice to begin (Space) — or play an Omen first';
+      return 'Roll the dice (Space) — or play a Knight first';
     case 'discard': {
       const n = ph.pending[actor];
       return mine ? `Discard ${n} cards` : `Waiting for ${a.name} to discard`;
     }
     case 'move-wraith':
-      return 'Move the Wraith — click any other hex';
+      return 'Move the robber — click any other hex';
     case 'steal':
       return 'Choose whom to rob';
     case 'decree':
-      return `Lay ${ph.remaining} free Causeway${ph.remaining > 1 ? 's' : ''} (${OMEN_NAME.decree})`;
+      return `Build ${ph.remaining} free Road${ph.remaining > 1 ? 's' : ''} (${OMEN_NAME.decree})`;
     case 'trade':
       return mine
         ? `${state.players[ph.offer.proposer].name} offers you a trade`
@@ -105,16 +96,16 @@ export function instruction(state: GameState, seat: number): string {
     case 'main':
       return 'Build & trade, then end your turn (Space)';
     case 'ended':
-      return `${state.players[ph.winner].name} claims the Isle`;
+      return `${state.players[ph.winner].name} wins!`;
   }
 }
 
-export function TurnBanner({ state, seat }: { state: GameState; seat: number }) {
+export function TurnBanner({ state, seat, children }: { state: GameState; seat: number; children?: ReactNode }) {
   const cur = state.players[state.currentPlayer];
   const ph = state.phase.kind;
   const steps =
     ph === 'setup'
-      ? ['Outpost', 'Causeway']
+      ? ['Settlement', 'Road']
       : ['Roll', 'Build & trade', 'End turn'];
   let active = 0;
   if (state.phase.kind === 'setup') active = state.phase.step === 'outpost' ? 0 : 1;
@@ -127,13 +118,13 @@ export function TurnBanner({ state, seat }: { state: GameState; seat: number }) 
       <PlayerDisc color={cur.color} sigil={cur.sigil} size={38} active />
       <div className="min-w-0 flex-1">
         <div className="font-display text-[15px] uppercase tracking-[0.16em] text-gold">
-          {state.phase.kind === 'setup' ? `${cur.name} founds a holding` : `${cur.name}'s turn`}
+          {state.phase.kind === 'setup' ? `${cur.name} — setup` : `${cur.name}'s turn`}
         </div>
         <div className="truncate text-[15px] text-bone/90" aria-live="polite">
           {instruction(state, seat)}
         </div>
       </div>
-      <ol className="flex items-center gap-1.5" aria-label="Turn steps">
+      <ol className="hidden items-center gap-1.5 2xl:flex" aria-label="Turn steps">
         {steps.map((s, i) => (
           <li key={s} className="flex items-center gap-1.5">
             <span
@@ -148,6 +139,7 @@ export function TurnBanner({ state, seat }: { state: GameState; seat: number }) 
         ))}
       </ol>
       {timer > 0 && <TurnTimerBadge state={state} />}
+      {children}
     </section>
   );
 }
@@ -203,70 +195,45 @@ export function DiceTray({ state, canRoll, onRoll }: { state: GameState; canRoll
 
 // ------------------------------------------------------------------ toast
 
-export function BoardToast() {
+const TOAST_MS = 2600;
+
+/** Notices float up from the bottom of the screen, then fade away on their own. */
+export function FloatingToast() {
   const toast = useStore((s) => s.toast);
-  const dismiss = useStore((s) => s.dismissToast);
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    setShown(toast.id);
+    const id = window.setTimeout(() => setShown(null), toast.tone === 'bad' ? TOAST_MS : TOAST_MS + 800);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+  const visible = toast && shown === toast.id;
   const tone = toast?.tone ?? 'info';
   const color =
     tone === 'good' ? 'border-venom/60' : tone === 'bad' ? 'border-blood' : tone === 'gold' ? 'border-gold' : 'border-iron';
   return (
-    <div className="min-h-[44px]" aria-live="polite">
-      <AnimatePresence mode="wait">
-        {toast && (
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4" aria-live="polite">
+      <AnimatePresence>
+        {visible && (
           <motion.div
             key={toast.id}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className={`mx-auto flex max-w-2xl items-start gap-2 border ${color} bg-surface-1/95 px-4 py-2 text-[15px] shadow-panel`}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.25 }}
+            className={`flex max-w-xl items-center gap-2 border ${color} bg-surface-1/95 px-4 py-2.5 text-[15px] shadow-panel`}
             role="status"
+            data-testid="toast"
           >
-            <Icon name={tone === 'good' ? 'gain' : tone === 'bad' ? 'wraith' : tone === 'gold' ? 'crown' : 'scroll'} size={18} className={tone === 'good' ? 'mt-0.5 text-venom' : tone === 'bad' ? 'mt-0.5 text-ember' : 'mt-0.5 text-gold'} />
-            <span className="flex-1">{toast.text}</span>
-            <button className="text-muted hover:text-gold" onClick={dismiss} aria-label="Dismiss">
-              <Icon name="close" size={14} />
-            </button>
+            <Icon
+              name={tone === 'good' ? 'gain' : tone === 'bad' ? 'close' : tone === 'gold' ? 'crown' : 'scroll'}
+              size={16}
+              className={tone === 'good' ? 'text-venom' : tone === 'bad' ? 'text-ember' : 'text-gold'}
+            />
+            <span>{toast.text}</span>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ terrain key & probabilities
-
-const KEY_TERRAINS: Terrain[] = ['witchwood', 'ashen', 'moors', 'fields', 'peaks'];
-
-export function TerrainKey({ state }: { state: GameState }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[14px]">
-        {KEY_TERRAINS.map((t) => {
-          const r = TERRAIN_RESOURCE[t]!;
-          return (
-            <span key={t} className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-3.5 w-3.5 rotate-45 border border-black/60" style={{ background: `var(--t-${t})` }} />
-              <span className="text-muted">{TERRAIN_NAME[t]}</span>
-              <Icon name="arrow" size={11} className="text-iron" />
-              <span style={{ color: RES_COLOR[r] }}>
-                <ResourceGlyph res={r} size={15} />
-              </span>
-              <span>{RESOURCE_NAME[r]}</span>
-            </span>
-          );
-        })}
-        <span className="inline-flex items-center gap-1.5 text-muted">
-          <span className="num text-[16px] text-[#e0585f]">6</span>
-          <span className="num text-[16px] text-[#e0585f]">8</span>
-          most likely rolls
-        </span>
-        <button className="btn btn-ghost !px-2 !py-1 text-[11px]" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <Icon name="dice" size={14} /> Odds
-        </button>
-      </div>
-      {open && <ProbabilityPanel state={state} />}
     </div>
   );
 }

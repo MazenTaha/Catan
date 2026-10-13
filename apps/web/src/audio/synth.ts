@@ -92,6 +92,26 @@ function bell(ctx: AudioContext, out: Out, t: number, f: number, dur: number, pe
   partials.forEach((p, i) => tone(ctx, out, t, f * p, dur / (1 + i * 0.7), peak / (1 + i * 1.6)));
 }
 
+/** A brick set down on another: a hard click with a short, low body. */
+function brick(ctx: AudioContext, out: Out, t: number, level = 1) {
+  burst(ctx, out, t, 0.035, 0.32 * level, 'bandpass', 2200 + Math.random() * 900, undefined, 5);
+  burst(ctx, out, t, 0.05, 0.18 * level, 'bandpass', 700 + Math.random() * 200, undefined, 3);
+  tone(ctx, out, t, 240 + Math.random() * 40, 0.05, 0.16 * level, 'triangle', 0.001, 150);
+}
+
+/** A low impact, like stone or a timber frame settling. */
+function thud(ctx: AudioContext, out: Out, t: number, f: number, peak: number) {
+  tone(ctx, out, t, f, 0.2, peak, 'sine', 0.002, f * 0.5);
+  burst(ctx, out, t, 0.07, peak * 0.4, 'lowpass', 500);
+}
+
+/** A hammer on wood: a pitched knock with a little noise on the attack. */
+function knock(ctx: AudioContext, out: Out, t: number, f: number, peak: number) {
+  tone(ctx, out, t, f, 0.07, peak, 'triangle', 0.001, f * 0.7);
+  tone(ctx, out, t, f * 2.3, 0.03, peak * 0.3, 'sine', 0.001);
+  burst(ctx, out, t, 0.03, peak * 0.6, 'bandpass', 1600, undefined, 2.5);
+}
+
 export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
   const t = ctx.currentTime + 0.01;
   switch (name) {
@@ -113,20 +133,34 @@ export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
       tone(ctx, out, t + 0.07, 2093, 0.3, 0.1, 'triangle');
       burst(ctx, out, t, 0.03, 0.08, 'highpass', 5000);
       break;
-    case 'causeway':
-      tone(ctx, out, t, 190, 0.12, 0.35, 'triangle', 0.002, 120);
-      burst(ctx, out, t, 0.06, 0.25, 'bandpass', 900, undefined, 2);
-      tone(ctx, out, t + 0.09, 230, 0.08, 0.2, 'triangle', 0.002, 150);
+    case 'causeway': {
+      // Road: three hammer blows on a wooden plank, the last one firmest.
+      [0, 0.13, 0.25].forEach((dt, i) => knock(ctx, out, t + dt + Math.random() * 0.015, 380 + Math.random() * 60, i === 2 ? 0.42 : 0.3));
+      burst(ctx, out, t + 0.32, 0.12, 0.05, 'bandpass', 2400, 1200, 2);
       break;
-    case 'outpost':
-      tone(ctx, out, t, 95, 0.35, 0.55, 'sine', 0.002, 45);
-      burst(ctx, out, t, 0.15, 0.3, 'lowpass', 600);
-      burst(ctx, out, t + 0.08, 0.45, 0.18, 'bandpass', 400, 2400, 0.8);
+    }
+    case 'outpost': {
+      // Settlement: bricks laid quickly one on another, a trowel scrape, then a settling thump.
+      let at = t;
+      for (let i = 0; i < 5; i++) {
+        brick(ctx, out, at, 0.85 + i * 0.05);
+        at += 0.085 + Math.random() * 0.03;
+      }
+      burst(ctx, out, at + 0.02, 0.16, 0.07, 'bandpass', 1500, 3800, 2.5);
+      thud(ctx, out, at + 0.2, 110, 0.4);
       break;
-    case 'citadel':
-      bell(ctx, out, t, 98, 3.2, 0.32);
-      tone(ctx, out, t, 49, 1.2, 0.3, 'sine', 0.01);
+    }
+    case 'citadel': {
+      // City: heavy stone blocks set in place, a run of bricks, then a bell from the new tower.
+      [0, 0.22, 0.42].forEach((dt) => {
+        thud(ctx, out, t + dt, 80, 0.55);
+        burst(ctx, out, t + dt, 0.09, 0.2, 'lowpass', 900);
+        brick(ctx, out, t + dt + 0.02, 0.7);
+      });
+      for (let i = 0; i < 4; i++) brick(ctx, out, t + 0.62 + i * 0.07, 0.7);
+      bell(ctx, out, t + 0.95, 196, 1.8, 0.22);
       break;
+    }
     case 'wraith':
       burst(ctx, out, t, 1.1, 0.22, 'bandpass', 500, 1800, 6);
       burst(ctx, out, t + 0.2, 0.9, 0.15, 'bandpass', 1600, 400, 8);
@@ -143,6 +177,8 @@ export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
       tone(ctx, out, t, 220, 0.12, 0.2, 'sine', 0.003, 160);
       break;
     case 'omen': {
+      // Development card: a card slid off the deck, then a soft chime.
+      burst(ctx, out, t, 0.16, 0.22, 'highpass', 1800, 7000, 0.8);
       const notes = [880, 1108, 1318, 1760];
       notes.forEach((f, i) => tone(ctx, out, t + i * 0.07, f, 0.8, 0.07, 'sine', 0.02));
       burst(ctx, out, t, 0.9, 0.05, 'highpass', 6000);

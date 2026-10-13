@@ -85,10 +85,11 @@ test('1 human + 3 bots: title → victory → rematch', async ({ page }) => {
   await page.getByTestId('begin-founding').click();
   await playToVictory(page);
   await expect(page.getByRole('dialog', { name: 'Victory' })).toBeVisible();
-  await expect(page.getByText('claims the Isle').first()).toBeVisible();
+  await expect(page.getByText(/ wins!?/).first()).toBeVisible();
   await expect(page.getByText('Final reckoning')).toBeVisible();
   await page.getByRole('button', { name: /Rematch/ }).click();
-  await expect(page.getByLabel('Seed').or(page.getByText('full-game-1').first())).toBeVisible();
+  // A rematch opens a fresh game (new-game screen or straight into setup).
+  await expect(page.getByLabel('Seed').or(page.getByLabel('Round 0'))).toBeVisible();
 });
 
 test('4-player hot-seat: curtains between every human, to victory', async ({ page }) => {

@@ -6,6 +6,7 @@ import {
   OMEN_NAME,
   PIECE_NAME,
   RESOURCE_NAME,
+  WRAITH,
   WRAITH_TITLE,
 } from '../lexicon';
 import type { IconName } from '../art/icons/Icon';
@@ -55,23 +56,23 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
     case 'SetupOutpostPlaced':
       return {
         icon: 'outpost',
-        parts: [P(e.player), ` raised ${e.round === 1 ? 'a first' : 'a second'} ${PIECE_NAME.outpost}`],
+        parts: [P(e.player), ` placed ${e.round === 1 ? 'a first' : 'a second'} ${PIECE_NAME.outpost}`],
         players: [e.player],
       };
     case 'SetupResourcesGranted':
       return { icon: 'gain', parts: [P(e.player), ' gathered ', ...countsParts(e.gains)], players: [e.player], tone: 'good' };
     case 'SetupComplete':
-      return { icon: 'scroll', parts: ['The founding is done. Let the dice fall.'], players: [], tone: 'gold' };
+      return { icon: 'scroll', parts: ['Setup is done. Let the dice roll.'], players: [], tone: 'gold' };
     case 'CausewayBuilt':
       return {
         icon: 'causeway',
-        parts: [P(e.player), ` laid a ${PIECE_NAME.causeway}${e.free ? ' (free)' : ''}`],
+        parts: [P(e.player), ` built a ${PIECE_NAME.causeway}${e.free ? ' (free)' : ''}`],
         players: [e.player],
       };
     case 'OutpostBuilt':
-      return { icon: 'outpost', parts: [P(e.player), ` built an ${PIECE_NAME.outpost}`], players: [e.player] };
+      return { icon: 'outpost', parts: [P(e.player), ` built a ${PIECE_NAME.outpost}`], players: [e.player] };
     case 'CitadelBuilt':
-      return { icon: 'citadel', parts: [P(e.player), ` raised a ${PIECE_NAME.citadel}`], players: [e.player], tone: 'gold' };
+      return { icon: 'citadel', parts: [P(e.player), ` built a ${PIECE_NAME.citadel}`], players: [e.player], tone: 'gold' };
     case 'DiceRolled':
       return {
         icon: 'dice',
@@ -92,7 +93,7 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
       if (!parts.length) {
         return {
           icon: 'gain',
-          parts: [e.blockedHex !== null ? `${WRAITH_TITLE} smothers the harvest` : 'Nothing stirs on the Isle'],
+          parts: [e.blockedHex !== null ? `${WRAITH_TITLE} blocks the harvest` : 'Nobody collects anything'],
           players: [],
           tone: 'muted',
         };
@@ -110,7 +111,7 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
         tone: 'bad',
       };
     case 'DiscardRequired':
-      return { icon: 'hourglass', parts: ['A 7! Hoarders must shed half their hands'], players: [], tone: 'bad' };
+      return { icon: 'hourglass', parts: ['A 7! Players with more than 7 cards discard half'], players: [], tone: 'bad' };
     case 'Discarded':
       return {
         icon: 'discard',
@@ -121,7 +122,7 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
     case 'WraithMoved':
       return {
         icon: 'wraith',
-        parts: [P(e.player), ` sent ${WRAITH_TITLE} to ${ctx.terrainName(e.to)}`],
+        parts: [P(e.player), ` moved ${WRAITH} to ${ctx.terrainName(e.to)}`],
         players: [e.player],
       };
     case 'Stolen':
@@ -138,26 +139,26 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
         tone: 'bad',
       };
     case 'StealSkipped':
-      return { icon: 'wraith', parts: ['No one to rob there'], players: [e.player], tone: 'muted' };
+      return { icon: 'wraith', parts: ['No one to steal from there'], players: [e.player], tone: 'muted' };
     case 'OmenBought':
       return {
         icon: 'omen',
-        parts: [P(e.player), ' drew an Omen', ...(see(e.player) ? [` — ${OMEN_NAME[e.omen]}`] : [])],
+        parts: [P(e.player), ' bought a development card', ...(see(e.player) ? [` — ${OMEN_NAME[e.omen]}`] : [])],
         players: [e.player],
       };
     case 'OmenPlayed':
       return {
         icon: e.omen === 'warden' ? 'sword' : 'omen',
-        parts: [P(e.player), ` invoked ${OMEN_NAME[e.omen]}`],
+        parts: [P(e.player), ` played ${OMEN_NAME[e.omen]}`],
         players: [e.player],
         tone: 'gold',
       };
     case 'HarvestTaken':
-      return { icon: 'gain', parts: [P(e.player), ' harvested ', ...countsParts(e.resources)], players: [e.player], tone: 'good' };
+      return { icon: 'gain', parts: [P(e.player), ' took ', ...countsParts(e.resources)], players: [e.player], tone: 'good' };
     case 'TitheTaken':
       return {
         icon: 'blood',
-        parts: [P(e.player), ` exacted ${e.total} ${RESOURCE_NAME[e.resource]} in blood`],
+        parts: [P(e.player), ` took all ${e.total} ${RESOURCE_NAME[e.resource]} (Monopoly)`],
         players: [e.player],
         tone: 'bad',
       };
@@ -214,14 +215,14 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
     case 'GreatestHostChanged':
       return {
         icon: 'sword',
-        parts: e.holder === null ? [`${HOST} is unclaimed`] : [P(e.holder), ` commands the ${HOST} (${e.count})`],
+        parts: e.holder === null ? [`${HOST} is unclaimed`] : [P(e.holder), ` takes the ${HOST} (${e.count})`],
         players: e.holder === null ? [] : [e.holder],
         tone: 'gold',
       };
     case 'TurnStarted':
       return { icon: 'bell', parts: [`Round ${e.round} — `, P(e.player), "'s turn"], players: [e.player], tone: 'muted' };
     case 'GameWon':
-      return { icon: 'crown', parts: [P(e.player), ` claims the Isle with ${e.vp} points!`], players: [e.player], tone: 'gold' };
+      return { icon: 'crown', parts: [P(e.player), ` wins with ${e.vp} points!`], players: [e.player], tone: 'gold' };
     case 'TurnEnded':
     case 'DevicePassed':
       return null;

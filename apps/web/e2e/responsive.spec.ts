@@ -18,11 +18,11 @@ for (const vp of [
     await page.getByTestId('new-game').click();
     await page.getByRole('button', { name: 'Seat 1' }).click();
     await page.getByTestId('begin').click();
-    await expect(page.locator('[aria-label^="Place an Outpost"]').first()).toBeAttached();
+    await expect(page.locator('[aria-label^="Place a Settlement"]').first()).toBeAttached();
     await expect(page.getByTestId('hand')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    const board = await page.getByRole('group', { name: 'The Isle' }).boundingBox();
+    const board = await page.getByRole('group', { name: 'The board' }).boundingBox();
     expect(board!.width).toBeLessThanOrEqual(vp.width);
     if (vp.width < 900) {
       await expect(page.getByRole('button', { name: /Hide hand/ })).toBeVisible();

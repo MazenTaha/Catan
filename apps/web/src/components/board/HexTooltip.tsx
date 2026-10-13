@@ -38,7 +38,7 @@ export function HexTooltip({ state, hex }: { state: GameState; hex: number }) {
             </span>
           </div>
         )}
-        {haunted && <div className="mt-1 text-frost">Haunted by the Wraith — yields nothing</div>}
+        {haunted && <div className="mt-1 text-frost">Blocked by the robber — yields nothing</div>}
         <div className="mt-1 flex items-center gap-1 text-muted">
           {owners.length ? (
             <>

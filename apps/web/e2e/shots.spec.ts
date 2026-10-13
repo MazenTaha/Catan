@@ -27,14 +27,22 @@ for (const vp of [
     await page.getByTestId('seed').fill('shots-isle-3');
     await page.getByRole('button', { name: 'Seat 1' }).click();
     await page.getByTestId('begin').click();
-    // Found twice, then roll once so production effects are visible.
+    // On phones the hand sheet covers the lower board; fold it away while placing.
+    const hide = page.getByRole('button', { name: /Hide hand/ });
+    if (vp.width < 900 && (await hide.isVisible())) await hide.click();
+    // Set up twice, then roll once so production effects are visible.
     for (let i = 0; i < 2; i++) {
-      await page.locator('[aria-label^="Place an Outpost"]').first().click({ force: true });
-      await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+      await page.locator('[aria-label^="Place a Settlement"]').first().click({ force: true });
+      await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
     }
+    const show = page.getByRole('button', { name: /Show hand/ });
+    if (await show.isVisible()) await show.click();
     await page.getByTestId('roll').waitFor();
     await page.getByTestId('roll').click();
     await page.waitForTimeout(900);
     await page.screenshot({ path: `test-results/shots/${vp.name}-game.png`, fullPage: vp.width < 900 });
+    if (vp.name === 'desktop') {
+      await page.getByRole('group', { name: 'The board' }).screenshot({ path: 'test-results/shots/desktop-board.png' });
+    }
   });
 }

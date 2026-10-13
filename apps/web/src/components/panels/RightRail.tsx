@@ -10,7 +10,6 @@ import {
   legalCausewaySpots,
   legalCitadelSpots,
   legalOutpostSpots,
-  missingResources,
   relicCount,
   totalCards,
   type CostKey,
@@ -22,7 +21,8 @@ import {
 import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
 import { OmenCardFront } from '../../art/cards/OmenCard';
-import { OMEN_FLAVOR, OMEN_NAME, OMEN_TEXT, PIECE_NAME, RESOURCE_NAME } from '../../lexicon';
+import { audio } from '../../audio/engine';
+import { OMEN_FLAVOR, OMEN_NAME, OMEN_TEXT, PIECE_NAME, PIECE_PLURAL, RESOURCE_NAME } from '../../lexicon';
 import { useStore, type PlaceMode, type Tab } from '../../state/store';
 import { CostPips, Modal, RookieTip, ResourceCard, Stepper } from '../ui/primitives';
 import { NAME_COLOR } from './LogLineView';
@@ -89,24 +89,23 @@ export function HandPanel({ state, seat }: { state: GameState; seat: number }) {
 // ------------------------------------------------------------------ build tab
 
 const BUILD_ITEMS: { key: CostKey; icon: IconName; mode?: PlaceMode; blurb: string }[] = [
-  { key: 'causeway', icon: 'causeway', mode: 'causeway', blurb: 'Extends your reach' },
-  { key: 'outpost', icon: 'outpost', mode: 'outpost', blurb: '1 point · yields 1' },
-  { key: 'citadel', icon: 'citadel', mode: 'citadel', blurb: '2 points · yields 2' },
-  { key: 'omen', icon: 'omen', blurb: 'Draw a hidden Omen' },
+  { key: 'causeway', icon: 'causeway', mode: 'causeway', blurb: 'Connects your buildings' },
+  { key: 'outpost', icon: 'outpost', mode: 'outpost', blurb: '1 point' },
+  { key: 'citadel', icon: 'citadel', mode: 'citadel', blurb: '2 points' },
+  { key: 'omen', icon: 'omen', blurb: 'Random card' },
 ];
 
 function BuildTab({ state, seat, active }: { state: GameState; seat: number; active: boolean }) {
   const mode = useStore((s) => s.mode);
   const setMode = useStore((s) => s.setMode);
   const dispatch = useStore((s) => s.dispatch);
+  const pushToast = useStore((s) => s.pushToast);
   const p = state.players[seat];
   const inMain = state.phase.kind === 'main' && active;
   return (
     <div className="grid grid-cols-2 gap-2">
       {BUILD_ITEMS.map((item) => {
         const cost = COSTS[item.key];
-        const missing = missingResources(p.hand, cost);
-        const missingList = RESOURCES.filter((r) => (missing[r] ?? 0) > 0);
         const supply =
           item.key === 'causeway'
             ? p.supply.causeways
@@ -124,25 +123,22 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
                 ? legalCitadelSpots(state, seat).length
                 : 1;
         const affordable = canAfford(p.hand, cost);
-        let status: string;
-        let enabled = false;
-        if (!active) status = 'Not your turn';
-        else if (state.phase.kind === 'roll') status = 'Roll first';
-        else if (!inMain) status = 'Not now';
-        else if (supply <= 0) status = item.key === 'omen' ? 'Deck empty' : 'None left';
-        else if (!affordable) {
-          const first = missingList[0];
-          const rest = totalCards(missing) - missing[first]!;
-          status = `Need ${missing[first]! > 1 ? `${missing[first]} ` : ''}${RESOURCE_NAME[first]}${rest > 0 ? ` +${rest}` : ''}`;
-        }
-        else if (spots === 0) status = 'No legal spot';
-        else {
-          status = item.key === 'omen' ? 'Buy' : 'Build';
-          enabled = true;
-        }
+        const name = PIECE_NAME[item.key];
+        // Why the build would be declined (null when it can go ahead).
+        let declined: string | null = null;
+        if (state.phase.kind === 'roll') declined = 'Roll the dice first';
+        else if (!inMain) declined = 'You can’t build right now';
+        else if (supply <= 0) declined = item.key === 'omen' ? 'No development cards left' : `No ${PIECE_PLURAL[item.key]} left`;
+        else if (!affordable) declined = `Not enough resources for a ${name}`;
+        else if (spots === 0) declined = `No place to build a ${name}`;
+        const ready = active && declined === null;
         const selected = item.mode !== undefined && mode === item.mode;
         const onClick = () => {
-          if (!enabled) return;
+          if (declined) {
+            audio.play('error');
+            pushToast(declined, 'bad');
+            return;
+          }
           if (item.key === 'omen') {
             dispatch({ type: 'BuyOmen', player: seat });
           } else {
@@ -155,27 +151,22 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
             className={`relative flex flex-col gap-1.5 border px-2.5 pb-2 pt-2 ${selected ? 'border-gold bg-[#241e10] shadow-glow' : 'border-iron/70 bg-surface-2/70'}`}
           >
             <div className="flex items-center gap-1.5">
-              <Icon name={item.icon} size={18} className={enabled ? 'text-gold' : 'text-muted'} />
-              <span className="font-display text-[14px] uppercase tracking-[0.08em]">{PIECE_NAME[item.key]}</span>
-              <span className="num ml-auto text-[13px] text-muted" title={item.key === 'omen' ? 'Cards left in the Omen deck' : 'Left in your supply'}>
-                {supply} left
-              </span>
+              <Icon name={item.icon} size={18} className={`shrink-0 ${ready ? 'text-gold' : 'text-muted'}`} />
+              <span className="truncate font-display text-[13px] uppercase tracking-[0.06em]">{item.key === 'omen' ? 'Dev. card' : PIECE_NAME[item.key]}</span>
             </div>
             <CostPips cost={cost} hand={p.hand} />
-            <div className="text-[13px] text-muted">{item.blurb}</div>
+            <div className="text-[13px] text-muted">
+              {item.blurb} · <span className="num" title={item.key === 'omen' ? 'Development cards left' : 'Left in your supply'}>{supply} left</span>
+            </div>
             <button
-              className={`btn mt-auto !py-1.5 ${enabled || selected ? 'btn-primary text-[11px]' : '!px-2 !font-body !text-[14px] !normal-case !tracking-normal'}`}
+              className={`btn mt-auto !py-1.5 text-[11px] ${ready || selected ? 'btn-primary' : ''}`}
               onClick={onClick}
-              disabled={!enabled}
+              disabled={!active}
               aria-pressed={item.mode ? selected : undefined}
               data-testid={`build-${item.key}`}
-              title={
-                missingList.length
-                  ? `Missing: ${missingList.map((r) => `${missing[r]} ${RESOURCE_NAME[r]}`).join(', ')}`
-                  : status
-              }
+              data-ready={ready}
             >
-              {selected ? 'Cancel (Esc)' : status}
+              {selected ? 'Cancel (Esc)' : item.key === 'omen' ? 'Buy' : 'Build'}
             </button>
           </div>
         );
@@ -212,7 +203,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
     return (
       <div className="py-6 text-center text-muted">
         <Icon name="omen" size={28} className="mx-auto mb-2 text-iron" />
-        No Omens yet. Buy one from the Build tab.
+        No development cards yet. Buy one from the Build tab.
         <div className="mt-2 text-[14px]">
           Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
         </div>
@@ -267,7 +258,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
         </Modal>
       )}
       <div className="text-[14px] text-muted">
-        Relics: {relicCount(p)} · Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
+        Victory Points: {relicCount(p)} · Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
       </div>
     </div>
   );
@@ -505,7 +496,7 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
         {tab === 'cards' && <CardsTab state={state} seat={seat} active={active} />}
         {tab === 'trade' && <TradeTab state={state} seat={seat} active={active} />}
         {tab === 'build' && active && state.phase.kind === 'main' && (
-          <RookieTip id="build">Pick a card, then click a glowing spot on the isle. Esc cancels.</RookieTip>
+          <RookieTip id="build">Pick a card, then click a glowing spot on the board. Esc cancels.</RookieTip>
         )}
       </div>
       <button

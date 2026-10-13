@@ -84,7 +84,7 @@ export function NewGameScreen() {
         <button className="btn btn-ghost !px-2" onClick={() => go('title')} aria-label="Back to menu">
           <Icon name="arrow" className="rotate-180" />
         </button>
-        <h1 className="font-display text-[26px] uppercase tracking-[0.2em] text-gold">Raise a new isle</h1>
+        <h1 className="font-display text-[26px] uppercase tracking-[0.2em] text-gold">New game</h1>
       </header>
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <section className="panel rivets px-5 py-4">
@@ -191,7 +191,7 @@ export function NewGameScreen() {
         </section>
 
         <section className="panel rivets flex flex-col px-5 py-4">
-          <h2 className="panel-title mb-2">The isle</h2>
+          <h2 className="panel-title mb-2">The board</h2>
           <div className="flex flex-wrap gap-1">
             {(Object.keys(LAYOUT_NAME) as LayoutMode[]).map((l) => (
               <button key={l} className={`chip ${layout === l ? 'border-gold text-gold' : 'text-muted'}`} onClick={() => setLayout(l)} aria-pressed={layout === l}>
@@ -211,7 +211,7 @@ export function NewGameScreen() {
               <Icon name="refresh" />
             </button>
           </div>
-          <p className="mt-1 text-[14px] text-muted">Same seed, same isle. Share it to replay.</p>
+          <p className="mt-1 text-[14px] text-muted">Same seed, same board. Share it to replay.</p>
           <div className="mt-3">{preview && <BoardView state={preview} canAct={false} decorative />}</div>
           {error && <p className="mt-2 text-ember">{error}</p>}
           <button

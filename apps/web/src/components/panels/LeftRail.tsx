@@ -74,7 +74,7 @@ export function PlayersPanel({ state, seat, horizontal = false }: { state: GameS
                 <div className="text-right">
                   <div className="num text-[20px] leading-none text-gold">
                     {vp}
-                    {hidden > 0 && <span className="text-[14px] text-gold" title="Hidden Relics (only you see these)">+{hidden}</span>}
+                    {hidden > 0 && <span className="text-[14px] text-gold" title="Hidden Victory Point cards (only you see these)">+{hidden}</span>}
                     <span className="text-[14px] text-muted">/{state.config.targetVp}</span>
                   </div>
                 </div>
@@ -83,10 +83,10 @@ export function PlayersPanel({ state, seat, horizontal = false }: { state: GameS
                 <span className="inline-flex items-center gap-1" title="Resource cards">
                   <Icon name="scroll" size={13} /> <span className="num text-bone">{handTotal(p)}</span>
                 </span>
-                <span className="inline-flex items-center gap-1" title="Omen cards in hand (face down)">
+                <span className="inline-flex items-center gap-1" title="Development cards in hand (face down)">
                   <OmenCardBack size={17} /> <span className="num text-bone">{p.omens.length}</span>
                 </span>
-                <span className="inline-flex items-center gap-1" title="Wardens played">
+                <span className="inline-flex items-center gap-1" title="Knights played">
                   <Icon name="sword" size={13} /> <span className="num text-bone">{p.playedWardens}</span>
                 </span>
                 <span className="inline-flex items-center gap-1" title="Longest causeway">
@@ -143,7 +143,7 @@ export function BonusPanel({ state }: { state: GameState }) {
       {chip(
         HOST,
         gh,
-        gh !== null ? `${state.players[gh].name} · ${state.players[gh].playedWardens} Wardens` : `Needs ${HOST_MIN}+ Wardens · best ${bestHost}`,
+        gh !== null ? `${state.players[gh].name} · ${state.players[gh].playedWardens} Knights` : `Needs ${HOST_MIN}+ Knights · best ${bestHost}`,
         'sword',
       )}
     </section>

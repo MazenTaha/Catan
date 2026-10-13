@@ -17,7 +17,7 @@ import {
   type ResourceCounts,
 } from '@hexfall/engine';
 import { audio, type SfxName } from '../audio/engine';
-import { RESOURCE_NAME, TERRAIN_NAME, WRAITH_TITLE } from '../lexicon';
+import { RESOURCE_NAME, TERRAIN_NAME } from '../lexicon';
 import { describeEvent, lineText, type LogItem } from './log';
 import {
   clearAutosave,
@@ -147,48 +147,21 @@ function soundsFor(events: GameEvent[]): SfxName[] {
   return out;
 }
 
-function countsText(c: ResourceCounts): string {
-  return RESOURCES.filter((r) => c[r] > 0)
-    .map((r) => `+${c[r]} ${RESOURCE_NAME[r]}`)
-    .join(', ');
-}
-
-/** Builds the under-board toast explaining the latest production / Wraith outcome. */
+/**
+ * A short floating notice for the moments worth interrupting for (7s, thefts, special cards).
+ * Routine production is shown on the board and in the log instead.
+ */
 function toastFor(events: GameEvent[], state: GameState): Toast | null {
   const name = (p: number) => state.players[p].name;
   let text: string | null = null;
   let tone: Toast['tone'] = 'info';
   for (const e of events) {
-    if (e.type === 'ResourcesProduced') {
-      const parts = e.gains
-        .map((g, p) => (RESOURCES.some((r) => g[r] > 0) ? `${name(p)} ${countsText(g)}` : null))
-        .filter(Boolean);
-      if (parts.length) {
-        text = `${e.roll} — ${parts.join(' · ')}`;
-        tone = 'good';
-      } else if (e.blockedHex !== null) {
-        text = `${WRAITH_TITLE} smothers the ${e.roll} on ${TERRAIN_NAME[state.board.hexes[e.blockedHex].terrain]}. Nothing paid out.`;
-        tone = 'bad';
-      } else {
-        text = `${e.roll} — no outpost stands on a ${e.roll}. Nothing paid out.`;
-        tone = 'info';
-      }
-      if (e.blockedHex !== null && parts.length) text += ` (${WRAITH_TITLE} blocks one ${e.roll})`;
-    }
-    if (e.type === 'ProductionShortage') {
-      text =
-        (text ? text + ' · ' : '') +
-        (e.paid === null
-          ? `The bank lacks ${RESOURCE_NAME[e.resource]} for everyone — nobody gets it`
-          : `Bank short on ${RESOURCE_NAME[e.resource]}: ${name(e.paid)} takes the last ${e.amount}`);
-      tone = 'bad';
-    }
     if (e.type === 'DiscardRequired') {
-      text = 'A 7! The Wraith stirs — hoarders discard half their hands.';
+      text = 'A 7! The robber moves — players with more than 7 cards discard half.';
       tone = 'bad';
     }
     if (e.type === 'DiceRolled' && e.total === 7 && !text) {
-      text = 'A 7! The Wraith stirs.';
+      text = 'A 7! The robber moves.';
       tone = 'bad';
     }
     if (e.type === 'Stolen') {
@@ -196,19 +169,15 @@ function toastFor(events: GameEvent[], state: GameState): Toast | null {
       tone = 'bad';
     }
     if (e.type === 'LongestCausewayChanged' && e.holder !== null) {
-      text = `${name(e.holder)} claims the Longest Causeway!`;
+      text = `${name(e.holder)} takes the Longest Road!`;
       tone = 'gold';
     }
     if (e.type === 'GreatestHostChanged' && e.holder !== null) {
-      text = `${name(e.holder)} commands the Greatest Host!`;
+      text = `${name(e.holder)} takes the Largest Army!`;
       tone = 'gold';
     }
-    if (e.type === 'TradeCompleted') {
-      text = `${name(e.proposer)} and ${name(e.accepter)} strike a bargain.`;
-      tone = 'good';
-    }
     if (e.type === 'TitheTaken') {
-      text = `${name(e.player)} exacts ${e.total} ${RESOURCE_NAME[e.resource]} in blood.`;
+      text = `${name(e.player)} plays Monopoly and takes ${e.total} ${RESOURCE_NAME[e.resource]}.`;
       tone = 'bad';
     }
   }
@@ -480,7 +449,7 @@ export const useStore = create<StoreState>((set, get) => ({
         log: session.log.slice(0, last.log),
       },
       mode: null,
-      toast: { id: ++toastId, text: 'Taken back.', tone: 'info' },
+      toast: { id: ++toastId, text: 'Undone.', tone: 'info' },
     });
   },
 

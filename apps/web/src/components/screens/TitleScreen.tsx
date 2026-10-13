@@ -65,16 +65,16 @@ export function TitleScreen() {
 
       <div className="relative z-10 flex flex-col items-center">
         <motion.h1
-          className="font-logo text-[64px] leading-none tracking-[0.08em] text-gold sm:text-[92px]"
+          className="text-center font-logo text-[52px] leading-none tracking-[0.06em] text-gold sm:text-[88px]"
           style={{ textShadow: '0 0 40px rgba(224,112,42,0.35), 0 4px 0 #000', willChange: 'transform, opacity' }}
           initial={{ opacity: 0, scaleX: 1.3 }}
           animate={{ opacity: 1, scaleX: 1 }}
           transition={{ duration: 1.6, ease: 'easeOut' }}
         >
-          Hexfall
+          Catan <span className="text-bone/90">Night</span>
         </motion.h1>
         <motion.p className="mt-3 font-display text-[14px] uppercase tracking-[0.5em] text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
-          Trade · Build · Endure
+          Trade · Build · Settle
         </motion.p>
         <div className="divider-ornament my-8 w-72 text-[10px]">✦</div>
         <motion.nav className="flex flex-col gap-2.5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} aria-label="Main menu">
@@ -87,7 +87,7 @@ export function TitleScreen() {
         </motion.nav>
         {save && (
           <p className="mt-4 text-[14px] text-muted">
-            Saved isle “{save.config.seed}” · round {save.state.round || 'founding'}
+            Saved game · round {save.state.round || 'setup'}
           </p>
         )}
       </div>

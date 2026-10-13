@@ -60,7 +60,7 @@ export function moveWraith(ctx: Ctx, player: number, hex: number): void {
   requirePhase(ctx, 'move-wraith');
   if (s.phase.kind !== 'move-wraith') return;
   check(Number.isInteger(hex) && hex >= 0 && hex < s.board.hexes.length, 'ILLEGAL_SPOT', 'No such hex');
-  check(hex !== s.wraithHex, 'ILLEGAL_SPOT', 'The Wraith must move to a different hex');
+  check(hex !== s.wraithHex, 'ILLEGAL_SPOT', 'The robber must move to a different hex');
   const resume = s.phase.resume;
   const from = s.wraithHex;
   s.wraithHex = hex;

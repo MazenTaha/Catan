@@ -6,7 +6,8 @@ import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
 import { ZoomPan } from '../board/ZoomPan';
 import { FlyingGains } from '../fx/FlyingGains';
-import { BoardToast, DiceTray, TerrainKey, TopBar, TurnBanner } from '../hud/Hud';
+import { DiceTray, FloatingToast, TopBar, TurnBanner } from '../hud/Hud';
+import { VIEWBOX } from '../board/geometry';
 import {
   ConfirmNewModal,
   DiscardModal,
@@ -63,41 +64,43 @@ export function GameScreen() {
   const canRoll = canAct && ph.kind === 'roll' && state.currentPlayer === seat;
   const humanSeat = state.players[seat].kind === 'human';
 
+  // The board takes all the height left under the top bar and turn banner.
   const board = (
-    <div data-board className="mx-auto w-full" style={{ maxWidth: layout === 'narrow' ? undefined : 'min(100%, calc((100vh - 350px) * 1.055))' }}>
+    <div
+      data-board
+      className="relative mx-auto w-full"
+      style={{ maxWidth: layout === 'narrow' ? undefined : `min(100%, calc((100vh - 168px) * ${(VIEWBOX.w / VIEWBOX.h).toFixed(3)}))` }}
+    >
       <ZoomPan enabled={layout === 'narrow'}>
         <BoardView state={state} canAct={canAct} onAction={onAction} />
       </ZoomPan>
+      <div className="absolute left-0 top-0 z-20 max-w-[min(360px,70%)]">
+        {ph.kind === 'setup' && canAct && (
+          <RookieTip id="setup">
+            Settlements can’t be next to another settlement. Favour high-dot numbers (6 and 8) and a mix of resources.
+          </RookieTip>
+        )}
+        {ph.kind === 'move-wraith' && canAct && <RookieTip id="wraith">Pick an opponent’s best hex; it produces nothing while the robber is there.</RookieTip>}
+      </div>
     </div>
   );
 
   const center = (
-    <div className="flex min-h-0 flex-col gap-3">
-      <TurnBanner state={state} seat={seat} />
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+    <div className="flex min-h-0 flex-col gap-2">
+      <TurnBanner state={state} seat={seat}>
         <DiceTray state={state} canRoll={canRoll} onRoll={() => dispatch({ type: 'RollDice', player: seat })} />
-        <div className="flex-1">
-          {ph.kind === 'setup' && canAct && (
-            <RookieTip id="setup">
-              Outposts can’t touch another outpost. Favour high-dot numbers (6 and 8) and a mix of resources.
-            </RookieTip>
-          )}
-          {ph.kind === 'move-wraith' && canAct && <RookieTip id="wraith">Pick an opponent’s best tile; it yields nothing while haunted.</RookieTip>}
-        </div>
-      </div>
+      </TurnBanner>
       {board}
-      <BoardToast />
-      <TerrainKey state={state} />
     </div>
   );
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 p-2 sm:p-3">
+    <div className="flex min-h-screen flex-col gap-2 p-2 sm:p-3">
       <TopBar state={state} />
       {layout !== 'wide' && <PlayersPanel state={state} seat={seat} horizontal />}
       <div
         className={`grid flex-1 gap-3 ${
-          layout === 'wide' ? 'grid-cols-[290px_minmax(0,1fr)_370px]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
+          layout === 'wide' ? 'grid-cols-[minmax(240px,17vw)_minmax(0,1fr)_minmax(350px,24vw)]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
         }`}
       >
         {layout === 'wide' && (
@@ -139,6 +142,7 @@ export function GameScreen() {
       )}
 
       <FlyingGains state={state} seat={seat} disabled={reduce} />
+      <FloatingToast />
 
       <AnimatePresence>
         {state.handoff === null && ph.kind === 'discard' && actor === seat && humanSeat && <DiscardModal key={`d${state.actionCount}`} state={state} seat={seat} />}

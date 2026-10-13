@@ -142,7 +142,7 @@ export function SettingsModal() {
       <h3 className="panel-title mb-2 mt-5">Play</h3>
       <Choice label="Hot-seat" value={s.handPrivacy} options={[{ v: 'curtain', l: 'Pass-device curtain' }, { v: 'off', l: 'Open hands' }]} onChange={set('handPrivacy')} />
       <Toggle label="Always hide my hand until I hold" checked={s.hideHandUntilHold} onChange={set('hideHandUntilHold')} />
-      <Toggle label="Show why spots are illegal" hint="Marks blocked outpost spots with the reason on hover." checked={s.showWhy} onChange={set('showWhy')} />
+      <Toggle label="Show why spots are illegal" hint="Marks blocked settlement spots with the reason on hover." checked={s.showWhy} onChange={set('showWhy')} />
       <Toggle label="Rookie tips" checked={s.rookieTips} onChange={(v) => up({ rookieTips: v, dismissedTips: v ? [] : s.dismissedTips })} />
       <Choice label="Bot speed" value={s.botSpeed} options={[{ v: 'slow', l: 'Slow' }, { v: 'normal', l: 'Normal' }, { v: 'fast', l: 'Fast' }, { v: 'instant', l: 'Instant' }]} onChange={set('botSpeed')} />
       <Choice label="Turn timer" value={s.turnTimer} options={[{ v: 0, l: 'Off' }, { v: 30, l: '30s' }, { v: 60, l: '60s' }, { v: 90, l: '90s' }]} onChange={set('turnTimer')} />
@@ -157,7 +157,7 @@ export function CreditsModal() {
     <Modal title="Credits" icon="scroll" onClose={close}>
       <div className="flex flex-col gap-3 text-[15px]">
         <p>
-          <b className="text-gold">Hexfall</b> — an original game of trade, causeways and citadels on a cursed isle.
+          <b className="text-gold">Catan Night</b> — a night-themed take on the classic game of trading and building on an island.
         </p>
         <p>All art is drawn in code (SVG, CSS and canvas). All sound is synthesized live with WebAudio.</p>
         <p>

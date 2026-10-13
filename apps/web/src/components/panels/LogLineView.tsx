@@ -57,5 +57,5 @@ export const NAME_COLOR = {
   crimson: '#e2615c',
   frost: '#7aa8ea',
   bone: '#e8e2d0',
-  violet: '#b48af0',
+  violet: '#f0a060',
 } as const;

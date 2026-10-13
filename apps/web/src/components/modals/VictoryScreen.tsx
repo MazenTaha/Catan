@@ -37,7 +37,7 @@ export default function VictoryScreen({ state }: { state: GameState }) {
           animate={{ y: 0, opacity: 1, letterSpacing: '0.06em' }}
           transition={{ delay: 0.6, duration: 1.2 }}
         >
-          {w.name} claims the Isle
+          {w.name} wins!
         </motion.h2>
         <motion.p className="mt-2 text-[18px] text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}>
           after {state.round} rounds, with {vpBreakdown(state, winner).total} points
@@ -50,11 +50,11 @@ export default function VictoryScreen({ state }: { state: GameState }) {
               <thead className="font-display text-[11px] uppercase tracking-[0.12em] text-muted">
                 <tr>
                   <th className="py-1">Player</th>
-                  <th>Outposts</th>
-                  <th>Citadels</th>
+                  <th>Settlements</th>
+                  <th>Cities</th>
                   <th>{LONGEST}</th>
                   <th>{HOST}</th>
-                  <th>Relics revealed</th>
+                  <th>Victory Point cards</th>
                   <th className="text-right">Total</th>
                 </tr>
               </thead>
@@ -125,7 +125,7 @@ export default function VictoryScreen({ state }: { state: GameState }) {
             <Icon name="refresh" size={16} /> Rematch (same seed)
           </button>
           <button className="btn !px-6 !py-3" onClick={() => go('setup')}>
-            New isle
+            New game
           </button>
           <button className="btn !px-6 !py-3" onClick={() => go('title')}>
             Main menu

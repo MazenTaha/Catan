@@ -133,14 +133,14 @@ test('responsiveness across screens', async ({ page }) => {
   await page.getByTestId('seed').fill('lag-isle');
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
-  await page.locator('[aria-label^="Place an Outpost"]').first().waitFor();
+  await page.locator('[aria-label^="Place a Settlement"]').first().waitFor();
   await page.waitForTimeout(1000);
   await probe(page, 'game setup idle', () => page.waitForTimeout(3000));
-  const board = await page.getByRole('group', { name: 'The Isle' }).boundingBox();
+  const board = await page.getByRole('group', { name: 'The board' }).boundingBox();
   await probe(page, 'game hover targets', () => wiggle(page, board!.x + 80, board!.y + 80, board!.x + board!.width - 80, board!.y + board!.height - 80, 4000));
   for (let i = 0; i < 2; i++) {
-    await page.locator('[aria-label^="Place an Outpost"]').first().click({ force: true });
-    await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+    await page.locator('[aria-label^="Place a Settlement"]').first().click({ force: true });
+    await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
   }
   await page.getByTestId('roll').waitFor({ timeout: 60_000 });
   await page.waitForTimeout(1000);

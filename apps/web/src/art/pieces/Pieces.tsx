@@ -139,32 +139,26 @@ export const CausewayPiece = memo(function CausewayPiece({
   );
 });
 
+/** The robber: a dark, hooded pawn with a moonlit rim. */
 export const WraithPawn = memo(function WraithPawn() {
   return (
     <g>
-      <circle r={44} fill="url(#g-wraith-halo)" />
-      <path
-        d="M-6 30C-22 40-34 34-40 46"
-        stroke="#9fd2ff"
-        strokeWidth={5}
-        fill="none"
-        opacity={0.25}
-      />
-      <g>
-        <path
-          d="M0 -36C15 -36 19 -21 19 -6L23 22L15 16L11 25L5 18L-1 26L-7 18L-12 25L-16 16L-23 22L-19 -6C-19 -21 -15 -36 0 -36Z"
-          fill="url(#g-wraith)"
-          stroke="#c9e6ff"
-          strokeOpacity={0.45}
-          strokeWidth={1}
-        />
-        <path d="M-19 -6C-26 0 -30 8 -33 4M19 -6C26 0 30 8 33 4" stroke="#bfe0f5" strokeWidth={1.4} opacity={0.5} fill="none" />
-        <ellipse cx={0} cy={-16} rx={8.5} ry={11} fill="#040609" />
-        <circle cx={-3.2} cy={-16} r={1.6} fill="#d8f2ff" />
-        <circle cx={3.2} cy={-16} r={1.6} fill="#d8f2ff" />
-        <circle cx={-3.2} cy={-16} r={4} fill="#9fd2ff" opacity={0.25} />
-        <circle cx={3.2} cy={-16} r={4} fill="#9fd2ff" opacity={0.25} />
-      </g>
+      <ellipse cx={3} cy={34} rx={22} ry={6} fill="#000" opacity={0.55} />
+      {/* base */}
+      <path d="M-20 34Q-20 24 -12 22H12Q20 24 20 34Z" fill="#1c1e24" stroke="#000" strokeWidth={1} />
+      {/* body */}
+      <path d="M-12 22Q-15 4 -9 -8H9Q15 4 12 22Z" fill="#2a2d36" stroke="#000" strokeWidth={1} />
+      <path d="M-12 22Q-15 4 -9 -8H-2Q-6 6 -4 22Z" fill="#4a5060" />
+      {/* collar */}
+      <ellipse cx={0} cy={-8} rx={11} ry={3.6} fill="#20232b" stroke="#000" strokeWidth={0.8} />
+      {/* hooded head */}
+      <circle cx={0} cy={-20} r={11} fill="#2a2d36" stroke="#000" strokeWidth={1} />
+      <path d="M-11 -20A11 11 0 0 1 0 -31A9 11 0 0 0 -6 -20Z" fill="#5a6274" />
+      <ellipse cx={1} cy={-18} rx={6} ry={5.5} fill="#08090c" />
+      <circle cx={-1.5} cy={-18.5} r={1.1} fill="#ffcf6b" />
+      <circle cx={3.5} cy={-18.5} r={1.1} fill="#ffcf6b" />
+      {/* moonlit rim */}
+      <path d="M-9 -27A11 11 0 0 1 4 -30.5M-13 18Q-15 4 -9 -6M-19 32Q-19 25 -12 23" stroke="#b9c6dc" strokeWidth={1.1} fill="none" opacity={0.75} />
     </g>
   );
 });

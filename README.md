@@ -1,6 +1,8 @@
-# Hexfall
+# Catan Night
 
-A dark-fantasy board game of trade, causeways and citadels on a cursed, fog-drowned isle. 3–4 players (any mix of humans and bots), hot-seat on one device. First to 10 victory points claims the Isle.
+A moonlit take on the classic island trading game: collect Lumber, Brick, Wool, Grain and Ore, build roads, settlements and cities, and play development cards. 3–4 players (any mix of humans and bots), hot-seat on one device. First to 10 victory points wins.
+
+> *Catan* is a registered trademark of its owners. This is a private, non-commercial fan project; the name and terms are used at the owner's request and no official artwork is used.
 
 All art is drawn in code (SVG/CSS/canvas) and all sound is synthesized with WebAudio — no external assets or network requests.
 

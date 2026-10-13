@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset: () 
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Hexfall render error', error, info.componentStack);
+    console.error('Catan Night render error', error, info.componentStack);
   }
 
   override render() {
@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset: () 
     return (
       <div className="grid min-h-screen place-items-center p-6">
         <div className="panel rivets max-w-md px-6 py-5 text-center">
-          <h2 className="font-display text-[20px] uppercase tracking-[0.16em] text-gold">The isle trembles</h2>
+          <h2 className="font-display text-[20px] uppercase tracking-[0.16em] text-gold">Something went wrong</h2>
           <p className="mt-2 text-muted">Something went wrong while drawing the game. Your progress is saved.</p>
           <pre className="mt-3 max-h-32 overflow-auto text-left text-[12px] text-ember">{this.state.error.message}</pre>
           <div className="mt-4 flex justify-center gap-2">

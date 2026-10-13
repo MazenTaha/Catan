@@ -260,7 +260,7 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       className="relative mx-auto w-full"
       style={{ aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` }}
       role={decorative ? undefined : 'group'}
-      aria-label={decorative ? undefined : 'The Isle'}
+      aria-label={decorative ? undefined : 'The board'}
       aria-hidden={decorative || undefined}
     >
       {/* Static layers are painted once and cached. Nothing inside a large SVG animates:
@@ -443,7 +443,7 @@ const WraithLayer = memo(function WraithLayer({ hex }: { hex: number }) {
         >
           <div className="anim-bob h-full w-full">
             <svg viewBox={`${-WRAITH_BOX / 2} ${-WRAITH_BOX / 2} ${WRAITH_BOX} ${WRAITH_BOX}`} className="h-full w-full overflow-visible">
-              <title>The Wraith</title>
+              <title>The robber</title>
               <WraithPawn />
             </svg>
           </div>
@@ -500,9 +500,9 @@ function HitLayer({ state, targets, fire }: { state: GameState; targets: Targets
         why: state.buildings[v]
           ? 'Occupied'
           : !isDistanceLegal(state, v)
-            ? 'Too close to another outpost'
+            ? 'Too close to another settlement'
             : !touchesOwnCauseway(state, actor, v)
-              ? 'Not connected to your causeway'
+              ? 'Not connected to your road'
               : 'Not allowed',
       }));
   }, [showWhy, targets, state, actor]);
@@ -514,8 +514,8 @@ function HitLayer({ state, targets, fire }: { state: GameState; targets: Targets
     for (const id of targets.spots) {
       out[id] =
         targets.kind === 'vertex'
-          ? `${targets.piece === 'citadel' ? 'Upgrade to a Citadel' : 'Place an Outpost'} at ${vertexLabel(state, id)}`
-          : `Lay a Causeway ${edgeLabel(state, id)}`;
+          ? `${targets.piece === 'citadel' ? 'Upgrade to a City' : 'Place a Settlement'} at ${vertexLabel(state, id)}`
+          : `Build a Road ${edgeLabel(state, id)}`;
     }
     return out;
     // Labels depend only on the board and the spots.
@@ -534,7 +534,7 @@ function HitLayer({ state, targets, fire }: { state: GameState; targets: Targets
           <HexHit
             key={h.id}
             hex={h.id}
-            label={hexTargets?.has(h.id) ? `Send the Wraith to ${TERRAIN_NAME[h.terrain]}${h.token ? ` (${h.token})` : ''}` : null}
+            label={hexTargets?.has(h.id) ? `Move the robber to ${TERRAIN_NAME[h.terrain]}${h.token ? ` (${h.token})` : ''}` : null}
             hovered={hoverTarget === `h${h.id}`}
             onEnter={enterHex}
             onHover={hover}

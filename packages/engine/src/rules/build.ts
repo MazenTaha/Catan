@@ -15,12 +15,12 @@ import { resumePhase } from './robber';
 function checkVertex(ctx: Ctx, v: VertexId): void {
   check(typeof v === 'string' && v in topo(ctx.s).vertexEdges, 'ILLEGAL_SPOT', 'No such spot');
   check(!ctx.s.buildings[v], 'OCCUPIED', 'That spot is taken');
-  check(isDistanceLegal(ctx.s, v), 'TOO_CLOSE', 'Too close to another outpost');
+  check(isDistanceLegal(ctx.s, v), 'TOO_CLOSE', 'Too close to another settlement');
 }
 
 function checkEdge(ctx: Ctx, e: EdgeId): void {
   check(typeof e === 'string' && e in topo(ctx.s).edgeVertices, 'ILLEGAL_SPOT', 'No such path');
-  check(ctx.s.causeways[e] === undefined, 'OCCUPIED', 'A causeway already runs there');
+  check(ctx.s.causeways[e] === undefined, 'OCCUPIED', 'A road is already there');
 }
 
 // ------------------------------------------------------------------ setup
@@ -30,7 +30,7 @@ export function placeSetupOutpost(ctx: Ctx, player: number, v: VertexId): void {
   requirePhase(ctx, 'setup');
   if (s.phase.kind !== 'setup') return;
   requireCurrent(ctx, player);
-  check(s.phase.step === 'outpost', 'WRONG_PHASE', 'Place your causeway next');
+  check(s.phase.step === 'outpost', 'WRONG_PHASE', 'Place your road next');
   checkVertex(ctx, v);
   const p = s.players[player];
   s.buildings[v] = { owner: player, kind: 'outpost' };
@@ -55,7 +55,7 @@ export function placeSetupCauseway(ctx: Ctx, player: number, e: EdgeId): void {
   requirePhase(ctx, 'setup');
   if (s.phase.kind !== 'setup') return;
   requireCurrent(ctx, player);
-  check(s.phase.step === 'causeway', 'WRONG_PHASE', 'Place your outpost first');
+  check(s.phase.step === 'causeway', 'WRONG_PHASE', 'Place your settlement first');
   checkEdge(ctx, e);
   check(
     legalCausewaySpots(s, player).includes(e),
@@ -89,7 +89,7 @@ export function buildCauseway(ctx: Ctx, player: number, e: EdgeId): void {
   requirePhase(ctx, 'main', 'decree');
   checkEdge(ctx, e);
   const p = s.players[player];
-  check(p.supply.causeways > 0, 'NO_SUPPLY', 'No causeways left in your supply');
+  check(p.supply.causeways > 0, 'NO_SUPPLY', 'No roads left in your supply');
   check(
     legalCausewaySpots(s, player).includes(e),
     'NOT_CONNECTED',
@@ -117,9 +117,9 @@ export function buildOutpost(ctx: Ctx, player: number, v: VertexId): void {
   requireCurrent(ctx, player);
   requirePhase(ctx, 'main');
   checkVertex(ctx, v);
-  check(touchesOwnCauseway(s, player, v), 'NOT_CONNECTED', 'An outpost must sit on your own causeway');
+  check(touchesOwnCauseway(s, player, v), 'NOT_CONNECTED', 'A settlement must connect to one of your roads');
   const p = s.players[player];
-  check(p.supply.outposts > 0, 'NO_SUPPLY', 'No outposts left in your supply');
+  check(p.supply.outposts > 0, 'NO_SUPPLY', 'No settlements left in your supply');
   payCost(ctx, player, 'outpost');
   s.buildings[v] = { owner: player, kind: 'outpost' };
   p.supply.outposts--;
@@ -132,9 +132,9 @@ export function buildCitadel(ctx: Ctx, player: number, v: VertexId): void {
   requireCurrent(ctx, player);
   requirePhase(ctx, 'main');
   const b = s.buildings[v];
-  check(b && b.owner === player && b.kind === 'outpost', 'ILLEGAL_SPOT', 'A citadel must replace one of your outposts');
+  check(b && b.owner === player && b.kind === 'outpost', 'ILLEGAL_SPOT', 'A city must replace one of your settlements');
   const p = s.players[player];
-  check(p.supply.citadels > 0, 'NO_SUPPLY', 'No citadels left in your supply');
+  check(p.supply.citadels > 0, 'NO_SUPPLY', 'No cities left in your supply');
   payCost(ctx, player, 'citadel');
   s.buildings[v] = { owner: player, kind: 'citadel' };
   p.supply.citadels--;

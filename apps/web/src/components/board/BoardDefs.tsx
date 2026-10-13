@@ -26,36 +26,36 @@ export const BoardDefs = memo(function BoardDefs() {
         <feComposite in2="SourceGraphic" operator="in" />
       </filter>
 
-      {/* terrain bases: light from the upper left */}
-      <radialGradient id="g-witchwood" cx="35%" cy="25%" r="85%">
-        <stop offset="0%" stopColor="#2f5440" />
-        <stop offset="60%" stopColor="#1f3a2c" />
-        <stop offset="100%" stopColor="#0f1d16" />
+      {/* terrain bases: moonlight from the upper left */}
+      <radialGradient id="g-forest" cx="30%" cy="25%" r="90%">
+        <stop offset="0%" stopColor="#2c5e3a" />
+        <stop offset="60%" stopColor="#1a3d26" />
+        <stop offset="100%" stopColor="#0c2015" />
       </radialGradient>
-      <radialGradient id="g-ashen" cx="35%" cy="25%" r="85%">
-        <stop offset="0%" stopColor="#9a5233" />
-        <stop offset="60%" stopColor="#7a3b24" />
-        <stop offset="100%" stopColor="#3e1a0f" />
+      <radialGradient id="g-hills" cx="30%" cy="25%" r="90%">
+        <stop offset="0%" stopColor="#b05a33" />
+        <stop offset="60%" stopColor="#8a4224" />
+        <stop offset="100%" stopColor="#4a1d0d" />
       </radialGradient>
-      <radialGradient id="g-moors" cx="35%" cy="25%" r="85%">
-        <stop offset="0%" stopColor="#748452" />
-        <stop offset="60%" stopColor="#5c6b3f" />
-        <stop offset="100%" stopColor="#2c3520" />
+      <radialGradient id="g-pasture" cx="30%" cy="25%" r="90%">
+        <stop offset="0%" stopColor="#6aa244" />
+        <stop offset="60%" stopColor="#4a7d2e" />
+        <stop offset="100%" stopColor="#264416" />
       </radialGradient>
-      <radialGradient id="g-fields" cx="35%" cy="25%" r="85%">
-        <stop offset="0%" stopColor="#c0a24d" />
-        <stop offset="60%" stopColor="#a58a3a" />
-        <stop offset="100%" stopColor="#5e4a1c" />
+      <radialGradient id="g-fields" cx="30%" cy="25%" r="90%">
+        <stop offset="0%" stopColor="#e2bb52" />
+        <stop offset="60%" stopColor="#c0952f" />
+        <stop offset="100%" stopColor="#6e4f14" />
       </radialGradient>
-      <radialGradient id="g-peaks" cx="35%" cy="20%" r="90%">
-        <stop offset="0%" stopColor="#62657f" />
-        <stop offset="55%" stopColor="#4a4d63" />
-        <stop offset="100%" stopColor="#1e1f30" />
+      <radialGradient id="g-mountains" cx="30%" cy="20%" r="95%">
+        <stop offset="0%" stopColor="#7d899c" />
+        <stop offset="55%" stopColor="#566175" />
+        <stop offset="100%" stopColor="#262c38" />
       </radialGradient>
-      <radialGradient id="g-waste" cx="35%" cy="25%" r="85%">
-        <stop offset="0%" stopColor="#a6997b" />
-        <stop offset="60%" stopColor="#8d8068" />
-        <stop offset="100%" stopColor="#4d4436" />
+      <radialGradient id="g-desert" cx="30%" cy="25%" r="90%">
+        <stop offset="0%" stopColor="#ead098" />
+        <stop offset="60%" stopColor="#cfb176" />
+        <stop offset="100%" stopColor="#8a6d3c" />
       </radialGradient>
 
       <radialGradient id="g-tile-vignette" cx="50%" cy="50%" r="55%">

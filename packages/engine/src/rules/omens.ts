@@ -9,7 +9,7 @@ export function buyOmen(ctx: Ctx, player: number): void {
   const { s } = ctx;
   requireCurrent(ctx, player);
   requirePhase(ctx, 'main');
-  check(s.omenDeck.length > 0, 'DECK_EMPTY', 'The Omen deck is exhausted');
+  check(s.omenDeck.length > 0, 'DECK_EMPTY', 'No development cards left');
   payCost(ctx, player, 'omen');
   const omen = s.omenDeck.pop()!;
   s.players[player].omens.push({ type: omen, boughtTurn: s.turn });
@@ -22,14 +22,14 @@ function spendOmen(ctx: Ctx, player: number, type: Exclude<OmenType, 'relic'>): 
   const { s } = ctx;
   requireCurrent(ctx, player);
   requirePhase(ctx, 'roll', 'main');
-  check(!s.omenPlayedThisTurn, 'OMEN_LIMIT', 'Only one Omen may be played each turn');
+  check(!s.omenPlayedThisTurn, 'OMEN_LIMIT', 'Only one development card may be played each turn');
   const p = s.players[player];
   const idx = p.omens.findIndex((o) => o.type === type && o.boughtTurn < s.turn);
   if (idx < 0) {
     if (p.omens.some((o) => o.type === type)) {
-      fail('CARD_LOCKED', 'An Omen cannot be played on the turn it was bought');
+      fail('CARD_LOCKED', 'A development card cannot be played on the turn it was bought');
     }
-    fail('NO_CARD', 'You do not hold that Omen');
+    fail('NO_CARD', 'You do not hold that development card');
   }
   p.omens.splice(idx, 1);
   p.playedOmens.push(type);
@@ -48,8 +48,8 @@ export function playWarden(ctx: Ctx, player: number): void {
 export function playDecree(ctx: Ctx, player: number): void {
   const { s } = ctx;
   const p = s.players[player];
-  check(p.supply.causeways > 0, 'NO_SUPPLY', 'No causeways left in your supply');
-  check(legalCausewaySpots(s, player).length > 0, 'ILLEGAL_SPOT', 'There is nowhere to lay a causeway');
+  check(p.supply.causeways > 0, 'NO_SUPPLY', 'No roads left in your supply');
+  check(legalCausewaySpots(s, player).length > 0, 'ILLEGAL_SPOT', 'There is nowhere to build a road');
   spendOmen(ctx, player, 'decree');
   s.phase = {
     kind: 'decree',

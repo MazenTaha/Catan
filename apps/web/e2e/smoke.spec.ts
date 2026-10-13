@@ -61,7 +61,7 @@ async function handleInterrupts(page: Page): Promise<boolean> {
     await expect(steal).toBeHidden();
     return true;
   }
-  const wraith = page.locator('[aria-label^="Send the Wraith"]').first();
+  const wraith = page.locator('[aria-label^="Move the robber"]').first();
   if (await wraith.isVisible().catch(() => false)) {
     await wraith.click({ force: true });
     return true;
@@ -86,17 +86,17 @@ test('3-player game: setup, roll, build, bank trade, end turn, reload & continue
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
 
-  // Founding: we are seat 1 (first and last in the snake).
+  // Setup: we are seat 1 (first and last in the snake).
   let placed = 0;
   while (placed < 2) {
-    const spots = page.locator('[aria-label^="Place an Outpost"]');
+    const spots = page.locator('[aria-label^="Place a Settlement"]');
     await expect(spots.first()).toBeVisible({ timeout: 20_000 });
     const labels = await spots.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
-    // Prefer a spot touching both Witchwood and Ashen Hills so the founding yields causeway stock.
-    let idx = labels.findIndex((l) => l.includes('Witchwood') && l.includes('Ashen Hills'));
+    // Prefer a spot touching both Forest and Hills so setup yields road materials.
+    let idx = labels.findIndex((l) => l.includes('Forest') && l.includes('Hills'));
     if (idx < 0) idx = labels.findIndex((l) => l.split(',').length === 3);
     await spots.nth(Math.max(0, idx)).click({ force: true });
-    await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+    await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
     placed++;
   }
 
@@ -114,10 +114,10 @@ test('3-player game: setup, roll, build, bank trade, end turn, reload & continue
       throw new Error(`stuck after roll: ${await page.getByRole('region', { name: 'Turn' }).innerText()}`);
     }
 
-    if (!built && (await page.getByTestId('build-causeway').isEnabled())) {
+    if (!built && (await page.getByTestId('build-causeway').getAttribute('data-ready')) === 'true') {
       await page.getByTestId('build-causeway').click();
-      await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
-      await expect(page.getByText(/laid a Causeway$/).first()).toBeVisible();
+      await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
+      await expect(page.getByText(/built a Road$/).first()).toBeVisible();
       built = true;
     }
     if (!traded) {
@@ -163,15 +163,15 @@ test('hot-seat: the pass-device curtain hides hands between human seats', async 
   await expect(curtain).toBeVisible();
   await expect(page.getByTestId('hand')).toBeHidden({ timeout: 1000 }).catch(() => undefined);
   await page.getByTestId('ack-device').click();
-  await page.locator('[aria-label^="Place an Outpost"]').first().click({ force: true });
-  await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+  await page.locator('[aria-label^="Place a Settlement"]').first().click({ force: true });
+  await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
   await expect(page.getByRole('dialog', { name: /Pass the device to Morrow/ })).toBeVisible();
 });
 
 test('rulebook and settings open from the title screen', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'How to play' }).click();
-  await expect(page.getByRole('dialog', { name: 'The Rule of the Isle' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'How to Play' })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
@@ -185,8 +185,8 @@ test('export a game record from the log and replay it via Load record', async ({
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();
   for (let i = 0; i < 2; i++) {
-    await page.locator('[aria-label^="Place an Outpost"]').first().click({ force: true });
-    await page.locator('[aria-label^="Lay a Causeway"]').first().click({ force: true });
+    await page.locator('[aria-label^="Place a Settlement"]').first().click({ force: true });
+    await page.locator('[aria-label^="Build a Road"]').first().click({ force: true });
   }
   await waitForMyRoll(page);
   await page.getByTestId('roll').click();
@@ -209,7 +209,7 @@ test('export a game record from the log and replay it via Load record', async ({
   await page.keyboard.press('Escape');
 
   // Start something else, then load the record: the exact position returns.
-  await page.getByRole('button', { name: 'New isle' }).click();
+  await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Main menu' }).click();
   await page.getByRole('button', { name: 'Load record' }).click();
   await page.getByLabel('Game record JSON').fill(json);

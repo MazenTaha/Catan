@@ -65,7 +65,7 @@ export function StealModal({ state, seat }: { state: GameState; seat: number }) 
   if (state.phase.kind !== 'steal') return null;
   return (
     <Modal title="Choose whom to rob" icon="steal" dismissable={false}>
-      <p className="mb-3 text-[15px] text-bone/90">The Wraith looms over several holdings. Take one card at random from:</p>
+      <p className="mb-3 text-[15px] text-bone/90">The robber borders several players. Steal one random card from:</p>
       <div className="flex flex-col gap-2">
         {state.phase.candidates.map((c) => {
           const v = state.players[c];
@@ -282,7 +282,7 @@ export function PassDeviceCurtain({ state }: { state: GameState }) {
   const to = state.players[state.handoff];
   const ph = state.phase;
   let reason = 'It is your turn.';
-  if (ph.kind === 'setup') reason = 'Place your starting holdings.';
+  if (ph.kind === 'setup') reason = 'Place your starting settlements and roads.';
   if (ph.kind === 'discard') reason = `A 7! You must discard ${ph.pending[to.id]} cards.`;
   if (ph.kind === 'trade') reason = `${state.players[ph.offer.proposer].name} has an offer for you.`;
   const proposerCanCancel = ph.kind === 'trade' && state.currentPlayer !== to.id;
@@ -357,7 +357,7 @@ export function RollOffModal({ state }: { state: GameState }) {
         <b style={{ color: NAME_COLOR[state.players[state.firstPlayer].color] }}>{state.players[state.firstPlayer].name}</b> goes first.
       </p>
       <button className="btn btn-primary mt-4 w-full" onClick={close} data-testid="begin-founding">
-        Begin the founding
+        Start setup
       </button>
     </Modal>
   );
@@ -368,11 +368,11 @@ export function ConfirmNewModal() {
   const go = useStore((s) => s.go);
   const rematch = useStore((s) => s.rematch);
   return (
-    <Modal title="Abandon this isle?" icon="refresh" onClose={close}>
+    <Modal title="Abandon this game?" icon="refresh" onClose={close}>
       <p className="text-[15px]">Start over? The current game stays saved until a new one begins.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button className="btn btn-primary" onClick={() => go('setup')}>
-          New isle…
+          New game…
         </button>
         <button className="btn" onClick={() => { close(); rematch(); }}>
           Restart same seed

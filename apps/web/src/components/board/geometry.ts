@@ -5,7 +5,7 @@ export const S = 100;
 
 const topo = getTopology();
 
-export const VIEWBOX = { x: -575, y: -545, w: 1150, h: 1090 };
+export const VIEWBOX = { x: -545, y: -490, w: 1090, h: 980 };
 export const VIEWBOX_STR = `${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`;
 
 export function hexCenter(hex: number): { x: number; y: number } {

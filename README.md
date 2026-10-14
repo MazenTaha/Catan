@@ -44,6 +44,8 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 4. A **7** wakes the Wraith: big hands discard half, the roller moves the Wraith and robs a neighbour.
 5. Race to the target with Outposts (1), Citadels (2), the Longest Causeway (2), the Greatest Host (2) and hidden Relics (1 each).
 
+**3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a low-poly world you can explore in first person — sheep grazing round a barn on Pastures, a windmill in the Fields, kilns in the Hills, ore in the Mountains — with everyone's roads, settlements, cities and the robber in place. **W A S D** or the arrows walk, drag to look, **Shift** runs; on touch screens use the stick at the bottom-left. **Next land** jumps between the tiles your buildings touch. Placing pieces still happens on the 2D board.
+
 The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES.md](docs/RULES.md).
 
 **Smoothness:** Settings → Graphics is *Auto* by default. If the browser can’t hold ~42 fps with full effects (typically when hardware acceleration is off), it switches to *Lite*, which drops the embers and looping animations. Choose *Full* or *Lite* to override.
@@ -56,7 +58,7 @@ The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES
 
 ```
 packages/engine   pure TypeScript rules — no DOM, deterministic, serializable
-apps/web          React 18 + Vite + Zustand + Framer Motion + Tailwind
+apps/web          React 18 + Vite + Zustand + Framer Motion + Tailwind + three.js (3D walk)
 docs/             PLAN, DECISIONS, RULES, CREDITS
 ```
 
@@ -69,10 +71,11 @@ docs/             PLAN, DECISIONS, RULES, CREDITS
 
 Every state change emits typed `GameEvent`s; the web app derives the log, toasts, sounds, animations and `aria-live` announcements from them — the same events a future multiplayer server would broadcast.
 
-**Web (`@hexfall/web`).** A single Zustand store (`src/state/store.ts`) holds the session (config, action log, state, undo stack, log) and UI state. `dispatch(action)` applies the engine reducer, records events, triggers effects and autosaves to `localStorage` (versioned, with a migration stub). The board is SVG (`components/board`) with memoized static layers; ambience (embers) is a capped canvas that pauses when the tab is hidden and is disabled under reduced motion.
+**Web (`@hexfall/web`).** A single Zustand store (`src/state/store.ts`) holds the session (config, action log, state, undo stack, log) and UI state. `dispatch(action)` applies the engine reducer, records events, triggers effects and autosaves to `localStorage` (versioned, with a migration stub). The board is SVG (`components/board`) with memoized static layers; ambience (embers) is a capped canvas that pauses when the tab is hidden and is disabled under reduced motion. The optional 3D walk (`components/world`) is a lazy-loaded three.js scene that mirrors the live state.
 
 ## Replacing art and audio
 
+- **3D walk:** the world is built from three.js primitives in `apps/web/src/components/world/` (`models.ts` for each model, `world.ts` for the island, controls and animals) and is lazy-loaded only when the 3D view is opened.
 - **Terrain art:** set image URLs in [`apps/web/src/art/manifest.ts`](apps/web/src/art/manifest.ts) (files go in `apps/web/public/art/`). Each image is drawn into a 174×200 box centred on the hex and clipped to it. Leave an entry `null` to keep the procedural art.
 - **Other art:** pieces, tokens, harbors and the Wraith live in `apps/web/src/art/pieces/Pieces.tsx`; icons in `apps/web/src/art/icons/Icon.tsx`; Omen cards in `apps/web/src/art/cards/OmenCard.tsx`. Each is a self-contained component.
 - **Audio:** drop files into `apps/web/public/audio/` and map them in [`apps/web/src/audio/manifest.json`](apps/web/src/audio/manifest.json) (e.g. `"dice": "dice.ogg"`, `"ambient": "drone.ogg"`). Mapped sounds play through Howler (lazy-loaded); unmapped ones fall back to the WebAudio synthesizer in `src/audio/synth.ts`.

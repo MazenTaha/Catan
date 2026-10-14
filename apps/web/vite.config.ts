@@ -7,7 +7,8 @@ export default defineConfig({
   preview: { port: 4173 },
   build: {
     target: 'es2020',
-    chunkSizeWarningLimit: 600,
+    // The lazy 3D-walk chunk (three.js) is ~610 kB; it only loads when the 3D view opens.
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks: {

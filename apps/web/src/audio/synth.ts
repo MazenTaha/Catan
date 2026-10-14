@@ -20,7 +20,8 @@ export type SfxName =
   | 'victory'
   | 'error'
   | 'click'
-  | 'discard';
+  | 'discard'
+  | 'bleat';
 
 let noiseBuf: AudioBuffer | null = null;
 function noise(ctx: AudioContext): AudioBuffer {
@@ -110,6 +111,33 @@ function knock(ctx: AudioContext, out: Out, t: number, f: number, peak: number) 
   tone(ctx, out, t, f, 0.07, peak, 'triangle', 0.001, f * 0.7);
   tone(ctx, out, t, f * 2.3, 0.03, peak * 0.3, 'sine', 0.001);
   burst(ctx, out, t, 0.03, peak * 0.6, 'bandpass', 1600, undefined, 2.5);
+}
+
+/** A sheep's "baa": a buzzy nasal tone with a fast wobble, falling at the end. */
+function bleat(ctx: AudioContext, out: Out, t: number) {
+  const f = 330 + Math.random() * 120;
+  const dur = 0.55 + Math.random() * 0.25;
+  const o = ctx.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(f, t);
+  o.frequency.linearRampToValueAtTime(f * 1.06, t + dur * 0.3);
+  o.frequency.exponentialRampToValueAtTime(f * 0.82, t + dur);
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 22 + Math.random() * 6;
+  const depth = ctx.createGain();
+  depth.gain.value = f * 0.05;
+  lfo.connect(depth);
+  depth.connect(o.frequency);
+  const formant = ctx.createBiquadFilter();
+  formant.type = 'bandpass';
+  formant.frequency.value = 1100;
+  formant.Q.value = 1.4;
+  o.connect(formant);
+  formant.connect(env(ctx, out, t, 0.06, dur, 0.22));
+  o.start(t);
+  lfo.start(t);
+  o.stop(t + dur + 0.12);
+  lfo.stop(t + dur + 0.12);
 }
 
 export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
@@ -227,6 +255,9 @@ export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
       break;
     case 'click':
       burst(ctx, out, t, 0.02, 0.12, 'bandpass', 2600, undefined, 4);
+      break;
+    case 'bleat':
+      bleat(ctx, out, t);
       break;
     case 'discard':
       burst(ctx, out, t, 0.18, 0.2, 'bandpass', 1200, 300, 1);

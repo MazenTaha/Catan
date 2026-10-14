@@ -25,6 +25,7 @@ import { RookieTip } from '../ui/primitives';
 import { useBotDriver, useGameKeys, useTurnTimer } from './gameHooks';
 
 const VictoryScreen = lazy(() => import('../modals/VictoryScreen'));
+const World3D = lazy(() => import('../world/World3D'));
 
 type Layout = 'wide' | 'mid' | 'narrow';
 
@@ -48,6 +49,8 @@ export function GameScreen() {
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   const layout = useLayout();
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [view3d, setView3d] = useState(false);
+  const placing = useStore((s) => s.mode !== null);
   const state = session?.state;
   const seat = state ? displaySeat(state) : 0;
 
@@ -63,6 +66,7 @@ export function GameScreen() {
   const ph = state.phase;
   const canRoll = canAct && ph.kind === 'roll' && state.currentPlayer === seat;
   const humanSeat = state.players[seat].kind === 'human';
+  const needsBoard = canAct && humanSeat && (ph.kind === 'setup' || ph.kind === 'move-wraith' || placing);
 
   // The board takes all the height left under the top bar and turn banner.
   const board = (
@@ -71,10 +75,34 @@ export function GameScreen() {
       className="relative mx-auto w-full"
       style={{ maxWidth: layout === 'narrow' ? undefined : `min(100%, calc((100vh - 168px) * ${(VIEWBOX.w / VIEWBOX.h).toFixed(3)}))` }}
     >
-      <ZoomPan enabled={layout === 'narrow'}>
-        <BoardView state={state} canAct={canAct} onAction={onAction} />
-      </ZoomPan>
-      <div className="absolute left-0 top-0 z-20 max-w-[min(360px,70%)]">
+      {view3d ? (
+        <div className="w-full" style={{ aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` }}>
+          <Suspense fallback={<div className="grid h-full place-items-center rounded-lg bg-surface-1 font-display text-gold">Building the island…</div>}>
+            <World3D state={state} seat={seat} needsBoard={needsBoard} onExit={() => setView3d(false)} />
+          </Suspense>
+        </div>
+      ) : (
+        <ZoomPan enabled={layout === 'narrow'}>
+          <BoardView state={state} canAct={canAct} onAction={onAction} />
+        </ZoomPan>
+      )}
+      <div className="absolute bottom-2 right-2 z-20 flex overflow-hidden rounded-full border border-tarnish/70 bg-abyss/85 shadow-panel" role="group" aria-label="Board view">
+        {(['2D', '3D'] as const).map((v) => {
+          const on = (v === '3D') === view3d;
+          return (
+            <button
+              key={v}
+              className={`px-3 py-1 font-display text-[12px] tracking-[0.12em] transition-colors ${on ? 'bg-gold text-abyss' : 'text-gold hover:bg-surface-2'}`}
+              aria-pressed={on}
+              title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
+              onClick={() => setView3d(v === '3D')}
+            >
+              {v === '3D' ? '3D walk' : '2D board'}
+            </button>
+          );
+        })}
+      </div>
+      <div className={`absolute left-0 top-0 z-20 max-w-[min(360px,70%)] ${view3d ? 'hidden' : ''}`}>
         {ph.kind === 'setup' && canAct && (
           <RookieTip id="setup">
             Settlements can’t be next to another settlement. Favour high-dot numbers (6 and 8) and a mix of resources.

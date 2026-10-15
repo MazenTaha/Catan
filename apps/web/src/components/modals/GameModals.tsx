@@ -101,13 +101,13 @@ export function TradeInboxModal({ state, seat }: { state: GameState; seat: numbe
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="border border-venom/50 bg-[#141a10] p-3">
+        <div className="rounded-2xl border border-venom/50 bg-venom/10 p-3">
           <div className="font-display text-[11px] uppercase tracking-[0.14em] text-venom">You receive</div>
           <div className="mt-1 text-[18px]">
             <CountsInline counts={offer.give} size={18} />
           </div>
         </div>
-        <div className="border border-blood/70 bg-[#1c1012] p-3">
+        <div className="rounded-2xl border border-ember/50 bg-ember/10 p-3">
           <div className="font-display text-[11px] uppercase tracking-[0.14em] text-ember">You give</div>
           <div className="mt-1 text-[18px]">
             <CountsInline counts={offer.want} size={18} />
@@ -213,7 +213,7 @@ export function HarvestModal({ state, seat }: { state: GameState; seat: number }
         {RESOURCES.map((r) => (
           <button
             key={r}
-            className="flex flex-col items-center gap-1 border border-iron/70 p-2 hover:border-gold disabled:opacity-40"
+            className="tile tile-interactive flex flex-col items-center gap-1 p-2 disabled:opacity-40"
             disabled={picks.length >= need || left(r) <= 0}
             onClick={() => setPicks([...picks, r])}
             aria-label={`Take ${RESOURCE_NAME[r]}`}
@@ -257,7 +257,7 @@ export function TitheModal({ seat }: { seat: number }) {
         {RESOURCES.map((r) => (
           <button
             key={r}
-            className="flex flex-col items-center gap-1 border border-iron/70 p-2 hover:border-blood"
+            className="tile tile-interactive flex flex-col items-center gap-1 p-2 hover:!border-ember"
             onClick={() => {
               if (!dispatch({ type: 'PlayBloodTithe', player: seat, resource: r })) close();
             }}
@@ -289,7 +289,7 @@ export function PassDeviceCurtain({ state }: { state: GameState }) {
   return (
     <motion.div
       className="fixed inset-0 z-[70] grid place-items-center p-4"
-      style={{ background: 'radial-gradient(ellipse at 50% 40%, #1a1510 0%, #050506 70%)' }}
+      style={{ background: 'radial-gradient(ellipse at 50% 35%, #3a2030 0%, #120c18 55%, #08060b 85%)' }}
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       role="dialog"

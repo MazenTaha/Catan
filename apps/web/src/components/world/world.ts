@@ -87,12 +87,12 @@ export interface WorldOptions {
 }
 
 const GROUND: Record<Terrain, { base: string; speck: string[]; strokes?: boolean }> = {
-  witchwood: { base: '#4f8d3b', speck: ['#3f7630', '#62a046', '#356a28'], strokes: true },
-  ashen: { base: '#c97c4f', speck: ['#ad623b', '#d99263', '#94512f'] },
-  moors: { base: '#86c94e', speck: ['#72b83e', '#9ad862', '#62a534'], strokes: true },
-  fields: { base: '#a7b84a', speck: ['#97a83e', '#b7c65c', '#8a9a36'], strokes: true },
-  peaks: { base: '#9a9da5', speck: ['#83878f', '#b0b3ba', '#71757e'] },
-  waste: { base: '#e8d49c', speck: ['#d9c286', '#f2e2b3', '#ccb576'] },
+  witchwood: { base: '#2f5e26', speck: ['#244c1d', '#3d7030', '#1b3d15'], strokes: true },
+  ashen: { base: '#9c5634', speck: ['#844629', '#b0673f', '#6e3820'] },
+  moors: { base: '#4a8a2c', speck: ['#3a7022', '#5f9e38', '#2d5c1b'], strokes: true },
+  fields: { base: '#7a8a2c', speck: ['#677624', '#909e38', '#56641e'], strokes: true },
+  peaks: { base: '#6f727c', speck: ['#5d6069', '#858892', '#4c4f58'] },
+  waste: { base: '#c9a874', speck: ['#b59563', '#d8b987', '#a58556'] },
 };
 
 const SAIL: Record<HarborKind, string> = {
@@ -175,8 +175,14 @@ export class World {
   private pieces = new THREE.Group();
   private robber: THREE.Group | null = null;
   private foam: THREE.MeshBasicMaterial | null = null;
+  private fireflies: {
+    geo: THREE.BufferGeometry;
+    base: Float32Array;
+    mat: THREE.PointsMaterial;
+  } | null = null;
   private sunGlow = makeSunSprite();
-  private sunDir = new THREE.Vector3(34, 60, 22).normalize();
+  /** Low evening sun in the west: long shadows and warm, raking light. */
+  private sunDir = new THREE.Vector3(-62, 13, -26).normalize();
   private robberHex = -1;
 
   private x = 0;
@@ -203,7 +209,7 @@ export class World {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.lite ? 1 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = !opts.lite;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -312,15 +318,28 @@ export class World {
   // ---------------------------------------------------------------- building
 
   private buildSky() {
-    const top = new THREE.Color('#3f9cf0');
-    const horizon = new THREE.Color('#d9f1ff');
-    const geo = new THREE.SphereGeometry(1000, 24, 16);
+    // Sunset: deep indigo overhead, rose in the middle, amber on the horizon, hottest towards the sun.
+    const zenith = new THREE.Color('#25224f');
+    const mid = new THREE.Color('#a8506f');
+    const horizon = new THREE.Color('#f08a4b');
+    const glow = new THREE.Color('#ffc070');
+    const geo = new THREE.SphereGeometry(1000, 48, 24);
     const cols: number[] = [];
     const pos = geo.attributes.position;
     const c = new THREE.Color();
+    const v = new THREE.Vector3();
+    const sunFlat = new THREE.Vector3(this.sunDir.x, 0, this.sunDir.z).normalize();
     for (let i = 0; i < pos.count; i++) {
-      const t = THREE.MathUtils.clamp(pos.getY(i) / 1000, 0, 1);
-      c.copy(horizon).lerp(top, Math.pow(t, 0.6));
+      v.fromBufferAttribute(pos, i).normalize();
+      const t = THREE.MathUtils.clamp(v.y, 0, 1);
+      if (t < 0.25) c.copy(horizon).lerp(mid, t / 0.25);
+      else c.copy(mid).lerp(zenith, Math.pow((t - 0.25) / 0.75, 0.7));
+      // Warmer and brighter on the sun's side of the sky, cooler opposite.
+      const toward = v.x * sunFlat.x + v.z * sunFlat.z;
+      const low = 1 - t;
+      if (toward > 0) c.lerp(glow, Math.pow(toward, 3) * Math.pow(low, 3) * 0.85);
+      else c.lerp(zenith, -toward * low * 0.25);
+      if (v.y < 0) c.copy(horizon).multiplyScalar(0.7);
       cols.push(c.r, c.g, c.b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
@@ -333,31 +352,32 @@ export class World {
         depthWrite: false,
       }),
     );
-    sky.renderOrder = -1;
+    sky.renderOrder = -2;
     this.scene.add(sky);
     this.scene.background = horizon.clone();
-    this.scene.fog = new THREE.Fog('#cfeaff', 90, 620);
+    this.scene.fog = new THREE.Fog('#b8686a', 70, 560);
   }
 
   private buildLights() {
-    this.scene.add(new THREE.HemisphereLight('#e6f5ff', '#7d9a55', 1.15));
-    // A cool fill from the opposite side keeps shaded faces from going flat and dark.
-    const fill = new THREE.DirectionalLight('#cfe3ff', 0.55);
-    fill.position.set(-40, 25, -30);
+    // Warm sky light from above, dusky violet bounce from below.
+    this.scene.add(new THREE.HemisphereLight('#ffb48a', '#3b2a44', 0.85));
+    // A cool violet fill from the east keeps shaded faces readable but moody.
+    const fill = new THREE.DirectionalLight('#8f7ad8', 0.45);
+    fill.position.set(50, 30, 25);
     this.scene.add(fill);
-    const sun = new THREE.DirectionalLight('#fff0cf', 2.6);
+    const sun = new THREE.DirectionalLight('#ffa860', 2.9);
     sun.castShadow = !this.opts.lite;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
     sc.left = sc.bottom = -36;
     sc.right = sc.top = 36;
     sc.near = 1;
-    sc.far = 220;
+    sc.far = 260;
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.04;
     this.scene.add(sun);
     this.scene.add(sun.target);
-    this.sunGlow.scale.setScalar(170);
+    this.sunGlow.scale.setScalar(260);
     this.sunGlow.renderOrder = -1;
     this.scene.add(this.sunGlow);
   }
@@ -368,11 +388,12 @@ export class World {
 
     // Sea with lazy low-poly waves, see-through enough to show the lagoon shelf beneath.
     const seaMat = new THREE.MeshStandardMaterial({
-      color: '#2f9fd6',
-      roughness: 0.35,
+      color: '#1d5672',
+      roughness: 0.22,
+      metalness: 0.1,
       flatShading: true,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.9,
     });
     seaMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.uTime;
@@ -413,9 +434,9 @@ export class World {
     const dirtGeo = kit.geo('dirt', () => new THREE.CylinderGeometry(R * 1.0, R * 1.0, 0.4, 6));
     const beachGeo = kit.geo('beach', () => new THREE.CylinderGeometry(R * 1.16, R * 1.24, 0.6, 6));
     const shelfGeo = kit.geo('shelf', () => new THREE.CylinderGeometry(R * 1.55, R * 1.7, 0.4, 6));
-    const dirt = kit.mat('#b98f5c');
-    const sand = kit.mat('#f0dca3');
-    const shelf = kit.mat('#7fd8d0');
+    const dirt = kit.mat('#7d5a3a');
+    const sand = kit.mat('#d4b07c');
+    const shelf = kit.mat('#3c7f80');
     const groundMats = new Map<Terrain, THREE.MeshStandardMaterial>();
     const groundMat = (t: Terrain) => {
       let m = groundMats.get(t);
@@ -498,6 +519,7 @@ export class World {
       bake(g);
     });
     this.buildFoam(board);
+    this.buildFireflies(board, seed);
 
     for (const h of board.harbors) this.buildHarbor(h.edge, h.hex, h.kind);
 
@@ -548,6 +570,47 @@ export class World {
     }
   }
 
+  /** Evening fireflies drifting low over the meadows and woods. */
+  private buildFireflies(board: Board, seed: number) {
+    const rnd = mulberry(seed ^ 0xf1ef);
+    const homes = this.landHexes.filter((h) => {
+      const t = board.hexes[h.id].terrain;
+      return t === 'moors' || t === 'witchwood' || t === 'fields';
+    });
+    if (!homes.length) return;
+    const n = this.opts.lite ? 60 : 160;
+    const base = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const h = homes[Math.floor(rnd() * homes.length)];
+      const a = rnd() * Math.PI * 2;
+      const r = Math.sqrt(rnd()) * R * 0.85;
+      base.set([h.x + Math.sin(a) * r, 0.4 + rnd() * 2.2, h.z + Math.cos(a) * r], i * 3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
+    const size = 32;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(255,250,200,1)');
+    g.addColorStop(0.3, 'rgba(255,214,100,0.8)');
+    g.addColorStop(1, 'rgba(255,190,60,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    const mat = new THREE.PointsMaterial({
+      map: new THREE.CanvasTexture(c),
+      color: '#ffe08a',
+      size: 0.32,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    this.scene.add(new THREE.Points(geo, mat));
+    this.fireflies = { geo, base, mat };
+  }
+
   /** A band of surf along every coastal edge, pulsing gently. */
   private buildFoam(board: Board) {
     const pos: number[] = [];
@@ -567,7 +630,7 @@ export class World {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     this.foam = new THREE.MeshBasicMaterial({
-      color: '#ffffff',
+      color: '#ffd9c4',
       transparent: true,
       opacity: 0.5,
       depthWrite: false,
@@ -1037,12 +1100,31 @@ export class World {
         if (c.position.x > 320) c.position.x = -320;
       }
       if (this.robber) this.robber.position.y = 0.1 + Math.sin(t * 2) * 0.1;
-      if (this.foam) this.foam.opacity = 0.42 + Math.sin(t * 1.3) * 0.12;
+      if (this.foam) this.foam.opacity = 0.32 + Math.sin(t * 1.3) * 0.1;
+      if (this.fireflies) {
+        const { geo, base, mat } = this.fireflies;
+        const p = geo.attributes.position as THREE.BufferAttribute;
+        for (let i = 0; i < p.count; i++) {
+          const k = i * 1.7;
+          p.setXYZ(
+            i,
+            base[i * 3] + Math.sin(t * 0.6 + k) * 0.9,
+            base[i * 3 + 1] + Math.sin(t * 1.1 + k * 2.3) * 0.35,
+            base[i * 3 + 2] + Math.cos(t * 0.5 + k * 1.3) * 0.9,
+          );
+        }
+        p.needsUpdate = true;
+        mat.opacity = 0.75 + Math.sin(t * 2.3) * 0.25;
+      }
     }
     this.maybeBleat(dt);
 
     // Keep the sun's shadow box centred on the walker.
-    this.sun.position.set(this.x + 34, 60, this.z + 22);
+    this.sun.position.set(
+      this.x + this.sunDir.x * 90,
+      this.sunDir.y * 90,
+      this.z + this.sunDir.z * 90,
+    );
     this.sun.target.position.set(this.x, 0, this.z);
 
     this.camera.position.set(this.x, EYE + this.bob, this.z);
@@ -1460,17 +1542,17 @@ class Instancer {
 }
 
 const BARK = ['#7a4f2b', '#6e4626', '#85572f'];
-const LEAF = ['#5aae3c', '#4fa236', '#66b845', '#73bf4a', '#4b9b3a'];
-const PINE = ['#2f8a46', '#2a7d40', '#358f4c', '#3a9450'];
-const WHEAT = ['#f0c85a', '#e8bd4c', '#f5d26a', '#e3b343'];
+const LEAF = ['#3f8a2c', '#357a26', '#4a9433', '#2f6e22', '#559a3a'];
+const PINE = ['#1f5e32', '#1b532c', '#246838', '#2a6f3c'];
+const WHEAT = ['#e3b952', '#d9ac48', '#ebc45e', '#cf9f40'];
 const FLOWERS = ['#ffffff', '#ffe066', '#ff8fb1', '#c59bff', '#ff9a4a'];
 const GRASS: Record<Terrain, { n: number; flowers: number; colors: string[] }> = {
-  moors: { n: 2600, flowers: 110, colors: ['#7cc24a', '#8fd456', '#6bb33e', '#9ddc63'] },
-  witchwood: { n: 2000, flowers: 30, colors: ['#4f9a3a', '#5aa843', '#43872f', '#62b04a'] },
-  fields: { n: 350, flowers: 20, colors: ['#9fb84a', '#b3c65a', '#8eaa40'] },
-  ashen: { n: 110, flowers: 0, colors: ['#8f9a4a', '#a3a352'] },
-  peaks: { n: 90, flowers: 6, colors: ['#7f9a5a', '#8ea866'] },
-  waste: { n: 40, flowers: 0, colors: ['#b8b46a', '#c4bd78'] },
+  moors: { n: 2600, flowers: 110, colors: ['#3f7a24', '#4b8a2c', '#33681c', '#579232'] },
+  witchwood: { n: 2000, flowers: 30, colors: ['#2a5620', '#336826', '#224a1a', '#3d7030'] },
+  fields: { n: 350, flowers: 20, colors: ['#66762a', '#77862f', '#586620'] },
+  ashen: { n: 110, flowers: 0, colors: ['#646a2c', '#727434'] },
+  peaks: { n: 90, flowers: 6, colors: ['#4f6838', '#5c7744'] },
+  waste: { n: 40, flowers: 0, colors: ['#857f44', '#928c50'] },
 };
 
 function shadeOf(hex: string, dl: number): string {
@@ -1522,7 +1604,7 @@ function tuftGeo(): THREE.BufferGeometry {
     const bx = cx * 0.04;
     const bz = cz * 0.04;
     pos.push(bx - px, 0, bz - pz, bx + px, 0, bz + pz, cx * 0.13, h, cz * 0.13);
-    col.push(0.42, 0.5, 0.36, 0.42, 0.5, 0.36, 1.08, 1.08, 1.0);
+    col.push(0.22, 0.26, 0.2, 0.22, 0.26, 0.2, 1.12, 1.08, 0.92);
     for (let k = 0; k < 3; k++) nrm.push(0, 1, 0);
   }
   const g = new THREE.BufferGeometry();

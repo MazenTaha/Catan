@@ -98,10 +98,10 @@ export function NewGameScreen() {
           </div>
           <div className="flex flex-col gap-3">
             {active.map((s, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-3 border border-iron/70 bg-surface-2/60 px-3 py-2.5">
+              <div key={i} className="tile flex flex-wrap items-center gap-3 px-3 py-2.5">
                 <PlayerDisc color={s.color} sigil={s.sigil} size={36} />
                 <input
-                  className="w-36 border border-iron bg-surface-1 px-2 py-1.5 text-[15px] text-bone"
+                  className="w-36 rounded-xl border border-iron bg-surface-1 px-3 py-1.5 text-[15px] text-bone transition-colors focus:border-gold/70"
                   value={s.name}
                   maxLength={16}
                   onChange={(e) => update(i, { name: e.target.value })}
@@ -116,7 +116,7 @@ export function NewGameScreen() {
                       aria-checked={s.color === c}
                       aria-label={COLOR_NAME[c]}
                       title={COLOR_NAME[c]}
-                      className={`h-6 w-6 rounded-full border-2 ${s.color === c ? 'border-gold' : 'border-transparent'}`}
+                      className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${s.color === c ? 'scale-110 border-bone shadow-[0_0_12px_rgba(255,255,255,0.35)]' : 'border-transparent'}`}
                       style={{ background: COLOR_HEX[c] }}
                       onClick={() => update(i, { color: c })}
                     />
@@ -130,7 +130,7 @@ export function NewGameScreen() {
                       aria-checked={s.sigil === g}
                       aria-label={SIGIL_NAME[g]}
                       title={SIGIL_NAME[g]}
-                      className={`grid h-7 w-7 place-items-center border ${s.sigil === g ? 'border-gold text-gold' : 'border-iron text-muted'}`}
+                      className={`grid h-8 w-8 place-items-center rounded-lg border transition-colors ${s.sigil === g ? 'border-gold bg-gold/15 text-gold' : 'border-iron text-muted hover:text-bone'}`}
                       onClick={() => update(i, { sigil: g })}
                     >
                       <SigilGlyph sigil={g} size={15} />
@@ -155,7 +155,7 @@ export function NewGameScreen() {
                   </button>
                   {s.kind === 'bot' && (
                     <select
-                      className="border border-iron bg-surface-1 px-1.5 py-1 text-[14px] text-bone"
+                      className="rounded-lg border border-iron bg-surface-1 px-2 py-1 text-[14px] text-bone"
                       value={s.bot}
                       onChange={(e) => update(i, { bot: e.target.value as BotLevel })}
                       aria-label={`Seat ${i + 1} bot difficulty`}
@@ -176,7 +176,7 @@ export function NewGameScreen() {
           <h2 className="panel-title mb-2 mt-5">Rules</h2>
           <label className="flex items-center gap-3">
             <span className="w-32 text-[15px]">Victory at</span>
-            <input type="range" min={MIN_TARGET} max={MAX_TARGET} value={target} onChange={(e) => setTarget(Number(e.target.value))} className="flex-1 accent-[#c9a24b]" aria-label="Target victory points" />
+            <input type="range" min={MIN_TARGET} max={MAX_TARGET} value={target} onChange={(e) => setTarget(Number(e.target.value))} className="flex-1 accent-[#f2ac52]" aria-label="Target victory points" />
             <span className="num w-10 text-right text-[20px] text-gold">{target}</span>
           </label>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -201,7 +201,7 @@ export function NewGameScreen() {
           </div>
           <div className="mt-3 flex items-center gap-2">
             <input
-              className="flex-1 border border-iron bg-surface-1 px-2 py-1.5 font-mono text-[14px] text-bone"
+              className="flex-1 rounded-xl border border-iron bg-surface-1 px-3 py-1.5 font-mono text-[14px] text-bone"
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               aria-label="Seed"

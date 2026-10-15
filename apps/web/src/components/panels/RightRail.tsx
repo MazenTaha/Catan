@@ -24,7 +24,8 @@ import { OmenCardFront } from '../../art/cards/OmenCard';
 import { audio } from '../../audio/engine';
 import { OMEN_FLAVOR, OMEN_NAME, OMEN_TEXT, PIECE_NAME, PIECE_PLURAL, RESOURCE_NAME } from '../../lexicon';
 import { useStore, type PlaceMode, type Tab } from '../../state/store';
-import { CostPips, Modal, RookieTip, ResourceCard, Stepper } from '../ui/primitives';
+import { CostPips, Modal, RookieTip, ResourceCard, SegmentedTabs, Stepper, Tooltip, costProgress } from '../ui/primitives';
+import { useUiHints } from '../../state/uiHints';
 import { NAME_COLOR } from './LogLineView';
 
 export function canSeatAct(state: GameState, seat: number): boolean {
@@ -42,22 +43,28 @@ export function HandPanel({ state, seat }: { state: GameState; seat: number }) {
   const p = state.players[seat];
   const gains = useStore((s) => s.session?.turnGains[seat]);
   const hideUntilHold = useStore((s) => s.settings.hideHandUntilHold);
+  const hoverCost = useUiHints((s) => s.cost);
   const [peek, setPeek] = useState(false);
   const risk = handLimitRisk(p);
   const hidden = hideUntilHold && !peek;
+  const total = handTotal(p);
   return (
-    <section className="panel rivets px-4 py-3" aria-label={`${p.name}'s hand`}>
-      <div className="mb-2 flex items-center gap-2">
-        <PlayerDisc color={p.color} sigil={p.sigil} size={22} />
+    <section className="panel px-3.5 py-3" aria-label={`${p.name}'s hand`}>
+      <div className="mb-2.5 flex items-center gap-2 px-0.5">
+        <PlayerDisc color={p.color} sigil={p.sigil} size={24} />
         <h2 className="panel-title flex-1">
           <span>
             <span style={{ color: NAME_COLOR[p.color] }}>{p.name}</span>&rsquo;s hand
           </span>
         </h2>
-        <span className="num text-[14px] text-muted">{handTotal(p)} cards</span>
+        <Tooltip align="end" label={risk > 0 ? `Over the limit: a 7 costs you ${risk} cards` : 'Safe from the robber at 7 cards or fewer'}>
+          <span className={`chip num !py-0.5 ${risk > 0 ? 'border-ember/70 text-ember' : 'text-bone'}`} tabIndex={0}>
+            {total} {total === 1 ? 'card' : 'cards'}
+          </span>
+        </Tooltip>
         {hideUntilHold && (
           <button
-            className="btn btn-ghost !px-1.5 !py-1"
+            className="icon-btn !h-8 !w-8"
             onPointerDown={() => setPeek(true)}
             onPointerUp={() => setPeek(false)}
             onPointerLeave={() => setPeek(false)}
@@ -71,16 +78,35 @@ export function HandPanel({ state, seat }: { state: GameState; seat: number }) {
         )}
       </div>
       <div className="flex justify-between gap-1.5" data-testid="hand">
-        {RESOURCES.map((r) => (
-          <div key={r} data-res={r}>
-            <ResourceCard res={r} count={p.hand[r]} gained={gains?.[r] ?? 0} hidden={hidden} />
-          </div>
-        ))}
+        {RESOURCES.map((r) => {
+          const need = hoverCost && (hoverCost[r] ?? 0) > 0 && !hidden ? (p.hand[r] >= (hoverCost[r] ?? 0) ? 'have' : 'missing') : null;
+          return (
+            <div key={r} data-res={r}>
+              <ResourceCard res={r} count={p.hand[r]} gained={gains?.[r] ?? 0} hidden={hidden} need={need} />
+            </div>
+          );
+        })}
       </div>
-      {risk > 0 && !hidden && (
-        <p className="mt-2 flex items-center gap-1.5 text-[14px] text-ember" role="note">
-          <Icon name="wraith" size={15} /> A 7 would cost you <b className="num">{risk}</b> cards
-        </p>
+      {!hidden && (
+        <div className="mt-2.5 flex items-center gap-2 px-0.5 text-[13px]">
+          <div className="meter flex-1" aria-hidden>
+            <span
+              style={{
+                width: `${Math.min(100, (total / 7) * 100)}%`,
+                background: risk > 0 ? 'linear-gradient(90deg, #ff805c, #b0364a)' : undefined,
+              }}
+            />
+          </div>
+          {risk > 0 ? (
+            <span className="flex items-center gap-1 text-ember" role="note">
+              <Icon name="wraith" size={14} /> A 7 would cost you <b className="num">{risk}</b> cards
+            </span>
+          ) : (
+            <span className="text-muted">
+              <span className="num text-bone">{Math.max(0, 7 - total)}</span> to the limit
+            </span>
+          )}
+        </div>
       )}
     </section>
   );
@@ -100,6 +126,7 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
   const setMode = useStore((s) => s.setMode);
   const dispatch = useStore((s) => s.dispatch);
   const pushToast = useStore((s) => s.pushToast);
+  const setCost = useUiHints((s) => s.setCost);
   const p = state.players[seat];
   const inMain = state.phase.kind === 'main' && active;
   return (
@@ -133,6 +160,7 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
         else if (spots === 0) declined = `No place to build a ${name}`;
         const ready = active && declined === null;
         const selected = item.mode !== undefined && mode === item.mode;
+        const prog = costProgress(cost, p.hand);
         const onClick = () => {
           if (declined) {
             audio.play('error');
@@ -145,30 +173,57 @@ function BuildTab({ state, seat, active }: { state: GameState; seat: number; act
             setMode(selected ? null : item.mode!);
           }
         };
+        const title = item.key === 'omen' ? 'Dev. card' : PIECE_NAME[item.key];
         return (
-          <div
+          <button
             key={item.key}
-            className={`relative flex flex-col gap-1.5 border px-2.5 pb-2 pt-2 ${selected ? 'border-gold bg-[#241e10] shadow-glow' : 'border-iron/70 bg-surface-2/70'}`}
+            className={`tile tile-interactive flex flex-col gap-2 px-3 pb-2.5 pt-2.5 text-left ${selected ? 'tile-selected' : ''}`}
+            onClick={onClick}
+            onMouseEnter={() => setCost(cost)}
+            onMouseLeave={() => setCost(null)}
+            onFocus={() => setCost(cost)}
+            onBlur={() => setCost(null)}
+            disabled={!active}
+            aria-disabled={!ready && !selected}
+            aria-pressed={item.mode ? selected : undefined}
+            aria-label={`${selected ? 'Cancel' : item.key === 'omen' ? 'Buy' : 'Build'} ${title}`}
+            data-testid={`build-${item.key}`}
+            data-ready={ready}
           >
-            <div className="flex items-center gap-1.5">
-              <Icon name={item.icon} size={18} className={`shrink-0 ${ready ? 'text-gold' : 'text-muted'}`} />
-              <span className="truncate font-display text-[13px] uppercase tracking-[0.06em]">{item.key === 'omen' ? 'Dev. card' : PIECE_NAME[item.key]}</span>
+            <div className="flex w-full items-center gap-2">
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${ready || selected ? 'bg-gold/20 text-gold' : 'bg-black/25 text-muted'}`}>
+                <Icon name={item.icon} size={18} />
+              </span>
+              <span className="min-w-0 flex-1 whitespace-nowrap font-display text-[12px] uppercase tracking-[0.04em] text-bone">{title}</span>
+            </div>
+            <div className="-mt-1 flex w-full items-center justify-between gap-1 text-[12px] leading-tight text-muted">
+              <span className="truncate">{item.blurb}</span>
+              <span className="num shrink-0 rounded-md bg-black/30 px-1.5 text-[11px]" title={item.key === 'omen' ? 'Development cards left' : 'Left in your supply'}>
+                {supply} left
+              </span>
             </div>
             <CostPips cost={cost} hand={p.hand} />
-            <div className="text-[13px] text-muted">
-              {item.blurb} · <span className="num" title={item.key === 'omen' ? 'Development cards left' : 'Left in your supply'}>{supply} left</span>
+            <div className="flex w-full items-center gap-2">
+              <div className="meter flex-1" aria-hidden>
+                <span style={{ width: `${(prog.have / prog.need) * 100}%`, background: affordable ? 'linear-gradient(90deg,#6fae4e,#8cc56a)' : undefined }} />
+              </div>
+              <span className={`font-display text-[10px] uppercase tracking-[0.12em] ${selected ? 'text-gold' : ready ? 'text-venom' : 'text-muted'}`}>
+                {selected
+                  ? 'Esc to cancel'
+                  : ready
+                    ? item.key === 'omen'
+                      ? 'Buy'
+                      : 'Build'
+                    : !affordable
+                      ? `${prog.need - prog.have} short`
+                      : supply <= 0
+                        ? 'None left'
+                        : spots === 0
+                          ? 'No spot'
+                          : 'Not now'}
+              </span>
             </div>
-            <button
-              className={`btn mt-auto !py-1.5 text-[11px] ${ready || selected ? 'btn-primary' : ''}`}
-              onClick={onClick}
-              disabled={!active}
-              aria-pressed={item.mode ? selected : undefined}
-              data-testid={`build-${item.key}`}
-              data-ready={ready}
-            >
-              {selected ? 'Cancel (Esc)' : item.key === 'omen' ? 'Buy' : 'Build'}
-            </button>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -201,8 +256,10 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
   };
   if (!groups.length) {
     return (
-      <div className="py-6 text-center text-muted">
-        <Icon name="omen" size={28} className="mx-auto mb-2 text-iron" />
+      <div className="rounded-2xl border border-dashed border-iron/80 py-6 text-center text-muted">
+        <span className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-2xl bg-black/25 text-gold/70">
+          <Icon name="omen" size={24} />
+        </span>
         No development cards yet. Buy one from the Build tab.
         <div className="mt-2 text-[14px]">
           Played: {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
@@ -224,22 +281,23 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
         else if (!phaseOk) status = 'Not now';
         else enabled = true;
         return (
-          <div
-            key={type}
-            className={`flex items-start gap-3 border px-3 py-2 ${relic ? 'border-tarnish bg-[#1f1b12]' : 'border-iron/70 bg-surface-2/70'}`}
-          >
-            <button onClick={() => setDetails(type)} aria-label={`${OMEN_NAME[type]} details`} className="shrink-0 transition-transform hover:-translate-y-0.5">
+          <div key={type} className={`tile flex items-start gap-3 px-3 py-2.5 ${relic ? 'tile-selected' : ''}`}>
+            <button
+              onClick={() => setDetails(type)}
+              aria-label={`${OMEN_NAME[type]} details`}
+              className="shrink-0 rounded-lg transition-transform duration-200 hover:-translate-y-1 hover:rotate-[-3deg]"
+            >
               <OmenCardFront type={type} width={46} />
             </button>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-display text-[14px] uppercase tracking-[0.08em] text-bone">{OMEN_NAME[type]}</span>
                 <span className="num text-[14px] text-muted">×{g.total}</span>
-                {g.fresh > 0 && !relic && <span className="chip border-frost !py-0 text-[10px] text-frost">New · locked</span>}
+                {g.fresh > 0 && !relic && <span className="chip !py-0 border-frost/60 bg-frost/10 text-[10px] text-frost">New · next turn</span>}
               </div>
               <p className="text-[14px] leading-snug text-muted">{OMEN_TEXT[type]}</p>
               {!relic && (
-                <button className={`btn mt-1.5 !py-1 text-[11px] ${enabled ? 'btn-primary' : ''}`} disabled={!enabled} onClick={() => play(type)}>
+                <button className={`btn mt-2 !py-1.5 text-[11px] ${enabled ? 'btn-primary' : ''}`} disabled={!enabled} onClick={() => play(type)}>
                   {status}
                 </button>
               )}
@@ -289,20 +347,24 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
   const rate = give ? rates[give] : 4;
   const maxCount = give ? Math.min(Math.floor(p.hand[give] / rate), receive ? state.bank[receive] : 19) : 1;
   const ok = enabled && give && receive && give !== receive && count >= 1 && count <= maxCount;
+  const tile = (on: boolean) =>
+    `tile tile-interactive flex flex-col items-center gap-0.5 !rounded-xl px-1 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${on ? 'tile-selected' : ''}`;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-[12px] uppercase tracking-[0.14em] text-gold">Bank &amp; harbors</h3>
-        <span className="text-[13px] text-muted">best rate shown</span>
+        <h3 className="flex items-center gap-1.5 font-display text-[12px] uppercase tracking-[0.14em] text-gold">
+          <Icon name="bank" size={15} /> Bank &amp; harbors
+        </h3>
+        <span className="text-[12px] text-muted">your best rates</span>
       </div>
-      <div className="text-[14px] text-muted">Give</div>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="font-display text-[10px] uppercase tracking-[0.16em] text-muted">You give</div>
+      <div className="grid grid-cols-5 gap-1.5">
         {RESOURCES.map((r) => {
           const can = p.hand[r] >= rates[r];
           return (
             <button
               key={r}
-              className={`flex flex-col items-center border px-1 py-1 ${give === r ? 'border-gold bg-[#241e10]' : 'border-iron/70'} ${can ? '' : 'opacity-45'}`}
+              className={tile(give === r)}
               disabled={!can || !enabled}
               onClick={() => {
                 setGive(r);
@@ -314,19 +376,24 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
               title={`${RESOURCE_NAME[r]} — ${rates[r]}:1`}
             >
               <span style={{ color: RES_COLOR[r] }}>
-                <ResourceGlyph res={r} size={18} />
+                <ResourceGlyph res={r} size={19} />
               </span>
-              <span className={`num text-[12px] ${rates[r] < 4 ? 'text-gold' : 'text-muted'}`}>{rates[r]}:1</span>
+              <span className={`num rounded px-1 text-[11px] ${rates[r] < 4 ? 'bg-gold/20 text-gold' : 'text-muted'}`}>{rates[r]}:1</span>
             </button>
           );
         })}
       </div>
-      <div className="text-[14px] text-muted">Receive</div>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="flex items-center gap-2 text-muted" aria-hidden>
+        <span className="h-px flex-1 bg-iron/70" />
+        <Icon name="trade" size={14} className="rotate-90" />
+        <span className="h-px flex-1 bg-iron/70" />
+      </div>
+      <div className="font-display text-[10px] uppercase tracking-[0.16em] text-muted">You receive</div>
+      <div className="grid grid-cols-5 gap-1.5">
         {RESOURCES.map((r) => (
           <button
             key={r}
-            className={`flex flex-col items-center border px-1 py-1 ${receive === r ? 'border-gold bg-[#241e10]' : 'border-iron/70'}`}
+            className={tile(receive === r)}
             disabled={!enabled || r === give || state.bank[r] === 0}
             onClick={() => setReceive(r)}
             aria-pressed={receive === r}
@@ -334,7 +401,7 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
             title={`${RESOURCE_NAME[r]} — bank holds ${state.bank[r]}`}
           >
             <span style={{ color: RES_COLOR[r] }}>
-              <ResourceGlyph res={r} size={18} />
+              <ResourceGlyph res={r} size={19} />
             </span>
             <span className="num text-[11px] text-muted">{state.bank[r]}</span>
           </button>
@@ -343,7 +410,7 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
       <div className="flex items-center gap-2">
         <Stepper value={count} onChange={setCount} min={1} max={Math.max(1, maxCount)} label="trades" />
         <button
-          className="btn btn-primary flex-1 !py-1.5 text-[11px]"
+          className="btn btn-primary flex-1 !py-2 text-[11px]"
           disabled={!ok}
           data-testid="bank-trade"
           onClick={() => {
@@ -352,9 +419,20 @@ function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; e
             setCount(1);
           }}
         >
-          {give && receive
-            ? `Trade ${rate * count} ${RESOURCE_NAME[give]} → ${count} ${RESOURCE_NAME[receive]}`
-            : 'Pick give & receive'}
+          {give && receive ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="num">{rate * count}</span>
+              <ResourceGlyph res={give} size={14} />
+              <Icon name="arrow" size={12} />
+              <span className="num">{count}</span>
+              <ResourceGlyph res={receive} size={14} />
+              <span className="sr-only">
+                Trade {rate * count} {RESOURCE_NAME[give]} for {count} {RESOURCE_NAME[receive]}
+              </span>
+            </span>
+          ) : (
+            'Pick give & receive'
+          )}
         </button>
       </div>
     </div>
@@ -377,8 +455,10 @@ function PlayerTrade({ state, seat, enabled }: { state: GameState; seat: number;
     RESOURCES.every((r) => give[r] <= p.hand[r]);
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="font-display text-[12px] uppercase tracking-[0.14em] text-gold">Offer to players</h3>
-      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1 text-[14px]">
+      <h3 className="flex items-center gap-1.5 font-display text-[12px] uppercase tracking-[0.14em] text-gold">
+        <Icon name="trade" size={15} /> Offer to players
+      </h3>
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1.5 rounded-2xl bg-black/20 p-2.5 text-[14px]">
         <span className="text-[13px] text-muted" />
         <span className="text-center text-[13px] text-muted">Give</span>
         <span className="text-center text-[13px] text-muted">Want</span>
@@ -395,23 +475,32 @@ function PlayerTrade({ state, seat, enabled }: { state: GameState; seat: number;
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Offer to">
-        <button className={`chip ${to === 'all' ? 'border-gold text-gold' : 'text-muted'}`} onClick={() => setTo('all')} aria-pressed={to === 'all'}>
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Offer to">
+        <span className="mr-1 font-display text-[10px] uppercase tracking-[0.16em] text-muted">To</span>
+        <button
+          className={`chip !py-1 ${to === 'all' ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
+          onClick={() => setTo('all')}
+          aria-pressed={to === 'all'}
+        >
           Everyone
         </button>
-        {others.map((o) => (
-          <button
-            key={o.id}
-            className={`chip ${to !== 'all' && to.includes(o.id) ? 'border-gold text-gold' : 'text-muted'}`}
-            onClick={() => setTo([o.id])}
-            aria-pressed={to !== 'all' && to.includes(o.id)}
-          >
-            <span style={{ color: NAME_COLOR[o.color] }}>{o.name}</span>
-          </button>
-        ))}
+        {others.map((o) => {
+          const on = to !== 'all' && to.includes(o.id);
+          return (
+            <button
+              key={o.id}
+              className={`chip !py-1 !pl-1 ${on ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
+              onClick={() => setTo([o.id])}
+              aria-pressed={on}
+            >
+              <PlayerDisc color={o.color} sigil={o.sigil} size={18} />
+              <span style={{ color: NAME_COLOR[o.color] }}>{o.name}</span>
+            </button>
+          );
+        })}
       </div>
       <button
-        className="btn btn-primary !py-1.5 text-[11px]"
+        className="btn btn-primary !py-2 text-[11px]"
         disabled={!valid}
         onClick={() => {
           const err = dispatch({ type: 'ProposeTrade', player: seat, give, want, to });
@@ -451,9 +540,14 @@ function TradeTab({ state, seat, active }: { state: GameState; seat: number; act
   }
   return (
     <div className="flex flex-col gap-4">
-      {!enabled && <p className="text-[14px] text-muted">{active ? (state.phase.kind === 'roll' ? 'Roll first to trade.' : 'Trading is not possible right now.') : 'Only the active player may trade.'}</p>}
+      {!enabled && (
+        <p className="flex items-center gap-2 rounded-xl bg-black/25 px-3 py-2 text-[14px] text-muted">
+          <Icon name="hourglass" size={15} className="text-gold/70" />
+          {active ? (state.phase.kind === 'roll' ? 'Roll first to trade.' : 'Trading is not possible right now.') : 'Only the active player may trade.'}
+        </p>
+      )}
       <BankTrade state={state} seat={seat} enabled={enabled} />
-      <div className="divider-ornament text-[10px]">✦</div>
+      <div className="h-px bg-gradient-to-r from-transparent via-iron to-transparent" />
       <PlayerTrade state={state} seat={seat} enabled={enabled} />
     </div>
   );
@@ -468,28 +562,20 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
   const active = canSeatAct(state, seat) && state.currentPlayer === seat;
   const n = state.players.length;
   const next = state.players[(state.currentPlayer + 1) % n];
-  const tabs: { id: Tab; label: string; badge?: number }[] = [
-    { id: 'build', label: 'Build' },
-    { id: 'cards', label: 'Cards', badge: state.players[seat].omens.length },
-    { id: 'trade', label: 'Trade' },
-  ];
   const canEnd = active && state.phase.kind === 'main';
   return (
-    <section className="panel rivets flex min-h-0 flex-col px-4 py-3" aria-label="Actions">
-      <div role="tablist" className="mb-3 flex border-b border-iron/70">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            className={`-mb-px flex-1 border-b-2 px-2 pb-2 font-display text-[12px] uppercase tracking-[0.14em] ${tab === t.id ? 'border-gold text-gold' : 'border-transparent text-muted hover:text-bone'}`}
-            onClick={() => setTab(t.id)}
-            data-testid={`tab-${t.id}`}
-          >
-            {t.label}
-            {t.badge ? <span className="num ml-1 text-[11px] text-bone">({t.badge})</span> : null}
-          </button>
-        ))}
+    <section className="panel flex min-h-0 flex-col px-3.5 py-3" aria-label="Actions">
+      <div className="mb-3">
+        <SegmentedTabs<Tab>
+          label="Actions"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { id: 'build', label: 'Build', icon: 'outpost', testId: 'tab-build' },
+            { id: 'cards', label: 'Cards', icon: 'omen', badge: state.players[seat].omens.length, testId: 'tab-cards' },
+            { id: 'trade', label: 'Trade', icon: 'trade', testId: 'tab-trade' },
+          ]}
+        />
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto pr-1" role="tabpanel">
         {tab === 'build' && <BuildTab state={state} seat={seat} active={active} />}
@@ -500,15 +586,17 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
         )}
       </div>
       <button
-        className="btn btn-primary mt-3 w-full !py-3 text-[15px]"
+        className="btn btn-primary mt-3 w-full !rounded-2xl !py-3.5 text-[15px]"
         disabled={!canEnd}
         onClick={() => dispatch({ type: 'EndTurn', player: seat })}
         data-testid="end-turn"
       >
         <Icon name="hourglass" size={18} /> End turn
+        {canEnd && <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">Space</span>}
       </button>
-      <p className="mt-1.5 text-center text-[14px] text-muted">
-        Next up: <b style={{ color: NAME_COLOR[next.color] }}>{next.name}</b>
+      <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-muted">
+        Next up <PlayerDisc color={next.color} sigil={next.sigil} size={18} />
+        <b style={{ color: NAME_COLOR[next.color] }}>{next.name}</b>
       </p>
     </section>
   );

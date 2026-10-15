@@ -87,7 +87,7 @@ export default function VictoryScreen({ state }: { state: GameState }) {
               {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
                 <div key={n} className="flex flex-1 flex-col items-center gap-1">
                   <span className="num text-[11px] text-muted">{rolls[n]}</span>
-                  <div className={`w-full ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-[#b8453f]' : 'bg-gold/80'}`} style={{ height: `${(rolls[n] / maxRoll) * 80}px` }} />
+                  <div className={`w-full ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-ember/80' : 'bg-gold/80'}`} style={{ height: `${(rolls[n] / maxRoll) * 80}px` }} />
                   <span className="num text-[13px] text-muted">{n}</span>
                 </div>
               ))}

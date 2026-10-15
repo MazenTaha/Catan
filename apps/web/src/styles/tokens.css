@@ -1,18 +1,21 @@
 /* Hexfall design tokens. Colors are RGB triplets so Tailwind can apply alpha. */
 :root {
-  --abyss: 10 11 13; /* #0a0b0d */
-  --surface-1: 18 20 26; /* #12141a */
-  --surface-2: 26 29 37; /* #1a1d25 */
-  --raised: 35 32 25; /* #232019 parchment-dark */
-  --iron: 58 63 75; /* #3a3f4b */
-  --tarnish: 138 109 47; /* #8a6d2f */
-  --gold: 201 162 75; /* #c9a24b */
-  --ember: 224 112 42; /* #e0702a */
-  --blood: 139 30 45; /* #8b1e2d */
-  --bone: 230 223 207; /* #e6dfcf */
-  --muted: 160 153 134; /* #a09986 (lifted from #9a937f for AA on surface-2) */
-  --frost: 111 168 196; /* #6fa8c4 */
-  --venom: 111 160 88; /* #6fa058 (lifted from #5f8f4a for AA) */
+  /* Dusk palette: deep plum surfaces, warm amber accents, soft coral highlights. */
+  --abyss: 18 14 24; /* #120e18 */
+  --surface-1: 30 23 38; /* #1e1726 */
+  --surface-2: 42 32 52; /* #2a2034 */
+  --raised: 52 40 62; /* #34283e */
+  --iron: 78 63 92; /* #4e3f5c */
+  --tarnish: 160 110 62; /* #a06e3e */
+  --gold: 242 172 82; /* #f2ac52 */
+  --ember: 255 128 92; /* #ff805c */
+  --blood: 176 54 74; /* #b0364a */
+  --bone: 243 230 214; /* #f3e6d6 */
+  --muted: 176 158 150; /* #b09e96 — AA on surface-2 */
+  --frost: 143 179 224; /* #8fb3e0 */
+  --venom: 140 197 106; /* #8cc56a */
+  --glass: 38 29 47;
+  --radius: 16px;
 
   --p-crimson: 196 48 43;
   --p-frost: 63 127 212;

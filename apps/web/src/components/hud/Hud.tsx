@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState, type ReactNode } from 'react';
-import { RESOURCES, activeActor, type GameState } from '@hexfall/engine';
+import { RESOURCES, activeActor, victoryPoints, type GameState } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
 import { OMEN_NAME, PIECE_NAME } from '../../lexicon';
 import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { DicePair } from './Dice';
+import { IconButton, Tooltip } from '../ui/primitives';
 
 // ------------------------------------------------------------------ top bar
 
@@ -15,45 +16,54 @@ export function TopBar({ state }: { state: GameState }) {
   const updateSettings = useStore((s) => s.updateSettings);
   const undoable = useStore((s) => (s.session?.undo.length ?? 0) > 0);
   const undo = useStore((s) => s.undo);
+  const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
   return (
-    <header className="panel rivets flex flex-wrap items-center gap-3 px-4 py-2 sm:px-6" style={{ ['--chamfer' as string]: '8px' }}>
-      <div className="flex items-center gap-2">
-        <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden>
-          <path d="M32 4 56 18v28L32 60 8 46V18z" fill="#14161c" stroke="#c9a24b" strokeWidth="3" />
-          <path d="M32 16 44 40H20z" fill="none" stroke="#e0702a" strokeWidth="3" />
-          <circle cx="32" cy="33" r="3" fill="#c9a24b" />
-        </svg>
-        <h1 className="font-logo text-[22px] leading-none tracking-[0.08em] text-gold">Catan Night</h1>
+    <header className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
+          <svg width="24" height="24" viewBox="0 0 64 64" aria-hidden>
+            <path d="M32 6 54 19v26L32 58 10 45V19z" fill="#2a1406" opacity="0.25" />
+            <path d="M32 6 54 19v26L32 58 10 45V19z" fill="none" stroke="#2a1406" strokeWidth="4" />
+            <path d="M32 18 43 40H21z" fill="#2a1406" />
+          </svg>
+        </span>
+        <div className="leading-none">
+          <h1 className="font-logo text-[21px] tracking-[0.06em] text-gold">Catan Night</h1>
+          <span className="font-display text-[10px] uppercase tracking-[0.3em] text-muted">Dusk edition</span>
+        </div>
       </div>
-      <span className="chip num text-bone" aria-label={`Round ${state.round}`}>
-        {state.phase.kind === 'setup' ? 'Setup' : `Round ${state.round}`}
-      </span>
-      <span className="chip text-muted">
-        First to <b className="num text-gold">{state.config.targetVp}</b> points
-      </span>
-      <div className="ml-auto flex items-center gap-1">
-        <button className="btn btn-ghost !px-2" onClick={undo} disabled={!undoable} aria-label="Undo last action" title="Undo (placement, building and bank trades only)">
-          <Icon name="undo" />
-        </button>
-        <button className="btn btn-ghost !px-2" onClick={() => openModal('log')} aria-label="Full log" title="Full log">
-          <Icon name="log" />
-        </button>
-        <button className="btn btn-ghost !px-2" onClick={() => openModal('rules')} aria-label="Rulebook" title="Rulebook">
-          <Icon name="question" />
-        </button>
-        <button
-          className="btn btn-ghost !px-2"
-          onClick={() => updateSettings({ muted: !muted })}
-          aria-label={muted ? 'Unmute' : 'Mute'}
-          title={muted ? 'Unmute' : 'Mute'}
+      <div className="flex items-center gap-2">
+        <span
+          className="chip num border-gold/40 bg-gold/10 text-gold"
+          aria-label={`Round ${state.round}`}
         >
-          <Icon name={muted ? 'mute' : 'sound'} />
-        </button>
-        <button className="btn btn-ghost !px-2" onClick={() => openModal('settings')} aria-label="Settings" title="Settings">
-          <Icon name="settings" />
-        </button>
-        <button className="btn ml-1" onClick={() => openModal('confirm-new')}>
-          <Icon name="refresh" size={16} /> New game
+          <Icon name="hourglass" size={12} />
+          {state.phase.kind === 'setup' ? 'Setup' : `Round ${state.round}`}
+        </span>
+        <Tooltip label={`Leader has ${leader} of ${state.config.targetVp} points`} side="bottom">
+          <span className="chip text-muted" tabIndex={0}>
+            <Icon name="crown" size={12} className="text-gold" />
+            First to <b className="num text-gold">{state.config.targetVp}</b>
+            <span className="meter ml-1 w-14" aria-hidden>
+              <span style={{ width: `${(leader / state.config.targetVp) * 100}%` }} />
+            </span>
+          </span>
+        </Tooltip>
+      </div>
+      <div className="ml-auto flex items-center gap-0.5">
+        <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" onClick={undo} disabled={!undoable} />
+        <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
+        <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
+        <IconButton
+          icon={muted ? 'mute' : 'sound'}
+          label={muted ? 'Unmute' : 'Mute'}
+          pressed={muted}
+          onClick={() => updateSettings({ muted: !muted })}
+        />
+        <IconButton icon="settings" label="Settings" align="end" onClick={() => openModal('settings')} />
+        <span className="mx-1.5 h-6 w-px bg-iron/70" aria-hidden />
+        <button className="btn !rounded-xl !px-3 !py-2 sm:!px-3.5" onClick={() => openModal('confirm-new')} aria-label="New game">
+          <Icon name="refresh" size={16} /> <span className="hidden sm:inline">New game</span>
         </button>
       </div>
     </header>
@@ -103,41 +113,56 @@ export function instruction(state: GameState, seat: number): string {
 export function TurnBanner({ state, seat, children }: { state: GameState; seat: number; children?: ReactNode }) {
   const cur = state.players[state.currentPlayer];
   const ph = state.phase.kind;
-  const steps =
-    ph === 'setup'
-      ? ['Settlement', 'Road']
-      : ['Roll', 'Build & trade', 'End turn'];
+  const steps = ph === 'setup' ? ['Settlement', 'Road'] : ['Roll', 'Build & trade', 'End turn'];
   let active = 0;
   if (state.phase.kind === 'setup') active = state.phase.step === 'outpost' ? 0 : 1;
   else if (ph === 'roll') active = 0;
   else if (ph === 'ended') active = 3;
   else active = 1;
   const timer = useStore((s) => s.settings.turnTimer);
+  const yours = cur.id === seat && cur.kind === 'human';
   return (
-    <section className="panel rivets flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3" aria-label="Turn">
-      <PlayerDisc color={cur.color} sigil={cur.sigil} size={38} active />
-      <div className="min-w-0 flex-1">
-        <div className="font-display text-[15px] uppercase tracking-[0.16em] text-gold">
-          {state.phase.kind === 'setup' ? `${cur.name} — setup` : `${cur.name}'s turn`}
+    <section
+      className={`panel flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 transition-shadow ${yours ? 'shadow-[0_0_0_1px_rgb(var(--gold)/0.35),0_16px_40px_-18px_rgb(255_140_60/0.6)]' : ''}`}
+      aria-label="Turn"
+    >
+      <span className="relative">
+        {yours && <span className="absolute -inset-1.5 rounded-full bg-gold/25 blur-md anim-pulse" aria-hidden />}
+        <PlayerDisc color={cur.color} sigil={cur.sigil} size={44} active />
+      </span>
+      <div className="min-w-[190px] flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="font-display text-[15px] uppercase tracking-[0.14em] text-gold">
+            {state.phase.kind === 'setup' ? `${cur.name} — setup` : `${cur.name}'s turn`}
+          </span>
+          {yours && <span className="chip !py-0 border-ember/60 bg-ember/15 text-[10px] text-ember">Your move</span>}
         </div>
         <div className="truncate text-[15px] text-bone/90" aria-live="polite">
           {instruction(state, seat)}
         </div>
+        <ol className="mt-2 hidden items-center gap-1 md:flex" aria-label="Turn steps">
+          {steps.map((s, i) => (
+            <li key={s} className="flex items-center gap-1">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] font-display text-[10px] uppercase tracking-[0.12em] transition-colors ${
+                  i === active
+                    ? 'bg-gold text-[#2a1406] shadow-[0_0_14px_-2px_rgb(var(--gold)/0.8)]'
+                    : i < active
+                      ? 'bg-venom/15 text-venom'
+                      : 'bg-black/25 text-muted'
+                }`}
+                aria-current={i === active ? 'step' : undefined}
+              >
+                {i < active && <Icon name="check" size={11} />}
+                {s}
+              </span>
+              {i < steps.length - 1 && (
+                <span className={`h-[2px] w-5 rounded-full ${i < active ? 'bg-venom/50' : 'bg-iron/70'}`} aria-hidden />
+              )}
+            </li>
+          ))}
+        </ol>
       </div>
-      <ol className="hidden items-center gap-1.5 2xl:flex" aria-label="Turn steps">
-        {steps.map((s, i) => (
-          <li key={s} className="flex items-center gap-1.5">
-            <span
-              className={`chip ${i === active ? 'border-gold text-gold shadow-glow' : i < active ? 'text-venom' : 'text-muted'}`}
-              aria-current={i === active ? 'step' : undefined}
-            >
-              {i < active && <Icon name="check" size={11} />}
-              {s}
-            </span>
-            {i < steps.length - 1 && <Icon name="arrow" size={12} className="text-iron" />}
-          </li>
-        ))}
-      </ol>
       {timer > 0 && <TurnTimerBadge state={state} />}
       {children}
     </section>
@@ -154,7 +179,10 @@ function TurnTimerBadge({ state }: { state: GameState }) {
   if (!deadline || state.phase.kind === 'ended') return null;
   const left = Math.max(0, Math.ceil((deadline - now) / 1000));
   return (
-    <span className={`chip num ${left <= 10 ? 'border-blood text-ember' : 'text-bone'}`} aria-label={`${left} seconds left`}>
+    <span
+      className={`chip num !px-3 !py-1 text-[13px] ${left <= 10 ? 'border-ember bg-ember/15 text-ember anim-pulse' : 'text-bone'}`}
+      aria-label={`${left} seconds left`}
+    >
       <Icon name="hourglass" size={12} /> {left}s
     </span>
   );
@@ -168,25 +196,27 @@ export function DiceTray({ state, canRoll, onRoll }: { state: GameState; canRoll
   const dice = state.dice;
   const total = dice ? dice[0] + dice[1] : null;
   return (
-    <div className="flex items-center gap-3">
-      <DicePair dice={dice} seq={roll?.seq ?? 0} reduceMotion={reduce} size={46} />
-      <div className="flex flex-col items-center">
-        <span className="font-display text-[10px] uppercase tracking-[0.2em] text-muted">Total</span>
+    <div className="flex items-center gap-3 rounded-2xl border border-iron/60 bg-black/20 py-1.5 pl-2 pr-1.5">
+      <DicePair dice={dice} seq={roll?.seq ?? 0} reduceMotion={reduce} size={44} />
+      <div className="flex min-w-[44px] flex-col items-center">
+        <span className="font-display text-[9px] uppercase tracking-[0.22em] text-muted">Total</span>
         <AnimatePresence mode="wait">
           <motion.span
             key={roll?.seq ?? 0}
             initial={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: reduce ? 0 : 0.6 }}
-            className={`num text-[30px] leading-none ${total === 7 ? 'text-[#e0585f]' : 'text-gold'}`}
+            className={`num text-[30px] leading-none ${total === 7 ? 'text-ember' : 'text-gold'}`}
+            style={{ textShadow: total ? '0 0 14px rgb(var(--gold) / 0.45)' : undefined }}
           >
             {total ?? '–'}
           </motion.span>
         </AnimatePresence>
       </div>
       {canRoll && (
-        <button className="btn btn-primary ml-1" onClick={onRoll} data-testid="roll">
-          <Icon name="dice" size={16} /> Roll
+        <button className="btn btn-primary !rounded-xl !px-4 !py-2.5" onClick={onRoll} data-testid="roll">
+          <Icon name="dice" size={17} /> Roll
+          <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">Space</span>
         </button>
       )}
     </div>
@@ -201,36 +231,41 @@ const TOAST_MS = 2600;
 export function FloatingToast() {
   const toast = useStore((s) => s.toast);
   const [shown, setShown] = useState<number | null>(null);
+  const ms = toast?.tone === 'bad' ? TOAST_MS : TOAST_MS + 800;
   useEffect(() => {
     if (!toast) return;
     setShown(toast.id);
-    const id = window.setTimeout(() => setShown(null), toast.tone === 'bad' ? TOAST_MS : TOAST_MS + 800);
+    const id = window.setTimeout(() => setShown(null), ms);
     return () => window.clearTimeout(id);
-  }, [toast]);
+  }, [toast, ms]);
   const visible = toast && shown === toast.id;
   const tone = toast?.tone ?? 'info';
-  const color =
-    tone === 'good' ? 'border-venom/60' : tone === 'bad' ? 'border-blood' : tone === 'gold' ? 'border-gold' : 'border-iron';
+  const accent = tone === 'good' ? '#8cc56a' : tone === 'bad' ? '#ff805c' : tone === 'gold' ? '#f2ac52' : '#b09e96';
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4" aria-live="polite">
       <AnimatePresence>
         {visible && (
           <motion.div
             key={toast.id}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.25 }}
-            className={`flex max-w-xl items-center gap-2 border ${color} bg-surface-1/95 px-4 py-2.5 text-[15px] shadow-panel`}
+            transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+            className="relative flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl border border-iron/80 bg-[#1c1522]/95 py-2.5 pl-2.5 pr-4 text-[15px] shadow-panel"
             role="status"
             data-testid="toast"
           >
-            <Icon
-              name={tone === 'good' ? 'gain' : tone === 'bad' ? 'close' : tone === 'gold' ? 'crown' : 'scroll'}
-              size={16}
-              className={tone === 'good' ? 'text-venom' : tone === 'bad' ? 'text-ember' : 'text-gold'}
-            />
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl" style={{ background: `${accent}26`, color: accent }}>
+              <Icon name={tone === 'good' ? 'gain' : tone === 'bad' ? 'close' : tone === 'gold' ? 'crown' : 'scroll'} size={17} />
+            </span>
             <span>{toast.text}</span>
+            <motion.span
+              className="absolute bottom-0 left-0 h-[3px]"
+              style={{ background: accent }}
+              initial={{ width: '100%' }}
+              animate={{ width: '0%' }}
+              transition={{ duration: ms / 1000, ease: 'linear' }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -255,9 +290,9 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
             <div key={n} className="flex flex-1 flex-col items-center gap-1">
               <div className="relative flex h-20 w-full items-end justify-center">
                 <div className="absolute bottom-0 w-full border border-tarnish/40 bg-tarnish/15" style={{ height: `${expected * 100}%` }} title={`${Math.round((p / 36) * 100)}% expected`} />
-                <div className={`relative w-2/3 ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-[#b8453f]' : 'bg-gold/80'}`} style={{ height: `${seen * 100}%` }} title={`${rolls[n]} rolled`} />
+                <div className={`relative w-2/3 ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-ember/80' : 'bg-gold/80'}`} style={{ height: `${seen * 100}%` }} title={`${rolls[n]} rolled`} />
               </div>
-              <span className={`num text-[14px] ${n === 6 || n === 8 ? 'text-[#e0585f]' : 'text-muted'}`}>{n}</span>
+              <span className={`num text-[14px] ${n === 6 || n === 8 ? 'text-ember' : 'text-muted'}`}>{n}</span>
             </div>
           );
         })}

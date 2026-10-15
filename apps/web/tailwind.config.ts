@@ -35,8 +35,8 @@ export default {
         base: ['16px', '1.45'],
       },
       boxShadow: {
-        panel: 'inset 0 0 40px rgb(0 0 0 / 0.55), 0 10px 30px rgb(0 0 0 / 0.5)',
-        glow: '0 0 18px rgb(var(--gold) / 0.45)',
+        panel: '0 1px 0 rgb(0 0 0 / 0.3), 0 16px 36px -12px rgb(0 0 0 / 0.7)',
+        glow: '0 0 0 1px rgb(var(--gold) / 0.45), 0 0 22px -4px rgb(var(--gold) / 0.6)',
       },
       transitionDuration: { fast: '160ms' },
     },

@@ -38,7 +38,7 @@ export function TitleScreen() {
   const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
-      className={`btn w-64 justify-start !py-3 text-[15px] ${primary ? 'btn-primary' : ''}`}
+      className={`btn w-72 justify-start !rounded-2xl !px-5 !py-3.5 text-[15px] ${primary ? 'btn-primary' : ''}`}
       onClick={() => {
         audio.unlock();
         audio.play('click');
@@ -59,14 +59,14 @@ export function TitleScreen() {
       </div>
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(10,11,13,0.25) 0%, rgba(10,11,13,0.85) 55%, #0a0b0d 85%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(24,14,26,0.2) 0%, rgba(24,14,26,0.82) 55%, #120c16 85%)' }}
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 anim-drift" style={{ background: 'linear-gradient(0deg, rgba(150,170,175,0.12), transparent)' }} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 anim-drift" style={{ background: 'linear-gradient(0deg, rgba(255,128,72,0.16), transparent)' }} />
 
       <div className="relative z-10 flex flex-col items-center">
         <motion.h1
           className="text-center font-logo text-[52px] leading-none tracking-[0.06em] text-gold sm:text-[88px]"
-          style={{ textShadow: '0 0 40px rgba(224,112,42,0.35), 0 4px 0 #000', willChange: 'transform, opacity' }}
+          style={{ textShadow: '0 0 48px rgba(255,140,60,0.45), 0 4px 0 #1a0b10', willChange: 'transform, opacity' }}
           initial={{ opacity: 0, scaleX: 1.3 }}
           animate={{ opacity: 1, scaleX: 1 }}
           transition={{ duration: 1.6, ease: 'easeOut' }}

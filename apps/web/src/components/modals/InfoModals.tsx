@@ -39,7 +39,7 @@ export function LogModal({ state, seat }: { state: GameState; seat: number }) {
     <Modal title="Chronicle" icon="scroll" onClose={close} wide>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
-          className="min-w-[180px] flex-1 border border-iron bg-surface-2 px-3 py-1.5 text-[15px] text-bone placeholder:text-muted"
+          className="min-w-[180px] flex-1 rounded-xl border border-iron bg-surface-2 px-3 py-1.5 text-[15px] text-bone placeholder:text-muted"
           placeholder="Search the chronicle…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -81,7 +81,7 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
         step={0.05}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-[#c9a24b]"
+        className="flex-1 accent-[#f2ac52]"
       />
       <span className="num w-10 text-right text-[14px] text-muted">{Math.round(value * 100)}</span>
     </label>
@@ -91,7 +91,7 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex cursor-pointer items-start gap-3 py-1">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-[#c9a24b]" />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-[#f2ac52]" />
       <span>
         <span className="text-[15px]">{label}</span>
         {hint && <span className="block text-[14px] text-muted">{hint}</span>}
@@ -187,7 +187,7 @@ export function ImportModal() {
         }}
       />
       <textarea
-        className="h-40 w-full border border-iron bg-surface-2 p-2 font-mono text-[12px] text-bone"
+        className="h-40 w-full rounded-xl border border-iron bg-surface-2 p-2 font-mono text-[12px] text-bone"
         value={text}
         onChange={(e) => setText(e.target.value)}
         aria-label="Game record JSON"

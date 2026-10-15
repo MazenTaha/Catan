@@ -255,7 +255,7 @@ function windowPanel(kit: Kit, w: number, h: number, shutter?: string): THREE.Gr
   g.add(
     mesh(
       kit.box(w, h, 0.06),
-      kit.mat('#ffd98a', { emissive: '#ffb347', emissiveIntensity: 0.55 }),
+      kit.mat('#ffd98a', { emissive: '#ffa336', emissiveIntensity: 1.3 }),
       0,
       0,
       0.03,
@@ -581,7 +581,7 @@ export function makeBarn(kit: Kit): THREE.Object3D {
     g.add(
       mesh(
         kit.rbox(0.3, 0.38, 0.3, 0.05),
-        kit.mat('#ffcf6b', { emissive: '#ffae3a', emissiveIntensity: 1.2 }),
+        kit.mat('#ffcf6b', { emissive: '#ffa030', emissiveIntensity: 2.4 }),
         0,
         3.15,
         d / 2 + 0.25,
@@ -1498,10 +1498,10 @@ export function makeCloud(kit: Kit, rnd: () => number): THREE.Group {
   const g = new THREE.Group();
   const geo = kit.geo('cloud', () => new THREE.IcosahedronGeometry(1, 2));
   // Self-lit so the green bounce light from the ground doesn't tint them.
-  const m = kit.mat('#ffffff', {
+  const m = kit.mat('#f2b49a', {
     roughness: 1,
-    emissive: '#ffffff',
-    emissiveIntensity: 0.6,
+    emissive: '#d9707a',
+    emissiveIntensity: 0.45,
     smooth: true,
   });
   const n = 5 + Math.floor(rnd() * 4);
@@ -1559,7 +1559,8 @@ export function makeTokenSprite(n: number): THREE.Sprite {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+  // Tinted down so the plaques sit in the dusk light instead of glowing white.
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: '#e6c9a8' }));
   s.scale.setScalar(1.7);
   return s;
 }
@@ -1571,10 +1572,10 @@ export function makeSunSprite(): THREE.Sprite {
   c.width = c.height = size;
   const ctx = c.getContext('2d')!;
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(255,255,240,1)');
-  g.addColorStop(0.18, 'rgba(255,248,215,1)');
-  g.addColorStop(0.35, 'rgba(255,236,180,0.35)');
-  g.addColorStop(1, 'rgba(255,236,180,0)');
+  g.addColorStop(0, 'rgba(255,246,214,1)');
+  g.addColorStop(0.12, 'rgba(255,214,140,1)');
+  g.addColorStop(0.3, 'rgba(255,150,80,0.45)');
+  g.addColorStop(1, 'rgba(255,120,60,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(c);

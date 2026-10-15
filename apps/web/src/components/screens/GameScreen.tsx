@@ -86,13 +86,13 @@ export function GameScreen() {
           <BoardView state={state} canAct={canAct} onAction={onAction} />
         </ZoomPan>
       )}
-      <div className="absolute bottom-2 right-2 z-20 flex overflow-hidden rounded-full border border-tarnish/70 bg-abyss/85 shadow-panel" role="group" aria-label="Board view">
+      <div className="absolute bottom-3 right-3 z-20 flex gap-1 rounded-2xl border border-iron/80 bg-[#1a1220]/90 p-1 shadow-panel" role="group" aria-label="Board view">
         {(['2D', '3D'] as const).map((v) => {
           const on = (v === '3D') === view3d;
           return (
             <button
               key={v}
-              className={`px-3 py-1 font-display text-[12px] tracking-[0.12em] transition-colors ${on ? 'bg-gold text-abyss' : 'text-gold hover:bg-surface-2'}`}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-display text-[12px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
               aria-pressed={on}
               title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
               onClick={() => setView3d(v === '3D')}
@@ -156,9 +156,12 @@ export function GameScreen() {
       </div>
 
       {layout === 'narrow' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-tarnish/60 bg-abyss/95 shadow-panel backdrop-blur">
-          <button className="flex w-full items-center justify-center gap-2 py-1.5 font-display text-[11px] uppercase tracking-[0.2em] text-gold" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen}>
-            <Icon name="arrow" size={12} className={sheetOpen ? 'rotate-90' : '-rotate-90'} /> {sheetOpen ? 'Hide hand' : 'Show hand & actions'}
+        <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-iron/80 bg-[#1a1220]/95 shadow-panel">
+          <button className="flex w-full flex-col items-center gap-1 pb-1.5 pt-2 font-display text-[11px] uppercase tracking-[0.2em] text-gold" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen}>
+            <span className="h-1 w-10 rounded-full bg-iron" aria-hidden />
+            <span className="flex items-center gap-2">
+              <Icon name="arrow" size={12} className={sheetOpen ? 'rotate-90' : '-rotate-90'} /> {sheetOpen ? 'Hide hand' : 'Show hand & actions'}
+            </span>
           </button>
           {sheetOpen && (
             <div className="scroll-thin max-h-[48vh] space-y-2 overflow-y-auto px-2 pb-2">

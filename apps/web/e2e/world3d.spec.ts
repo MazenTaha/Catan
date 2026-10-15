@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-const FAST_SETTINGS = { botSpeed: 'instant', rookieTips: false, muted: true, reduceMotion: true };
+// Lite graphics keep the WebGL scene quick under software rendering (CI, headless).
+const FAST_SETTINGS = {
+  botSpeed: 'instant',
+  rookieTips: false,
+  muted: true,
+  reduceMotion: true,
+  effects: 'lite',
+};
 
 test('3D walk: toggle from the board, walk, jump between lands and back', async ({ page }) => {
   const problems: string[] = [];

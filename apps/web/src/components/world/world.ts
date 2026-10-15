@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   getTopology,
@@ -10,6 +11,7 @@ import {
 import { COLOR_HEX } from '../../lexicon';
 import {
   Kit,
+  bake,
   groundTexture,
   makeBarn,
   makeBoat,
@@ -23,12 +25,14 @@ import {
   makeFenceRail,
   makeHayBale,
   makeKiln,
+  makeMine,
   makeMountain,
   makeOreRock,
   makeRoad,
   makeRobber,
   makeSettlement,
   makeSheep,
+  makeSunSprite,
   makeTokenSprite,
   makeTrough,
   makeWindmill,
@@ -65,6 +69,7 @@ interface Sheep {
   timer: number;
   speed: number;
   gait: number;
+  blink: number;
   pen: { cx: number; cz: number; r: number; avoid: { x: number; z: number; r: number }[] };
 }
 
@@ -169,6 +174,9 @@ export class World {
   private clouds: THREE.Object3D[] = [];
   private pieces = new THREE.Group();
   private robber: THREE.Group | null = null;
+  private foam: THREE.MeshBasicMaterial | null = null;
+  private sunGlow = makeSunSprite();
+  private sunDir = new THREE.Vector3(34, 60, 22).normalize();
   private robberHex = -1;
 
   private x = 0;
@@ -332,19 +340,26 @@ export class World {
   }
 
   private buildLights() {
-    this.scene.add(new THREE.HemisphereLight('#e3f4ff', '#6d8f45', 1.25));
-    const sun = new THREE.DirectionalLight('#fff1d2', 2.4);
+    this.scene.add(new THREE.HemisphereLight('#e6f5ff', '#7d9a55', 1.15));
+    // A cool fill from the opposite side keeps shaded faces from going flat and dark.
+    const fill = new THREE.DirectionalLight('#cfe3ff', 0.55);
+    fill.position.set(-40, 25, -30);
+    this.scene.add(fill);
+    const sun = new THREE.DirectionalLight('#fff0cf', 2.6);
     sun.castShadow = !this.opts.lite;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
-    sc.left = sc.bottom = -42;
-    sc.right = sc.top = 42;
+    sc.left = sc.bottom = -36;
+    sc.right = sc.top = 36;
     sc.near = 1;
     sc.far = 220;
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.04;
     this.scene.add(sun);
     this.scene.add(sun.target);
+    this.sunGlow.scale.setScalar(170);
+    this.sunGlow.renderOrder = -1;
+    this.scene.add(this.sunGlow);
   }
 
   private buildIsland(board: Board) {
@@ -375,7 +390,26 @@ export class World {
     sea.receiveShadow = true;
     this.scene.add(sea);
 
-    const tileGeo = kit.geo('tile', () => new THREE.CylinderGeometry(R * 0.965, R * 0.98, 0.6, 6));
+    // Chunky tiles with a rounded bevel, like game pieces.
+    const tileGeo = kit.geo('tile', () => {
+      const r = R * 0.955;
+      const shape = new THREE.Shape();
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI / 2 + (k * Math.PI) / 3;
+        if (k) shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        else shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      shape.closePath();
+      return new THREE.ExtrudeGeometry(shape, {
+        depth: 0.3,
+        bevelEnabled: true,
+        bevelThickness: 0.18,
+        bevelSize: 0.35,
+        bevelSegments: 3,
+      })
+        .rotateX(-Math.PI / 2)
+        .translate(0, -0.48, 0);
+    });
     const dirtGeo = kit.geo('dirt', () => new THREE.CylinderGeometry(R * 1.0, R * 1.0, 0.4, 6));
     const beachGeo = kit.geo('beach', () => new THREE.CylinderGeometry(R * 1.16, R * 1.24, 0.6, 6));
     const shelfGeo = kit.geo('shelf', () => new THREE.CylinderGeometry(R * 1.55, R * 1.7, 0.4, 6));
@@ -387,10 +421,9 @@ export class World {
       let m = groundMats.get(t);
       if (!m) {
         const g = GROUND[t];
-        m = new THREE.MeshStandardMaterial({
-          map: groundTexture(g.base, g.speck, seed + t.length * 97, g.strokes),
-          roughness: 0.95,
-        });
+        const map = groundTexture(g.base, g.speck, seed + t.length * 97, g.strokes);
+        map.repeat.set(0.16, 0.16); // tile UVs are in metres: one texture repeat every ~6 m
+        m = new THREE.MeshStandardMaterial({ map, roughness: 0.95 });
         groundMats.set(t, m);
       }
       return m;
@@ -404,7 +437,7 @@ export class World {
       const cz = p.y * R;
       this.landHexes.push({ id: i, x: cx, z: cz });
 
-      const tile = mesh(tileGeo, groundMat(hex.terrain), cx, -0.3, cz, false);
+      const tile = mesh(tileGeo, groundMat(hex.terrain), cx, 0, cz, false);
       tile.receiveShadow = true;
       this.scene.add(tile);
       this.scene.add(mesh(dirtGeo, dirt, cx, -0.32, cz, false));
@@ -422,6 +455,7 @@ export class World {
       g.position.set(cx, 0, cz);
       this.scene.add(g);
       const ctx: HexCtx = { g, cx, cz, rnd, spawnAngle: s, inst };
+      const firstCollider = this.colliders.length;
 
       if (hex.token !== null) {
         g.add(
@@ -459,7 +493,11 @@ export class World {
           this.buildDesert(ctx);
           break;
       }
+      this.scatterGround(ctx, hex.terrain, this.colliders.slice(firstCollider));
+      // Merge the tile's static props into a few meshes (the windmill sails keep spinning).
+      bake(g);
     });
+    this.buildFoam(board);
 
     for (const h of board.harbors) this.buildHarbor(h.edge, h.hex, h.kind);
 
@@ -484,6 +522,58 @@ export class World {
       this.scene.add(c);
       this.clouds.push(c);
     }
+  }
+
+  /** Grass tufts and wild flowers, kept off paths, props and the centre sign. */
+  private scatterGround(ctx: HexCtx, terrain: Terrain, blockers: Collider[]) {
+    const spec = GRASS[terrain];
+    const n = Math.round(spec.n * (this.opts.lite ? 0.35 : 1));
+    for (let i = 0; i < n; i++) {
+      const x = (ctx.rnd() * 2 - 1) * R;
+      const z = (ctx.rnd() * 2 - 1) * R;
+      if (!inHex(x, z, 0, 0, R * 0.93) || Math.hypot(x, z) < 0.7) continue;
+      const wx = ctx.cx + x;
+      const wz = ctx.cz + z;
+      if (blockers.some((c) => segDist(wx, wz, c) < c.r + 0.15)) continue;
+      ctx.inst.grass(wx, wz, spec.colors[Math.floor(ctx.rnd() * spec.colors.length)], ctx.rnd);
+    }
+    for (let i = 0; i < (this.opts.lite ? spec.flowers / 2 : spec.flowers); i++) {
+      const x = (ctx.rnd() * 2 - 1) * R;
+      const z = (ctx.rnd() * 2 - 1) * R;
+      if (!inHex(x, z, 0, 0, R * 0.9)) continue;
+      const wx = ctx.cx + x;
+      const wz = ctx.cz + z;
+      if (blockers.some((c) => segDist(wx, wz, c) < c.r + 0.2)) continue;
+      ctx.inst.flower(wx, wz, FLOWERS[Math.floor(ctx.rnd() * FLOWERS.length)], ctx.rnd);
+    }
+  }
+
+  /** A band of surf along every coastal edge, pulsing gently. */
+  private buildFoam(board: Board) {
+    const pos: number[] = [];
+    for (const e of topo.coastalEdges) {
+      const hex = topo.edgeHexes[e][0];
+      if (hex === undefined || !board.hexes[hex]) continue;
+      const c = topo.hexPos[hex];
+      const [a, b] = topo.edgeVertices[e].map((v) => topo.vertexPos[v]);
+      const at = (p: { x: number; y: number }, k: number) => [
+        (c.x + (p.x - c.x) * k) * R,
+        -0.55,
+        (c.y + (p.y - c.y) * k) * R,
+      ];
+      const [a1, b1, a2, b2] = [at(a, 1.19), at(b, 1.19), at(a, 1.33), at(b, 1.33)];
+      pos.push(...a1, ...a2, ...b1, ...b1, ...a2, ...b2);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    this.foam = new THREE.MeshBasicMaterial({
+      color: '#ffffff',
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.scene.add(new THREE.Mesh(geo, this.foam));
   }
 
   private addCircle(x: number, z: number, r: number) {
@@ -579,7 +669,7 @@ export class World {
       g.add(post);
       if (p.open || q.open) return;
       const len = Math.hypot(q.x - p.x, q.z - p.z);
-      const rail = makeFenceRail(kit, len);
+      const rail = makeFenceRail(kit, len, rnd);
       rail.position.set((p.x + q.x) / 2, 0, (p.z + q.z) / 2);
       rail.rotation.y = Math.atan2(-(q.z - p.z), q.x - p.x);
       g.add(rail);
@@ -611,6 +701,7 @@ export class World {
         timer: rnd() * 4,
         speed: 0.9,
         gait: rnd() * 10,
+        blink: 1 + rnd() * 4,
         pen: { cx, cz, r: F - 1.2, avoid },
       };
       rig.root.position.set(x, 0, z);
@@ -630,7 +721,7 @@ export class World {
       if (!inHex(x, z, 0, 0, R * 0.84) || taken.some((o) => Math.hypot(o.x - x, o.z - z) < 4))
         continue;
       taken.push({ x, z, r: 2 });
-      ctx.inst.tree(cx + x, cz + z, rnd, rnd() < 0.5);
+      ctx.inst.tree(cx + x, cz + z, rnd);
       this.addCircle(cx + x, cz + z, 0.6);
     }
   }
@@ -657,10 +748,82 @@ export class World {
       ctx.g.add(logs);
       this.addCircle(ctx.cx + lp.x, ctx.cz + lp.z, 1.6);
     }
+    const sp = this.scatter(ctx, taken, 1.0, 0.6);
+    if (sp) {
+      const stump = new THREE.Group();
+      stump.position.set(sp.x, 0, sp.z);
+      stump.add(
+        mesh(
+          this.kit.geo('stump', () => new THREE.CylinderGeometry(0.45, 0.55, 0.6, 10)),
+          bark,
+          0,
+          0.3,
+          0,
+        ),
+      );
+      stump.add(
+        mesh(
+          this.kit.geo('stumpTop', () => new THREE.CylinderGeometry(0.42, 0.42, 0.04, 10)),
+          this.kit.mat('#d9b07a'),
+          0,
+          0.61,
+          0,
+          false,
+        ),
+      );
+      const axe = new THREE.Group();
+      axe.position.set(0.05, 0.62, 0);
+      axe.rotation.z = -0.35;
+      axe.add(mesh(this.kit.rbox(0.07, 0.9, 0.07, 0.02), this.kit.mat('#8a5a32'), 0, 0.45, 0));
+      axe.add(
+        mesh(
+          this.kit.rbox(0.36, 0.24, 0.05, 0.02),
+          this.kit.mat('#9aa1ad', { roughness: 0.4 }),
+          -0.12,
+          0.08,
+          0,
+        ),
+      );
+      stump.add(axe);
+      ctx.g.add(stump);
+      this.addCircle(ctx.cx + sp.x, ctx.cz + sp.z, 0.6);
+    }
+    for (let i = 0; i < 6; i++) {
+      const p = this.scatter(ctx, taken, 0.3, 0.8);
+      if (!p) continue;
+      const m = new THREE.Group();
+      m.position.set(p.x, 0, p.z);
+      const s = 0.7 + ctx.rnd() * 0.6;
+      m.scale.setScalar(s);
+      m.add(
+        mesh(
+          this.kit.geo('shroomStem', () => new THREE.CylinderGeometry(0.06, 0.08, 0.3, 7)),
+          this.kit.mat('#f3ead6'),
+          0,
+          0.15,
+          0,
+          false,
+        ),
+      );
+      m.add(
+        mesh(
+          this.kit.geo(
+            'shroomCap',
+            () => new THREE.SphereGeometry(0.17, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+          ),
+          this.kit.mat(ctx.rnd() < 0.7 ? '#d8402f' : '#c48a4a', { smooth: true }),
+          0,
+          0.28,
+          0,
+          false,
+        ),
+      );
+      ctx.g.add(m);
+    }
     for (let i = 0; i < 30; i++) {
       const p = this.scatter(ctx, taken, 1.5, 0.84);
       if (!p) continue;
-      ctx.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, ctx.rnd() < 0.45);
+      ctx.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd);
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.55);
     }
   }
@@ -754,6 +917,19 @@ export class World {
       m.rotation.y = ctx.rnd() * Math.PI;
       ctx.g.add(m);
       this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 0.92);
+      if (i === 1) {
+        // A mine dug into the middle peak, its cart rolling out towards the sign.
+        const mine = makeMine(this.kit);
+        const md = dist - r * 0.78;
+        mine.position.set(d.x * md, 0, d.z * md);
+        mine.rotation.y = a + Math.PI;
+        ctx.g.add(mine);
+        const cx2 = ctx.cx + d.x * (md - 2.6);
+        const cz2 = ctx.cz + d.z * (md - 2.6);
+        this.addCircle(cx2, cz2, 0.9);
+        for (const k of [-1, 1])
+          this.addCircle(ctx.cx + d.x * md + d.z * 1.2 * k, ctx.cz + d.z * md - d.x * 1.2 * k, 0.3);
+      }
     }
     // Ore outcrops flank the way in, leaving the view to the peaks clear.
     for (const off of [-1.05, 1.05]) {
@@ -861,6 +1037,7 @@ export class World {
         if (c.position.x > 320) c.position.x = -320;
       }
       if (this.robber) this.robber.position.y = 0.1 + Math.sin(t * 2) * 0.1;
+      if (this.foam) this.foam.opacity = 0.42 + Math.sin(t * 1.3) * 0.12;
     }
     this.maybeBleat(dt);
 
@@ -869,6 +1046,7 @@ export class World {
     this.sun.target.position.set(this.x, 0, this.z);
 
     this.camera.position.set(this.x, EYE + this.bob, this.z);
+    this.sunGlow.position.copy(this.camera.position).addScaledVector(this.sunDir, 900);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     this.renderer.render(this.scene, this.camera);
 
@@ -1000,6 +1178,14 @@ export class World {
     rig.head.rotation.x += (headDown - rig.head.rotation.x) * Math.min(1, dt * 5);
     rig.head.rotation.y += (headTurn - rig.head.rotation.y) * Math.min(1, dt * 3);
     rig.root.position.y = walking ? Math.abs(Math.sin(s.gait)) * 0.04 * s.speed : 0;
+    // Blink every few seconds; wag the tail while grazing.
+    s.blink -= dt;
+    if (s.blink < 0) s.blink = 2 + Math.random() * 4;
+    const shut = s.blink < 0.13 ? 0.1 : 1;
+    for (const e of rig.eyes) e.scale.y = shut;
+    const wag =
+      s.mode === 'graze' ? Math.sin(now * 9) * 0.45 : walking ? Math.sin(s.gait) * 0.2 : 0;
+    rig.tail.rotation.z += (wag - rig.tail.rotation.z) * Math.min(1, dt * 8);
   }
 
   private setTarget(s: Sheep, tx: number, tz: number) {
@@ -1065,13 +1251,11 @@ function pushOut(x: number, z: number, c: Collider, pad: number): [number, numbe
   return [px + (dx / d) * min, pz + (dz / d) * min];
 }
 
-/** Collects trees and wheat across all tiles and draws each part as one instanced mesh. */
+/** Collects trees, wheat, grass and flowers across all tiles; each part is one instanced mesh. */
 class Instancer {
-  private trunks: THREE.Matrix4[] = [];
-  private blocks: THREE.Matrix4[] = [];
-  private cones: THREE.Matrix4[] = [];
-  private wheatM: THREE.Matrix4[] = [];
+  private lists = new Map<string, { m: THREE.Matrix4[]; c: THREE.Color[] }>();
   private q = new THREE.Quaternion();
+  private e = new THREE.Euler();
   private up = new THREE.Vector3(0, 1, 0);
 
   constructor(
@@ -1079,6 +1263,13 @@ class Instancer {
     private uTime: { value: number },
     private lite: boolean,
   ) {}
+
+  private push(list: string, m: THREE.Matrix4, color: string) {
+    let l = this.lists.get(list);
+    if (!l) this.lists.set(list, (l = { m: [], c: [] }));
+    l.m.push(m);
+    l.c.push(new THREE.Color(color));
+  }
 
   private at(
     x: number,
@@ -1088,8 +1279,10 @@ class Instancer {
     sy: number,
     sz: number,
     rot: number,
+    tilt = 0,
   ): THREE.Matrix4 {
-    this.q.setFromAxisAngle(this.up, rot);
+    if (tilt) this.q.setFromEuler(this.e.set(tilt, rot, tilt * 0.5, 'YXZ'));
+    else this.q.setFromAxisAngle(this.up, rot);
     return new THREE.Matrix4().compose(
       new THREE.Vector3(x, y, z),
       this.q,
@@ -1097,91 +1290,244 @@ class Instancer {
     );
   }
 
-  tree(x: number, z: number, rnd: () => number, pine: boolean) {
+  tree(x: number, z: number, rnd: () => number) {
     const s = 0.85 + rnd() * 0.5;
     const rot = rnd() * Math.PI;
-    this.trunks.push(this.at(x, 0, z, s, s * (pine ? 0.8 : 1), s, rot));
+    const kind = rnd();
+    const pick = (a: string[]) => a[Math.floor(rnd() * a.length)];
+    const pine = kind < 0.4;
+    this.push('trunk', this.at(x, 0, z, s, s * (pine ? 0.8 : 1), s, rot), pick(BARK));
     if (pine) {
-      // Three stacked tiers.
-      for (let i = 0; i < 3; i++)
-        this.cones.push(
-          this.at(
-            x,
-            (1.4 + i * 1.3) * s,
-            z,
-            s * (1.25 - i * 0.3),
-            s,
-            s * (1.25 - i * 0.3),
-            rot + i,
-          ),
+      const col = pick(PINE);
+      for (let i = 0; i < 3; i++) {
+        const k = 1.25 - i * 0.3;
+        this.push(
+          'cone',
+          this.at(x, (1.3 + i * 1.25) * s, z, s * k, s, s * k, rot + i),
+          i === 2 ? shadeOf(col, 0.04) : col,
         );
+      }
+    } else if (kind < 0.7) {
+      // The chunky, cube-ish canopy from the reference, with softened edges.
+      const col = pick(LEAF);
+      this.push('block', this.at(x, 2.3 * s, z, s * 2.6, s * 2.1, s * 2.6, rot), col);
+      this.push(
+        'block',
+        this.at(x, 3.75 * s, z, s * 1.7, s * 1.3, s * 1.7, rot + 0.4),
+        shadeOf(col, 0.04),
+      );
     } else {
-      // The chunky, cube-ish canopy from the reference.
-      this.blocks.push(this.at(x, 2.2 * s, z, s * 2.6, s * 2.2, s * 2.6, rot));
-      this.blocks.push(this.at(x, 3.7 * s, z, s * 1.7, s * 1.3, s * 1.7, rot + 0.4));
+      // A round, puffy broadleaf.
+      const col = pick(LEAF);
+      this.push('puff', this.at(x, 2.6 * s, z, 1.5 * s, 1.35 * s, 1.5 * s, rot), col);
+      this.push(
+        'puff',
+        this.at(x + 0.75 * s, 2.25 * s, z + 0.3 * s, 1.05 * s, 0.95 * s, 1.05 * s, rot),
+        shadeOf(col, -0.03),
+      );
+      this.push(
+        'puff',
+        this.at(x - 0.65 * s, 2.35 * s, z - 0.4 * s, 1.1 * s, 1.0 * s, 1.1 * s, rot),
+        shadeOf(col, 0.02),
+      );
+      this.push(
+        'puff',
+        this.at(x + 0.1 * s, 3.45 * s, z - 0.1 * s, 1.0 * s, 0.9 * s, 1.0 * s, rot),
+        shadeOf(col, 0.05),
+      );
     }
   }
 
   wheat(x: number, z: number, rnd: () => number) {
     const s = 0.85 + rnd() * 0.35;
-    this.wheatM.push(this.at(x, 0, z, 1, s, 1, rnd() * Math.PI));
+    this.push(
+      'wheat',
+      this.at(x, 0, z, 1, s, 1, rnd() * Math.PI, (rnd() - 0.5) * 0.15),
+      WHEAT[Math.floor(rnd() * WHEAT.length)],
+    );
+  }
+
+  grass(x: number, z: number, color: string, rnd: () => number) {
+    const s = 0.55 + rnd() * 0.45;
+    this.push('grass', this.at(x, 0, z, s, s * (0.7 + rnd() * 0.5), s, rnd() * Math.PI * 2), color);
+  }
+
+  flower(x: number, z: number, color: string, rnd: () => number) {
+    const s = 0.8 + rnd() * 0.5;
+    this.push(
+      'flower',
+      this.at(x, 0.2 + rnd() * 0.08, z, s, s, s, rnd() * 3, (rnd() - 0.5) * 0.5),
+      color,
+    );
   }
 
   flush(scene: THREE.Scene) {
     const kit = this.kit;
-    const trunkGeo = kit.geo('trunk', () => new THREE.BoxGeometry(0.5, 2, 0.5).translate(0, 1, 0));
-    const blockGeo = kit.geo('canopy', () =>
-      new THREE.BoxGeometry(1, 1, 1, 2, 2, 2).translate(0, 0, 0),
-    );
-    const coneGeo = kit.geo('pine', () => new THREE.ConeGeometry(1.5, 2, 7).translate(0, 1, 0));
-    const wheatGeo = kit.geo('wheat', () => {
-      const stalk = new THREE.BoxGeometry(0.06, 1.0, 0.06).translate(0, 0.5, 0);
-      const ear = new THREE.BoxGeometry(0.15, 0.36, 0.15).translate(0, 1.16, 0);
-      const ear2 = new THREE.BoxGeometry(0.12, 0.28, 0.12).translate(0.16, 0.92, 0.08).rotateY(2.1);
-      const g = mergeGeometries([stalk, ear, ear2])!;
-      stalk.dispose();
-      ear.dispose();
-      ear2.dispose();
-      return g;
-    });
-
-    const leafBlock = new THREE.MeshStandardMaterial({
-      color: '#5aae3c',
-      flatShading: true,
-      roughness: 0.9,
-    });
-    const leafPine = new THREE.MeshStandardMaterial({
-      color: '#2f8a46',
-      flatShading: true,
-      roughness: 0.9,
-    });
-    const wheatMat = new THREE.MeshStandardMaterial({
-      color: '#f0c85a',
-      flatShading: true,
-      roughness: 0.9,
-    });
-    if (!this.lite) {
-      addSway(leafBlock, this.uTime, 0.08);
-      addSway(leafPine, this.uTime, 0.04);
-      addSway(wheatMat, this.uTime, 0.1);
-    }
-    const add = (
-      geo: THREE.BufferGeometry,
-      mat: THREE.Material,
-      list: THREE.Matrix4[],
-      shadow: boolean,
-    ) => {
-      if (!list.length) return;
-      const im = new THREE.InstancedMesh(geo, mat, list.length);
-      list.forEach((m, i) => im.setMatrixAt(i, m));
-      im.castShadow = shadow;
+    const geos: Record<string, () => THREE.BufferGeometry> = {
+      trunk: () => new RoundedBoxGeometry(0.5, 2.1, 0.5, 2, 0.1).translate(0, 1.05, 0),
+      block: () => new RoundedBoxGeometry(1, 1, 1, 3, 0.24),
+      cone: () => new THREE.ConeGeometry(1.5, 2, 8).translate(0, 1, 0),
+      puff: () => new THREE.IcosahedronGeometry(1, 1),
+      wheat: () => {
+        const parts = [
+          new THREE.BoxGeometry(0.06, 1.0, 0.06).translate(0, 0.5, 0),
+          new THREE.CapsuleGeometry(0.055, 0.26, 2, 6).translate(0, 1.14, 0),
+          new THREE.CapsuleGeometry(0.045, 0.2, 2, 6).rotateZ(0.5).translate(0.13, 0.95, 0.06),
+        ].map((g) => g.toNonIndexed());
+        const g = mergeGeometries(parts)!;
+        parts.forEach((p) => p.dispose());
+        return g;
+      },
+      grass: tuftGeo,
+      flower: flowerGeo,
+    };
+    const mats: Record<string, { mat: THREE.Material; sway: number; shadow: boolean }> = {
+      trunk: {
+        mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 }),
+        sway: 0,
+        shadow: true,
+      },
+      block: {
+        mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 }),
+        sway: 0.06,
+        shadow: true,
+      },
+      cone: {
+        mat: new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          flatShading: true,
+          roughness: 0.9,
+        }),
+        sway: 0.04,
+        shadow: true,
+      },
+      puff: {
+        mat: new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          roughness: 0.85,
+          flatShading: true,
+        }),
+        sway: 0.05,
+        shadow: true,
+      },
+      wheat: {
+        mat: new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          flatShading: true,
+          roughness: 0.9,
+        }),
+        sway: 0.1,
+        shadow: false,
+      },
+      grass: {
+        mat: new THREE.MeshLambertMaterial({
+          color: '#ffffff',
+          vertexColors: true,
+          side: THREE.DoubleSide,
+        }),
+        sway: 0.28,
+        shadow: false,
+      },
+      flower: {
+        mat: new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          roughness: 0.6,
+          vertexColors: true,
+        }),
+        sway: 0,
+        shadow: false,
+      },
+    };
+    for (const [name, list] of this.lists) {
+      if (!list.m.length) continue;
+      const spec = mats[name];
+      if (spec.sway && !this.lite) addSway(spec.mat, this.uTime, spec.sway);
+      const im = new THREE.InstancedMesh(
+        kit.geo(`inst-${name}`, geos[name]),
+        spec.mat,
+        list.m.length,
+      );
+      list.m.forEach((m, i) => {
+        im.setMatrixAt(i, m);
+        im.setColorAt(i, list.c[i]);
+      });
+      im.castShadow = spec.shadow;
       im.receiveShadow = true;
       im.computeBoundingSphere();
       scene.add(im);
-    };
-    add(trunkGeo, kit.mat('#7a4f2b'), this.trunks, true);
-    add(blockGeo, leafBlock, this.blocks, true);
-    add(coneGeo, leafPine, this.cones, true);
-    add(wheatGeo, wheatMat, this.wheatM, false);
+    }
   }
+}
+
+const BARK = ['#7a4f2b', '#6e4626', '#85572f'];
+const LEAF = ['#5aae3c', '#4fa236', '#66b845', '#73bf4a', '#4b9b3a'];
+const PINE = ['#2f8a46', '#2a7d40', '#358f4c', '#3a9450'];
+const WHEAT = ['#f0c85a', '#e8bd4c', '#f5d26a', '#e3b343'];
+const FLOWERS = ['#ffffff', '#ffe066', '#ff8fb1', '#c59bff', '#ff9a4a'];
+const GRASS: Record<Terrain, { n: number; flowers: number; colors: string[] }> = {
+  moors: { n: 2600, flowers: 110, colors: ['#7cc24a', '#8fd456', '#6bb33e', '#9ddc63'] },
+  witchwood: { n: 2000, flowers: 30, colors: ['#4f9a3a', '#5aa843', '#43872f', '#62b04a'] },
+  fields: { n: 350, flowers: 20, colors: ['#9fb84a', '#b3c65a', '#8eaa40'] },
+  ashen: { n: 110, flowers: 0, colors: ['#8f9a4a', '#a3a352'] },
+  peaks: { n: 90, flowers: 6, colors: ['#7f9a5a', '#8ea866'] },
+  waste: { n: 40, flowers: 0, colors: ['#b8b46a', '#c4bd78'] },
+};
+
+function shadeOf(hex: string, dl: number): string {
+  const c = new THREE.Color(hex);
+  c.offsetHSL(0, 0, dl);
+  return `#${c.getHexString()}`;
+}
+
+/** A little five-petal bloom facing the sky, with a golden centre (vertex-coloured). */
+function flowerGeo(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    parts.push(
+      new THREE.SphereGeometry(0.045, 6, 4)
+        .scale(1, 0.35, 0.6)
+        .translate(0.045, 0, 0)
+        .rotateY(a)
+        .toNonIndexed(),
+    );
+  }
+  const centre = new THREE.SphereGeometry(0.028, 6, 4)
+    .scale(1, 0.6, 1)
+    .translate(0, 0.012, 0)
+    .toNonIndexed();
+  const g = mergeGeometries([...parts, centre])!;
+  const n = g.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  const centreStart = n - centre.attributes.position.count;
+  for (let i = 0; i < n; i++) col.set(i >= centreStart ? [1.4, 1.1, 0.25] : [1, 1, 1], i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  [...parts, centre].forEach((p) => p.dispose());
+  return g;
+}
+
+/** Five thin blades leaning outwards; dark at the root, light at the tip, lit from above. */
+function tuftGeo(): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const nrm: number[] = [];
+  const blades = 7;
+  for (let i = 0; i < blades; i++) {
+    const a = (i / blades) * Math.PI * 2 + i * 0.7;
+    const h = 0.22 + ((i * 37) % 10) / 70;
+    const cx = Math.cos(a);
+    const cz = Math.sin(a);
+    const px = -cz * 0.028;
+    const pz = cx * 0.028;
+    const bx = cx * 0.04;
+    const bz = cz * 0.04;
+    pos.push(bx - px, 0, bz - pz, bx + px, 0, bz + pz, cx * 0.13, h, cz * 0.13);
+    col.push(0.42, 0.5, 0.36, 0.42, 0.5, 0.36, 1.08, 1.08, 1.0);
+    for (let k = 0; k < 3; k++) nrm.push(0, 1, 0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
 }

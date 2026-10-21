@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
@@ -12,6 +13,7 @@ import { COLOR_HEX } from '../../lexicon';
 import {
   Kit,
   bake,
+  celShade,
   groundTexture,
   makeBarn,
   makeBoat,
@@ -24,9 +26,10 @@ import {
   makeFencePost,
   makeFenceRail,
   makeHayBale,
+  makeKarst,
   makeKiln,
   makeMine,
-  makeMountain,
+  makeMist,
   makeOreRock,
   makeRoad,
   makeRobber,
@@ -37,6 +40,7 @@ import {
   makeTrough,
   makeWindmill,
   mesh,
+  swayGlsl,
   type SheepRig,
 } from './models';
 
@@ -132,29 +136,17 @@ function inHex(x: number, z: number, cx: number, cz: number, r: number): boolean
 /** Unit vector on the ground for an angle measured like `rotation.y` (0 = +Z). */
 const dir = (a: number) => ({ x: Math.sin(a), z: Math.cos(a) });
 
-/** Adds a gentle wind sway to an instanced material (taller vertices move more). */
-function addSway(m: THREE.Material, uTime: { value: number }, amount: number) {
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = uTime;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;')
-      .replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-        #ifdef USE_INSTANCING
-          vec3 ip = vec3(instanceMatrix[3]);
-        #else
-          vec3 ip = vec3(0.0);
-        #endif
-        float h = max(transformed.y, 0.0);
-        transformed.x += sin(uTime * 1.7 + ip.x * 0.31 + ip.z * 0.23) * h * ${amount.toFixed(3)};
-        transformed.z += cos(uTime * 1.3 + ip.x * 0.19) * h * ${(amount * 0.6).toFixed(3)};`,
-      );
-  };
-}
+/** Ink for the cel-shaded outlines: a deep plum that reads as "line art" against the sunset. */
+const INK = new THREE.Color().setRGB(0.12, 0.06, 0.12);
+const noOutline = (m: THREE.Material) => {
+  m.userData.outlineParameters = { visible: false };
+  return m;
+};
 
 export class World {
   private renderer: THREE.WebGLRenderer;
+  /** Draws ink outlines around everything (skipped in lite mode). */
+  private outline: OutlineEffect | null = null;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private kit = new Kit();
@@ -208,10 +200,16 @@ export class World {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.lite ? 1 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    // Cel shading wants flat, unfiltered colour bands: no filmic tone curve.
+    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = !opts.lite;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    if (!opts.lite)
+      this.outline = new OutlineEffect(this.renderer, {
+        defaultThickness: 0.0035,
+        defaultColor: INK.toArray(),
+      });
 
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 1400);
     this.camera.rotation.order = 'YXZ';
@@ -352,6 +350,7 @@ export class World {
         depthWrite: false,
       }),
     );
+    noOutline(sky.material);
     sky.renderOrder = -2;
     this.scene.add(sky);
     this.scene.background = horizon.clone();
@@ -360,12 +359,12 @@ export class World {
 
   private buildLights() {
     // Warm sky light from above, dusky violet bounce from below.
-    this.scene.add(new THREE.HemisphereLight('#ffb48a', '#3b2a44', 0.85));
+    this.scene.add(new THREE.HemisphereLight('#ffb48a', '#3b2a44', 1.25));
     // A cool violet fill from the east keeps shaded faces readable but moody.
-    const fill = new THREE.DirectionalLight('#8f7ad8', 0.45);
+    const fill = new THREE.DirectionalLight('#8f7ad8', 0.4);
     fill.position.set(50, 30, 25);
     this.scene.add(fill);
-    const sun = new THREE.DirectionalLight('#ffa860', 2.9);
+    const sun = new THREE.DirectionalLight('#ffa860', 2.6);
     sun.castShadow = !this.opts.lite;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -395,6 +394,7 @@ export class World {
       transparent: true,
       opacity: 0.9,
     });
+    noOutline(seaMat);
     seaMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.uTime;
       shader.vertexShader = shader.vertexShader
@@ -436,15 +436,16 @@ export class World {
     const shelfGeo = kit.geo('shelf', () => new THREE.CylinderGeometry(R * 1.55, R * 1.7, 0.4, 6));
     const dirt = kit.mat('#7d5a3a');
     const sand = kit.mat('#d4b07c');
-    const shelf = kit.mat('#3c7f80');
-    const groundMats = new Map<Terrain, THREE.MeshStandardMaterial>();
+    // The lagoon shelf sits under the see-through sea; an outline there would show through.
+    const shelf = noOutline(kit.toon('#3c7f80'));
+    const groundMats = new Map<Terrain, THREE.MeshToonMaterial>();
     const groundMat = (t: Terrain) => {
       let m = groundMats.get(t);
       if (!m) {
         const g = GROUND[t];
         const map = groundTexture(g.base, g.speck, seed + t.length * 97, g.strokes);
         map.repeat.set(0.16, 0.16); // tile UVs are in metres: one texture repeat every ~6 m
-        m = new THREE.MeshStandardMaterial({ map, roughness: 0.95 });
+        m = kit.toon('#ffffff', { map });
         groundMats.set(t, m);
       }
       return m;
@@ -526,15 +527,26 @@ export class World {
     inst.flush(this.scene);
 
     const rnd = mulberry(seed ^ 0x51ed);
-    // Far-off mountains and drifting clouds give the horizon some depth.
-    for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * Math.PI * 2 + rnd() * 0.2;
-      const d = 520 + rnd() * 160;
-      const m = makeMountain(kit, rnd, 40 + rnd() * 50, 50 + rnd() * 90);
-      m.position.set(Math.sin(a) * d, -2, Math.cos(a) * d);
-      m.traverse((o) => (o.castShadow = o.receiveShadow = false));
-      this.scene.add(m);
+    // A far-off stone forest of karst pillars and drifting clouds give the horizon some depth.
+    const horizon = new THREE.Group();
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * Math.PI * 2 + rnd() * 0.2;
+      const d = 470 + rnd() * 170;
+      for (let k = 0, n = 2 + Math.floor(rnd() * 3); k < n; k++) {
+        const r = 9 + rnd() * 16;
+        const m = makeKarst(kit, rnd, r, r * (2.6 + rnd() * 2.4));
+        const off = (rnd() - 0.5) * 70;
+        m.position.set(
+          Math.sin(a) * (d + (rnd() - 0.5) * 60) + Math.cos(a) * off,
+          -2,
+          Math.cos(a) * (d + (rnd() - 0.5) * 60) - Math.sin(a) * off,
+        );
+        horizon.add(m);
+      }
     }
+    horizon.traverse((o) => (o.castShadow = o.receiveShadow = false));
+    bake(horizon, kit);
+    this.scene.add(horizon);
     for (let i = 0; i < (this.opts.lite ? 8 : 16); i++) {
       const c = makeCloud(kit, rnd);
       const a = rnd() * Math.PI * 2;
@@ -636,6 +648,7 @@ export class World {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    noOutline(this.foam);
     this.scene.add(new THREE.Mesh(geo, this.foam));
   }
 
@@ -969,21 +982,26 @@ export class World {
   }
 
   private buildMountains(ctx: HexCtx) {
+    // A little stone forest: three tall karst pillars across from the way in, a few short ones
+    // around them, and low mist pooling between their feet.
     const base = ctx.spawnAngle + Math.PI;
+    const taken: { x: number; z: number; r: number }[] = [];
     for (let i = 0; i < 3; i++) {
       const a = base + (i - 1) * 1.15;
       const d = dir(a);
-      const r = 3.8 + ctx.rnd() * 0.9;
-      const m = makeMountain(this.kit, ctx.rnd, r, 8 + ctx.rnd() * 5);
+      const r = (i === 1 ? 3.1 : 2.3) + ctx.rnd() * 0.6;
+      const h = (i === 1 ? 13 : 9) + ctx.rnd() * 4;
       const dist = R * 0.52;
+      const m = makeKarst(this.kit, ctx.rnd, r, h);
       m.position.set(d.x * dist, 0, d.z * dist);
       m.rotation.y = ctx.rnd() * Math.PI;
       ctx.g.add(m);
-      this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 0.92);
+      taken.push({ x: d.x * dist, z: d.z * dist, r: r + 1.2 });
+      this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 1.02);
       if (i === 1) {
-        // A mine dug into the middle peak, its cart rolling out towards the sign.
+        // A mine dug into the middle pillar, its cart rolling out towards the sign.
         const mine = makeMine(this.kit);
-        const md = dist - r * 0.78;
+        const md = dist - r * 0.9;
         mine.position.set(d.x * md, 0, d.z * md);
         mine.rotation.y = a + Math.PI;
         ctx.g.add(mine);
@@ -992,9 +1010,10 @@ export class World {
         this.addCircle(cx2, cz2, 0.9);
         for (const k of [-1, 1])
           this.addCircle(ctx.cx + d.x * md + d.z * 1.2 * k, ctx.cz + d.z * md - d.x * 1.2 * k, 0.3);
+        taken.push({ x: d.x * (md - 2.6), z: d.z * (md - 2.6), r: 2 });
       }
     }
-    // Ore outcrops flank the way in, leaving the view to the peaks clear.
+    // Ore outcrops flank the way in, leaving the view to the pillars clear.
     for (const off of [-1.05, 1.05]) {
       const d = dir(ctx.spawnAngle + off);
       const dist = R * (0.42 + ctx.rnd() * 0.1);
@@ -1002,6 +1021,27 @@ export class World {
       o.position.set(d.x * dist, 0, d.z * dist);
       ctx.g.add(o);
       this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, 1.2);
+      taken.push({ x: d.x * dist, z: d.z * dist, r: 1.6 });
+    }
+    for (let i = 0; i < 4; i++) {
+      const r = 1.1 + ctx.rnd() * 0.7;
+      const p = this.scatter(ctx, taken, r + 0.6, 0.8);
+      if (!p) continue;
+      const m = makeKarst(this.kit, ctx.rnd, r, 3 + ctx.rnd() * 4);
+      m.position.set(p.x, 0, p.z);
+      ctx.g.add(m);
+      this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 1.02);
+    }
+    if (!this.opts.lite) {
+      for (let i = 0; i < 7; i++) {
+        const a = base + (ctx.rnd() - 0.5) * 2.8;
+        const d = dir(a);
+        const dist = R * (0.3 + ctx.rnd() * 0.45);
+        const mist = makeMist(this.kit, 0.32);
+        mist.position.set(d.x * dist, 0.9 + ctx.rnd() * 0.8, d.z * dist);
+        mist.scale.set(7 + ctx.rnd() * 5, 2.2 + ctx.rnd(), 1);
+        ctx.g.add(mist);
+      }
     }
   }
 
@@ -1130,7 +1170,8 @@ export class World {
     this.camera.position.set(this.x, EYE + this.bob, this.z);
     this.sunGlow.position.copy(this.camera.position).addScaledVector(this.sunDir, 900);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
-    this.renderer.render(this.scene, this.camera);
+    if (this.outline) this.outline.render(this.scene, this.camera);
+    else this.renderer.render(this.scene, this.camera);
 
     const hex = this.landHexes.find((h) => inHex(this.x, this.z, h.x, h.z, R))?.id ?? null;
     if (hex !== this.hex) {
@@ -1463,82 +1504,92 @@ class Instancer {
       grass: tuftGeo,
       flower: flowerGeo,
     };
-    const mats: Record<string, { mat: THREE.Material; sway: number; shadow: boolean }> = {
-      trunk: {
-        mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 }),
-        sway: 0,
-        shadow: true,
-      },
-      block: {
-        mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 }),
-        sway: 0.06,
-        shadow: true,
-      },
-      cone: {
-        mat: new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          flatShading: true,
-          roughness: 0.9,
-        }),
-        sway: 0.04,
-        shadow: true,
-      },
-      puff: {
-        mat: new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          roughness: 0.85,
-          flatShading: true,
-        }),
-        sway: 0.05,
-        shadow: true,
-      },
-      wheat: {
-        mat: new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          flatShading: true,
-          roughness: 0.9,
-        }),
-        sway: 0.1,
-        shadow: false,
-      },
-      grass: {
-        mat: new THREE.MeshLambertMaterial({
-          color: '#ffffff',
-          vertexColors: true,
-          side: THREE.DoubleSide,
-        }),
-        sway: 0.28,
-        shadow: false,
-      },
-      flower: {
-        mat: new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          roughness: 0.6,
-          vertexColors: true,
-        }),
-        sway: 0,
-        shadow: false,
-      },
+    // Trees get ink outlines (their own instanced hulls, so they sway together); the small
+    // stuff underfoot stays line-free so the meadow doesn't turn into scribble.
+    const specs: Record<
+      string,
+      {
+        sway: number;
+        shadow: boolean;
+        outline?: 'normal' | 'radial';
+        vertexColors?: boolean;
+        side?: THREE.Side;
+      }
+    > = {
+      trunk: { sway: 0, shadow: true, outline: 'normal' },
+      block: { sway: 0.06, shadow: true, outline: 'normal' },
+      cone: { sway: 0.04, shadow: true, outline: 'normal' },
+      puff: { sway: 0.05, shadow: true, outline: 'radial' },
+      wheat: { sway: 0.1, shadow: false },
+      grass: { sway: 0.28, shadow: false, vertexColors: true, side: THREE.DoubleSide },
+      flower: { sway: 0, shadow: false, vertexColors: true },
     };
     for (const [name, list] of this.lists) {
       if (!list.m.length) continue;
-      const spec = mats[name];
-      if (spec.sway && !this.lite) addSway(spec.mat, this.uTime, spec.sway);
-      const im = new THREE.InstancedMesh(
-        kit.geo(`inst-${name}`, geos[name]),
-        spec.mat,
-        list.m.length,
-      );
+      const spec = specs[name];
+      const sway = spec.sway && !this.lite ? { uTime: this.uTime, amount: spec.sway } : undefined;
+      const mat = kit.toon('#ffffff', { vertexColors: spec.vertexColors, side: spec.side });
+      celShade(mat, sway);
+      // OutlineEffect can't follow instance transforms; these draw their own hulls instead.
+      noOutline(mat);
+      const geo = kit.geo(`inst-${name}`, geos[name]);
+      const im = new THREE.InstancedMesh(geo, mat, list.m.length);
       list.m.forEach((m, i) => {
         im.setMatrixAt(i, m);
         im.setColorAt(i, list.c[i]);
       });
+      if (spec.outline && !this.lite) {
+        const hull = new THREE.InstancedMesh(
+          geo,
+          hullMaterial(this.uTime, spec.sway, spec.outline),
+          list.m.length,
+        );
+        hull.instanceMatrix = im.instanceMatrix;
+        hull.castShadow = hull.receiveShadow = false;
+        hull.frustumCulled = false;
+        scene.add(hull);
+      }
       im.castShadow = spec.shadow;
       im.receiveShadow = true;
       im.computeBoundingSphere();
       scene.add(im);
     }
   }
+}
+
+/**
+ * An inverted-hull ink outline for instanced meshes: the back faces, pushed out a little along
+ * the normal (or from the centre, for faceted puffs), thicker with distance so the line keeps a
+ * steady on-screen weight.
+ */
+function hullMaterial(
+  uTime: { value: number },
+  sway: number,
+  along: 'normal' | 'radial',
+): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+  noOutline(m);
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = uTime;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        ${sway ? swayGlsl(sway) : ''}
+        #ifdef USE_INSTANCING
+          mat4 hullM = modelMatrix * instanceMatrix;
+        #else
+          mat4 hullM = modelMatrix;
+        #endif
+        float hullS = length(vec3(hullM[0]));
+        float hullD = distance((hullM * vec4(transformed, 1.0)).xyz, cameraPosition);
+        vec3 hullN = ${along === 'radial' ? 'normalize(position)' : 'normalize(normal)'};
+        transformed += hullN * (0.025 + hullD * 0.0028) / hullS;`,
+      );
+  };
+  m.customProgramCacheKey = () => `hull-${sway}-${along}`;
+  return m;
 }
 
 const BARK = ['#7a4f2b', '#6e4626', '#85572f'];

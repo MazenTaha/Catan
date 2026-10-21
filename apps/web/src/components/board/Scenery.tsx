@@ -3,7 +3,14 @@ import { Rng, hashSeed, type Board, type HarborKind } from '@hexfall/engine';
 import { WindmillSails, kilnChimney, windmillHub } from '../../art/terrain/TerrainArt';
 import { ResGlyphSvg } from '../../art/pieces/Pieces';
 import { HARBOR_NAME, RESOURCE_NAME } from '../../lexicon';
-import { ISLAND_PATH, VIEWBOX, VIEWBOX_STR, harborGeometry, hexCenter, toPercent } from './geometry';
+import {
+  ISLAND_PATH,
+  VIEWBOX,
+  VIEWBOX_STR,
+  harborGeometry,
+  hexCenter,
+  toPercent,
+} from './geometry';
 
 /**
  * Everything around and above the tiles that makes the board feel like a moonlit island:
@@ -13,6 +20,9 @@ import { ISLAND_PATH, VIEWBOX, VIEWBOX_STR, harborGeometry, hexCenter, toPercent
  */
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Line-art ink shared with the terrain art. */
+const INK = '#2b1a22';
 
 /** Roughly inside the island (a flat-topped hexagon of radius R around the center). */
 function nearIsland(x: number, y: number, R: number): boolean {
@@ -55,7 +65,13 @@ export const Sea = memo(function Sea() {
   return (
     <g aria-hidden>
       <rect x={VIEWBOX.x} y={VIEWBOX.y} width={VIEWBOX.w} height={VIEWBOX.h} fill="url(#g-sea)" />
-      <rect x={VIEWBOX.x} y={VIEWBOX.y} width={VIEWBOX.w} height={VIEWBOX.h} fill="url(#g-moonglow)" />
+      <rect
+        x={VIEWBOX.x}
+        y={VIEWBOX.y}
+        width={VIEWBOX.w}
+        height={VIEWBOX.h}
+        fill="url(#g-moonglow)"
+      />
       {/* painted wave marks, like an old sea chart */}
       {WAVES.map((w, i) => (
         <path
@@ -78,7 +94,15 @@ function MoonReflection({ part }: { part?: 0 | 1 }) {
     <g fill="#eef4ff">
       {REFLECTION.map((d, i) =>
         part === undefined || i % 2 === part ? (
-          <rect key={i} x={r1(d.x - d.w / 2)} y={r1(d.y)} width={r1(d.w)} height={2.2} rx={1.1} opacity={r1(Math.max(0.08, d.o) * (part === undefined ? 0.5 : 1))} />
+          <rect
+            key={i}
+            x={r1(d.x - d.w / 2)}
+            y={r1(d.y)}
+            width={r1(d.w)}
+            height={2.2}
+            rx={1.1}
+            opacity={r1(Math.max(0.08, d.o) * (part === undefined ? 0.5 : 1))}
+          />
         ) : null,
       )}
     </g>
@@ -90,7 +114,12 @@ export function MoonShimmer() {
   return (
     <>
       {([0, 1] as const).map((part) => (
-        <svg key={part} viewBox={VIEWBOX_STR} className={`absolute inset-0 h-full w-full ${part ? 'anim-shimmer-b' : 'anim-shimmer-a'}`} aria-hidden>
+        <svg
+          key={part}
+          viewBox={VIEWBOX_STR}
+          className={`absolute inset-0 h-full w-full ${part ? 'anim-shimmer-b' : 'anim-shimmer-a'}`}
+          aria-hidden
+        >
           <MoonReflection part={part} />
         </svg>
       ))}
@@ -105,23 +134,39 @@ export function Shore() {
   const ring = { d: ISLAND_PATH, fill: 'none', strokeLinejoin: 'round' as const };
   return (
     <g>
-      <path d={ISLAND_PATH} transform="translate(10 18)" fill="#01080b" opacity={0.55} filter="url(#f-soft)" />
+      <path
+        d={ISLAND_PATH}
+        transform="translate(10 18)"
+        fill="#01080b"
+        opacity={0.55}
+        filter="url(#f-soft)"
+      />
       {/* shelving water: deep blue to turquoise, blurred into a smooth gradient */}
       <g filter="url(#f-water)">
-        <path {...ring} stroke="#0f3a44" strokeWidth={180} opacity={0.7} />
-        <path {...ring} stroke="#1a5e66" strokeWidth={120} />
-        <path {...ring} stroke="#2b8a87" strokeWidth={70} />
+        <path {...ring} stroke="#145262" strokeWidth={180} opacity={0.7} />
+        <path {...ring} stroke="#1f8a95" strokeWidth={120} />
+        <path {...ring} stroke="#3cc4bc" strokeWidth={70} />
       </g>
       {/* surf lines rolling in, slightly irregular */}
       {[
         { k: 1.06, o: 0.55, w: 2.2, dash: '26 8 10 6 18 9' },
         { k: 1.11, o: 0.28, w: 1.8, dash: '14 12 30 10' },
       ].map((f) => (
-        <path key={f.k} {...ring} transform={`scale(${f.k})`} stroke="#effcf8" strokeOpacity={f.o} strokeWidth={f.w / f.k} strokeDasharray={f.dash} strokeLinecap="round" />
+        <path
+          key={f.k}
+          {...ring}
+          transform={`scale(${f.k})`}
+          stroke="#effcf8"
+          strokeOpacity={f.o}
+          strokeWidth={f.w / f.k}
+          strokeDasharray={f.dash}
+          strokeLinecap="round"
+        />
       ))}
       {/* beach: wet sand, dry sand */}
-      <path {...ring} stroke="#a8915e" strokeWidth={34} />
-      <path {...ring} stroke="#dcc48c" strokeWidth={28} />
+      <path {...ring} stroke={INK} strokeWidth={37} />
+      <path {...ring} stroke="#d9b878" strokeWidth={34} />
+      <path {...ring} stroke="#f6e2ac" strokeWidth={28} />
       <path d={ISLAND_PATH} fill="#1a140b" />
     </g>
   );
@@ -136,16 +181,16 @@ export function Moonlight() {
 
 function Ship({ flip }: { flip: boolean }) {
   return (
-    <g transform={flip ? 'scale(-1 1)' : undefined}>
-      <ellipse cx={0} cy={9} rx={20} ry={3.5} fill="#05141a" opacity={0.5} />
-      <path d="M-18 2H18L13 9H-12Z" fill="#5a3a1e" stroke="#20130a" strokeWidth={1} />
-      <path d="M-18 2H18L17 4H-17Z" fill="#8a5d33" />
-      <path d="M-1 2V-26" stroke="#3a2614" strokeWidth={1.6} />
-      <path d="M0 -24Q12 -14 1 -2Z" fill="#e9e1cb" stroke="#6b5a3e" strokeWidth={0.6} />
-      <path d="M-2 -22Q-14 -12 -2 -3Z" fill="#b9b1a0" stroke="#6b5a3e" strokeWidth={0.6} />
-      <path d="M-1 -26L7 -29L-1 -31Z" fill="#c4302b" />
+    <g transform={flip ? 'scale(-1 1)' : undefined} strokeLinejoin="round">
+      <ellipse cx={0} cy={9} rx={20} ry={3.5} fill="#05141a" opacity={0.4} />
+      <path d="M-18 2H18L13 9H-12Z" fill="#b0763e" stroke={INK} strokeWidth={1.5} />
+      <path d="M-16 4.5H16" stroke="#e9b955" strokeWidth={1.2} />
+      <path d="M-1 2V-26" stroke={INK} strokeWidth={2.2} />
+      <path d="M0 -24Q13 -14 1 -2Z" fill="#fff8ea" stroke={INK} strokeWidth={1.2} />
+      <path d="M-2 -22Q-14 -12 -2 -3Z" fill="#f0e2c4" stroke={INK} strokeWidth={1.2} />
+      <path d="M-1 -26L8 -29L-1 -32Z" fill="#e0543c" stroke={INK} strokeWidth={0.8} />
       <circle cx={14} cy={-1} r={4} fill="url(#g-torch)" />
-      <circle cx={14} cy={-1} r={1.2} fill="#ffd27a" />
+      <circle cx={14} cy={-1} r={1.3} fill="#ffd56b" />
     </g>
   );
 }
@@ -154,15 +199,36 @@ function Medallion({ kind }: { kind: HarborKind }) {
   const any = kind === 'any';
   return (
     <g>
-      <circle r={25} fill="#06141a" opacity={0.45} transform="translate(2 3)" />
-      <circle r={24} fill="url(#g-medallion-rim)" />
-      <circle r={20} fill="url(#g-medallion)" />
-      <circle r={20} fill="none" stroke="#e8c46a" strokeOpacity={0.35} strokeWidth={0.8} />
-      <text y={any ? 3 : -2} textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700} fontSize={any ? 13 : 12} fill="#f3ead2">
+      <circle r={25} fill="#06141a" opacity={0.4} transform="translate(2 3)" />
+      <circle r={24} fill="url(#g-medallion-rim)" stroke="#4a2f12" strokeWidth={2} />
+      <circle r={19} fill="url(#g-medallion)" stroke="#f7d98a" strokeWidth={1.5} />
+      <path
+        d="M-11 -10Q0 -16 11 -10"
+        stroke="#fff"
+        strokeOpacity={0.28}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="round"
+      />
+      <text
+        y={any ? 3 : -2}
+        textAnchor="middle"
+        fontFamily="Cinzel, serif"
+        fontWeight={700}
+        fontSize={any ? 13 : 12}
+        fill="#fff3d0"
+      >
         {any ? '3:1' : '2:1'}
       </text>
       {any ? (
-        <text y={13} textAnchor="middle" fontFamily="Cinzel, serif" fontSize={6.5} fill="#c8b98f" letterSpacing={0.6}>
+        <text
+          y={13}
+          textAnchor="middle"
+          fontFamily="Cinzel, serif"
+          fontSize={6.5}
+          fill="#f7d98a"
+          letterSpacing={0.6}
+        >
           ANY
         </text>
       ) : (
@@ -182,16 +248,19 @@ export const Harbors = memo(
           const g = harborGeometry(hb);
           // the ship rides at anchor beside the medallion, facing along the coast
           const side = hb.id % 2 ? 1 : -1;
-          const ship = { x: g.badge.x - g.ny * 40 * side + g.nx * 6, y: g.badge.y + g.nx * 40 * side + g.ny * 6 };
+          const ship = {
+            x: g.badge.x - g.ny * 40 * side + g.nx * 6,
+            y: g.badge.y + g.nx * 40 * side + g.ny * 6,
+          };
           return (
             <g key={hb.id}>
               {[g.a, g.b].map((p, i) => {
                 const d = `M${r1(p.x)} ${r1(p.y)}L${r1(g.badge.x)} ${r1(g.badge.y)}`;
                 return (
                   <g key={i} strokeLinecap="butt">
-                    <path d={d} stroke="#1c120a" strokeWidth={11} />
-                    <path d={d} stroke="#7a5532" strokeWidth={8} />
-                    <path d={d} stroke="#3e2a16" strokeWidth={8} strokeDasharray="1.2 5" />
+                    <path d={d} stroke={INK} strokeWidth={11} />
+                    <path d={d} stroke="#b0763e" strokeWidth={7.5} />
+                    <path d={d} stroke="#6b4426" strokeWidth={7.5} strokeDasharray="1.2 5" />
                   </g>
                 );
               })}
@@ -215,7 +284,12 @@ export const Harbors = memo(
 
 const box = (x: number, y: number, w: number, h: number): CSSProperties => {
   const p = toPercent({ x: x - w / 2, y: y - h / 2 });
-  return { left: p.left, top: p.top, width: `${(w / VIEWBOX.w) * 100}%`, height: `${(h / VIEWBOX.h) * 100}%` };
+  return {
+    left: p.left,
+    top: p.top,
+    width: `${(w / VIEWBOX.w) * 100}%`,
+    height: `${(h / VIEWBOX.h) * 100}%`,
+  };
 };
 
 const FIREFLY_GROUPS = 3;
@@ -237,7 +311,11 @@ export const Ambient = memo(
         const hub = windmillHub(seed);
         mills.push(
           <div key={h.id} className="absolute" style={box(c.x + hub.x, c.y + hub.y, 56, 56)}>
-            <svg viewBox="-28 -28 56 56" className={`h-full w-full overflow-visible ${still ? '' : 'anim-spin'}`} style={{ animationDelay: `${-rng.next() * 12}s` }}>
+            <svg
+              viewBox="-28 -28 56 56"
+              className={`h-full w-full overflow-visible ${still ? '' : 'anim-spin'}`}
+              style={{ animationDelay: `${-rng.next() * 12}s` }}
+            >
               <WindmillSails />
             </svg>
           </div>,
@@ -248,7 +326,11 @@ export const Ambient = memo(
         smoke.push(
           <div key={h.id} className="absolute" style={box(c.x + k.x, c.y + k.y - 22, 26, 48)}>
             {[0, 1, 2].map((i) => (
-              <span key={i} className="smoke-puff" style={{ animationDelay: `${i * 1.4 + rng.next() * 0.5}s` }} />
+              <span
+                key={i}
+                className="smoke-puff"
+                style={{ animationDelay: `${i * 1.4 + rng.next() * 0.5}s` }}
+              />
             ))}
           </div>,
         );
@@ -257,7 +339,10 @@ export const Ambient = memo(
         for (let i = 0; i < 4; i++) {
           const a = rng.next() * Math.PI * 2;
           const r = 38 + rng.next() * 40;
-          flies[i % FIREFLY_GROUPS].push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r * 0.9 });
+          flies[i % FIREFLY_GROUPS].push({
+            x: c.x + Math.cos(a) * r,
+            y: c.y + Math.sin(a) * r * 0.9,
+          });
         }
       }
     }
@@ -275,7 +360,11 @@ export const Ambient = memo(
         {mills}
         {smoke}
         {flies.map((group, gi) => (
-          <svg key={gi} viewBox={VIEWBOX_STR} className={`absolute inset-0 h-full w-full anim-firefly-${gi}`}>
+          <svg
+            key={gi}
+            viewBox={VIEWBOX_STR}
+            className={`absolute inset-0 h-full w-full anim-firefly-${gi}`}
+          >
             {group.map((f, i) => (
               <g key={i} transform={`translate(${r1(f.x)} ${r1(f.y)})`}>
                 <circle r={7} fill="url(#g-firefly)" />

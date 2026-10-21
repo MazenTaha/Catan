@@ -85,18 +85,11 @@ export function TitleScreen() {
           {online && item(`Rejoin ${online.code}`, 'user', () => net.resume(online.code, online.token), false, 'rejoin')}
           {save && item('Continue', 'hourglass', () => continueGame(), false, 'continue')}
           {item('How to play', 'rules', () => openModal('rules'))}
-          {item('Load record', 'import', () => openModal('import'))}
           {item('Settings', 'settings', () => openModal('settings'))}
-          {item('Credits', 'scroll', () => openModal('credits'))}
         </motion.nav>
         {online && (net.status === 'connecting' || net.error) && (
           <p className="mt-4 text-[14px] text-muted" aria-live="polite">
             {net.status === 'connecting' ? `Rejoining ${online.code}…` : net.error}
-          </p>
-        )}
-        {save && (
-          <p className="mt-4 text-[14px] text-muted">
-            Saved game · round {save.state.round || 'setup'}
           </p>
         )}
       </div>

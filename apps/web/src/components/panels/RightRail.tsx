@@ -392,28 +392,6 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
   );
 }
 
-export function OmenCardBack({ type, size = 44 }: { type?: OmenType; size?: number }) {
-  const relic = type === 'relic';
-  return (
-    <svg width={size * 0.72} height={size} viewBox="0 0 36 50" aria-hidden className="shrink-0">
-      <rect
-        x="1"
-        y="1"
-        width="34"
-        height="48"
-        rx="3"
-        fill="#15121c"
-        stroke={relic ? '#c9a24b' : '#8a6d2f'}
-        strokeWidth="1.5"
-      />
-      <rect x="4" y="4" width="28" height="42" rx="2" fill="none" stroke="#3a3f4b" />
-      <path d="M18 10l6 15-6 15-6-15z" fill="none" stroke="#c9a24b" strokeWidth="1.2" />
-      <circle cx="18" cy="25" r="4" fill="none" stroke="#c9a24b" strokeWidth="1" />
-      <circle cx="18" cy="25" r="1.4" fill={relic ? '#f0cf7b' : '#e0702a'} />
-    </svg>
-  );
-}
-
 // ------------------------------------------------------------------ trade tab
 
 function BankTrade({ state, seat, enabled }: { state: GameState; seat: number; enabled: boolean }) {

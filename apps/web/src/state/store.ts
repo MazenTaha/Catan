@@ -23,7 +23,6 @@ import { RESOURCE_NAME, TERRAIN_NAME } from '../lexicon';
 import { describeEvent, lineText, type LogItem } from './log';
 import {
   clearAutosave,
-  importRecord,
   loadSettings,
   readAutosave,
   saveSettings,
@@ -40,9 +39,7 @@ export type ModalKind =
   | 'log'
   | 'harvest'
   | 'tithe'
-  | 'credits'
   | 'confirm-new'
-  | 'import'
   | null;
 
 export interface Session {
@@ -97,7 +94,6 @@ interface StoreState {
   setTimerDeadline(t: number | null): void;
   startGame(config: GameConfig): void;
   continueGame(): boolean;
-  importGame(json: string): string | null;
   rematch(): void;
   dispatch(action: Action): GameError | null;
   /** A state update from the game server. */
@@ -401,34 +397,6 @@ export const useStore = create<StoreState>((set, get) => ({
       showRollOff: false,
     });
     return true;
-  },
-
-  importGame(json) {
-    try {
-      const { record, state } = importRecord(json);
-      const r = replay(record);
-      const events: GameEvent[] = [{ type: 'GameStarted', firstPlayer: state.firstPlayer }, ...r.events];
-      writeAutosave(record.config, record.actions, state);
-      set({
-        screen: 'game',
-        session: {
-          config: record.config,
-          actions: record.actions,
-          state,
-          undo: [],
-          log: makeLog(events, state, 0),
-          seq: events.length,
-          turnGains: state.players.map(() => emptyCounts()),
-        },
-        mode: null,
-        modal: null,
-        fx: emptyFx,
-        toast: { id: ++toastId, text: 'Game record loaded and replayed.', tone: 'gold' },
-      });
-      return null;
-    } catch (e) {
-      return e instanceof Error ? e.message : 'Could not read that record';
-    }
   },
 
   rematch() {

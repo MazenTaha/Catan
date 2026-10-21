@@ -109,13 +109,13 @@ export function GameScreen() {
           <BoardView state={state} canAct={canAct} onAction={onAction} />
         </ZoomPan>
       )}
-      <div className="absolute bottom-3 right-3 z-20 flex gap-1 rounded-2xl border border-iron/80 bg-[#1a1220]/90 p-1 shadow-panel" role="group" aria-label="Board view">
+      <div className="absolute bottom-3 right-3 z-20 flex gap-0.5 rounded-xl border border-iron/80 bg-[#1a1220]/90 p-0.5 shadow-panel" role="group" aria-label="Board view">
         {(['2D', '3D'] as const).map((v) => {
           const on = (v === '3D') === view3d;
           return (
             <button
               key={v}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-display text-[12px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
               aria-pressed={on}
               title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
               onClick={() => setView3d(v === '3D')}

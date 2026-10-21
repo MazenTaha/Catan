@@ -89,8 +89,10 @@
   }
 
   .btn {
-    @apply font-display inline-flex items-center justify-center gap-2 px-4 py-2 text-sm uppercase tracking-[0.1em] select-none;
-    border-radius: 12px;
+    @apply font-display inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] select-none;
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
     border: 1px solid rgb(var(--iron) / 0.9);
     background: linear-gradient(180deg, rgb(var(--raised)), rgb(var(--surface-2)));
     color: rgb(var(--bone));
@@ -136,6 +138,20 @@
       0 2px 0 #8a4318,
       0 10px 24px -10px rgb(255 140 60 / 0.75);
   }
+  /* A soft sheen sweeps across the main buttons on hover. */
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: -2px auto -2px -60%;
+    width: 45%;
+    background: linear-gradient(100deg, transparent, rgb(255 250 235 / 0.55), transparent);
+    transform: skewX(-18deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .btn-primary:hover:not(:disabled)::after {
+    animation: sheen 700ms ease-out;
+  }
   .btn-primary:hover:not(:disabled) {
     color: #1a0b02;
     filter: brightness(1.07) saturate(1.05);
@@ -159,8 +175,8 @@
     box-shadow: none;
   }
   .icon-btn {
-    @apply inline-grid h-10 w-10 place-items-center text-muted;
-    border-radius: 12px;
+    @apply inline-grid h-8 w-8 place-items-center text-muted;
+    border-radius: 9px;
     transition:
       background 160ms ease,
       color 160ms ease,
@@ -286,6 +302,12 @@
   background-image:
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>"),
     radial-gradient(ellipse at 50% 45%, transparent 60%, rgb(20 6 16 / 0.5) 100%);
+}
+
+@keyframes sheen {
+  0% { left: -60%; opacity: 0; }
+  20% { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
 }
 
 @keyframes tip-pop {

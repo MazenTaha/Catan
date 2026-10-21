@@ -458,7 +458,7 @@ function HostLobby({ profile }: { profile: PlayerProfile }) {
         <div className="mt-auto flex flex-col gap-2">
           {problem && <p className="text-center text-[14px] text-muted">{problem}</p>}
           <button
-            className="btn btn-primary w-full !rounded-2xl !py-3.5 text-[16px]"
+            className="btn btn-primary w-full !py-2.5 text-[13px]"
             disabled={!!problem || connecting || (!!serverLobby && !live)}
             onClick={start}
             data-testid="begin"

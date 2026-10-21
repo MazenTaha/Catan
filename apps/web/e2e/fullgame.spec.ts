@@ -90,7 +90,7 @@ test('1 human + 3 bots: title → victory → rematch', async ({ page }) => {
   await expect(page.getByText('Final reckoning')).toBeVisible();
   await page.getByRole('button', { name: /Rematch/ }).click();
   // A rematch opens a fresh game (new-game screen or straight into setup).
-  await expect(page.getByLabel('Seed').or(page.getByLabel('Round 0'))).toBeVisible();
+  await expect(page.getByLabel('Seed').or(page.getByRole('region', { name: 'Turn' }))).toBeVisible();
 });
 
 test('4-player hot-seat: curtains between every human, to victory', async ({ page }) => {

@@ -41,7 +41,7 @@ export function TitleScreen() {
   const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
-      className={`btn w-72 justify-start !rounded-2xl !px-5 !py-3.5 text-[15px] ${primary ? 'btn-primary' : ''}`}
+      className={`btn w-60 justify-start !rounded-xl !px-4 !py-2.5 text-[13px] ${primary ? 'btn-primary' : ''}`}
       onClick={() => {
         audio.unlock();
         audio.play('click');
@@ -49,7 +49,7 @@ export function TitleScreen() {
       }}
       data-testid={testid}
     >
-      <Icon name={icon} size={18} /> {label}
+      <Icon name={icon} size={16} /> {label}
     </button>
   );
   return (

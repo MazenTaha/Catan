@@ -19,19 +19,16 @@ export function TopBar({ state }: { state: GameState }) {
   const online = useStore((s) => s.session?.online);
   const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
   return (
-    <header className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
-      <div className="flex items-center gap-2.5">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
-          <svg width="24" height="24" viewBox="0 0 64 64" aria-hidden>
+    <header className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5 sm:px-4">
+      <div className="flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
+          <svg width="20" height="20" viewBox="0 0 64 64" aria-hidden>
             <path d="M32 6 54 19v26L32 58 10 45V19z" fill="#2a1406" opacity="0.25" />
             <path d="M32 6 54 19v26L32 58 10 45V19z" fill="none" stroke="#2a1406" strokeWidth="4" />
             <path d="M32 18 43 40H21z" fill="#2a1406" />
           </svg>
         </span>
-        <div className="leading-none">
-          <h1 className="font-logo text-[21px] tracking-[0.06em] text-gold">Catan Night</h1>
-          <span className="font-display text-[10px] uppercase tracking-[0.3em] text-muted">Dusk edition</span>
-        </div>
+        <h1 className="font-logo text-[19px] leading-none tracking-[0.06em] text-gold">Catan Night</h1>
       </div>
       <div className="flex items-center gap-2">
         {online && (
@@ -41,13 +38,12 @@ export function TopBar({ state }: { state: GameState }) {
             </span>
           </Tooltip>
         )}
-        <span
-          className="chip num border-gold/40 bg-gold/10 text-gold"
-          aria-label={`Round ${state.round}`}
-        >
-          <Icon name="hourglass" size={12} />
-          {state.phase.kind === 'setup' ? 'Setup' : `Round ${state.round}`}
-        </span>
+        {state.phase.kind !== 'setup' && (
+          <span className="chip num border-gold/40 bg-gold/10 text-gold" aria-label={`Round ${state.round}`}>
+            <Icon name="hourglass" size={12} />
+            Round {state.round}
+          </span>
+        )}
         <Tooltip label={`Leader has ${leader} of ${state.config.targetVp} points`} side="bottom">
           <span className="chip text-muted" tabIndex={0}>
             <Icon name="crown" size={12} className="text-gold" />
@@ -58,7 +54,8 @@ export function TopBar({ state }: { state: GameState }) {
           </span>
         </Tooltip>
       </div>
-      <div className="ml-auto flex items-center gap-0.5">
+      <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5">
         <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" onClick={undo} disabled={!undoable} />
         <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
         <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
@@ -69,13 +66,13 @@ export function TopBar({ state }: { state: GameState }) {
           onClick={() => updateSettings({ muted: !muted })}
         />
         <IconButton icon="settings" label="Settings" align="end" onClick={() => openModal('settings')} />
-        <span className="mx-1.5 h-6 w-px bg-iron/70" aria-hidden />
+        </div>
         <button
-          className="btn !rounded-xl !px-3 !py-2 sm:!px-3.5"
+          className="btn"
           onClick={() => openModal('confirm-new')}
           aria-label={online ? 'Leave game' : 'New game'}
         >
-          <Icon name={online ? 'arrow' : 'refresh'} size={16} />{' '}
+          <Icon name={online ? 'arrow' : 'refresh'} size={14} />{' '}
           <span className="hidden sm:inline">{online ? 'Leave game' : 'New game'}</span>
         </button>
       </div>
@@ -227,8 +224,8 @@ export function DiceTray({ state, canRoll, onRoll }: { state: GameState; canRoll
         </AnimatePresence>
       </div>
       {canRoll && (
-        <button className="btn btn-primary !rounded-xl !px-4 !py-2.5" onClick={onRoll} data-testid="roll">
-          <Icon name="dice" size={17} /> Roll
+        <button className="btn btn-primary !px-3.5 !py-2" onClick={onRoll} data-testid="roll">
+          <Icon name="dice" size={15} /> Roll
           <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">Space</span>
         </button>
       )}

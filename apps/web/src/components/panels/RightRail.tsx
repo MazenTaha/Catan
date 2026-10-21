@@ -20,6 +20,7 @@ import {
 } from '@hexfall/engine';
 import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
+import { TurnTimerBadge } from '../hud/Hud';
 import { OmenCardFront } from '../../art/cards/OmenCard';
 import { audio } from '../../audio/engine';
 import {
@@ -720,6 +721,8 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
   const n = state.players.length;
   const next = state.players[(state.currentPlayer + 1) % n];
   const canEnd = active && state.phase.kind === 'main';
+  const canRoll = active && state.phase.kind === 'roll';
+  const timer = useStore((s) => s.settings.turnTimer);
   return (
     <section className="panel flex min-h-0 flex-col px-3.5 py-3" aria-label="Actions">
       <div className="mb-3">
@@ -750,22 +753,37 @@ export function ActionsPanel({ state, seat }: { state: GameState; seat: number }
           </RookieTip>
         )}
       </div>
-      <button
-        className="btn btn-primary mt-3 w-full !rounded-xl !py-2.5 text-[13px]"
-        disabled={!canEnd}
-        onClick={() => dispatch({ type: 'EndTurn', player: seat })}
-        data-testid="end-turn"
-      >
-        <Icon name="hourglass" size={15} /> End turn
-        {canEnd && (
-          <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">
-            Space
-          </span>
+      <div className="mt-3 flex gap-2">
+        {canRoll && (
+          <button
+            className="btn btn-primary flex-1 !rounded-xl !py-2.5 text-[13px]"
+            onClick={() => dispatch({ type: 'RollDice', player: seat })}
+            data-testid="roll"
+          >
+            <Icon name="dice" size={15} /> Roll
+            <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">
+              Space
+            </span>
+          </button>
         )}
-      </button>
+        <button
+          className={`btn flex-1 !rounded-xl !py-2.5 text-[13px] ${canRoll ? '' : 'btn-primary'}`}
+          disabled={!canEnd}
+          onClick={() => dispatch({ type: 'EndTurn', player: seat })}
+          data-testid="end-turn"
+        >
+          <Icon name="hourglass" size={15} /> End turn
+          {canEnd && (
+            <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">
+              Space
+            </span>
+          )}
+        </button>
+      </div>
       <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-muted">
         Next up <PlayerDisc color={next.color} sigil={next.sigil} size={18} />
         <b style={{ color: NAME_COLOR[next.color] }}>{next.name}</b>
+        {timer > 0 && <TurnTimerBadge state={state} />}
       </p>
     </section>
   );

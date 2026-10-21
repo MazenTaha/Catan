@@ -12,7 +12,7 @@ import {
 import { Icon } from '../../art/icons/Icon';
 import { PlayerDisc } from '../../art/pieces/Sigil';
 import { BOT_NAME, HOST, LONGEST, TERRAIN_NAME } from '../../lexicon';
-import { ProgressRing, Tooltip } from '../ui/primitives';
+import { Tooltip } from '../ui/primitives';
 import { describeEvent } from '../../state/log';
 import { useStore } from '../../state/store';
 import { LogLineView, NAME_COLOR } from './LogLineView';
@@ -30,24 +30,15 @@ function piecesOf(state: GameState, player: number) {
   return { outposts, citadels, roads };
 }
 
-export function PlayersPanel({
-  state,
-  seat,
-  horizontal = false,
-}: {
-  state: GameState;
-  seat: number;
-  horizontal?: boolean;
-}) {
+/** Everyone at the table in one row: name and points, then cards, settlements, cities and roads. */
+export function PlayersPanel({ state, seat }: { state: GameState; seat: number }) {
   const setHover = useStore((s) => s.setHoverPlayer);
   const actor = activeActor(state);
   const n = state.players.length;
   const order = Array.from({ length: n }, (_, k) => (state.firstPlayer + k) % n);
-  if (horizontal) return <PlayersStrip state={state} seat={seat} order={order} />;
   return (
-    <section className="panel px-3 py-2.5" aria-label="Players">
-      <h2 className="panel-title mb-2 px-0.5">Players</h2>
-      <ul className="flex flex-col gap-1.5">
+    <section aria-label="Players">
+      <ul className={`grid grid-cols-2 gap-2 ${n === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'}`}>
         {order.map((i) => {
           const p = state.players[i];
           const vp = victoryPoints(state, i, false);
@@ -59,7 +50,7 @@ export function PlayersPanel({
           return (
             <li
               key={i}
-              className={`tile px-2.5 py-1.5 ${playing ? 'tile-selected' : ''}`}
+              className={`tile min-w-0 px-2.5 py-1.5 ${playing ? 'tile-selected' : ''}`}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               aria-label={`${p.name}, ${vp} of ${state.config.targetVp} points, ${handTotal(p)} cards, ${pieces.outposts} settlements, ${pieces.citadels} cities, ${pieces.roads} roads${playing ? ', playing' : ''}`}
@@ -86,63 +77,12 @@ export function PlayersPanel({
                   )}
                 </span>
               </div>
-              <div className="mt-1 flex items-center justify-between pl-8 text-[12px] text-muted">
+              <div className="mt-1 flex items-center justify-between gap-1 pl-8 text-[12px] text-muted">
                 <Stat icon={<Icon name="omen" size={12} />} value={handTotal(p)} label="Cards in hand" />
                 <Stat icon={<Icon name="outpost" size={12} />} value={pieces.outposts} label="Settlements" />
                 <Stat icon={<Icon name="citadel" size={12} />} value={pieces.citadels} label="Cities" />
                 <Stat icon={<Icon name="causeway" size={12} />} value={pieces.roads} label="Roads" />
               </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-/** Narrow layouts: one slim row of players — avatar, name, status dot and score. */
-function PlayersStrip({ state, seat, order }: { state: GameState; seat: number; order: number[] }) {
-  const setHover = useStore((s) => s.setHoverPlayer);
-  const actor = activeActor(state);
-  return (
-    <section className="panel px-2 py-1.5" aria-label="Players">
-      <ul className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
-        {order.map((i) => {
-          const p = state.players[i];
-          const vp = victoryPoints(state, i, false);
-          const playing = i === state.currentPlayer && state.phase.kind !== 'ended';
-          const busy = i === actor && state.phase.kind !== 'ended';
-          const color = NAME_COLOR[p.color];
-          return (
-            <li
-              key={i}
-              className={`flex min-w-0 items-center gap-2 rounded-xl border px-2 py-1 transition-colors ${
-                playing
-                  ? 'border-gold/70 bg-gold/10 shadow-[0_0_14px_-6px_rgb(var(--gold)/0.8)]'
-                  : 'border-iron/50 bg-black/15'
-              }`}
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-              aria-label={`${p.name}, ${vp} of ${state.config.targetVp} points, ${handTotal(p)} cards, ${p.omens.length} omens${playing ? ', playing' : ''}`}
-              title={`${p.name}${p.kind === 'bot' ? ` · Bot (${BOT_NAME[p.bot ?? 'warlord']})` : ''} · ${handTotal(p)} cards · ${p.omens.length} dev. cards`}
-            >
-              <ProgressRing value={vp / state.config.targetVp} size={26} stroke={2.5} color={color}>
-                <PlayerDisc color={p.color} sigil={p.sigil} size={18} />
-              </ProgressRing>
-              <span className="min-w-0 flex-1 truncate font-display text-[12px]" style={{ color }}>
-                {p.name}
-                {i === seat && <span className="ml-1 text-[10px] text-muted">you</span>}
-              </span>
-              {busy && (
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold anim-pulse"
-                  aria-hidden
-                />
-              )}
-              <span className="num shrink-0 text-[14px] text-gold">
-                {vp}
-                <span className="text-[10px] text-muted">/{state.config.targetVp}</span>
-              </span>
             </li>
           );
         })}

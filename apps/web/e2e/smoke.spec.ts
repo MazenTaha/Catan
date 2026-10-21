@@ -112,7 +112,7 @@ test('3-player game: setup, roll, build, bank trade, end turn, reload & continue
       if (!(await handleInterrupts(page))) await page.waitForTimeout(50);
     }
     if (!(await page.getByTestId('end-turn').isEnabled())) {
-      throw new Error(`stuck after roll: ${await page.getByRole('region', { name: 'Turn' }).innerText()}`);
+      throw new Error(`stuck after roll: ${await page.getByRole('region', { name: 'Players' }).innerText()}`);
     }
 
     if (!built && (await page.getByTestId('build-causeway').getAttribute('data-ready')) === 'true') {

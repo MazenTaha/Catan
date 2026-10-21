@@ -1,11 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RESOURCES, activeActor, victoryPoints, type GameState } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
-import { PlayerDisc } from '../../art/pieces/Sigil';
 import { OMEN_NAME, PIECE_NAME } from '../../lexicon';
 import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
-import { DicePair } from './Dice';
+import { DieFace } from './Dice';
 import { IconButton, Tooltip } from '../ui/primitives';
 
 // ------------------------------------------------------------------ top bar
@@ -80,8 +79,9 @@ export function TopBar({ state }: { state: GameState }) {
   );
 }
 
-// ------------------------------------------------------------------ turn banner
+// ------------------------------------------------------------------ turn guidance
 
+/** What the player whose move it is should do now (read out to screen readers). */
 export function instruction(state: GameState, seat: number): string {
   const actor = activeActor(state);
   const a = state.players[actor];
@@ -120,66 +120,8 @@ export function instruction(state: GameState, seat: number): string {
   }
 }
 
-export function TurnBanner({ state, seat, children }: { state: GameState; seat: number; children?: ReactNode }) {
-  const cur = state.players[state.currentPlayer];
-  const ph = state.phase.kind;
-  const steps = ph === 'setup' ? ['Settlement', 'Road'] : ['Roll', 'Build & trade', 'End turn'];
-  let active = 0;
-  if (state.phase.kind === 'setup') active = state.phase.step === 'outpost' ? 0 : 1;
-  else if (ph === 'roll') active = 0;
-  else if (ph === 'ended') active = 3;
-  else active = 1;
-  const timer = useStore((s) => s.settings.turnTimer);
-  const yours = cur.id === seat && cur.kind === 'human';
-  return (
-    <section
-      className={`panel flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 transition-shadow ${yours ? 'shadow-[0_0_0_1px_rgb(var(--gold)/0.35),0_16px_40px_-18px_rgb(255_140_60/0.6)]' : ''}`}
-      aria-label="Turn"
-    >
-      <span className="relative">
-        {yours && <span className="absolute -inset-1.5 rounded-full bg-gold/25 blur-md anim-pulse" aria-hidden />}
-        <PlayerDisc color={cur.color} sigil={cur.sigil} size={44} active />
-      </span>
-      <div className="min-w-[190px] flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="font-display text-[15px] uppercase tracking-[0.14em] text-gold">
-            {state.phase.kind === 'setup' ? `${cur.name} — setup` : `${cur.name}'s turn`}
-          </span>
-          {yours && <span className="chip !py-0 border-ember/60 bg-ember/15 text-[10px] text-ember">Your move</span>}
-        </div>
-        <div className="truncate text-[15px] text-bone/90" aria-live="polite">
-          {instruction(state, seat)}
-        </div>
-        <ol className="mt-2 hidden items-center gap-1 md:flex" aria-label="Turn steps">
-          {steps.map((s, i) => (
-            <li key={s} className="flex items-center gap-1">
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] font-display text-[10px] uppercase tracking-[0.12em] transition-colors ${
-                  i === active
-                    ? 'bg-gold text-[#2a1406] shadow-[0_0_14px_-2px_rgb(var(--gold)/0.8)]'
-                    : i < active
-                      ? 'bg-venom/15 text-venom'
-                      : 'bg-black/25 text-muted'
-                }`}
-                aria-current={i === active ? 'step' : undefined}
-              >
-                {i < active && <Icon name="check" size={11} />}
-                {s}
-              </span>
-              {i < steps.length - 1 && (
-                <span className={`h-[2px] w-5 rounded-full ${i < active ? 'bg-venom/50' : 'bg-iron/70'}`} aria-hidden />
-              )}
-            </li>
-          ))}
-        </ol>
-      </div>
-      {timer > 0 && <TurnTimerBadge state={state} />}
-      {children}
-    </section>
-  );
-}
-
-function TurnTimerBadge({ state }: { state: GameState }) {
+/** Seconds left in the turn when the turn timer is on. */
+export function TurnTimerBadge({ state }: { state: GameState }) {
   const deadline = useStore((s) => s.timerDeadline);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -198,38 +140,109 @@ function TurnTimerBadge({ state }: { state: GameState }) {
   );
 }
 
-// ------------------------------------------------------------------ dice tray
+// ------------------------------------------------------------------ dice roll
 
-export function DiceTray({ state, canRoll, onRoll }: { state: GameState; canRoll: boolean; onRoll: () => void }) {
+const randomFace = () => 1 + Math.floor(Math.random() * 6);
+
+/** When anyone rolls, two dice tumble onto the board, show the total, then fade away. */
+export function RollOverlay({ state }: { state: GameState }) {
   const roll = useStore((s) => s.fx.roll);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
-  const dice = state.dice;
-  const total = dice ? dice[0] + dice[1] : null;
+  const [shown, setShown] = useState<number | null>(null);
+  // The roll already on record when the screen opens (a continued game) isn't replayed.
+  const opened = useRef(roll?.seq ?? 0);
+  useEffect(() => {
+    if (!roll || roll.seq === opened.current) return;
+    setShown(roll.seq);
+    const id = window.setTimeout(() => setShown(null), reduce ? 1400 : 2300);
+    return () => window.clearTimeout(id);
+    // a new roll is a new seq; the rest is read at that moment
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roll?.seq]);
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-iron/60 bg-black/20 py-1.5 pl-2 pr-1.5">
-      <DicePair dice={dice} seq={roll?.seq ?? 0} reduceMotion={reduce} size={44} />
-      <div className="flex min-w-[44px] flex-col items-center">
-        <span className="font-display text-[9px] uppercase tracking-[0.22em] text-muted">Total</span>
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={roll?.seq ?? 0}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: reduce ? 0 : 0.6 }}
-            className={`num text-[30px] leading-none ${total === 7 ? 'text-ember' : 'text-gold'}`}
-            style={{ textShadow: total ? '0 0 14px rgb(var(--gold) / 0.45)' : undefined }}
-          >
-            {total ?? '–'}
-          </motion.span>
-        </AnimatePresence>
-      </div>
-      {canRoll && (
-        <button className="btn btn-primary !px-3.5 !py-2" onClick={onRoll} data-testid="roll">
-          <Icon name="dice" size={15} /> Roll
-          <span className="kbd !border-[#8a4318]/50 !bg-[#2a1406]/15 !text-[#2a1406]/80">Space</span>
-        </button>
+    <AnimatePresence>
+      {roll && shown === roll.seq && (
+        <RollBurst key={roll.seq} dice={roll.dice} total={roll.total} name={state.players[roll.player].name} reduce={reduce} />
       )}
-    </div>
+    </AnimatePresence>
+  );
+}
+
+function RollBurst({
+  dice,
+  total,
+  name,
+  reduce,
+}: {
+  dice: [number, number];
+  total: number;
+  name: string;
+  reduce: boolean;
+}) {
+  const [faces, setFaces] = useState<[number, number]>(() => (reduce ? dice : [randomFace(), randomFace()]));
+  const [landed, setLanded] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    let ticks = 0;
+    const id = window.setInterval(() => {
+      ticks++;
+      if (ticks < 9) {
+        setFaces([randomFace(), randomFace()]);
+        return;
+      }
+      window.clearInterval(id);
+      setFaces(dice);
+      setLanded(true);
+    }, 65);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const seven = total === 7;
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-30 grid place-items-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.5 } }}
+      aria-hidden
+    >
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle at 50% 50%, rgba(18,10,22,0.6), transparent 42%)' }}
+      />
+      <div className="relative flex flex-col items-center gap-3">
+        {landed && !reduce && (
+          <motion.span
+            className="absolute left-1/2 top-[42px] h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold"
+            initial={{ scale: 0.4, opacity: 0.8 }}
+            animate={{ scale: 1.8, opacity: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+          />
+        )}
+        <div className="flex gap-4">
+          {[0, 1].map((i) => (
+            <motion.div
+              key={i}
+              initial={reduce ? false : { y: 160, x: i ? 110 : -110, rotate: i ? -540 : 540, scale: 0.35 }}
+              animate={{ y: 0, x: 0, rotate: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 160, damping: 13, mass: 0.9, delay: i * 0.06 }}
+              style={{ filter: 'drop-shadow(0 18px 16px rgba(0,0,0,0.45))' }}
+            >
+              <DieFace value={faces[i]} size={84} red={landed && seven} />
+            </motion.div>
+          ))}
+        </div>
+        <motion.div
+          className="flex items-baseline gap-2 rounded-full border border-gold/50 bg-[#1a1220]/90 px-4 py-1 shadow-panel"
+          initial={{ opacity: 0, scale: 0.5, y: 10 }}
+          animate={landed ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.5, y: 10 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+        >
+          <span className="font-display text-[11px] uppercase tracking-[0.16em] text-muted">{name}</span>
+          <span className={`num text-[30px] leading-none ${seven ? 'text-ember' : 'text-gold'}`}>{total}</span>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 }
 

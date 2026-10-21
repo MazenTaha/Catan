@@ -15,12 +15,19 @@ test('per-action cost', async ({ page }) => {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.LAG_CPU) });
   }
   await page.goto('/');
-  await page.getByTestId('new-game').click();
-  await page.getByTestId('seed').fill('lag-board');
-  // Make every seat a bot so the game plays itself.
-  const bots = page.getByRole('button', { name: /^Bot$/ });
-  for (let i = 0; i < (await bots.count()); i++) await bots.nth(i).click();
-  await page.getByTestId('begin').click();
+  await page.getByTestId('new-game').waitFor();
+  // Four bots, so the game plays itself (the lobby always seats you, so start it directly).
+  await page.evaluate(() => {
+    const w = window as unknown as { __hexfall: { getState(): { startGame(c: object): void } } };
+    const seat = (name: string, color: string, sigil: string) => ({ name, color, sigil, kind: 'bot', bot: 'warlord' });
+    w.__hexfall.getState().startGame({
+      seed: 'lag-board',
+      layout: 'balanced',
+      targetVp: 10,
+      firstPlayer: 'rolloff',
+      seats: [seat('Ashwyn', 'crimson', 'skull'), seat('Morrow', 'frost', 'moon'), seat('Isolde', 'bone', 'eye'), seat('Vex', 'violet', 'thorn')],
+    });
+  });
   await page.evaluate(() => {
     type S = { getState(): { dispatch: (a: { type: string }) => unknown }; setState(p: object): void };
     const w = window as unknown as { __hexfall: S; __cost: { type: string; store: number; render: number }[] };

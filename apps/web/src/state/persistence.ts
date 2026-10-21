@@ -1,4 +1,4 @@
-import type { Action, GameConfig, GameRecord, GameState } from '@hexfall/engine';
+import type { Action, GameConfig, GameRecord, GameState, PlayerColor, Sigil } from '@hexfall/engine';
 import { makeRecord, parseRecord, replay } from '@hexfall/engine';
 
 export type BotSpeed = 'slow' | 'normal' | 'fast' | 'instant';
@@ -48,6 +48,33 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 const SETTINGS_KEY = 'hexfall.settings';
+const PROFILE_KEY = 'hexfall.profile';
+
+export interface PlayerProfile {
+  name: string;
+  color: PlayerColor;
+  sigil: Sigil;
+}
+
+export const DEFAULT_PROFILE: PlayerProfile = { name: 'Ashwyn', color: 'crimson', sigil: 'skull' };
+
+/** The player's own name and look, used whenever they host or join. */
+export function loadProfile(): PlayerProfile {
+  try {
+    const raw = storage()?.getItem(PROFILE_KEY);
+    return raw ? { ...DEFAULT_PROFILE, ...(JSON.parse(raw) as Partial<PlayerProfile>) } : { ...DEFAULT_PROFILE };
+  } catch {
+    return { ...DEFAULT_PROFILE };
+  }
+}
+
+export function saveProfile(p: PlayerProfile): void {
+  try {
+    storage()?.setItem(PROFILE_KEY, JSON.stringify(p));
+  } catch {
+    /* kept in memory only */
+  }
+}
 const SAVE_KEY = 'hexfall.save';
 export const SAVE_SCHEMA = 1;
 

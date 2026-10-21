@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 const SETTINGS = { botSpeed: 'instant', rookieTips: false, muted: true, reduceMotion: true };
 
@@ -15,7 +16,7 @@ for (const vp of [
       localStorage.setItem('hexfall.settings', JSON.stringify(s));
     }, SETTINGS);
     await page.goto('/');
-    await page.getByTestId('new-game').click();
+    await hostWithBots(page);
     await page.getByRole('button', { name: 'Seat 1' }).click();
     await page.getByTestId('begin').click();
     await expect(page.locator('[aria-label^="Place a Settlement"]').first()).toBeAttached();

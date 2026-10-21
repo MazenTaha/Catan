@@ -22,6 +22,7 @@ import { LogModal } from '../modals/InfoModals';
 import { BonusPanel, PlayersPanel, RecentLog } from '../panels/LeftRail';
 import { ActionsPanel, HandPanel, canSeatAct } from '../panels/RightRail';
 import { RookieTip } from '../ui/primitives';
+import { useNet } from '../../state/net';
 import { useBotDriver, useGameKeys, useTurnTimer } from './gameHooks';
 
 const VictoryScreen = lazy(() => import('../modals/VictoryScreen'));
@@ -39,6 +40,28 @@ function useLayout(): Layout {
     return () => window.removeEventListener('resize', on);
   }, []);
   return layout;
+}
+
+/** Online games: shows when the link to the server drops and while it reconnects. */
+function ConnectionBanner() {
+  const status = useNet((n) => n.status);
+  const error = useNet((n) => n.error);
+  const leave = useStore((s) => s.leaveOnline);
+  if (status === 'online') return null;
+  const lost = status === 'offline' || status === 'idle';
+  return (
+    <div className="fixed inset-x-0 top-3 z-[75] flex justify-center px-4" role="status" aria-live="polite">
+      <div className="flex items-center gap-3 rounded-2xl border border-ember/60 bg-[#2a1420]/95 px-4 py-2.5 text-[14px] shadow-panel">
+        <span className={`h-2.5 w-2.5 rounded-full ${lost ? 'bg-ember' : 'bg-gold anim-pulse'}`} aria-hidden />
+        <span>{lost ? (error ?? 'Lost the connection to the game.') : 'Connection lost — reconnecting…'}</span>
+        {lost && (
+          <button className="btn !py-1 text-[11px]" onClick={leave}>
+            Main menu
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function GameScreen() {
@@ -172,6 +195,7 @@ export function GameScreen() {
         </div>
       )}
 
+      {session?.online && <ConnectionBanner />}
       <FlyingGains state={state} seat={seat} disabled={reduce} />
       <FloatingToast />
 

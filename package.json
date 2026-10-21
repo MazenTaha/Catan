@@ -5,17 +5,20 @@
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "scripts": {
-    "dev": "pnpm --filter @hexfall/web dev",
+    "dev": "pnpm --parallel --filter @hexfall/web --filter @hexfall/server dev",
     "build": "pnpm --filter @hexfall/web build",
     "preview": "pnpm --filter @hexfall/web preview",
-    "play": "pnpm build && pnpm preview",
+    "play": "pnpm build && pnpm server",
     "test": "pnpm -r --if-present test",
     "coverage": "pnpm --filter @hexfall/engine coverage",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "pnpm -r --if-present typecheck",
     "e2e": "pnpm --filter @hexfall/web e2e",
     "format": "prettier --write .",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "dev:web": "pnpm --filter @hexfall/web dev",
+    "server": "pnpm --filter @hexfall/server start",
+    "start": "pnpm build && pnpm server"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

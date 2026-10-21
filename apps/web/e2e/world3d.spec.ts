@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 // Lite graphics keep the WebGL scene quick under software rendering (CI, headless).
 const FAST_SETTINGS = {
@@ -27,7 +28,7 @@ test('3D walk: toggle from the board, walk, jump between lands and back', async 
   }, FAST_SETTINGS);
 
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.getByTestId('seed').fill('world-3d-1');
   await page.getByRole('button', { name: 'Seat 1' }).click();
   await page.getByTestId('begin').click();

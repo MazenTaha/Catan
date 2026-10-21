@@ -1,4 +1,5 @@
 import { test, type Page } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 /**
  * Opt-in responsiveness probe: `LAG=1 pnpm e2e lag` (add LAG_GPU=1 for hardware rendering,
@@ -125,7 +126,7 @@ test('responsiveness across screens', async ({ page }) => {
   const nav = await page.getByRole('navigation', { name: 'Main menu' }).boundingBox();
   await probe(page, 'title hover menu', () => wiggle(page, nav!.x + 20, nav!.y, nav!.x + 240, nav!.y + nav!.height, 4000));
 
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.waitForTimeout(800);
   await probe(page, 'setup idle', () => page.waitForTimeout(3000));
   await probe(page, 'setup hover', () => wiggle(page, 200, 150, 1200, 800, 3000));

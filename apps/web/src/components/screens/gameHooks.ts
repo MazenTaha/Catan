@@ -10,8 +10,10 @@ export function useBotDriver(state: GameState | undefined) {
   const dispatch = useStore((s) => s.dispatch);
   const speed = useStore((s) => s.settings.botSpeed);
   const paused = useStore((s) => s.showRollOff);
+  // Online, the server plays the bots.
+  const online = useStore((s) => !!s.session?.online);
   useEffect(() => {
-    if (!state || paused || state.phase.kind === 'ended' || state.handoff !== null) return;
+    if (!state || online || paused || state.phase.kind === 'ended' || state.handoff !== null) return;
     const actor = activeActor(state);
     if (state.players[actor].kind !== 'bot') return;
     const [lo, hi] = BOT_DELAY[speed];
@@ -23,7 +25,7 @@ export function useBotDriver(state: GameState | undefined) {
       dispatch(a);
     }, delay);
     return () => window.clearTimeout(id);
-  }, [state, speed, dispatch, paused]);
+  }, [state, speed, dispatch, paused, online]);
 }
 
 /** Global keys: Space rolls / ends the turn, Esc leaves placement mode. */
@@ -61,9 +63,11 @@ export function useTurnTimer(state: GameState | undefined) {
   const seconds = useStore((s) => s.settings.turnTimer);
   const setDeadline = useStore((s) => s.setTimerDeadline);
   const dispatch = useStore((s) => s.dispatch);
+  // Online games have no local turn timer (a dropped player is covered by the server).
+  const online = useStore((s) => !!s.session?.online);
   const keyRef = useRef('');
   useEffect(() => {
-    if (!state || seconds === 0 || state.phase.kind === 'ended' || state.handoff !== null) {
+    if (!state || online || seconds === 0 || state.phase.kind === 'ended' || state.handoff !== null) {
       keyRef.current = '';
       setDeadline(null);
       return;
@@ -93,5 +97,5 @@ export function useTurnTimer(state: GameState | undefined) {
       } else dispatch(decideAction(state, 'warlord', 'timer'));
     }, Math.max(0, deadline - Date.now()));
     return () => window.clearTimeout(id);
-  }, [state, seconds, setDeadline, dispatch]);
+  }, [state, seconds, setDeadline, dispatch, online]);
 }

@@ -1,4 +1,5 @@
 import { test } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 /** Opt-in visual capture: `SHOTS=1 pnpm e2e shots` writes PNGs to test-results/shots. */
 test.skip(!process.env.SHOTS, 'set SHOTS=1 to capture screenshots');
@@ -22,7 +23,7 @@ for (const vp of [
     await page.goto('/');
     await page.waitForTimeout(1200);
     await page.screenshot({ path: `test-results/shots/${vp.name}-title.png` });
-    await page.getByTestId('new-game').click();
+    await hostWithBots(page);
     await page.screenshot({ path: `test-results/shots/${vp.name}-setup.png`, fullPage: true });
     await page.getByTestId('seed').fill('shots-board-3');
     await page.getByRole('button', { name: 'Seat 1' }).click();

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 const SETTINGS = { botSpeed: 'instant', rookieTips: false, muted: true, reduceMotion: true };
 
@@ -79,7 +80,7 @@ test.afterEach(() => expect(problems).toEqual([]));
 test('1 human + 3 bots: title → victory → rematch', async ({ page }) => {
   test.setTimeout(300_000);
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.getByTestId('seed').fill('full-game-1');
   await page.getByTestId('begin').click();
   await page.getByTestId('begin-founding').click();
@@ -95,7 +96,7 @@ test('1 human + 3 bots: title → victory → rematch', async ({ page }) => {
 test('4-player hot-seat: curtains between every human, to victory', async ({ page }) => {
   test.setTimeout(300_000);
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   for (const i of [1, 2, 3]) await page.getByTestId(`seat-human-${i}`).click();
   await page.getByTestId('seed').fill('hotseat-full-2');
   await page.getByRole('button', { name: 'Seat 1' }).click();

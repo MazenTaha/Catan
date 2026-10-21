@@ -16,6 +16,7 @@ export function TopBar({ state }: { state: GameState }) {
   const updateSettings = useStore((s) => s.updateSettings);
   const undoable = useStore((s) => (s.session?.undo.length ?? 0) > 0);
   const undo = useStore((s) => s.undo);
+  const online = useStore((s) => s.session?.online);
   const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
   return (
     <header className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
@@ -33,6 +34,13 @@ export function TopBar({ state }: { state: GameState }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {online && (
+          <Tooltip label="Online game — share this code only with your table" side="bottom">
+            <span className="chip num border-frost/50 bg-frost/10 text-frost" tabIndex={0}>
+              <Icon name="user" size={12} /> {online.code}
+            </span>
+          </Tooltip>
+        )}
         <span
           className="chip num border-gold/40 bg-gold/10 text-gold"
           aria-label={`Round ${state.round}`}
@@ -62,8 +70,13 @@ export function TopBar({ state }: { state: GameState }) {
         />
         <IconButton icon="settings" label="Settings" align="end" onClick={() => openModal('settings')} />
         <span className="mx-1.5 h-6 w-px bg-iron/70" aria-hidden />
-        <button className="btn !rounded-xl !px-3 !py-2 sm:!px-3.5" onClick={() => openModal('confirm-new')} aria-label="New game">
-          <Icon name="refresh" size={16} /> <span className="hidden sm:inline">New game</span>
+        <button
+          className="btn !rounded-xl !px-3 !py-2 sm:!px-3.5"
+          onClick={() => openModal('confirm-new')}
+          aria-label={online ? 'Leave game' : 'New game'}
+        >
+          <Icon name={online ? 'arrow' : 'refresh'} size={16} />{' '}
+          <span className="hidden sm:inline">{online ? 'Leave game' : 'New game'}</span>
         </button>
       </div>
     </header>

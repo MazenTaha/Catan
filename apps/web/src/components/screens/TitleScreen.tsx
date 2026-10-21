@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { applyAction, createGame, decideAction, randomSeed, type GameState } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
 import { audio } from '../../audio/engine';
+import { savedOnlineSeat, useNet } from '../../state/net';
 import { peekAutosave } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
@@ -35,6 +36,8 @@ export function TitleScreen() {
   const continueGame = useStore((s) => s.continueGame);
   const openModal = useStore((s) => s.openModal);
   const [save] = useState(() => peekAutosave());
+  const [online] = useState(() => savedOnlineSeat());
+  const net = useNet();
   const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
@@ -78,13 +81,19 @@ export function TitleScreen() {
         </motion.p>
         <div className="divider-ornament my-8 w-72 text-[10px]">✦</div>
         <motion.nav className="flex flex-col gap-2.5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} aria-label="Main menu">
-          {item('New game', 'flag', () => go('setup'), true, 'new-game')}
+          {item('Play', 'flag', () => go('setup'), true, 'new-game')}
+          {online && item(`Rejoin ${online.code}`, 'user', () => net.resume(online.code, online.token), false, 'rejoin')}
           {save && item('Continue', 'hourglass', () => continueGame(), false, 'continue')}
           {item('How to play', 'rules', () => openModal('rules'))}
           {item('Load record', 'import', () => openModal('import'))}
           {item('Settings', 'settings', () => openModal('settings'))}
           {item('Credits', 'scroll', () => openModal('credits'))}
         </motion.nav>
+        {online && (net.status === 'connecting' || net.error) && (
+          <p className="mt-4 text-[14px] text-muted" aria-live="polite">
+            {net.status === 'connecting' ? `Rejoining ${online.code}…` : net.error}
+          </p>
+        )}
         {save && (
           <p className="mt-4 text-[14px] text-muted">
             Saved game · round {save.state.round || 'setup'}

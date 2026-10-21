@@ -367,6 +367,25 @@ export function ConfirmNewModal() {
   const close = useStore((s) => s.closeModal);
   const go = useStore((s) => s.go);
   const rematch = useStore((s) => s.rematch);
+  const online = useStore((s) => s.session?.online);
+  const leaveOnline = useStore((s) => s.leaveOnline);
+  if (online) {
+    return (
+      <Modal title="Leave this game?" icon="refresh" onClose={close}>
+        <p className="text-[15px]">
+          The others keep playing and the computer takes over your seat. You can’t come back to this game once you leave.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button className="btn btn-danger" onClick={leaveOnline} data-testid="leave-online">
+            Leave game
+          </button>
+          <button className="btn btn-ghost ml-auto" onClick={close}>
+            Stay
+          </button>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal title="Abandon this game?" icon="refresh" onClose={close}>
       <p className="text-[15px]">Start over? The current game stays saved until a new one begins.</p>

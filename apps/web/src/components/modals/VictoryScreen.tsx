@@ -8,6 +8,7 @@ import { NAME_COLOR } from '../panels/LogLineView';
 
 export default function VictoryScreen({ state }: { state: GameState }) {
   const rematch = useStore((s) => s.rematch);
+  const online = useStore((s) => !!s.session?.online);
   const go = useStore((s) => s.go);
   const winner = state.winner ?? 0;
   const w = state.players[winner];
@@ -122,7 +123,7 @@ export default function VictoryScreen({ state }: { state: GameState }) {
 
         <motion.div className="mt-8 flex flex-wrap justify-center gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.2 }}>
           <button className="btn btn-primary !px-6 !py-3" onClick={rematch}>
-            <Icon name="refresh" size={16} /> Rematch (same seed)
+            <Icon name="refresh" size={16} /> {online ? 'Back to the lobby' : 'Rematch (same seed)'}
           </button>
           <button className="btn !px-6 !py-3" onClick={() => go('setup')}>
             New game

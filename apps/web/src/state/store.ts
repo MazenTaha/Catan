@@ -16,7 +16,9 @@ import {
   type GameState,
   type ResourceCounts,
 } from '@hexfall/engine';
+import type { ServerMsg } from '@hexfall/net';
 import { audio, type SfxName } from '../audio/engine';
+import { onGame, useNet } from './net';
 import { RESOURCE_NAME, TERRAIN_NAME } from '../lexicon';
 import { describeEvent, lineText, type LogItem } from './log';
 import {
@@ -53,6 +55,8 @@ export interface Session {
   seq: number;
   /** Per-player cards gained since the current turn began (for +N badges). */
   turnGains: ResourceCounts[];
+  /** Set for games played through the server: the room and the seats this device plays. */
+  online?: { code: string; seats: number[] } | null;
 }
 
 export interface Fx {
@@ -96,6 +100,10 @@ interface StoreState {
   importGame(json: string): string | null;
   rematch(): void;
   dispatch(action: Action): GameError | null;
+  /** A state update from the game server. */
+  receiveOnline(msg: Extract<ServerMsg, { t: 'game' }>): void;
+  /** Leaves an online game (the computer plays the seat from then on). */
+  leaveOnline(): void;
   undo(): void;
   setMode(mode: PlaceMode | null): void;
   setTab(tab: Tab): void;
@@ -227,6 +235,86 @@ applyDocumentSettings(initialSettings);
 
 const emptyFx: Fx = { roll: null, production: null, placed: null, wraith: null };
 
+/**
+ * Everything that follows a move, whoever made it (this device or the server): +N badges,
+ * board effects, sounds, the log, screen-reader lines, toasts and leaving placement mode.
+ */
+function advance(
+  cur: Pick<StoreState, 'fx' | 'announce' | 'toast' | 'mode'>,
+  session: Session,
+  prev: GameState,
+  state: GameState,
+  events: GameEvent[],
+): Partial<StoreState> {
+  let turnGains = session.turnGains;
+  if (events.some((e) => e.type === 'TurnStarted')) {
+    turnGains = state.players.map(() => emptyCounts());
+  } else {
+    turnGains = turnGains.map((g, p) => {
+      const out = { ...g };
+      for (const res of RESOURCES) {
+        const d = state.players[p].hand[res] - prev.players[p].hand[res];
+        if (d > 0) out[res] += d;
+      }
+      return out;
+    });
+  }
+
+  const fx: Fx = { ...cur.fx };
+  let announce = cur.announce;
+  for (const e of events) {
+    if (e.type === 'DiceRolled') fx.roll = { seq: ++fxSeq, dice: e.dice, total: e.total, player: e.player };
+    if (e.type === 'ResourcesProduced') {
+      fx.production = { seq: ++fxSeq, roll: e.roll, hexes: e.hexes, gains: e.gains, blockedHex: e.blockedHex };
+    }
+    if (e.type === 'CausewayBuilt') fx.placed = { seq: ++fxSeq, key: e.edge };
+    if (e.type === 'OutpostBuilt' || e.type === 'CitadelBuilt' || e.type === 'SetupOutpostPlaced') {
+      fx.placed = { seq: ++fxSeq, key: e.vertex };
+    }
+    if (e.type === 'WraithMoved') fx.wraith = { seq: ++fxSeq, from: e.from, to: e.to };
+    if (e.type === 'TurnStarted') fx.production = null;
+  }
+
+  const viewer = session.online
+    ? (session.online.seats[0] ?? 0)
+    : privacyEnabled(state)
+      ? state.viewer
+      : activeActor(state);
+  const ctx = {
+    players: state.players,
+    viewer,
+    terrainName: (h: number) => TERRAIN_NAME[state.board.hexes[h].terrain],
+  };
+  const spoken = events
+    .filter((e) =>
+      ['DiceRolled', 'ResourcesProduced', 'WraithMoved', 'Stolen', 'TurnStarted', 'GameWon', 'TradeCompleted'].includes(
+        e.type,
+      ),
+    )
+    .map((e) => describeEvent(e, ctx))
+    .filter((l): l is NonNullable<typeof l> => l !== null)
+    .map((l) => lineText(l, state.players));
+  if (spoken.length) announce = spoken.join('. ');
+
+  for (const s of soundsFor(events)) audio.play(s);
+  if (state.phase.kind === 'ended') audio.duck(false);
+
+  const toast = toastFor(events, state) ?? cur.toast;
+  const log = [...session.log, ...makeLog(events, state, session.seq)];
+
+  // Leave placement mode when the action consumed it or the phase changed.
+  let mode = cur.mode;
+  if (mode && (state.phase.kind !== 'main' || events.some((e) => e.type.endsWith('Built')))) mode = null;
+
+  return {
+    session: { ...session, state, log, seq: session.seq + events.length, turnGains },
+    fx,
+    toast,
+    announce,
+    mode,
+  };
+}
+
 export const useStore = create<StoreState>((set, get) => ({
   screen: 'title',
   session: null,
@@ -345,12 +433,24 @@ export const useStore = create<StoreState>((set, get) => ({
 
   rematch() {
     const s = get().session;
-    if (s) get().startGame(s.config);
+    if (!s) return;
+    if (s.online) {
+      // A new online game goes back through the lobby so everyone can rejoin.
+      useNet.getState().leave();
+      set({ session: null, screen: 'setup', modal: null });
+      return;
+    }
+    get().startGame(s.config);
   },
 
   dispatch(action) {
     const session = get().session;
     if (!session) return { code: 'INVALID', message: 'No game in progress' };
+    if (session.online) {
+      // The server is the referee: it checks the move and sends everyone the result.
+      useNet.getState().send({ t: 'action', action });
+      return null;
+    }
     const prev = session.state;
     const r = applyAction(prev, action);
     if (!r.ok) {
@@ -364,78 +464,49 @@ export const useStore = create<StoreState>((set, get) => ({
       ? [...session.undo, { state: prev, actions: session.actions.length, log: session.log.length }]
       : [];
     const actions = [...session.actions, action];
-
-    // +N badges: positive hand deltas since the turn began.
-    let turnGains = session.turnGains;
-    if (events.some((e) => e.type === 'TurnStarted')) {
-      turnGains = state.players.map(() => emptyCounts());
-    } else {
-      turnGains = turnGains.map((g, p) => {
-        const out = { ...g };
-        for (const res of RESOURCES) {
-          const d = state.players[p].hand[res] - prev.players[p].hand[res];
-          if (d > 0) out[res] += d;
-        }
-        return out;
-      });
-    }
-
-    const fx: Fx = { ...get().fx };
-    let announce = get().announce;
-    for (const e of events) {
-      if (e.type === 'DiceRolled') fx.roll = { seq: ++fxSeq, dice: e.dice, total: e.total, player: e.player };
-      if (e.type === 'ResourcesProduced') {
-        fx.production = { seq: ++fxSeq, roll: e.roll, hexes: e.hexes, gains: e.gains, blockedHex: e.blockedHex };
-      }
-      if (e.type === 'CausewayBuilt') fx.placed = { seq: ++fxSeq, key: e.edge };
-      if (e.type === 'OutpostBuilt' || e.type === 'CitadelBuilt' || e.type === 'SetupOutpostPlaced') {
-        fx.placed = { seq: ++fxSeq, key: e.vertex };
-      }
-      if (e.type === 'WraithMoved') fx.wraith = { seq: ++fxSeq, from: e.from, to: e.to };
-      if (e.type === 'TurnStarted') fx.production = null;
-    }
-
-    const viewer = privacyEnabled(state) ? state.viewer : activeActor(state);
-    const ctx = {
-      players: state.players,
-      viewer,
-      terrainName: (h: number) => TERRAIN_NAME[state.board.hexes[h].terrain],
-    };
-    const spoken = events
-      .filter((e) =>
-        ['DiceRolled', 'ResourcesProduced', 'WraithMoved', 'Stolen', 'TurnStarted', 'GameWon', 'TradeCompleted'].includes(
-          e.type,
-        ),
-      )
-      .map((e) => describeEvent(e, ctx))
-      .filter((l): l is NonNullable<typeof l> => l !== null)
-      .map((l) => lineText(l, state.players));
-    if (spoken.length) announce = spoken.join('. ');
-
-    for (const s of soundsFor(events)) audio.play(s);
-    if (state.phase.kind === 'ended') audio.duck(false);
-
-    const toast = toastFor(events, state) ?? get().toast;
-    const log = [...session.log, ...makeLog(events, state, session.seq)];
     writeAutosave(session.config, actions, state);
-
-    // Leave placement mode when the action consumed it or the phase changed.
-    let mode = get().mode;
-    if (mode && (state.phase.kind !== 'main' || events.some((e) => e.type.endsWith('Built')))) mode = null;
-
-    set({
-      session: { ...session, state, actions, undo, log, seq: session.seq + events.length, turnGains },
-      fx,
-      toast,
-      announce,
-      mode,
-    });
+    set(advance(get(), { ...session, actions, undo }, prev, state, events));
     return null;
+  },
+
+  receiveOnline(msg) {
+    const session = get().session;
+    const online = { code: msg.lobby.code, seats: msg.seats };
+    if (msg.full || !session?.online || session.online.code !== msg.lobby.code) {
+      const state = msg.state;
+      set({
+        screen: 'game',
+        session: {
+          config: state.config,
+          actions: [],
+          state,
+          undo: [],
+          log: makeLog(msg.events, state, 0),
+          seq: msg.events.length,
+          turnGains: state.players.map(() => emptyCounts()),
+          online,
+        },
+        mode: null,
+        modal: null,
+        tab: 'build',
+        fx: emptyFx,
+        toast: null,
+        showRollOff: msg.events.some((e) => e.type === 'GameStarted') && state.config.firstPlayer === 'rolloff',
+        announce: `${state.players[state.firstPlayer].name} goes first.`,
+      });
+      return;
+    }
+    set(advance(get(), { ...session, online }, session.state, msg.state, msg.events));
+  },
+
+  leaveOnline() {
+    useNet.getState().leave();
+    set({ session: null, screen: 'title', mode: null, modal: null });
   },
 
   undo() {
     const session = get().session;
-    if (!session || session.undo.length === 0) return;
+    if (!session || session.online || session.undo.length === 0) return;
     const last = session.undo[session.undo.length - 1];
     const actions = session.actions.slice(0, last.actions);
     writeAutosave(session.config, actions, last.state);
@@ -497,6 +568,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
 /** The seat whose hand/cards the UI shows. */
 export function displaySeat(state: GameState): number {
+  const online = useStore.getState().session?.online;
+  if (online && online.seats.length) {
+    const actor = activeActor(state);
+    return online.seats.includes(actor) ? actor : online.seats[0];
+  }
   if (privacyEnabled(state)) return state.viewer ?? activeActor(state);
   const humans = state.players.filter((p) => p.kind === 'human');
   if (humans.length === 1) return humans[0].id;
@@ -504,6 +580,16 @@ export function displaySeat(state: GameState): number {
   const actor = activeActor(state);
   return state.players[actor].kind === 'human' ? actor : (state.viewer ?? humans[0].id);
 }
+
+// Server updates flow into the game store.
+onGame((msg) => useStore.getState().receiveOnline(msg));
+useNet.subscribe((n, prev) => {
+  if (n.error && n.error !== prev.error && useStore.getState().session?.online) {
+    audio.play('error');
+    useStore.getState().pushToast(n.error, 'bad');
+    useNet.getState().clearError();
+  }
+});
 
 // Debug/test handle (dev and e2e only).
 if (import.meta.env.DEV && typeof window !== 'undefined') {

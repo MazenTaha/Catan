@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { hostWithBots } from './helpers';
 
 const FAST_SETTINGS = {
   botSpeed: 'instant',
@@ -80,7 +81,7 @@ async function waitForMyRoll(page: Page) {
 
 test('3-player game: setup, roll, build, bank trade, end turn, reload & continue', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.getByRole('button', { name: '3 players' }).click();
   await page.getByTestId('seed').fill('smoke-board-7');
   await page.getByRole('button', { name: 'Seat 1' }).click();
@@ -153,7 +154,7 @@ test('3-player game: setup, roll, build, bank trade, end turn, reload & continue
 
 test('hot-seat: the pass-device curtain hides hands between human seats', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.getByRole('button', { name: '3 players' }).click();
   await page.getByTestId('seat-human-1').click();
   await page.getByRole('button', { name: 'Seat 1' }).click();
@@ -179,7 +180,7 @@ test('rulebook and settings open from the title screen', async ({ page }) => {
 
 test('export a game record from the log and replay it via Load record', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('new-game').click();
+  await hostWithBots(page);
   await page.getByRole('button', { name: '3 players' }).click();
   await page.getByTestId('seed').fill('record-board-5');
   await page.getByRole('button', { name: 'Seat 1' }).click();

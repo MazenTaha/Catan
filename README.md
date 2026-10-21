@@ -1,10 +1,10 @@
 # Catan Night
 
-A moonlit take on the classic island trading game: collect Lumber, Brick, Wool, Grain and Ore, build roads, settlements and cities, and play development cards. 3–4 players (any mix of humans and bots), hot-seat on one device. First to 10 victory points wins.
+A moonlit take on the classic island trading game: collect Lumber, Brick, Wool, Grain and Ore, build roads, settlements and cities, and play development cards. 3–4 players: friends online with a room code, bots, or friends sharing one device. First to 10 victory points wins.
 
 > *Catan* is a registered trademark of its owners. This is a private, non-commercial fan project; the name and terms are used at the owner's request and no official artwork is used.
 
-All art is drawn in code (SVG/CSS/canvas) and all sound is synthesized with WebAudio — no external assets or network requests.
+All art is drawn in code (SVG/CSS/canvas/three.js) and all sound is synthesized with WebAudio — no external assets. The only network traffic is to your own game server, for online play.
 
 ## Run it
 
@@ -18,18 +18,19 @@ pnpm install
 pnpm dev
 ```
 
-Then open http://localhost:5173.
+Then open http://localhost:5173. `pnpm dev` starts both the web app and the game server (port 8787); the web app forwards `/ws` to it.
 
 | Script | What it does |
 |---|---|
-| `pnpm dev` | Vite dev server for the web app |
-| `pnpm play` | Production build + local preview (smoothest way to play; works in any shell) |
+| `pnpm dev` | Web app (Vite, port 5173) and game server (port 8787) together, with hot reload |
+| `pnpm play` | Production build, then the game server serves the app and online play on http://localhost:8787 (smoothest way to play) |
+| `pnpm server` | Just the game server (serves `apps/web/dist` too if it has been built) |
 | `pnpm build` | Production build into `apps/web/dist` |
-| `pnpm test` | Engine unit tests, fuzz tests and the 200-game bot simulation (Vitest) |
+| `pnpm test` | Engine unit tests, fuzz tests and the 200-game bot simulation; lobby rules; game server rooms (Vitest) |
 | `pnpm coverage` | Engine test coverage (≈98% statements) |
 | `pnpm lint` | ESLint (zero warnings allowed) |
 | `pnpm typecheck` | `tsc --noEmit` for every package |
-| `pnpm e2e` | Playwright end-to-end tests (starts its own dev server on port 4319): setup → roll → build → bank trade → reload & continue, hot-seat curtains, export/import replay, phone/tablet layouts, and two complete games to the victory screen with a console-error guard |
+| `pnpm e2e` | Playwright end-to-end tests (starts its own dev server on port 4319 and game server on 4320): host and join online from two browsers, setup → roll → build → bank trade → reload & continue, hot-seat curtains, export/import replay, phone/tablet layouts, and two complete games to the victory screen with a console-error guard |
 | `pnpm verify` | typecheck → lint → test → build |
 
 Opt-in diagnostics: `SHOTS=1 pnpm e2e shots` saves desktop/tablet/phone screenshots to `apps/web/test-results/shots`; `LAG=1 pnpm e2e lag` measures frame pacing and long tasks on the menu, new-game screen and board (idle, hovering, bots playing). Options: `LAG_GPU=1` hardware rendering, `LAG_CPU=4` CPU throttling, `LAG_DPR=2` hi-DPI, `LAG_EFFECTS=full|lite`, `LAG_URL=http://localhost:4173` to test a production preview, `LAG_PROFILE=1` to print hot functions. `LAG=1 pnpm e2e dispatch-cost` reports the store/render cost of each game action.
@@ -38,7 +39,9 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 
 ## How to play
 
-1. **New game** → choose 3 or 4 seats, human or bot (Easy / Medium / Hard), target score, board layout and seed. The same seed always gives the same board.
+1. **Play** → set your profile (name, colour, sigil; remembered on this device), then:
+   - **Host a game:** you get a room code (like `HEARTH-66`) to share. Pick 3 or 4 players, the board layout and seed (the same seed always gives the same board), the target score and who goes first. Each open seat can wait for a friend (**Invite**), be a **Bot** (Easy / Medium / Hard), or be a friend on **This device**. **Fill empty seats with bots** does the rest. If the game server can't be reached you can still host on this device with bots and pass-and-play.
+   - **Join a game:** type the host's code. You take the next open seat and wait for the host to start.
 2. **Founding:** place an Outpost and a Causeway, twice (snake order). Your second Outpost pays out immediately.
 3. **Each turn:** roll (Space), collect from every hex showing that number, then build and trade, then end your turn (Space).
 4. A **7** wakes the Wraith: big hands discard half, the roller moves the Wraith and robs a neighbour.
@@ -50,7 +53,9 @@ The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES
 
 **Smoothness:** Settings → Graphics is *Auto* by default. If the browser can’t hold ~42 fps with full effects (typically when hardware acceleration is off), it switches to *Lite*, which drops the embers and looping animations. Choose *Full* or *Lite* to override.
 
-**Hot-seat privacy:** with two or more humans, a pass-device curtain hides hands whenever the device must change hands (turns, discards, trade responses). Turn it off in Settings → Hot-seat → Open hands.
+**Online play:** the server referees every move, runs the bots, and only sends each player what they may see (opponents' cards stay hidden). If you lose your connection the game reconnects on its own; after a reload, **Rejoin** on the title screen takes you back to your seat. If someone stays away on their turn for 45 seconds, the computer plays for them until they return. A game where nobody joined from another device runs locally, with autosave and undo.
+
+**Hot-seat privacy:** with two or more humans on one device, a pass-device curtain hides hands whenever the device must change hands (turns, discards, trade responses). Turn it off in Settings → Hot-seat → Open hands.
 
 **Keys:** Space rolls / ends the turn · Esc cancels placement or closes dialogs · Tab moves between board spots, Enter places.
 
@@ -58,6 +63,8 @@ The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES
 
 ```
 packages/engine   pure TypeScript rules — no DOM, deterministic, serializable
+packages/net      online lobby rules and the browser ⇄ server messages (shared by both)
+apps/server       Node game server: rooms, room codes, authoritative games, bots (WebSockets via `ws`)
 apps/web          React 18 + Vite + Zustand + Framer Motion + Tailwind + three.js (3D walk)
 docs/             PLAN, DECISIONS, RULES, CREDITS
 ```
@@ -69,7 +76,11 @@ docs/             PLAN, DECISIONS, RULES, CREDITS
 - `state/` — types, `createGame`, selectors (`legalOutpostSpots`, `bestBankRate`, `victoryPoints`, `expectedYield`, `handLimitRisk`, …).
 - `ai/` — Wanderer (random with a building bias), Warlord (heuristics: pip-weighted spots, goals, bank/harbor trades, Wraith on the leader) and Archdemon (adds founding lookahead, trail-blocking, hand estimation from public info). Bots only emit legal `Action`s.
 
-Every state change emits typed `GameEvent`s; the web app derives the log, toasts, sounds, animations and `aria-live` announcements from them — the same events a future multiplayer server would broadcast.
+Every state change emits typed `GameEvent`s; the web app derives the log, toasts, sounds, animations and `aria-live` announcements from them — the same events the game server broadcasts in online games.
+
+**Online (`@hexfall/net`, `@hexfall/server`).** The host's browser opens a room over a WebSocket at `/ws` and gets a room code; joiners send the code and are seated in the first open chair (clashing colours and sigils are reassigned). The server keeps the only real `GameState`: it checks that each `Action` comes from the seat's owner, applies it with the engine, runs the bots, and sends every player their own redacted view (`redactFor`: opponents' hands keep their size only; face-down cards, the deck order and the dice seed are hidden until the game ends). Reconnect tokens let a player return after a dropped connection or a reload. In the browser, `src/state/net.ts` owns the socket and `receiveOnline` feeds server updates through the same path as local moves, so sounds, the log and animations behave the same.
+
+**Deploying online play:** run `pnpm install && pnpm build && pnpm server` on any host that runs Node 20 (a VPS, Render, Fly.io, Railway…). It listens on `PORT` (default 8787) and serves both the app and the WebSocket, so players just open that address. Behind HTTPS the app connects with `wss://` automatically. To host the web app separately, build it with `VITE_SERVER_URL=wss://your-server/ws`.
 
 **Web (`@hexfall/web`).** A single Zustand store (`src/state/store.ts`) holds the session (config, action log, state, undo stack, log) and UI state. `dispatch(action)` applies the engine reducer, records events, triggers effects and autosaves to `localStorage` (versioned, with a migration stub). The board is SVG (`components/board`) with memoized static layers; ambience (embers) is a capped canvas that pauses when the tab is hidden and is disabled under reduced motion. The optional 3D walk (`components/world`) is a lazy-loaded three.js scene that mirrors the live state.
 

@@ -61,8 +61,10 @@
       linear-gradient(180deg, rgb(220 230 235 / 0.05), transparent 38%),
       linear-gradient(160deg, rgb(var(--surface-2) / 0.92), rgb(var(--surface-1) / 0.94));
     border: 1px solid rgb(var(--iron) / 0.7);
+    /* a brushed-metal edge: a faint antique-gold hairline on top, an engraved inner line */
     box-shadow:
-      inset 0 1px 0 rgb(255 220 180 / 0.08),
+      inset 0 1px 0 rgb(var(--antique) / 0.12),
+      inset 0 0 0 1px rgb(0 0 0 / 0.22),
       0 1px 0 rgb(0 0 0 / 0.3),
       0 14px 34px -12px rgb(0 0 0 / 0.65);
   }
@@ -78,18 +80,21 @@
   }
 
   .panel-title {
-    @apply font-display text-[12px] uppercase tracking-[0.18em] text-gold;
+    @apply font-display text-[12px] uppercase tracking-[0.18em];
+    color: rgb(var(--antique));
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
   }
+  /* A small engraved lozenge in antique gold: a mark, not a light. */
   .panel-title::before {
     content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgb(var(--ember));
-    box-shadow: 0 0 10px rgb(var(--ember) / 0.8);
+    width: 5px;
+    height: 5px;
+    border-radius: 1px;
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, rgb(var(--antique)), rgb(var(--tarnish)));
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
     flex: none;
   }
 
@@ -243,6 +248,19 @@
   }
   .tile-interactive:active:not([aria-disabled='true']) {
     transform: translateY(0) scale(0.985);
+  }
+  /* Available, unavailable and selected read at a glance. */
+  .tile[data-ready='true']:not(.tile-selected) {
+    border-color: rgb(var(--venom) / 0.45);
+    box-shadow:
+      inset 0 1px 0 rgb(255 225 190 / 0.06),
+      inset 0 0 0 1px rgb(var(--venom) / 0.08);
+  }
+  .tile[aria-disabled='true']:not(.tile-selected) {
+    background: linear-gradient(170deg, rgb(var(--surface-2) / 0.7), rgb(var(--surface-1) / 0.8));
+  }
+  .tile[aria-disabled='true']:not(.tile-selected) > * {
+    opacity: 0.82;
   }
   .tile-selected {
     border-color: rgb(var(--gold));

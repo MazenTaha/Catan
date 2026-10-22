@@ -127,9 +127,9 @@ export const ResourceGlyph = memo(function ResourceGlyph({
 });
 
 export const RES_COLOR: Record<Resource, string> = {
-  wood: '#5f9a6e',
-  clay: '#d27a4f',
-  wool: '#b9c7a0',
-  grain: '#d8b65a',
-  ore: '#9d9ccd',
+  wood: '#6faa68',
+  clay: '#d8845a',
+  wool: '#c9d6a4',
+  grain: '#dfbe62',
+  ore: '#a9b6c1',
 };

@@ -11,7 +11,8 @@
   --ember: 255 128 92; /* #ff805c */
   --blood: 176 54 74; /* #b0364a */
   --bone: 243 230 214; /* #f3e6d6 */
-  --muted: 158 164 167; /* #9ea4a7 — AA on surface-2 */
+  --muted: 172 177 178; /* #acb1b2 — comfortably AA on surface-2 */
+  --antique: 214 178 112; /* #d6b270 muted antique gold for engraved details */
   --frost: 143 179 224; /* #8fb3e0 */
   --venom: 140 197 106; /* #8cc56a */
   --glass: 22 24 26;

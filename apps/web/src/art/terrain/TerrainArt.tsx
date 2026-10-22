@@ -1,118 +1,65 @@
 import { memo, type ReactElement } from 'react';
-import { Rng, hashSeed, type Terrain } from '@hexfall/engine';
+import { hashSeed, type Terrain } from '@hexfall/engine';
 import { ART_MANIFEST } from '../manifest';
+import { Jit, Use, blob, blobPts, r1, smoothClosed, smoothOpen } from './flora';
 
 /**
- * Hand-built SVG terrain illustrations drawn in a hex-local box (center 0,0, circumradius 100,
- * pointy-top). The caller clips them to the hex. The look is a bright, painterly anime style:
- * saturated fills in two flat tones (lit and shade), ink outlines, a crisp highlight on the
- * upper left and a few sparkles. Each tile takes a seed so every board's tiles differ slightly.
- * The number token covers the middle, so features sit around it.
+ * Painted terrain for each hex, drawn in a hex-local box (center 0,0, circumradius 100,
+ * pointy-top) and clipped to the hex by the caller. The look is a sunlit miniature landscape:
+ * a large, clear silhouette first (canopy masses, field plots, clay banks, crags, dunes),
+ * material detail second, all lit from the upper left with warm highlights and cool shade.
+ * Small repeated things (trees, rocks, sheep, flowers) come from the shared kit in `flora.tsx`.
+ * Each tile is composed from its own seed (`board seed : hex id`), never from the game's RNG,
+ * and keeps the middle (under the number token) and its edges calm.
  * A raster override in `ART_MANIFEST.terrain[type]` replaces the procedural art.
  */
 
-const r1 = (n: number) => Math.round(n * 10) / 10;
+type Pt = [number, number];
 
-/** The line-art ink: a deep plum rather than black, so lines stay warm. */
-const INK = '#2b1a22';
-
-class Jit {
-  private rng: Rng;
-  constructor(seed: string) {
-    this.rng = new Rng(hashSeed(seed));
-  }
-  n(): number {
-    return this.rng.next();
-  }
-  /** Uniform in [-a, a]. */
-  j(a: number): number {
-    return (this.rng.next() * 2 - 1) * a;
-  }
-  between(a: number, b: number): number {
-    return a + this.rng.next() * (b - a);
-  }
-  pick<T>(xs: T[]): T {
-    return xs[Math.floor(this.rng.next() * xs.length)];
-  }
-}
-
-/** True when (x, y) is clear of the number token in the middle of the tile. */
+const SQ3 = Math.sqrt(3);
+/** Inside the hex, `m` units in from its edges. */
+const inHex = (x: number, y: number, m = 0) =>
+  Math.abs(x) <= 86.6 - m && Math.abs(y) <= 100 - m * 1.16 - Math.abs(x) / SQ3;
+/** Clear of the number token in the middle of the tile. */
 const offToken = (x: number, y: number, r = 34) => Math.hypot(x, y - 6) > r;
 
-const Base = ({ id }: { id: string }) => (
-  <rect x={-100} y={-110} width={200} height={220} fill={`url(#${id})`} />
-);
-
-/** Soft patches of lighter and darker ground so the base never reads as a flat fill. */
-function Patches({ J, n, colors }: { J: Jit; n: number; colors: [string, number][] }) {
-  return (
-    <>
-      {[...Array(n)].map((_, i) => {
-        const [fill, opacity] = colors[i % colors.length];
-        return (
-          <ellipse
-            key={i}
-            cx={r1(J.j(80))}
-            cy={r1(J.j(88))}
-            rx={r1(J.between(18, 40))}
-            ry={r1(J.between(7, 14))}
-            fill={fill}
-            opacity={opacity}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-/** Four-point twinkles, the signature glint of the style. */
-function Sparkles({ J, n, color = '#fffbe6' }: { J: Jit; n: number; color?: string }) {
-  const out: ReactElement[] = [];
-  for (let i = 0; i < n * 4 && out.length < n; i++) {
-    const x = J.j(70);
-    const y = J.j(80);
-    if (!offToken(x, y, 36)) continue;
-    const s = J.between(0.55, 1);
-    out.push(
-      <path
-        key={i}
-        transform={`translate(${r1(x)} ${r1(y)}) scale(${r1(s * 10) / 10})`}
-        d="M0-6L1.3-1.3L6 0L1.3 1.3L0 6L-1.3 1.3L-6 0L-1.3-1.3Z"
-        fill={color}
-        opacity={0.9}
-      />,
-    );
+/** Seeded scatter with a minimum spacing; `ok` filters candidate spots. */
+function scatter(J: Jit, n: number, minD: number, ok: (x: number, y: number) => boolean, near?: Pt[], spread = 30): Pt[] {
+  const out: Pt[] = [];
+  for (let t = 0; t < n * 40 && out.length < n; t++) {
+    let x: number;
+    let y: number;
+    if (near && near.length && J.n() < 0.8) {
+      const c = J.pick(near);
+      x = c[0] + J.j(spread);
+      y = c[1] + J.j(spread * 0.8);
+    } else {
+      x = J.j(86);
+      y = J.j(98);
+    }
+    if (!ok(x, y)) continue;
+    if (out.some(([px, py]) => Math.hypot(px - x, (py - y) * 1.25) < minD)) continue;
+    out.push([x, y]);
   }
-  return <>{out}</>;
+  return out;
 }
 
-/** A grass tuft: three blades with an ink edge and a bright tip. */
-function Tuft({
-  x,
-  y,
-  s = 1,
-  fill = '#3f9a2e',
-  tip = '#b8f58a',
-}: {
-  x: number;
-  y: number;
-  s?: number;
-  fill?: string;
-  tip?: string;
-}) {
-  return (
-    <g transform={`translate(${r1(x)} ${r1(y)}) scale(${r1(s * 10) / 10})`}>
-      <path
-        d="M-5 3Q-4-5-1-8Q-2-2 0 3ZM0 3Q1-7 4-10Q2-3 3 3ZM3 3Q6-4 8-6Q5 0 6 3Z"
-        fill={fill}
-        stroke={INK}
-        strokeWidth={0.8}
-        strokeLinejoin="round"
-      />
-      <path d="M-1-8Q-2-4-1-1M4-10Q2-6 2-2" stroke={tip} strokeWidth={1} fill="none" />
-    </g>
-  );
+/** A line across the tile through `y0`, gently waved. */
+function band(J: Jit, y0: number, amp: number, step = 22): Pt[] {
+  const ph = J.n() * 6;
+  const pts: Pt[] = [];
+  for (let x = -118; x <= 118; x += step) pts.push([x, y0 + Math.sin(x / 38 + ph) * amp + J.j(amp * 0.3)]);
+  return pts;
 }
+
+const poly = (pts: Pt[]) => `M${pts.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`;
+
+const Base = ({ id }: { id: string }) => <rect x={-100} y={-110} width={200} height={220} fill={`url(#${id})`} />;
+
+/** A soft, calm patch under the number token. */
+const TokenBed = ({ J, fill, o }: { J: Jit; fill: string; o: number }) => (
+  <path d={blob(J, 0, 8, 34, 26, 10, 0.12)} fill={fill} opacity={o} />
+);
 
 /** Landmarks the ambient layer animates (windmill sails, kiln smoke). They come from their own
  * seeded stream so the tile art and the animated overlay always agree on where they stand. */
@@ -129,711 +76,480 @@ export function kilnChimney(seed: string): { x: number; y: number; side: number 
   return { x: side * 44 + 8.5, y: y - 24, side };
 }
 
-/** Four canvas sails around a hub at 0,0 (drawn by the ambient layer so they can turn). */
+/** Four timber-framed canvas sails around a hub at 0,0 (drawn by the ambient layer so they can turn). */
 export function WindmillSails() {
   return (
-    <g stroke={INK} strokeWidth={1.3} strokeLinejoin="round">
+    <g strokeLinejoin="round">
       {[0, 90, 180, 270].map((a) => (
-        <g key={a} transform={`rotate(${a})`}>
-          <path d="M0 0V-25" strokeWidth={2} />
-          <path d="M1 -24H8V-5H1Z" fill="#fff8ea" />
-          <path d="M1 -17H8M1 -11H8" strokeWidth={0.6} opacity={0.6} />
+        <g key={a} transform={`rotate(${a + 12})`}>
+          <path d="M0 0V-25" stroke="#4a3a2a" strokeWidth={1.7} />
+          <path d="M1 -24H7.5V-5H1Z" fill="#e9dfc6" stroke="rgba(40,32,22,0.55)" strokeWidth={0.7} />
+          <path d="M4.2 -24V-5" stroke="#c8bb9c" strokeWidth={0.6} />
+          <path d="M1 -18H7.5M1 -11.5H7.5" stroke="#8a7656" strokeWidth={0.5} opacity={0.7} />
         </g>
       ))}
-      <circle r={3} fill="#e9b955" />
+      <circle r={2.6} fill="#3d3226" />
+      <circle r={1} cx={-0.6} cy={-0.6} fill="#8a7656" />
     </g>
   );
 }
 
 // ------------------------------------------------------------------ forest (lumber)
 
-const LEAVES: [string, string, string][] = [
-  ['#2f8a36', '#4cb043', '#c8f59a'],
-  ['#2a7d3a', '#43a64a', '#b6ef8e'],
-  ['#3a9435', '#5cc04a', '#d6fbaa'],
-];
-
-/** A round broadleaf: ink silhouette, shaded crown, lit crown offset up-left, a highlight. */
-function broadleaf(x: number, y: number, s: number, k: number, J: Jit) {
-  const [shade, lit, hi] = J.pick(LEAVES);
-  const blobs = [
-    [-5.5, -12, 7],
-    [5.5, -13, 7.5],
-    [0, -19.5, 8],
-  ].map(([bx, by, r]) => [x + bx * s, y + by * s, r * s]);
-  return (
-    <g key={k}>
-      <ellipse
-        cx={r1(x + 3)}
-        cy={r1(y + 1)}
-        rx={r1(11 * s)}
-        ry={r1(3.4 * s)}
-        fill="#123c1c"
-        opacity={0.4}
-      />
-      <path
-        d={`M${r1(x - 2 * s)} ${r1(y)}L${r1(x - 1.4 * s)} ${r1(y - 9 * s)}H${r1(x + 1.4 * s)}L${r1(x + 2 * s)} ${r1(y)}Z`}
-        fill="#8a5a32"
-        stroke={INK}
-        strokeWidth={1.1}
-      />
-      {blobs.map(([bx, by, r], i) => (
-        <circle key={`o${i}`} cx={r1(bx)} cy={r1(by)} r={r1(r + 1.3)} fill={INK} />
-      ))}
-      {blobs.map(([bx, by, r], i) => (
-        <circle key={`s${i}`} cx={r1(bx)} cy={r1(by)} r={r1(r)} fill={shade} />
-      ))}
-      {blobs.map(([bx, by, r], i) => (
-        <circle
-          key={`l${i}`}
-          cx={r1(bx - 1.2 * s)}
-          cy={r1(by - 1.6 * s)}
-          r={r1(r * 0.8)}
-          fill={lit}
-        />
-      ))}
-      <path
-        d={`M${r1(x - 5 * s)} ${r1(y - 24 * s)}Q${r1(x)} ${r1(y - 27.5 * s)} ${r1(x + 4.5 * s)} ${r1(y - 23.5 * s)}`}
-        stroke={hi}
-        strokeWidth={r1(1.8 * s)}
-        fill="none"
-        strokeLinecap="round"
-      />
-    </g>
-  );
-}
-
-/** A slim pine: three stacked tiers, shade on the right, lit on the left. */
-function pine(x: number, y: number, h: number, k: number) {
-  const w = h * 0.32;
-  const tiers = [0, 1, 2].map((i) => {
-    const by = y - h * 0.14 - i * h * 0.24;
-    const tw = w * (1 - i * 0.24);
-    return { by, tw, top: by - h * 0.42 };
-  });
-  return (
-    <g key={k} strokeLinejoin="round">
-      <ellipse
-        cx={r1(x + 3)}
-        cy={r1(y + 1)}
-        rx={r1(w * 0.95)}
-        ry={r1(w * 0.3)}
-        fill="#123c1c"
-        opacity={0.4}
-      />
-      <rect
-        x={r1(x - 1.5)}
-        y={r1(y - h * 0.18)}
-        width={3}
-        height={r1(h * 0.19)}
-        fill="#7a4a28"
-        stroke={INK}
-        strokeWidth={0.9}
-      />
-      {tiers.map(({ by, tw, top }, i) => (
-        <g key={i}>
-          <path
-            d={`M${r1(x - tw)} ${r1(by)}L${r1(x)} ${r1(top)}L${r1(x + tw)} ${r1(by)}Q${r1(x)} ${r1(by - 3)} ${r1(x - tw)} ${r1(by)}Z`}
-            fill="#1f6a3c"
-            stroke={INK}
-            strokeWidth={1.2}
-          />
-          <path
-            d={`M${r1(x - tw + 1)} ${r1(by - 0.6)}L${r1(x)} ${r1(top + 1.5)}L${r1(x - tw * 0.1)} ${r1(by - 2.4)}Z`}
-            fill="#3a9a54"
-          />
-        </g>
-      ))}
-    </g>
-  );
-}
-
 function Forest({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const trees: { x: number; y: number; s: number; pine: boolean }[] = [];
-  for (let row = 0; row < 7; row++) {
-    const y = -74 + row * 27 + J.j(4);
-    const off = row % 2 ? 14 : 0;
-    for (let col = -4; col <= 4; col++) {
-      const x = col * 27 + off + J.j(6);
-      if (!offToken(x, y - 12, 38)) continue;
-      if (J.n() < 0.14) continue;
-      trees.push({ x, y, s: 0.95 + J.j(0.12) + row * 0.03, pine: J.n() < 0.35 });
-    }
-  }
-  trees.sort((a, b) => a.y - b.y);
-  const clearing = { x: J.pick([-44, 44]), y: 62 + J.j(6) };
-  const cabin = { x: -clearing.x * 0.95, y: -50 + J.j(5) };
+  const ca = J.n() * Math.PI * 2;
+  const clearing: Pt = [Math.cos(ca) * 50, Math.sin(ca) * 46 + 6];
+  const clusters: Pt[] = [0, 1, 2].map((i) => {
+    const a = ca + Math.PI * (0.55 + i * 0.45) + J.j(0.3);
+    return [Math.cos(a) * 54, Math.sin(a) * 52];
+  });
+  const firCluster = J.int(3);
+  const trees = scatter(
+    J,
+    34,
+    12.5,
+    (x, y) => inHex(x, y - 12, 9) && offToken(x, y - 10, 40) && Math.hypot(x - clearing[0], y - clearing[1]) > 21,
+    clusters,
+    34,
+  )
+    .map(([x, y]) => {
+      const near = clusters.reduce((b, c, i) => (Math.hypot(c[0] - x, c[1] - y) < Math.hypot(clusters[b][0] - x, clusters[b][1] - y) ? i : b), 0);
+      const fir = J.n() < (near === firCluster ? 0.75 : 0.18);
+      return { x, y, fir, k: J.int(fir ? 4 : 6), s: J.between(0.9, 1.12) + (y + 100) * 0.0012 };
+    })
+    .sort((a, b) => a.y - b.y);
   return (
     <g>
       <Base id="g-forest" />
-      <Patches
-        J={J}
-        n={7}
-        colors={[
-          ['#7fd468', 0.35],
-          ['#1f5a2a', 0.35],
-        ]}
-      />
-      {[...Array(8)].map((_, i) => (
-        <Tuft key={i} x={J.j(80)} y={J.j(85)} s={0.8} fill="#2f8a2e" />
+      {/* forest floor: moss, fern and leaf litter */}
+      {[...Array(6)].map((_, i) => (
+        <path
+          key={i}
+          d={blob(J, J.j(70), J.j(80), J.between(16, 30), J.between(9, 16), 9, 0.25)}
+          fill={i % 2 ? '#2a4324' : '#5d7b3c'}
+          opacity={i % 2 ? 0.45 : 0.35}
+        />
       ))}
-      {trees
-        .filter(
-          (t) =>
-            Math.hypot(t.x - clearing.x, t.y - clearing.y) > 26 &&
-            Math.hypot(t.x - cabin.x, t.y - cabin.y - 6) > 25,
-        )
-        .map((t, i) => (t.pine ? pine(t.x, t.y, 34 * t.s, i) : broadleaf(t.x, t.y, t.s, i, J)))}
-      {/* woodcutter's cottage */}
-      <g
-        transform={`translate(${r1(cabin.x)} ${r1(cabin.y)})`}
-        stroke={INK}
-        strokeWidth={1.3}
-        strokeLinejoin="round"
-      >
-        <ellipse cx={3} cy={11} rx={17} ry={4} fill="#123c1c" opacity={0.4} stroke="none" />
-        <path d="M-11 10V-1H11V10Z" fill="#f6e3c0" />
-        <path d="M3 10V-1H11V10Z" fill="#dcc29a" stroke="none" />
-        <path d="M-11 10V-1H11V10Z" fill="none" />
-        <path d="M-15 0L0 -13L15 0Z" fill="#d9503a" />
-        <path d="M0 -13L15 0H5Z" fill="#a83a2c" stroke="none" />
-        <path d="M-10 -2L0 -11" stroke="#ff9c80" strokeWidth={1.2} />
-        <rect x={6} y={-13} width={3.5} height={7} fill="#8a5a32" />
-        <rect x={-7.5} y={1.5} width={5} height={4.5} rx={1} fill="#ffd56b" />
-        <rect x={2} y={3} width={4.2} height={7} rx={1.5} fill="#7a4a2a" />
-      </g>
-      {/* log pile in a small clearing */}
-      <g transform={`translate(${r1(clearing.x)} ${r1(clearing.y)})`}>
-        <ellipse cx={2} cy={7} rx={18} ry={4.5} fill="#123c1c" opacity={0.4} />
-        {[
-          [-8, 2],
-          [0, 2],
-          [8, 2],
-          [-4, -4.5],
-          [4, -4.5],
-          [0, -11],
-        ].map(([x, y], i) => (
-          <g key={i}>
-            <circle cx={x} cy={y} r={4} fill="#b0763e" stroke={INK} strokeWidth={1.2} />
-            <circle cx={x} cy={y} r={1.8} fill="none" stroke="#f2c98e" strokeWidth={0.8} />
-          </g>
-        ))}
-      </g>
-      <Sparkles J={J} n={2} />
+      <TokenBed J={J} fill="#4f6d34" o={0.55} />
+      {/* a sunlit clearing */}
+      <path d={blob(J, clearing[0], clearing[1], 17, 11, 9, 0.2)} fill="#7f8f46" opacity={0.75} />
+      <path d={blob(J, clearing[0] - 3, clearing[1] - 2, 10, 6, 8, 0.2)} fill="#c9bf74" opacity={0.3} />
+      <Use id="fl-stump" x={clearing[0] + 3} y={clearing[1] + 3} />
+      <Use id="fl-flw-daisy" x={clearing[0] - 8} y={clearing[1] - 1} s={0.8} />
+      {trees.map((t, i) => (
+        <Use key={i} id={t.fir ? `fl-fir-${t.k}` : `fl-oak-${t.k}`} x={t.x} y={t.y} s={t.s} />
+      ))}
+      {/* dappled light through the canopy */}
+      {[...Array(5)].map((_, i) => {
+        const [x, y] = J.pick(trees.length ? trees.map((t) => [t.x, t.y] as Pt) : [[0, 0] as Pt]);
+        return <ellipse key={`sun${i}`} cx={r1(x - 5)} cy={r1(y - 21)} rx={5} ry={2.6} fill="#f2df92" opacity={0.18} />;
+      })}
     </g>
   );
 }
 
 // ------------------------------------------------------------------ hills (brick)
 
-function BrickStack({ x, y, rows }: { x: number; y: number; rows: number }) {
-  const out: ReactElement[] = [];
-  for (let r = 0; r < rows; r++) {
-    const n = rows - r + 1;
-    for (let i = 0; i < n; i++) {
-      const bx = x + (i - (n - 1) / 2) * 9;
-      const by = y - r * 5;
-      out.push(
-        <g key={`${r}-${i}`}>
-          <rect
-            x={r1(bx - 4.2)}
-            y={r1(by - 2.4)}
-            width={8.4}
-            height={4.8}
-            rx={0.8}
-            fill="#e0673a"
-            stroke={INK}
-            strokeWidth={0.9}
-          />
-          <rect x={r1(bx - 3.4)} y={r1(by - 1.8)} width={6.8} height={1.1} fill="#ffb48a" />
-        </g>,
-      );
-    }
-  }
-  return (
-    <g>
-      <ellipse cx={x + 3} cy={y + 4} rx={rows * 6 + 6} ry={3.6} fill="#5a2210" opacity={0.4} />
-      {out}
-    </g>
-  );
-}
-
-function Bush({ x, y, s }: { x: number; y: number; s: number }) {
-  return (
-    <g transform={`translate(${r1(x)} ${r1(y)}) scale(${r1(s * 10) / 10})`}>
-      <ellipse cx={2} cy={4} rx={9} ry={2.6} fill="#5a2210" opacity={0.35} />
-      <path
-        d="M-8 3Q-10-4-4-5Q-3-10 2-8Q8-9 8-2Q10 3 6 4H-6Q-8 4-8 3Z"
-        fill="#3e9a35"
-        stroke={INK}
-        strokeWidth={1.1}
-        strokeLinejoin="round"
-      />
-      <path
-        d="M-5-3Q-3-7 1-6"
-        stroke="#b8f58a"
-        strokeWidth={1.4}
-        fill="none"
-        strokeLinecap="round"
-      />
-    </g>
-  );
-}
-
 function Hills({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const ridges = [-62, -22, 20, 62];
   const kiln = kilnChimney(seed);
   const side = kiln.side;
+  const banks = [0, 1, 2].map((i) => {
+    const y0 = -52 + i * 44 + J.j(5);
+    const cx = J.j(50);
+    const crest = band(J, y0, 5).map(([x, y]) => [x, y - 16 * Math.exp(-(((x - cx) / 46) ** 2))] as Pt);
+    return { crest, cx };
+  });
+  const FILL = ['#b97a52', '#a9643f', '#985535'];
+  const pit = { x: -side * 40, y: -34 + J.j(6) };
+  const pitPts = blobPts(J, pit.x, pit.y, 19, 9, 10, 0.16);
   return (
     <g>
       <Base id="g-hills" />
-      {ridges.map((y0, i) => {
-        const y = y0 + J.j(5);
-        const peak = J.j(40);
-        const lift = 22 + J.j(6);
-        const crest = `M-110 ${r1(y + 18)}Q${r1(peak)} ${r1(y - lift)} 110 ${r1(y + 14)}`;
+      {banks.map(({ crest, cx }, i) => (
+        <g key={i}>
+          <path d={`${smoothOpen(crest)}L118 120L-118 120Z`} fill={FILL[i]} />
+          {/* cool shade on the flank turned away from the sun */}
+          <path
+            d={`${smoothOpen(crest.filter(([x]) => x >= cx - 4))}L118 ${r1(crest[crest.length - 1][1] + 26)}Q${r1(cx + 40)} ${r1(crest[0][1] + 18)} ${r1(cx - 2)} ${r1(crest[0][1] + 10)}Z`}
+            fill="#4a2a22"
+            opacity={0.22}
+          />
+          {/* soil strata following the slope */}
+          <path
+            d={[9, 17, 26].map((dy) => smoothOpen(crest.map(([x, y]) => [x, y + dy + Math.sin(x / 20 + i) * 1.5] as Pt))).join('')}
+            stroke={i % 2 ? '#c88a60' : '#7f4329'}
+            strokeWidth={1}
+            fill="none"
+            opacity={0.3}
+          />
+          {/* sunlit crest */}
+          <path d={smoothOpen(crest)} stroke="#e3aa7c" strokeWidth={2.4} fill="none" opacity={0.8} strokeLinecap="round" />
+          <path d={smoothOpen(crest.map(([x, y]) => [x, y + 3] as Pt))} stroke="#6e3825" strokeWidth={1} fill="none" opacity={0.3} />
+          {crest
+            .filter((_, j) => j % 3 === i % 3)
+            .map(([x, y], j) =>
+              inHex(x, y, 10) && offToken(x, y, 34) ? <Use key={j} id={`fl-tuft-${j % 2}`} x={x} y={y + 1} o={0.75} /> : null,
+            )}
+        </g>
+      ))}
+      {/* a clay bank cut into the middle slope: a sunlit vertical face with strata */}
+      {(() => {
+        const [x0, y0] = banks[1].crest[side > 0 ? 2 : 8];
+        if (!inHex(x0, y0, 14) || !offToken(x0, y0, 40)) return null;
         return (
-          <g key={i}>
-            <path
-              d={`${crest}V120H-110Z`}
-              fill={['#d4683c', '#e07a48', '#cc5f36', '#e58450'][i]}
-              stroke={INK}
-              strokeWidth={1.4}
-            />
-            {/* the shaded flank below each crest */}
-            <path
-              d={`M${r1(peak + 10)} ${r1(y - lift / 2 + 6)}Q${r1(peak + 50)} ${r1(y + 2)} 110 ${r1(y + 22)}V${r1(y + 30)}Q${r1(peak + 40)} ${r1(y + 14)} ${r1(peak + 10)} ${r1(y - lift / 2 + 12)}Z`}
-              fill="#a8462a"
-              opacity={0.55}
-            />
-            <path
-              d={`M-110 ${r1(y + 20)}Q${r1(peak)} ${r1(y - lift + 2.5)} ${r1(peak + 40)} ${r1(y - 2)}`}
-              stroke="#ffc49a"
-              strokeWidth={2}
-              fill="none"
-              opacity={0.8}
-              strokeLinecap="round"
-            />
+          <g transform={`translate(${r1(x0)} ${r1(y0 + 2)})`}>
+            <path d="M-12 0Q0 -3 12 -1L13 8Q0 6 -11 9Z" fill="#7a3e27" />
+            <path d="M-12 0Q0 -3 12 -1L12.4 2Q0 0 -11.6 3Z" fill="#c9845a" />
+            <path d="M-11 5Q0 3 12.6 4.4" stroke="#a65f3d" strokeWidth={0.8} fill="none" />
+            <path d="M-12 0Q0 -3 12 -1" stroke="#e7b48a" strokeWidth={1.1} fill="none" />
           </g>
         );
-      })}
-      {[...Array(5)].map((_, i) => {
-        const x = J.j(78);
-        const y = J.j(80);
-        return offToken(x, y, 38) ? <Bush key={i} x={x} y={y} s={J.between(0.7, 1)} /> : null;
-      })}
-      {/* clay pit */}
-      <g transform={`translate(${r1(-side * 42)} -46)`}>
-        <ellipse rx={22} ry={8} fill="#7a2e16" stroke={INK} strokeWidth={1.3} />
-        <ellipse cx={-2} cy={1.5} rx={16} ry={5} fill="#5a2010" />
-        <ellipse cx={-5} cy={-2.5} rx={9} ry={1.6} fill="#f2a27a" opacity={0.7} />
+      })()}
+      <TokenBed J={J} fill="#c58a62" o={0.4} />
+      {/* clay cut: a dug pit, its lower-right wall in sun, the far wall in shade */}
+      <g>
+        <path d={smoothClosed(pitPts)} fill="#5c3022" />
+        <path d={blob(J, pit.x + 3, pit.y + 2.5, 15, 6, 9, 0.14)} fill="#b56d48" />
+        <path d={blob(J, pit.x - 1.5, pit.y - 1.2, 14, 5.2, 9, 0.14)} fill="#6b3826" />
+        <path d={blob(J, pit.x - 2, pit.y + 0.5, 7, 2.4, 7, 0.2)} fill="#7f4a36" />
+        <path d={smoothOpen(pitPts.slice(3, 9))} stroke="#dba27c" strokeWidth={1.3} fill="none" opacity={0.85} />
+        <path d={`M${r1(pit.x + 6)} ${r1(pit.y + 5)}h9M${r1(pit.x + 4)} ${r1(pit.y + 7)}h8`} stroke="#8f4f33" strokeWidth={0.8} />
       </g>
-      <BrickStack x={r1(-side * 40)} y={58} rows={3} />
-      <BrickStack x={r1(side * 50)} y={-30} rows={2} />
-      {/* brick kiln with a warm glow */}
+      {/* exposed rock along the crests */}
+      {scatter(J, 5, 16, (x, y) => inHex(x, y, 12) && offToken(x, y, 38) && Math.hypot(x - pit.x, y - pit.y) > 26 && Math.hypot(x - (kiln.x - 8), y - (kiln.y + 30)) > 26).map(
+        ([x, y], i) => (
+          <Use key={`r${i}`} id={`fl-rock-${i % 2 ? 'clay' : 'ochre'}-${i % 3}`} x={x} y={y} s={J.between(0.9, 1.3)} />
+        ),
+      )}
+      {scatter(J, 5, 14, (x, y) => inHex(x, y, 10) && offToken(x, y, 36) && Math.hypot(x - pit.x, y - pit.y) > 24).map(([x, y], i) => (
+        <Use key={`s${i}`} id={`fl-scrub-${i % 3}`} x={x} y={y} s={J.between(0.75, 1)} />
+      ))}
+      {/* brick kiln, its chimney top exactly where the ambient layer puffs smoke */}
       <g transform={`translate(${r1(kiln.x - 8.5)} ${r1(kiln.y + 24)})`} strokeLinejoin="round">
-        <ellipse cx={3} cy={10} rx={20} ry={4.5} fill="#5a2210" opacity={0.45} />
-        <circle cx={0} cy={4} r={16} fill="url(#g-ember)" opacity={0.6} />
-        <rect x={6} y={-24} width={5} height={11} fill="#b4532d" stroke={INK} strokeWidth={1.1} />
-        <path
-          d="M-14 10V-2Q-14 -16 0 -16Q14 -16 14 -2V10Z"
-          fill="#c85a32"
-          stroke={INK}
-          strokeWidth={1.4}
-        />
-        <path d="M2 -16Q14 -16 14 -2V10H4Q8 -4 2 -16Z" fill="#9a3e22" />
-        <path
-          d="M-10 -6Q-8 -12 -2 -13"
-          stroke="#ffb48a"
-          strokeWidth={1.6}
-          fill="none"
-          strokeLinecap="round"
-        />
-        <path d="M-5 10V3Q-5 -2 0 -2Q5 -2 5 3V10Z" fill="#ffb05a" stroke={INK} strokeWidth={1.1} />
-        <path d="M-2.6 10V4.4Q-2.6 1.6 0 1.6Q2.6 1.6 2.6 4.4V10Z" fill="#fff0b8" />
+        <ellipse cx={5} cy={10.5} rx={17} ry={4} fill="#2a160f" opacity={0.3} />
+        <rect x={6} y={-24} width={5} height={11} fill="#7d4430" />
+        <rect x={6} y={-24} width={2} height={11} fill="#a7634a" />
+        <path d="M-13 10V0Q-13 -14 0 -14Q13 -14 13 0V10Z" fill="#8a4c35" stroke="rgba(30,16,10,0.5)" strokeWidth={0.8} />
+        <path d="M-13 10V0Q-13 -14 0 -14Q-6 -10 -6 0V10Z" fill="#b06d4c" />
+        <path d="M-10 -3H10M-12 3H12M-6 -9H8" stroke="#6b3726" strokeWidth={0.6} opacity={0.6} />
+        <path d="M-4.5 10V4Q-4.5 0 0 0Q4.5 0 4.5 4V10Z" fill="#2b1912" />
+        <path d="M-2.6 10V5.4Q-2.6 3 0 3Q2.6 3 2.6 5.4V10Z" fill="#d7793e" opacity={0.8} />
       </g>
-      <Sparkles J={J} n={2} />
+      {/* one neat stack of drying bricks beside the kiln */}
+      <g transform={`translate(${r1(kiln.x - 8.5 - side * 24)} ${r1(kiln.y + 34)})`}>
+        <ellipse cx={3} cy={1} rx={10} ry={2.4} fill="#2a160f" opacity={0.28} />
+        {[
+          [-6, 0],
+          [0, 0],
+          [6, 0],
+          [-3, -3.4],
+          [3, -3.4],
+        ].map(([x, y], i) => (
+          <g key={i}>
+            <rect x={x - 3} y={y - 3.2} width={6} height={3.2} fill="#a65a3c" />
+            <rect x={x - 3} y={y - 3.2} width={6} height={1} fill="#cf8a64" />
+          </g>
+        ))}
+      </g>
     </g>
   );
 }
 
 // ------------------------------------------------------------------ pasture (wool)
 
-function Sheep({ x, y, flip, s = 0.62 }: { x: number; y: number; flip: boolean; s?: number }) {
-  return (
-    <g
-      transform={`translate(${r1(x)} ${r1(y)}) scale(${flip ? -s : s} ${s})`}
-      strokeLinejoin="round"
-    >
-      <ellipse cx={0} cy={14} rx={16} ry={4} fill="#1f5a17" opacity={0.4} />
-      <rect
-        x={-8}
-        y={6}
-        width={3.5}
-        height={8}
-        rx={1.5}
-        fill="#2e2420"
-        stroke={INK}
-        strokeWidth={1.6}
-      />
-      <rect
-        x={5}
-        y={6}
-        width={3.5}
-        height={8}
-        rx={1.5}
-        fill="#2e2420"
-        stroke={INK}
-        strokeWidth={1.6}
-      />
-      <path
-        d="M-14 4q-4-6 2-10q0-7 8-6q4-6 11-1q7-1 7 6q5 4 1 10q-2 6-10 4q-6 4-12 0q-8 2-7-3Z"
-        fill="#fffaf0"
-        stroke={INK}
-        strokeWidth={2}
-      />
-      <path d="M-8 6q6 3 14 0q-6 1-14 0Z" fill="#e3ddcc" />
-      <path
-        d="M-6-8q4-3 8-1"
-        stroke="#ffffff"
-        strokeWidth={2.5}
-        fill="none"
-        strokeLinecap="round"
-      />
-      <ellipse cx={-17} cy={-1} rx={6} ry={7} fill="#2e2420" stroke={INK} strokeWidth={1.5} />
-      <path d="M-21-6l-4-2M-13-6l3-2" stroke={INK} strokeWidth={2} strokeLinecap="round" />
-      <circle cx={-19} cy={-3} r={1.4} fill="#fff" />
-    </g>
-  );
-}
-
 function Pasture({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const spots = [
-    { x: -46, y: -38 },
-    { x: 44, y: -46 },
-    { x: -48, y: 46 },
-    { x: 46, y: 40 },
-    { x: 0, y: -70 },
-    { x: -6, y: 74 },
-  ];
-  const sheep = spots
-    .map((p) => ({ x: p.x + J.j(8), y: p.y + J.j(6), flip: J.n() < 0.5 }))
-    .filter(() => J.n() < 0.8)
-    .slice(0, 4);
-  const fenceY = J.pick([-1, 1]);
-  const tree = { x: fenceY * 52, y: J.j(10) };
+  const tilt = J.j(18);
+  const wallSide = J.pick([-1, 1]);
+  const hasPond = J.n() < 0.55;
+  const pond: Pt = [-wallSide * J.between(40, 50), J.j(14)];
+  const hasTree = J.n() < 0.65;
+  const tree: Pt = [J.pick([-1, 1]) * J.between(44, 56), wallSide * -J.between(34, 50)];
+  const fa = J.n() * Math.PI * 2;
+  const flock: Pt = [Math.cos(fa) * 50, Math.sin(fa) * 50 + 4];
+  const wall = band(J, wallSide * 66, 6, 24);
+  const clear = (x: number, y: number) =>
+    (!hasPond || Math.hypot(x - pond[0], y - pond[1]) > 22) && (!hasTree || Math.hypot(x - tree[0], y - tree[1] + 8) > 18);
+  const sheep = scatter(J, 3 + J.int(3), 9, (x, y) => inHex(x, y, 12) && offToken(x, y, 34) && clear(x, y) && Math.abs(y - wallSide * 66) > 10, [flock], 16);
+  const flowerKinds = ['daisy', 'daisy', 'buttercup', 'poppy'] as const;
   return (
     <g>
       <Base id="g-pasture" />
-      <Patches
-        J={J}
-        n={6}
-        colors={[
-          ['#c4f58f', 0.35],
-          ['#4fa833', 0.45],
-        ]}
-      />
-      {[...Array(16)].map((_, i) => {
-        const x = J.j(82);
-        const y = J.j(90);
-        return offToken(x, y, 30) ? <Tuft key={i} x={x} y={y} s={J.between(0.7, 1.05)} /> : null;
-      })}
-      {[...Array(12)].map((_, i) => (
-        <circle
-          key={i}
-          cx={r1(J.j(80))}
-          cy={r1(J.j(88))}
-          r={1.5}
-          fill={['#fff6d0', '#ff9fc0', '#ffe066'][i % 3]}
-          stroke={INK}
-          strokeWidth={0.5}
-        />
-      ))}
-      {/* small pond holding the sky */}
-      <g transform={`translate(${r1(-fenceY * 56)} ${r1(J.j(6))})`}>
-        <ellipse rx={18} ry={8} fill="#4fa833" stroke={INK} strokeWidth={1.3} />
-        <ellipse cy={0.5} rx={15} ry={6} fill="#3ec4d4" />
-        <ellipse cx={3} cy={2} rx={10} ry={3} fill="#2aa0b8" />
-        <ellipse cx={-5} cy={-1.5} rx={6} ry={1.3} fill="#e8fdff" opacity={0.9} />
-      </g>
-      {/* a round shade tree */}
-      {broadleaf(tree.x, tree.y + 10, 1.05, 999, J)}
-      {/* split-rail fence */}
-      <g
-        transform={`translate(0 ${fenceY * 70}) rotate(${fenceY * -4})`}
-        stroke={INK}
-        strokeLinejoin="round"
-      >
-        <path d="M-64 -6H64M-64 -1H64" strokeWidth={4} />
-        <path d="M-64 -6H64M-64 -1H64" stroke="#c48a52" strokeWidth={2} />
-        {[-60, -36, -12, 12, 36, 60].map((x) => (
-          <rect
-            key={x}
-            x={x - 1.8}
-            y={-10}
-            width={3.6}
-            height={14}
-            rx={1}
-            fill="#9a643a"
-            strokeWidth={1}
+      {/* the meadow's gentle contours */}
+      <g transform={`rotate(${r1(tilt)})`}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <path
+            key={i}
+            d={smoothOpen(band(J, -84 + i * 42 + J.j(6), 7))}
+            stroke={i % 2 ? '#456f2e' : '#a3bd66'}
+            strokeWidth={22}
+            opacity={i % 2 ? 0.22 : 0.26}
+            fill="none"
           />
         ))}
       </g>
-      {sheep.map((s, i) => (
-        <Sheep key={i} x={s.x} y={s.y} flip={s.flip} />
+      {[...Array(5)].map((_, i) => (
+        <path key={i} d={blob(J, J.j(70), J.j(80), J.between(10, 20), J.between(6, 10), 8, 0.25)} fill={i % 2 ? '#3f662b' : '#b2c878'} opacity={0.22} />
       ))}
-      <Sparkles J={J} n={2} />
+      <TokenBed J={J} fill="#9dbb62" o={0.3} />
+      {/* a dry-stone wall across one side */}
+      <g fill="none" strokeLinecap="round">
+        <path d={smoothOpen(wall)} transform="translate(1.4 2)" stroke="#23331d" strokeWidth={4.6} opacity={0.35} />
+        <path d={smoothOpen(wall)} stroke="#9f9886" strokeWidth={3.8} />
+        <path d={smoothOpen(wall)} stroke="#d6cfbd" strokeWidth={1.4} transform="translate(-0.3 -0.9)" strokeDasharray="3 1.5" />
+        <path d={smoothOpen(wall)} stroke="#6c6759" strokeWidth={3.8} strokeDasharray="0.6 3.6" />
+      </g>
+      {hasPond && (
+        <g>
+          <path d={blob(J, pond[0], pond[1], 17, 9.5, 10, 0.12)} fill="#4a6b2e" />
+          <path d={blob(J, pond[0], pond[1] + 0.5, 14.5, 7.6, 10, 0.12)} fill="#56807e" />
+          <path d={blob(J, pond[0] + 2.5, pond[1] + 1.8, 9, 4.2, 8, 0.15)} fill="#3f6669" />
+          <path d={`M${r1(pond[0] - 9)} ${r1(pond[1] - 2.5)}q5 -2.6 11 -1.6`} stroke="#d8e6d6" strokeWidth={1.1} fill="none" opacity={0.6} strokeLinecap="round" />
+          <Use id="fl-reeds" x={pond[0] - 13} y={pond[1] + 3} />
+          <Use id="fl-reeds" x={pond[0] + 12} y={pond[1] - 3} s={0.8} />
+        </g>
+      )}
+      {scatter(J, 9, 14, (x, y) => inHex(x, y, 6) && offToken(x, y, 30) && clear(x, y)).map(([x, y], i) => (
+        <Use key={`t${i}`} id={`fl-tuft-${i % 2}`} x={x} y={y} s={J.between(0.9, 1.2)} />
+      ))}
+      {scatter(J, 2 + J.int(2), 26, (x, y) => inHex(x, y, 12) && offToken(x, y, 36) && clear(x, y)).map(([x, y], i) => (
+        <Use key={`f${i}`} id={`fl-flw-${J.n() < 0.22 ? 'lavender' : J.pick(flowerKinds)}`} x={x} y={y} s={J.between(0.9, 1.15)} />
+      ))}
+      {hasTree && <Use id={`fl-oak-${J.int(6)}`} x={tree[0]} y={tree[1]} s={1.3} />}
+      {sheep.map(([x, y], i) => (
+        <Use key={`s${i}`} id={J.n() < 0.5 ? 'fl-sheep-l' : 'fl-sheep-r'} x={x} y={y} s={1.15} />
+      ))}
     </g>
   );
 }
 
 // ------------------------------------------------------------------ fields (grain)
 
+const PLOTS = [
+  { fill: '#d2a84c', furrow: '#9d7429', crop: '#efd690', ripe: true }, // ripe wheat
+  { fill: '#c18e3a', furrow: '#8a6224', crop: '#e3bd6c', ripe: true }, // deep gold
+  { fill: '#d9c58b', furrow: '#ae955a', crop: '#f0e3ba', ripe: false }, // harvested stubble
+  { fill: '#9a9c4c', furrow: '#6c7234', crop: '#b9bb72', ripe: false }, // young barley
+];
+
 function Fields({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const bend = 26 + J.j(6);
-  const rows: ReactElement[] = [];
-  for (let i = -6; i <= 6; i++) {
-    const y = i * 18;
-    const d = `M-110 ${r1(y + bend * 0.4)}Q0 ${r1(y - bend)} 110 ${r1(y + bend * 0.4)}`;
-    rows.push(
-      <g key={i}>
-        <path d={d} stroke="#d4972f" strokeWidth={8} fill="none" strokeLinecap="round" />
-        <path
-          d={d}
-          transform="translate(0 9)"
-          stroke="#ffe7a3"
-          strokeWidth={5}
-          fill="none"
-          strokeLinecap="round"
-        />
-      </g>,
-    );
+  const uid = hashSeed(seed).toString(36);
+  const px = J.pick([-1, 1]) * J.between(14, 30);
+  const k1 = J.j(0.22);
+  const ph = J.n() * 6;
+  const L1: Pt[] = [];
+  for (let y = -118; y <= 118; y += 14) L1.push([px + y * k1 + Math.sin(y / 34 + ph) * 5, y]);
+  // the larger side of L1 is split again by a second, roughly horizontal boundary
+  const big = px > 0 ? -1 : 1;
+  const L2 = band(J, J.pick([-1, 1]) * J.between(18, 34), 4, 20);
+  const sideA = `M${L1.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}L${-big * 130} 118L${-big * 130} -118Z`;
+  const sideB = `M${L1.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}L${big * 130} 118L${big * 130} -118Z`;
+  const above = `${smoothOpen(L2)}L118 -130L-118 -130Z`;
+  const below = `${smoothOpen(L2)}L118 130L-118 130Z`;
+  const order = PLOTS.slice(0, 3);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = J.int(i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
   }
-  const ears: ReactElement[] = [];
-  let k = 0;
-  for (let i = 0; i < 40; i++) {
-    const x = J.j(84);
-    const y = J.j(90);
-    if (!offToken(x, y, 32)) continue;
-    const lean = J.j(2.5);
-    ears.push(
-      <g key={k++}>
-        <path d={`M${r1(x)} ${r1(y)}l${r1(lean)} -8`} stroke="#9b6a24" strokeWidth={0.9} />
-        <ellipse
-          cx={r1(x + lean)}
-          cy={r1(y - 10)}
-          rx={1.8}
-          ry={3.6}
-          fill="#ffd56b"
-          stroke="#9b6a24"
-          strokeWidth={0.6}
-          transform={`rotate(${r1(lean * 6)} ${r1(x + lean)} ${r1(y - 10)})`}
-        />
-      </g>,
+  if (J.n() < 0.3) order[J.int(3)] = PLOTS[3];
+  const angles = [J.between(-30, 30), J.between(60, 120), J.between(-20, 20)];
+  // Furrows are one path per plot (and one for the sunlit crop ridges), not one per line.
+  const furrows = (p: (typeof PLOTS)[number], angle: number) => {
+    const lines = [...Array(40)].map((_, i) => {
+      const y = -130 + i * 6.6;
+      return `M-140 ${r1(y)}Q0 ${r1(y - 7)} 140 ${r1(y)}`;
+    });
+    return (
+      <g transform={`rotate(${r1(angle)})`}>
+        <rect x={-140} y={-140} width={280} height={280} fill={p.fill} />
+        <path d={lines.join('')} stroke={p.furrow} strokeWidth={1.1} opacity={0.42} fill="none" />
+        {p.ripe && (
+          <path d={lines.filter((_, i) => i % 2 === 0).join('')} transform="translate(0 -2.4)" stroke={p.crop} strokeWidth={1.6} opacity={0.4} fill="none" />
+        )}
+      </g>
     );
-  }
+  };
+  const stubble = order.findIndex((p) => !p.ripe);
+  const regions = [`fa${uid}`, `fb${uid}`, `fu${uid}`, `fd${uid}`];
+  const stookArea = stubble === 0 ? 'a' : stubble === 1 ? 'u' : 'd';
   const mill = windmillHub(seed);
-  const side = mill.side;
+  const stooks = scatter(J, 4 + J.int(3), 10, (x, y) => {
+    if (!inHex(x, y, 12) || !offToken(x, y, 36) || Math.hypot(x - mill.x, y - mill.y - 18) < 20) return false;
+    const l1x = px + y * k1 + Math.sin(y / 34 + ph) * 5;
+    const onA = Math.sign(x - l1x) === -big;
+    if (stookArea === 'a') return onA;
+    if (onA) return false;
+    const l2y = L2.reduce((b, p) => (Math.abs(p[0] - x) < Math.abs(b[0] - x) ? p : b))[1];
+    return stookArea === 'u' ? y < l2y - 6 : y > l2y + 6;
+  });
   return (
     <g>
+      <defs>
+        <clipPath id={regions[0]}>
+          <path d={sideA} />
+        </clipPath>
+        <clipPath id={regions[1]}>
+          <path d={sideB} />
+        </clipPath>
+        <clipPath id={regions[2]}>
+          <path d={above} />
+        </clipPath>
+        <clipPath id={regions[3]}>
+          <path d={below} />
+        </clipPath>
+      </defs>
       <Base id="g-fields" />
-      {rows}
-      {ears}
-      {/* sheaves */}
-      {[
-        { x: side * -46, y: 52 },
-        { x: side * 50, y: -8 },
-      ].map((s, i) => (
-        <g
-          key={i}
-          transform={`translate(${r1(s.x + J.j(5))} ${r1(s.y + J.j(5))})`}
-          strokeLinejoin="round"
-        >
-          <ellipse cx={3} cy={11} rx={12} ry={3} fill="#8a5a1c" opacity={0.4} />
-          <path d="M-9 11L-3 -9L0 -13L3 -9L9 11Z" fill="#e9b955" stroke={INK} strokeWidth={1.2} />
-          <path d="M-9 11L-3 -9L0 -13L0 11Z" fill="#ffe08a" />
-          <path
-            d="M-6 -4L-9 -14M0 -13L0 -19M6 -4L9 -14"
-            stroke="#ffd56b"
-            strokeWidth={1.6}
-            strokeLinecap="round"
-          />
-          <path d="M-5.5 1H5.5" stroke="#c4302b" strokeWidth={2.4} />
-        </g>
-      ))}
-      {/* windmill tower (its sails turn in the ambient layer, centred on the hub) */}
-      <g transform={`translate(${r1(mill.x)} ${r1(mill.y)})`} strokeLinejoin="round">
-        <ellipse cx={3} cy={26} rx={14} ry={3.6} fill="#8a5a1c" opacity={0.4} />
-        <path d="M-8 26L-5.5 1H5.5L8 26Z" fill="#fbf1dc" stroke={INK} strokeWidth={1.5} />
-        <path d="M2.5 26L3 1H5.5L8 26Z" fill="#e3d2b2" />
-        <path d="M-8.5 2L0 -9L8.5 2Z" fill="#e0543c" stroke={INK} strokeWidth={1.5} />
-        <path d="M0 -9L8.5 2H4Z" fill="#b03c2a" />
-        <rect
-          x={-2.4}
-          y={17}
-          width={4.8}
-          height={9}
-          rx={2}
-          fill="#8a5a32"
-          stroke={INK}
-          strokeWidth={1}
-        />
-        <rect
-          x={-1.8}
-          y={8}
-          width={3.6}
-          height={4}
-          rx={0.8}
-          fill="#ffd56b"
-          stroke={INK}
-          strokeWidth={0.8}
-        />
+      <g clipPath={`url(#${regions[0]})`}>{furrows(order[0], angles[0])}</g>
+      <g clipPath={`url(#${regions[1]})`}>
+        <g clipPath={`url(#${regions[2]})`}>{furrows(order[1], angles[1])}</g>
+        <g clipPath={`url(#${regions[3]})`}>{furrows(order[2], angles[2])}</g>
       </g>
-      <Sparkles J={J} n={2} />
+      {/* hedgerows between the plots */}
+      <g fill="none" strokeLinecap="round">
+        <path d={smoothOpen(L1)} stroke="#1f2c15" strokeWidth={6.5} opacity={0.3} transform="translate(1.5 2)" />
+        <path d={smoothOpen(L1)} stroke="#3c5127" strokeWidth={5.5} strokeDasharray="0.1 4.4" />
+        <path d={smoothOpen(L1)} stroke="#73903f" strokeWidth={3} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
+        <g clipPath={`url(#${regions[1]})`}>
+          <path d={smoothOpen(L2)} stroke="#1f2c15" strokeWidth={6} opacity={0.3} transform="translate(1.5 2)" />
+          <path d={smoothOpen(L2)} stroke="#3c5127" strokeWidth={5} strokeDasharray="0.1 4.4" />
+          <path d={smoothOpen(L2)} stroke="#73903f" strokeWidth={2.8} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
+        </g>
+      </g>
+      {[0.2, 0.75].map((t, i) => {
+        const [x, y] = L1[Math.floor(t * (L1.length - 1))];
+        return inHex(x, y, 14) && offToken(x, y, 40) ? <Use key={`h${i}`} id={`fl-oak-${(i + J.int(6)) % 6}`} x={x} y={y + 4} s={0.85} /> : null;
+      })}
+      {stooks.map(([x, y], i) => (
+        <Use key={`k${i}`} id="fl-stook" x={x} y={y} s={J.between(0.95, 1.15)} />
+      ))}
+      {(() => {
+        const [x, y] = L1[Math.floor(L1.length * 0.62)];
+        return inHex(x + 6, y, 14) && offToken(x + 6, y, 38) ? <Use id="fl-flw-poppy" x={x + 7} y={y} /> : null;
+      })()}
+      {/* stone tower mill (its sails turn in the ambient layer, centred on the hub) */}
+      <g transform={`translate(${r1(mill.x)} ${r1(mill.y)})`} strokeLinejoin="round">
+        <ellipse cx={6} cy={26.5} rx={13} ry={3.4} fill="#3a2a12" opacity={0.3} />
+        <path d="M-8 26L-5.5 1H5.5L8 26Z" fill="#cfc4aa" stroke="rgba(40,32,20,0.45)" strokeWidth={0.8} />
+        <path d="M-8 26L-5.5 1H-1L-2 26Z" fill="#ebe2cb" />
+        <path d="M3 26L3.5 1H5.5L8 26Z" fill="#a39780" />
+        <path d="M-7 13H7M-7.6 20H7.6" stroke="#9c9077" strokeWidth={0.6} opacity={0.7} />
+        <path d="M-8 2.5Q-6 -8 0 -9.5Q6 -8 8 2.5Z" fill="#7d6b4a" stroke="rgba(40,32,20,0.5)" strokeWidth={0.8} />
+        <path d="M-8 2.5Q-6 -8 0 -9.5Q-3 -6 -3.4 2.5Z" fill="#a8925f" />
+        <path d="M-2.2 26V20.5Q-2.2 18.4 0 18.4Q2.2 18.4 2.2 20.5V26Z" fill="#3b2c1e" />
+        <rect x={-1.4} y={8.5} width={2.8} height={3.4} rx={1.2} fill="#3b2c1e" />
+      </g>
     </g>
   );
 }
 
 // ------------------------------------------------------------------ mountains (ore)
 
-/** A karst pillar: a tall stone column with a lit face, a shaded side, strata and a mossy crown. */
-function pillar(x: number, base: number, h: number, w: number, k: number, J: Jit) {
-  const top = base - h;
-  const lean = J.j(3);
-  const tw = w * 0.8;
-  const body = `M${r1(x - w / 2)} ${r1(base)}L${r1(x - tw / 2 + lean)} ${r1(top + 4)}Q${r1(x + lean)} ${r1(top - 5)} ${r1(x + tw / 2 + lean)} ${r1(top + 4)}L${r1(x + w / 2)} ${r1(base)}Z`;
-  const shade = `M${r1(x + w * 0.16)} ${r1(base)}L${r1(x + tw * 0.14 + lean)} ${r1(top + 2)}Q${r1(x + tw * 0.4 + lean)} ${r1(top)} ${r1(x + tw / 2 + lean)} ${r1(top + 4)}L${r1(x + w / 2)} ${r1(base)}Z`;
-  const strata = [0.35, 0.58, 0.8].map((t) => {
-    const y = top + h * t;
-    const half = (tw + (w - tw) * t) / 2;
-    return `M${r1(x - half + lean * (1 - t))} ${r1(y)}q${r1(half)} 3 ${r1(half * 2)} 0`;
+interface Peak {
+  x: number;
+  top: number;
+  base: number;
+  w: number;
+}
+
+function peak(p: Peak, J: Jit, k: number) {
+  const h = p.base - p.top;
+  // jagged flanks: shoulders and notches alternate down each side
+  const N = 6;
+  const left: Pt[] = [...Array(N)].map((_, i) => {
+    const t = (i + 1) / N;
+    const notch = i % 2 ? 0.9 : 1.05;
+    return i === N - 1 ? ([p.x - p.w, p.base] as Pt) : ([p.x - p.w * t * notch + J.j(1.5), p.top + h * t ** 1.1 + J.j(2)] as Pt);
+  });
+  const right: Pt[] = [...Array(N)]
+    .map((_, i) => {
+      const t = (i + 1) / N;
+      const notch = i % 2 ? 1.06 : 0.9;
+      return i === N - 1 ? ([p.x + p.w * 0.95, p.base + 3] as Pt) : ([p.x + p.w * 0.95 * t * notch + J.j(1.5), p.top + h * t ** 0.95 + J.j(2)] as Pt);
+    })
+    .reverse();
+  const apex: Pt = [p.x, p.top];
+  const ridge: Pt[] = [apex, [p.x + p.w * 0.06 + J.j(2), p.top + h * 0.35], [p.x + p.w * 0.16 + J.j(3), p.top + h * 0.7], [p.x + p.w * 0.2, p.base + 1]];
+  const silhouette = [apex, ...right.slice().reverse(), ...left.slice().reverse()];
+  // lit face: left of the ridge
+  const litFace = [...ridge, ...left.slice().reverse()];
+  const snowLine = p.top + h * (0.2 + J.j(0.04));
+  const snow: Pt[] = [apex, [p.x + p.w * 0.17, p.top + h * 0.14], [p.x + p.w * 0.08, snowLine - 2], [p.x - p.w * 0.06, snowLine + 3], [p.x - p.w * 0.2, snowLine - 1], [p.x - p.w * 0.3, p.top + h * 0.28]];
+  const snowLit = [apex, [p.x + p.w * 0.04, snowLine - 1] as Pt, ...snow.slice(3)];
+  const crevices = [...Array(4)].map((_, i) => {
+    const t = 0.3 + i * 0.16;
+    const sx = p.x + p.w * 0.06 + p.w * 0.1 * t;
+    const sy = p.top + h * t;
+    return `M${r1(sx)} ${r1(sy)}l${r1(-p.w * (0.2 + J.n() * 0.15))} ${r1(h * (0.1 + J.n() * 0.08))}l${r1(-4 - J.n() * 5)} ${r1(6 + J.n() * 4)}`;
   });
   return (
     <g key={k} strokeLinejoin="round">
-      <ellipse
-        cx={r1(x + 4)}
-        cy={r1(base)}
-        rx={r1(w * 0.75)}
-        ry={r1(w * 0.18)}
-        fill="#2c4a44"
-        opacity={0.35}
-      />
-      <path d={body} fill="#e6dccb" stroke={INK} strokeWidth={1.8} />
-      <path d={shade} fill="#b3a792" />
-      {strata.map((d, i) => (
-        <path key={i} d={d} stroke="#8e8370" strokeWidth={1} fill="none" />
+      <path d={poly(silhouette)} fill="#4f5659" stroke="rgba(18,22,22,0.5)" strokeWidth={1} />
+      <path d={poly(litFace)} fill="#aea891" />
+      <path d={poly([ridge[0], ridge[1], [p.x - p.w * 0.42, p.top + h * 0.55], [p.x - p.w * 0.22, p.top + h * 0.26]])} fill="#c9c2aa" opacity={0.8} />
+      <path d={poly([ridge[1], ridge[2], [p.x - p.w * 0.2, p.top + h * 0.8], [p.x - p.w * 0.12, p.top + h * 0.5]])} fill="#8f8a76" opacity={0.45} />
+      {crevices.map((d, i) => (
+        <path key={i} d={d} stroke="#6b6655" strokeWidth={1} fill="none" opacity={0.85} />
       ))}
+      <path d={`M${r1(p.x + p.w * 0.35)} ${r1(p.top + h * 0.5)}l${r1(p.w * 0.2)} ${r1(h * 0.18)}M${r1(p.x + p.w * 0.3)} ${r1(p.top + h * 0.75)}l${r1(p.w * 0.25)} ${r1(h * 0.1)}`} stroke="#3a4144" strokeWidth={1} opacity={0.7} />
+      <path d={poly(snow)} fill="#bcc3c6" />
+      <path d={poly(snowLit)} fill="#efebe0" />
+      {/* alpine grass creeping up the foot */}
       <path
-        d={`M${r1(x - w / 2 + 2)} ${r1(base - 4)}L${r1(x - tw / 2 + lean + 2)} ${r1(top + 8)}`}
-        stroke="#fffaf0"
-        strokeWidth={1.4}
-        opacity={0.8}
+        d={`M${r1(p.x - p.w - 4)} ${r1(p.base + 4)}Q${r1(p.x - p.w * 0.5)} ${r1(p.base - h * 0.22)} ${r1(p.x)} ${r1(p.base - h * 0.12)}Q${r1(p.x + p.w * 0.5)} ${r1(p.base - h * 0.2)} ${r1(p.x + p.w + 4)} ${r1(p.base + 6)}Z`}
+        fill="#5f6b45"
+        opacity={0.7}
       />
-      {/* mossy crown */}
-      <path
-        d={`M${r1(x - tw / 2 + lean - 2)} ${r1(top + 5)}Q${r1(x + lean)} ${r1(top - 9)} ${r1(x + tw / 2 + lean + 2)} ${r1(top + 5)}Q${r1(x + tw * 0.2 + lean)} ${r1(top + 9)} ${r1(x + lean)} ${r1(top + 6)}Q${r1(x - tw * 0.25 + lean)} ${r1(top + 10)} ${r1(x - tw / 2 + lean - 2)} ${r1(top + 5)}Z`}
-        fill="#5cbf45"
-        stroke={INK}
-        strokeWidth={1.5}
-      />
-      <path
-        d={`M${r1(x - tw * 0.3 + lean)} ${r1(top + 1)}Q${r1(x + lean)} ${r1(top - 4)} ${r1(x + tw * 0.15 + lean)} ${r1(top - 2)}`}
-        stroke="#c6f59a"
-        strokeWidth={1.6}
-        fill="none"
-        strokeLinecap="round"
-      />
-      {w > 18 && pine(x + lean + tw * 0.15, top + 1, 15, 0)}
     </g>
   );
 }
 
 function Mountains({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const mineSide = J.pick([-1, 1]);
-  const mine = { x: mineSide * 46, y: 68 };
-  const pillars = [
-    { x: -6 + J.j(5), base: -26, h: 52 + J.j(6), w: 18 },
-    { x: -44 + J.j(5), base: 34, h: 92 + J.j(8), w: 26 },
-    { x: 38 + J.j(5), base: 26, h: 100 + J.j(8), w: 27 },
-    { x: -mineSide * 56, base: 62, h: 42 + J.j(5), w: 15 },
-  ].sort((a, b) => a.base - b.base);
+  const flip = J.pick([-1, 1]);
+  const peaks: Peak[] = [
+    { x: flip * (6 + J.j(6)), top: -92 + J.j(4), base: -28, w: 32 },
+    { x: -flip * (40 + J.j(5)), top: -76 + J.j(6), base: 20, w: 44 },
+    { x: flip * (40 + J.j(5)), top: -62 + J.j(6), base: 30, w: 42 },
+  ];
+  const mine = { x: -flip * 50, y: 62 };
   return (
     <g>
       <Base id="g-mountains" />
-      <Patches
-        J={J}
-        n={5}
-        colors={[
-          ['#e8fff0', 0.3],
-          ['#4f8f7a', 0.35],
-        ]}
-      />
-      {/* far pillars, faded into the haze */}
-      <g opacity={0.5}>
-        {[-70, -22, 26, 70].map((x, i) => (
-          <path key={i} d={`M${x - 8} -40V${r1(-80 - J.n() * 16)}q8 -8 16 0V-40Z`} fill="#a9c8ba" />
-        ))}
-      </g>
-      <ellipse cx={0} cy={-38} rx={110} ry={9} fill="url(#g-mist)" />
-      {pillars.map((p, i) => pillar(p.x, p.base, p.h, p.w, i, J))}
-      {/* mist pooling between the pillars */}
-      <ellipse cx={r1(J.j(10))} cy={36} rx={92} ry={11} fill="url(#g-mist)" />
-      <ellipse cx={r1(30 + J.j(10))} cy={-6} rx={46} ry={7} fill="url(#g-mist)" opacity={0.7} />
-      {/* ore crystals */}
-      {[...Array(4)].map((_, i) => {
-        const x = J.j(72);
-        const y = J.between(-4, 80);
-        if (!offToken(x, y, 34) || Math.hypot(x - mine.x, y - mine.y) < 24) return null;
-        const s = J.between(0.55, 0.85);
-        return (
-          <g
-            key={i}
-            transform={`translate(${r1(x)} ${r1(y)}) scale(${r1(s * 100) / 100})`}
-            strokeLinejoin="round"
-          >
-            <circle r={14} fill="#7ee6ff" opacity={0.18} />
-            <path d="M-8 6L-4-14L2-20L6-8L10 6Z" fill="#7ee6ff" stroke="#1d5a78" strokeWidth={2} />
-            <path d="M-4-14L2-20L1-2Z" fill="#d8fbff" />
-          </g>
-        );
-      })}
-      {/* mine entrance */}
+      {/* a far range in the haze */}
+      <path d={`${smoothOpen(band(J, -70, 10, 18).map(([x, y], i) => [x, y - (i % 2 ? 14 : 0)] as Pt))}L118 -20L-118 -20Z`} fill="#a2a9a8" opacity={0.6} />
+      {peaks.map((p, i) => peak(p, J, i))}
+      {/* scree apron under the token, and foothills */}
+      <path d={blob(J, 0, 30, 70, 34, 12, 0.14)} fill="#68704f" opacity={0.85} />
+      <TokenBed J={J} fill="#7f8471" o={0.3} />
+      {scatter(J, 6, 14, (x, y) => y > 16 && inHex(x, y, 8) && offToken(x, y, 32)).map(([x, y], i) => (
+        <Use key={`g${i}`} id={`fl-tuft-${i % 2}`} x={x} y={y} o={0.8} />
+      ))}
+      {scatter(J, 5, 14, (x, y) => y > 18 && inHex(x, y, 10) && offToken(x, y, 36) && Math.hypot(x - mine.x, y - mine.y) > 20).map(([x, y], i) => (
+        <Use key={`r${i}`} id={`fl-rock-${i % 2 ? 'char' : 'lime'}-${i % 3}`} x={x} y={y} s={J.between(0.9, 1.3)} />
+      ))}
+      {scatter(J, 5, 11, (x, y) => y > 30 && inHex(x, y - 12, 8) && offToken(x, y - 10, 38) && Math.hypot(x - mine.x, y - mine.y) > 18).map(([x, y], i) => (
+        <Use key={`f${i}`} id={`fl-fir-${i % 4}`} x={x} y={y} s={J.between(0.7, 0.85)} />
+      ))}
+      {/* small glints of ore in the rock */}
+      {scatter(J, 3, 18, (x, y) => y > -10 && y < 40 && inHex(x, y, 14) && offToken(x, y, 36)).map(([x, y], i) => (
+        <g key={`o${i}`} transform={`translate(${r1(x)} ${r1(y)})`}>
+          <path d="M-2.4 0L0-2L2.4 0L0 1.6Z" fill="#454b50" />
+          <path d="M-1.4-0.3L0-1.4L1.2-0.2Z" fill="#e2ded0" />
+        </g>
+      ))}
+      {/* a timbered mine entrance at the foot */}
       <g transform={`translate(${r1(mine.x)} ${r1(mine.y)})`} strokeLinejoin="round">
-        <ellipse cx={2} cy={12} rx={20} ry={4} fill="#2c4a44" opacity={0.4} />
-        <path
-          d="M-20 12Q-20 -16 0 -18Q20 -16 20 12Z"
-          fill="#b3a792"
-          stroke={INK}
-          strokeWidth={1.5}
-        />
-        <path d="M-11 12V-3Q-11 -11 0 -11Q11 -11 11 -3V12Z" fill="#1d1420" />
-        <path d="M-12 12V-6M12 12V-6M-14 -7H14" stroke={INK} strokeWidth={4.6} />
-        <path d="M-12 12V-6M12 12V-6M-14 -7H14" stroke="#9a643a" strokeWidth={2.6} />
-        <circle cx={-15} cy={-1} r={7} fill="url(#g-torch)" />
-        <rect
-          x={-16.6}
-          y={-3.4}
-          width={3.2}
-          height={4.2}
-          rx={0.8}
-          fill="#ffd56b"
-          stroke={INK}
-          strokeWidth={0.8}
-        />
-        <path d="M2 12L4 5H16L18 12Z" fill="#6b7a8a" stroke={INK} strokeWidth={1.2} />
-        <path
-          d="M6 5L8 0L10 5ZM10 5L13 -1L15 5Z"
-          fill="#7ee6ff"
-          stroke="#1d5a78"
-          strokeWidth={0.8}
-        />
+        <ellipse cx={4} cy={9} rx={15} ry={3} fill="#121614" opacity={0.3} />
+        <path d="M-13 9Q-14 -10 0 -12Q14 -10 13 9Z" fill="#6f6f68" />
+        <path d="M-13 9Q-14 -10 0 -12Q-6 -6 -6 9Z" fill="#9a978a" />
+        <path d="M-6.5 9V-2Q-6.5 -6.5 0 -6.5Q6.5 -6.5 6.5 -2V9Z" fill="#1b1c1b" />
+        <path d="M-7.5 9V-3.5M7.5 9V-3.5M-9 -4.5H9" stroke="#5a4330" strokeWidth={2.2} />
+        <path d="M-8 9V-3.5M-9 -5.2H9" stroke="#8d6d48" strokeWidth={0.8} />
+        <Use id="fl-rock-char-1" x={11} y={9} s={0.7} />
       </g>
-      <Sparkles J={J} n={3} />
     </g>
   );
 }
@@ -842,103 +558,61 @@ function Mountains({ seed }: { seed: string }) {
 
 function Desert({ seed }: { seed: string }) {
   const J = new Jit(seed);
-  const dunes = [-58, -14, 32, 76];
   const side = J.pick([-1, 1]);
+  const dunes: Pt[] = [
+    [side * 34 + J.j(6), -64 + J.j(5)],
+    [-side * 46 + J.j(6), -14 + J.j(6)],
+    [side * 46 + J.j(6), 22 + J.j(6)],
+    [-side * 20 + J.j(6), 66 + J.j(6)],
+  ];
+  const ruin = { x: -side * 44, y: -40 + J.j(5) };
   return (
     <g>
       <Base id="g-desert" />
-      {dunes.map((y0, i) => {
-        const y = y0 + J.j(6);
-        const crest = J.j(40);
-        const line = `M-110 ${r1(y + 20)}Q${r1(crest)} ${r1(y - 26)} 110 ${r1(y + 10)}`;
+      {dunes.map(([cx, cy], i) => {
+        const w = (i === 2 ? 34 : 44) + J.j(6);
+        const crest: Pt[] = [
+          [cx - w, cy + 14],
+          [cx - w * 0.5, cy + 2],
+          [cx, cy - 6],
+          [cx + w * 0.45, cy - 1],
+          [cx + w, cy + 12],
+        ];
+        const lee: Pt[] = [...crest.slice(2), [cx + w * 0.7, cy + 22], [cx + w * 0.1, cy + 16]];
+        const windward: Pt[] = [...crest, [cx + w * 0.5, cy - 12], [cx - w * 0.4, cy - 8]];
         return (
           <g key={i}>
+            <path d={smoothClosed(windward)} fill="#f6e7bf" opacity={0.75} />
+            <path d={smoothClosed(lee)} fill="#987549" opacity={0.55} />
+            <path d={smoothOpen(crest)} stroke="#fdf3d6" strokeWidth={1.4} fill="none" strokeLinecap="round" />
             <path
-              d={`${line}V120H-110Z`}
-              fill={i % 2 ? '#f2c873' : '#f7d690'}
-              stroke={INK}
-              strokeWidth={1.2}
-            />
-            <path
-              d={`M${r1(crest - 6)} ${r1(y - 3)}Q${r1(crest + 30)} ${r1(y + 4)} 110 ${r1(y + 22)}V${r1(y + 34)}Q${r1(crest + 20)} ${r1(y + 14)} ${r1(crest - 6)} ${r1(y - 3)}Z`}
-              fill="#d9a050"
-              opacity={0.6}
-            />
-            <path
-              d={`M-110 ${r1(y + 22)}Q${r1(crest - 10)} ${r1(y - 22)} ${r1(crest + 20)} ${r1(y - 4)}`}
-              stroke="#fff3cc"
-              strokeWidth={2}
+              d={[1, 2, 3, 4].map((r) => smoothOpen(crest.map(([x, y]) => [x - r * 2, y - 4 - r * 4] as Pt).slice(0, 3))).join('')}
+              stroke="#b8935e"
+              strokeWidth={0.7}
               fill="none"
-              opacity={0.85}
-              strokeLinecap="round"
+              opacity={0.4}
             />
           </g>
         );
       })}
-      {/* oasis: a palm leaning over a turquoise pool */}
-      <g transform={`translate(${r1(-side * 44)} ${r1(-40 + J.j(5))})`} strokeLinejoin="round">
-        <ellipse cx={0} cy={10} rx={19} ry={6.5} fill="#6cc544" stroke={INK} strokeWidth={1.2} />
-        <ellipse cx={0} cy={10.5} rx={15} ry={4.5} fill="#3ec4d4" />
-        <ellipse cx={-4} cy={9.5} rx={6} ry={1.1} fill="#e8fdff" />
-        <path
-          d="M6 8Q4 -6 -2 -18"
-          stroke={INK}
-          strokeWidth={4.4}
-          fill="none"
-          strokeLinecap="round"
-        />
-        <path
-          d="M6 8Q4 -6 -2 -18"
-          stroke="#b0763e"
-          strokeWidth={2.6}
-          fill="none"
-          strokeLinecap="round"
-        />
-        <g transform="translate(-2 -18)" fill="#3fae3a" stroke={INK} strokeWidth={1}>
-          <path d="M0 0Q-10 -6 -18 2Q-9 -2 0 0Z" />
-          <path d="M0 0Q8 -8 17 -2Q8 -3 0 0Z" />
-          <path d="M0 0Q-3 -10 -10 -14Q-3 -6 0 0Z" />
-          <path d="M0 0Q5 -9 10 -12Q4 -4 0 0Z" />
-          <path d="M0 0Q-12 2 -14 10Q-6 2 0 0Z" />
-        </g>
+      {/* a weathered limestone ruin: a broken column, a lintel fallen beside it */}
+      <g transform={`translate(${r1(ruin.x)} ${r1(ruin.y)})`} strokeLinejoin="round">
+        <ellipse cx={8} cy={2} rx={17} ry={3.4} fill="#4a3a20" opacity={0.25} />
+        <path d="M-6 1V-22L-3-25H4V1Z" fill="#c9bfa6" stroke="rgba(40,34,24,0.45)" strokeWidth={0.7} />
+        <path d="M-6 1V-22L-3-25H-1V1Z" fill="#ece3cc" />
+        <path d="M2 1V-24H4V1Z" fill="#a39880" />
+        <path d="M-6-8H4M-6-16H4" stroke="#9e937a" strokeWidth={0.6} />
+        <path d="M-8-25H6V-28H-8Z" fill="#ddd3ba" />
+        <path d="M6 1L18-1.5L19.5 2L7 4.5Z" fill="#d6ccb3" stroke="rgba(40,34,24,0.4)" strokeWidth={0.6} />
+        <path d="M7 4.5L19.5 2L19.8 3.4L7.4 6Z" fill="#a1957c" />
+        <path d="M-6-24q2 1 4-0.5" stroke="#7f8b4c" strokeWidth={1.4} fill="none" strokeLinecap="round" />
       </g>
-      {/* ruined sandstone columns */}
-      <g transform={`translate(${r1(side * 46)} ${r1(-24 + J.j(6))})`} strokeLinejoin="round">
-        <ellipse cx={4} cy={22} rx={18} ry={3.6} fill="#a8742e" opacity={0.4} />
-        <path d="M-12 22V-14H-3V-6L-1 -10V22Z" fill="#f0d9a8" stroke={INK} strokeWidth={1.4} />
-        <path d="M-5 22V-8L-3 -6V22Z" fill="#d4b47c" />
-        <path d="M-14 -14H-1V-18H-14Z" fill="#e6c88e" stroke={INK} strokeWidth={1.2} />
-        <path d="M4 22V2L8 -2L14 4V22Z" fill="#f0d9a8" stroke={INK} strokeWidth={1.4} />
-        <path d="M10 22V0L14 4V22Z" fill="#d4b47c" />
-        <path d="M-10 -10V18M6 4V18" stroke="#fffaf0" strokeWidth={1.2} opacity={0.8} />
-        <path d="M-12 -2H-1M-12 10H-1M4 12H14" stroke="#c4a068" strokeWidth={0.9} />
-      </g>
-      {/* a little cactus and some rocks */}
-      <g
-        transform={`translate(${r1(-side * 40)} ${r1(56 + J.j(5))}) scale(0.8)`}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <ellipse cx={4} cy={20} rx={10} ry={3} fill="#a8742e" opacity={0.4} />
-        <path d="M0 20V-12M0 6H-8V-4M0 0H8V-8" stroke={INK} strokeWidth={9} fill="none" />
-        <path d="M0 20V-12M0 6H-8V-4M0 0H8V-8" stroke="#3fae3a" strokeWidth={6} fill="none" />
-        <path d="M-1.5 18V-10" stroke="#9be07a" strokeWidth={1.6} />
-      </g>
-      {[...Array(3)].map((_, i) => {
-        const x = J.j(70);
-        const y = J.between(30, 85);
-        if (!offToken(x, y, 32)) return null;
-        return (
-          <path
-            key={i}
-            d={`M${r1(x - 6)} ${r1(y + 1)}Q${r1(x - 5)} ${r1(y - 6)} ${r1(x + 1)} ${r1(y - 6)}Q${r1(x + 7)} ${r1(y - 4)} ${r1(x + 6)} ${r1(y + 1)}Z`}
-            fill="#c99a62"
-            stroke={INK}
-            strokeWidth={1.1}
-          />
-        );
-      })}
-      <Sparkles J={J} n={2} />
+      {scatter(J, 5, 16, (x, y) => inHex(x, y, 10) && offToken(x, y, 26) && Math.hypot(x - ruin.x, y - ruin.y + 10) > 22 && Math.hypot(x - 34, y + 18) > 26).map(([x, y], i) => (
+        <Use key={`r${i}`} id={`fl-rock-${i % 2 ? 'ochre' : 'lime'}-${i % 3}`} x={x} y={y} s={J.between(0.7, 1.1)} />
+      ))}
+      {scatter(J, 4, 18, (x, y) => inHex(x, y, 10) && offToken(x, y, 26) && Math.hypot(x - 34, y + 18) > 24).map(([x, y], i) => (
+        <Use key={`d${i}`} id={`fl-dry-${i % 3}`} x={x} y={y} />
+      ))}
     </g>
   );
 }
@@ -952,25 +626,10 @@ const ART: Record<Terrain, (p: { seed: string }) => ReactElement> = {
   waste: Desert,
 };
 
-export const TerrainArt = memo(function TerrainArt({
-  type,
-  seed,
-}: {
-  type: Terrain;
-  seed: string;
-}) {
+export const TerrainArt = memo(function TerrainArt({ type, seed }: { type: Terrain; seed: string }) {
   const raster = ART_MANIFEST.terrain[type];
   if (raster) {
-    return (
-      <image
-        href={raster}
-        x={-87}
-        y={-100}
-        width={174}
-        height={200}
-        preserveAspectRatio="xMidYMid slice"
-      />
-    );
+    return <image href={raster} x={-87} y={-100} width={174} height={200} preserveAspectRatio="xMidYMid slice" />;
   }
   const Comp = ART[type];
   return <Comp seed={seed} />;

@@ -35,15 +35,17 @@ export const ResourceCard = memo(function ResourceCard({
     <div
       className={`group relative flex flex-col items-center justify-between overflow-hidden rounded-xl border px-1 pb-1.5 pt-2 transition-[transform,opacity,box-shadow,border-color] duration-200 hover:-translate-y-1 ${
         compact ? 'h-[78px] w-[56px]' : fluid ? 'h-[92px] w-full' : 'h-[96px] w-[64px]'
-      } ${(dim || empty) && need !== 'have' ? 'opacity-50' : ''}`}
+      } ${(dim || empty) && need !== 'have' ? 'opacity-[0.62]' : ''}`}
       style={{
-        borderColor: need === 'have' ? c : need === 'missing' ? '#ff805c' : `${c}55`,
+        borderColor: need === 'have' ? c : need === 'missing' ? '#ff805c' : `${c}4d`,
         borderStyle: need === 'missing' ? 'dashed' : 'solid',
-        background: `radial-gradient(120% 70% at 50% 0%, ${c}38, transparent 60%), linear-gradient(180deg, #202325, #121415)`,
+        // one set of crafted cards: a faint wash of the resource colour on graphite,
+        // an engraved inner line and a lit top edge
+        background: `radial-gradient(120% 60% at 50% 0%, ${c}2a, transparent 62%), linear-gradient(180deg, #212426, #131516)`,
         boxShadow:
           need === 'have'
-            ? `0 0 0 1px ${c}, 0 0 20px -2px ${c}aa, 0 10px 18px -10px #000`
-            : 'inset 0 1px 0 #ffffff12, 0 8px 16px -10px #000',
+            ? `0 0 0 1px ${c}, 0 0 18px -4px ${c}99, 0 10px 18px -10px #000`
+            : `inset 0 1px 0 rgb(var(--antique) / 0.1), inset 0 0 0 2px #0000002e, inset 0 -10px 16px -12px ${c}30, 0 8px 16px -10px #000`,
       }}
       aria-label={`${RESOURCE_NAME[res]}: ${hidden ? 'hidden' : count}`}
       role="img"
@@ -63,7 +65,7 @@ export const ResourceCard = memo(function ResourceCard({
       <span className={`num ${compact ? 'text-[19px]' : 'text-[23px]'} leading-none text-bone`}>
         {hidden ? '?' : count}
       </span>
-      <span className="w-full truncate text-center font-body text-[11px] leading-none text-muted">
+      <span className="w-full truncate text-center font-body text-[11.5px] leading-none text-bone/75">
         {RESOURCE_NAME[res]}
       </span>
       <AnimatePresence>

@@ -35,7 +35,7 @@ import {
   vertexXY,
 } from './geometry';
 import { HexTooltip } from './HexTooltip';
-import { Ambient, Harbors, MoonShimmer, Moonlight, Sea, Shore } from './Scenery';
+import { Ambient, Harbors, Sea, Shore, SunGlint, Sunlight } from './Scenery';
 
 /** Fades the square sea into the page so the board floats in the dark. */
 const SEA_MASK = {
@@ -122,6 +122,18 @@ const Swell = memo(function Swell({ rows, fog }: { rows: number[]; fog?: boolean
 const sameBoard = (a: { board: BoardT }, b: { board: BoardT }) =>
   a.board.seed === b.board.seed && a.board.mode === b.board.mode;
 
+/** Bevel strokes just inside a tile's edge: lit toward the upper left, shaded lower right. */
+const BEVEL_LIT = (() => {
+  const r = 97;
+  const k = (Math.sqrt(3) / 2) * r;
+  return `M${-k} ${r / 2}L${-k} ${-r / 2}L0 ${-r}L${k * 0.5} ${-r * 0.75}`;
+})();
+const BEVEL_SHADE = (() => {
+  const r = 97;
+  const k = (Math.sqrt(3) / 2) * r;
+  return `M${k} ${-r / 2}L${k} ${r / 2}L0 ${r}L${-k * 0.5} ${r * 0.75}`;
+})();
+
 const Island = memo(function Island({ board }: { board: BoardT }) {
   return (
     <g>
@@ -132,18 +144,18 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
           <g key={h.id} transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}>
             <g clipPath="url(#hexClip)">
               <TerrainArt type={h.terrain} seed={`${board.seed}:${h.id}`} />
-              <path d={HEX_PATH} fill="url(#g-tile-vignette)" />
+              <path d={HEX_PATH} fill="url(#g-tile-light)" />
             </g>
-            {/* a bright inner rim just inside the ink edge, like a lacquered game tile */}
-            <polygon points={hexPoints(94)} fill="none" stroke="#fffbe6" strokeOpacity={0.45} strokeWidth={2} />
-            <polygon points={hexPoints(98.5)} fill="none" stroke="url(#g-bevel-light)" strokeWidth={2.4} />
+            {/* a gentle bevel: edges facing the sun catch light, the others fall into shade */}
+            <path d={BEVEL_LIT} fill="none" stroke="#fff3d6" strokeOpacity={0.3} strokeWidth={2.2} strokeLinejoin="round" />
+            <path d={BEVEL_SHADE} fill="none" stroke="#0c1412" strokeOpacity={0.32} strokeWidth={2.4} strokeLinejoin="round" />
           </g>
         );
       })}
       {/* one shared grain pass over the whole board */}
-      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.1} style={{ mixBlendMode: 'multiply' }} />
-      <Moonlight />
-      {/* ink outlines between tiles */}
+      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.08} style={{ mixBlendMode: 'multiply' }} />
+      <Sunlight />
+      {/* fine seams between the tiles */}
       {board.hexes.map((h) => {
         const c = hexCenter(h.id);
         return (
@@ -152,8 +164,9 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
             points={hexPoints(100)}
             transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
             fill="none"
-            stroke="#2b1a22"
-            strokeWidth={3.5}
+            stroke="#1c1a12"
+            strokeOpacity={0.62}
+            strokeWidth={2}
             strokeLinejoin="round"
           />
         );
@@ -198,7 +211,7 @@ export interface BoardProps {
 }
 
 /** Stacking order of the board layers (all absolutely positioned in one box). */
-const Z = { sea: 0, swell: 1, land: 2, ambient: 3, glow: 4, pulse: 5, pieces: 6, wraith: 7, chips: 8, hits: 9, tip: 10 } as const;
+const Z = { sea: 0, swell: 1, land: 2, ambient: 3, pulse: 5, pieces: 6, wraith: 7, chips: 8, hits: 9, tip: 10 } as const;
 const layer = (z: number) => ({ zIndex: z }) as const;
 
 export const BoardView = memo(function BoardView({ state, canAct, decorative = false, onAction }: BoardProps) {
@@ -232,7 +245,7 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
           <div className="anim-swell-slow absolute inset-0">
             <Swell rows={[1, 3, 5, 7]} />
           </div>
-          <MoonShimmer />
+          <SunGlint />
         </div>
       )}
       <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={{ ...LAYER, ...layer(Z.land) }} aria-hidden>
@@ -244,7 +257,6 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       <div className="pointer-events-none absolute inset-0" style={layer(Z.ambient)}>
         <Ambient board={state.board} still={decorative} />
       </div>
-      <Torchlight buildings={state.buildings} still={decorative} />
       {production && <ProductionGlow board={state.board} production={production} />}
       <PiecesLayer state={state} decorative={decorative} />
       <WraithLayer hex={state.wraithHex} />
@@ -255,25 +267,6 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       )}
       {!decorative && <HitLayer state={state} targets={targets} fire={fire} />}
     </div>
-  );
-});
-
-/** Pools of torchlight under the holdings; the whole layer flickers as one. */
-const Torchlight = memo(function Torchlight({ buildings, still }: { buildings: GameState['buildings']; still: boolean }) {
-  const keys = Object.keys(buildings);
-  if (!keys.length) return null;
-  return (
-    <svg
-      viewBox={VIEWBOX_STR}
-      className={`pointer-events-none absolute inset-0 h-full w-full ${still ? '' : 'anim-torchlight'}`}
-      style={layer(Z.glow)}
-      aria-hidden
-    >
-      {keys.map((v) => {
-        const p = vertexXY(v);
-        return <circle key={v} cx={p.x} cy={p.y} r={buildings[v].kind === 'citadel' ? 90 : 70} fill="url(#g-torchlight)" />;
-      })}
-    </svg>
   );
 });
 
@@ -544,8 +537,8 @@ const TargetMarkers = memo(function TargetMarkers({ kind, spots }: { kind: 'vert
             const p = vertexXY(v);
             return (
               <g key={v} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}>
-                <circle r={12} fill="url(#g-ember)" />
-                <circle r={5} fill="#ffcf8a" stroke="#e0702a" strokeWidth={1.5} />
+                <circle r={13} fill="url(#g-target)" />
+                <circle r={5.2} fill="#fbf3dc" stroke="#9c7430" strokeWidth={1.6} />
               </g>
             );
           })
@@ -553,8 +546,8 @@ const TargetMarkers = memo(function TargetMarkers({ kind, spots }: { kind: 'vert
             const g = edgeXY(e);
             return (
               <g key={e} transform={`translate(${g.mid.x.toFixed(1)} ${g.mid.y.toFixed(1)}) rotate(${g.angle.toFixed(1)})`}>
-                <rect x={-24} y={-3.5} width={48} height={7} rx={3.5} fill="#ffcf8a" opacity={0.85} />
-                <rect x={-27} y={-7} width={54} height={14} rx={7} fill="url(#g-ember)" opacity={0.8} />
+                <rect x={-27} y={-8} width={54} height={16} rx={8} fill="url(#g-target)" />
+                <rect x={-22} y={-2.6} width={44} height={5.2} rx={2.6} fill="#fbf3dc" stroke="#9c7430" strokeWidth={1.2} opacity={0.95} />
               </g>
             );
           })}
@@ -591,8 +584,8 @@ const HexHit = memo(function HexHit({
     <path
       d={HEX_PATH}
       transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
-      fill={isTarget && hovered ? 'rgba(160,210,255,0.16)' : 'transparent'}
-      stroke={isTarget ? '#9fd2ff' : 'none'}
+      fill={isTarget && hovered ? 'rgba(255,236,190,0.16)' : 'transparent'}
+      stroke={isTarget ? '#f3e2b0' : 'none'}
       strokeOpacity={isTarget ? (hovered ? 0.9 : 0.3) : 0}
       strokeWidth={isTarget ? 3 : 0}
       className={isTarget ? 'cursor-pointer' : undefined}

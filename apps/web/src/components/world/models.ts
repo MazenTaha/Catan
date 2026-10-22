@@ -9,7 +9,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  * "baked" (merged per material) so a detailed house costs a handful of draw calls.
  */
 /** Warm rim light on silhouettes, shared by every cel-shaded material. */
-export const RIM = { color: new THREE.Color('#ffb07a'), strength: 0.3 };
+export const RIM = { color: new THREE.Color('#ffdca8'), strength: 0.2 };
 
 /** GLSL for a gentle wind sway on instanced foliage (taller vertices move more). */
 export function swayGlsl(amount: number): string {
@@ -65,7 +65,7 @@ export class Kit {
   /** Three bands of light (shadow, mid, lit) with hard steps: the cel-shaded look. */
   toonRamp(): THREE.DataTexture {
     if (!this.ramp) {
-      const steps = new Uint8Array([92, 172, 255]);
+      const steps = new Uint8Array([118, 190, 255]);
       this.ramp = new THREE.DataTexture(steps, steps.length, 1, THREE.RedFormat);
       this.ramp.minFilter = this.ramp.magFilter = THREE.NearestFilter;
       this.ramp.generateMipmaps = false;
@@ -138,9 +138,9 @@ export class Kit {
       c.width = c.height = size;
       const ctx = c.getContext('2d')!;
       const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-      g.addColorStop(0, 'rgba(255,226,214,0.9)');
-      g.addColorStop(0.5, 'rgba(255,206,196,0.35)');
-      g.addColorStop(1, 'rgba(255,200,190,0)');
+      g.addColorStop(0, 'rgba(248,244,232,0.9)');
+      g.addColorStop(0.5, 'rgba(240,234,218,0.35)');
+      g.addColorStop(1, 'rgba(236,228,210,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
       const map = new THREE.CanvasTexture(c);
@@ -406,7 +406,7 @@ function flowerBox(kit: Kit, w: number, rnd: () => number): THREE.Group {
   g.add(mesh(kit.rbox(w, 0.18, 0.22, 0.04), kit.mat('#7b5230'), 0, 0, 0, false));
   g.add(mesh(kit.box(w - 0.08, 0.06, 0.16), kit.mat('#4f9a3a'), 0, 0.1, 0, false));
   const bloom = kit.geo('bloom', () => new THREE.IcosahedronGeometry(0.06, 0));
-  const colors = ['#ff6b8a', '#ffd84a', '#ffffff', '#b07cff', '#ff8a3d'];
+  const colors = ['#c2402b', '#e6c450', '#f2eee2', '#8576ac', '#f2eee2'];
   for (let x = -w / 2 + 0.08; x < w / 2 - 0.04; x += 0.11)
     g.add(
       mesh(
@@ -601,8 +601,8 @@ export function makeSheep(kit: Kit, rnd: () => number): SheepRig {
 export function makeBarn(kit: Kit): THREE.Object3D {
   return kit.template('barn', () => {
     const g = new THREE.Group();
-    const red = kit.mat('#b8392f');
-    const board = kit.mat('#a3302a');
+    const red = kit.mat('#8f3b2c');
+    const board = kit.mat('#7f3427');
     const trim = kit.mat('#f4efe4');
     const stone = kit.mat('#9a958c');
     const w = 5.2;
@@ -957,7 +957,7 @@ export function makeMountain(
     pos.setY(i, y + (rnd() - 0.5) * 0.5 * k);
   }
   geo.computeVertexNormals();
-  const tone = rnd() < 0.5 ? '#8a8d99' : '#7d818e';
+  const tone = rnd() < 0.5 ? '#8e8c84' : '#7f7e77';
   g.add(mesh(geo, kit.mat(tone), 0, height / 2, 0));
   const capH = height * 0.34;
   g.add(
@@ -966,7 +966,7 @@ export function makeMountain(
         `cap${radius.toFixed(2)},${height.toFixed(2)}`,
         () => new THREE.ConeGeometry(radius * 0.36, capH, 8),
       ),
-      kit.mat('#f7f9fc'),
+      kit.mat('#efebe0'),
       0,
       height - capH / 2 + 0.03,
       0,
@@ -1099,11 +1099,11 @@ function crystalGeo(): THREE.BufferGeometry {
 
 export function makeOreRock(kit: Kit, rnd: () => number): THREE.Group {
   const g = new THREE.Group();
-  g.add(makeBoulder(kit, rnd, 0.95, '#6f7483'));
-  g.add(makeBoulder(kit, rnd, 0.5, '#7d8291').translateX(0.8));
+  g.add(makeBoulder(kit, rnd, 0.95, '#6f6e68'));
+  g.add(makeBoulder(kit, rnd, 0.5, '#7c7b74').translateX(0.8));
   const crystal = kit.geo('crystal', crystalGeo);
-  const glow = kit.mat('#8fe8ff', {
-    emissive: '#2aa8d8',
+  const glow = kit.mat('#d9dcd6', {
+    emissive: '#4f5a60',
     emissiveIntensity: 0.75,
     roughness: 0.25,
   });
@@ -1151,8 +1151,8 @@ export function makeMine(kit: Kit): THREE.Object3D {
         mesh(
           ore,
           kit.mat(
-            i % 3 ? '#6f7483' : '#8fe8ff',
-            i % 3 ? undefined : { emissive: '#2aa8d8', emissiveIntensity: 0.6 },
+            i % 3 ? '#6f6e68' : '#d9dcd6',
+            i % 3 ? undefined : { emissive: '#4f5a60', emissiveIntensity: 0.6 },
           ),
           ((i % 3) - 1) * 0.3,
           0.92,
@@ -1542,7 +1542,7 @@ export function makeRoad(kit: Kit, len: number, color: string): THREE.Object3D {
 
 export function makeRobber(kit: Kit): THREE.Group {
   const g = new THREE.Group();
-  const cloak = kit.mat('#2b2238', { smooth: true });
+  const cloak = kit.mat('#383b3d', { smooth: true });
   const body = kit.template('robberBody', () => {
     const b = new THREE.Group();
     const profile = [
@@ -1696,10 +1696,10 @@ export function makeCloud(kit: Kit, rnd: () => number): THREE.Group {
   const g = new THREE.Group();
   const geo = kit.geo('cloud', () => new THREE.IcosahedronGeometry(1, 2));
   // Self-lit so the green bounce light from the ground doesn't tint them.
-  const m = kit.mat('#f2b49a', {
+  const m = kit.mat('#f4ecdc', {
     roughness: 1,
-    emissive: '#d9707a',
-    emissiveIntensity: 0.45,
+    emissive: '#d9c7a8',
+    emissiveIntensity: 0.4,
     smooth: true,
   });
   m.userData.outlineParameters = { visible: false };

@@ -19,15 +19,14 @@ import {
   makeBoat,
   makeBoulder,
   makeBrickStack,
-  makeCactus,
   makeCity,
   makeCloud,
   makeDock,
   makeFencePost,
   makeFenceRail,
   makeHayBale,
-  makeKarst,
   makeKiln,
+  makeMountain,
   makeMine,
   makeMist,
   makeOreRock,
@@ -91,12 +90,12 @@ export interface WorldOptions {
 }
 
 const GROUND: Record<Terrain, { base: string; speck: string[]; strokes?: boolean }> = {
-  witchwood: { base: '#2f5e26', speck: ['#244c1d', '#3d7030', '#1b3d15'], strokes: true },
-  ashen: { base: '#9c5634', speck: ['#844629', '#b0673f', '#6e3820'] },
-  moors: { base: '#4a8a2c', speck: ['#3a7022', '#5f9e38', '#2d5c1b'], strokes: true },
-  fields: { base: '#7a8a2c', speck: ['#677624', '#909e38', '#56641e'], strokes: true },
-  peaks: { base: '#6f727c', speck: ['#5d6069', '#858892', '#4c4f58'] },
-  waste: { base: '#c9a874', speck: ['#b59563', '#d8b987', '#a58556'] },
+  witchwood: { base: '#3a5a2c', speck: ['#2c4824', '#4d6e36', '#22391c'], strokes: true },
+  ashen: { base: '#9e6c4e', speck: ['#8a5c42', '#b07e5e', '#74503a'] },
+  moors: { base: '#62903c', speck: ['#4f7a30', '#7aa34a', '#3f6627'], strokes: true },
+  fields: { base: '#b39445', speck: ['#9c7f38', '#c9a957', '#86702f'], strokes: true },
+  peaks: { base: '#7d7c74', speck: ['#6a6962', '#949389', '#57574f'] },
+  waste: { base: '#d2b680', speck: ['#bc9f6c', '#e0c793', '#a88b5c'] },
 };
 
 const SAIL: Record<HarborKind, string> = {
@@ -136,8 +135,8 @@ function inHex(x: number, z: number, cx: number, cz: number, r: number): boolean
 /** Unit vector on the ground for an angle measured like `rotation.y` (0 = +Z). */
 const dir = (a: number) => ({ x: Math.sin(a), z: Math.cos(a) });
 
-/** Ink for the cel-shaded outlines: a deep plum that reads as "line art" against the sunset. */
-const INK = new THREE.Color().setRGB(0.12, 0.06, 0.12);
+/** Ink for the outlines: a dark olive-charcoal, drawn thin, so shapes read without looking inked. */
+const INK = new THREE.Color().setRGB(0.08, 0.09, 0.07);
 const noOutline = (m: THREE.Material) => {
   m.userData.outlineParameters = { visible: false };
   return m;
@@ -207,7 +206,7 @@ export class World {
 
     if (!opts.lite)
       this.outline = new OutlineEffect(this.renderer, {
-        defaultThickness: 0.0035,
+        defaultThickness: 0.0024,
         defaultColor: INK.toArray(),
       });
 
@@ -316,11 +315,11 @@ export class World {
   // ---------------------------------------------------------------- building
 
   private buildSky() {
-    // Sunset: deep indigo overhead, rose in the middle, amber on the horizon, hottest towards the sun.
-    const zenith = new THREE.Color('#25224f');
-    const mid = new THREE.Color('#a8506f');
-    const horizon = new THREE.Color('#f08a4b');
-    const glow = new THREE.Color('#ffc070');
+    // Golden hour: soft blue overhead, warm haze in the middle, honey on the horizon, brightest toward the sun.
+    const zenith = new THREE.Color('#5d8db2');
+    const mid = new THREE.Color('#d6c6a4');
+    const horizon = new THREE.Color('#efb97e');
+    const glow = new THREE.Color('#ffe2a4');
     const geo = new THREE.SphereGeometry(1000, 48, 24);
     const cols: number[] = [];
     const pos = geo.attributes.position;
@@ -354,17 +353,17 @@ export class World {
     sky.renderOrder = -2;
     this.scene.add(sky);
     this.scene.background = horizon.clone();
-    this.scene.fog = new THREE.Fog('#b8686a', 70, 560);
+    this.scene.fog = new THREE.Fog('#cdb690', 80, 600);
   }
 
   private buildLights() {
-    // Warm sky light from above, dusky violet bounce from below.
-    this.scene.add(new THREE.HemisphereLight('#ffb48a', '#3b2a44', 1.25));
-    // A cool violet fill from the east keeps shaded faces readable but moody.
-    const fill = new THREE.DirectionalLight('#8f7ad8', 0.4);
+    // Warm sky light from above, an olive bounce from the meadows below.
+    this.scene.add(new THREE.HemisphereLight('#ffe8c2', '#4d5a3a', 1.15));
+    // A cool blue-grey fill from the east keeps shaded faces readable and natural.
+    const fill = new THREE.DirectionalLight('#9db4c6', 0.38);
     fill.position.set(50, 30, 25);
     this.scene.add(fill);
-    const sun = new THREE.DirectionalLight('#ffa860', 2.6);
+    const sun = new THREE.DirectionalLight('#ffd29a', 2.5);
     sun.castShadow = !this.opts.lite;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -387,7 +386,7 @@ export class World {
 
     // Sea with lazy low-poly waves, see-through enough to show the lagoon shelf beneath.
     const seaMat = new THREE.MeshStandardMaterial({
-      color: '#1d5672',
+      color: '#2a5f68',
       roughness: 0.22,
       metalness: 0.1,
       flatShading: true,
@@ -434,10 +433,10 @@ export class World {
     const dirtGeo = kit.geo('dirt', () => new THREE.CylinderGeometry(R * 1.0, R * 1.0, 0.4, 6));
     const beachGeo = kit.geo('beach', () => new THREE.CylinderGeometry(R * 1.16, R * 1.24, 0.6, 6));
     const shelfGeo = kit.geo('shelf', () => new THREE.CylinderGeometry(R * 1.55, R * 1.7, 0.4, 6));
-    const dirt = kit.mat('#7d5a3a');
-    const sand = kit.mat('#d4b07c');
+    const dirt = kit.mat('#5e4a34');
+    const sand = kit.mat('#d7c08e');
     // The lagoon shelf sits under the see-through sea; an outline there would show through.
-    const shelf = noOutline(kit.toon('#3c7f80'));
+    const shelf = noOutline(kit.toon('#4f8680'));
     const groundMats = new Map<Terrain, THREE.MeshToonMaterial>();
     const groundMat = (t: Terrain) => {
       let m = groundMats.get(t);
@@ -527,14 +526,14 @@ export class World {
     inst.flush(this.scene);
 
     const rnd = mulberry(seed ^ 0x51ed);
-    // A far-off stone forest of karst pillars and drifting clouds give the horizon some depth.
+    // A far-off range of hazy peaks and drifting clouds give the horizon some depth.
     const horizon = new THREE.Group();
     for (let i = 0; i < 22; i++) {
       const a = (i / 22) * Math.PI * 2 + rnd() * 0.2;
       const d = 470 + rnd() * 170;
       for (let k = 0, n = 2 + Math.floor(rnd() * 3); k < n; k++) {
-        const r = 9 + rnd() * 16;
-        const m = makeKarst(kit, rnd, r, r * (2.6 + rnd() * 2.4));
+        const r = 16 + rnd() * 22;
+        const m = makeMountain(kit, rnd, r, r * (1.1 + rnd() * 0.9));
         const off = (rnd() - 0.5) * 70;
         m.position.set(
           Math.sin(a) * (d + (rnd() - 0.5) * 60) + Math.cos(a) * off,
@@ -642,9 +641,9 @@ export class World {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     this.foam = new THREE.MeshBasicMaterial({
-      color: '#ffd9c4',
+      color: '#eef0e4',
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.45,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
@@ -966,7 +965,7 @@ export class World {
       const r = 1.8 + ctx.rnd() * 1.6;
       const p = this.scatter(ctx, taken, r, 0.82);
       if (!p) continue;
-      const m = mesh(moundGeo, this.kit.mat(ctx.rnd() < 0.5 ? '#b5643c' : '#c4744a'), p.x, 0, p.z);
+      const m = mesh(moundGeo, this.kit.mat(ctx.rnd() < 0.5 ? '#a26a4c' : '#b07a58'), p.x, 0, p.z);
       m.scale.set(r, r * 0.55, r * (0.8 + ctx.rnd() * 0.4));
       ctx.g.add(m);
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.85);
@@ -974,7 +973,7 @@ export class World {
     for (let i = 0; i < 5; i++) {
       const p = this.scatter(ctx, taken, 0.6, 0.82);
       if (!p) continue;
-      const b = makeBoulder(this.kit, ctx.rnd, 0.5, '#a0593a');
+      const b = makeBoulder(this.kit, ctx.rnd, 0.5, '#9a6a52');
       b.position.x = p.x;
       b.position.z = p.z;
       ctx.g.add(b);
@@ -982,8 +981,8 @@ export class World {
   }
 
   private buildMountains(ctx: HexCtx) {
-    // A little stone forest: three tall karst pillars across from the way in, a few short ones
-    // around them, and low mist pooling between their feet.
+    // Three rocky, snow-capped peaks across from the way in, boulders scattered around their
+    // feet, and low mist pooling between them.
     const base = ctx.spawnAngle + Math.PI;
     const taken: { x: number; z: number; r: number }[] = [];
     for (let i = 0; i < 3; i++) {
@@ -992,16 +991,16 @@ export class World {
       const r = (i === 1 ? 3.1 : 2.3) + ctx.rnd() * 0.6;
       const h = (i === 1 ? 13 : 9) + ctx.rnd() * 4;
       const dist = R * 0.52;
-      const m = makeKarst(this.kit, ctx.rnd, r, h);
+      const m = makeMountain(this.kit, ctx.rnd, r * 1.45, h, true);
       m.position.set(d.x * dist, 0, d.z * dist);
       m.rotation.y = ctx.rnd() * Math.PI;
       ctx.g.add(m);
-      taken.push({ x: d.x * dist, z: d.z * dist, r: r + 1.2 });
-      this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 1.02);
+      taken.push({ x: d.x * dist, z: d.z * dist, r: r * 1.45 + 1 });
+      this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 1.2);
       if (i === 1) {
-        // A mine dug into the middle pillar, its cart rolling out towards the sign.
+        // A mine dug into the foot of the middle peak, its cart rolling out towards the sign.
         const mine = makeMine(this.kit);
-        const md = dist - r * 0.9;
+        const md = dist - r * 1.3;
         mine.position.set(d.x * md, 0, d.z * md);
         mine.rotation.y = a + Math.PI;
         ctx.g.add(mine);
@@ -1027,10 +1026,10 @@ export class World {
       const r = 1.1 + ctx.rnd() * 0.7;
       const p = this.scatter(ctx, taken, r + 0.6, 0.8);
       if (!p) continue;
-      const m = makeKarst(this.kit, ctx.rnd, r, 3 + ctx.rnd() * 4);
+      const m = makeBoulder(this.kit, ctx.rnd, r * 0.8, ctx.rnd() < 0.5 ? '#7f7e77' : '#a59f8f');
       m.position.set(p.x, 0, p.z);
       ctx.g.add(m);
-      this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 1.02);
+      this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.8);
     }
     if (!this.opts.lite) {
       for (let i = 0; i < 7; i++) {
@@ -1060,11 +1059,10 @@ export class World {
     for (let i = 0; i < 5; i++) {
       const p = this.scatter(ctx, taken, 0.8, 0.8);
       if (!p) continue;
-      const c = makeCactus(this.kit, ctx.rnd);
+      const c = makeBoulder(this.kit, ctx.rnd, 0.3 + ctx.rnd() * 0.3, '#bfa77a');
       c.position.set(p.x, 0, p.z);
-      c.rotation.y = ctx.rnd() * Math.PI;
       ctx.g.add(c);
-      this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.5);
+      this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.4);
     }
     for (let i = 0; i < 4; i++) {
       const p = this.scatter(ctx, taken, 1, 0.8);
@@ -1593,17 +1591,18 @@ function hullMaterial(
 }
 
 const BARK = ['#7a4f2b', '#6e4626', '#85572f'];
-const LEAF = ['#3f8a2c', '#357a26', '#4a9433', '#2f6e22', '#559a3a'];
-const PINE = ['#1f5e32', '#1b532c', '#246838', '#2a6f3c'];
-const WHEAT = ['#e3b952', '#d9ac48', '#ebc45e', '#cf9f40'];
-const FLOWERS = ['#ffffff', '#ffe066', '#ff8fb1', '#c59bff', '#ff9a4a'];
+const LEAF = ['#3c6430', '#4a7035', '#33582f', '#567a3a', '#6d8f43'];
+const PINE = ['#20392a', '#1b3427', '#2a4a33', '#2f5038'];
+const WHEAT = ['#d9b35a', '#cfa64d', '#e3c070', '#c2963f'];
+/** Daisies and buttercups mostly, a few poppies, now and then lavender. */
+const FLOWERS = ['#f2eee2', '#f2eee2', '#e6c450', '#c2402b', '#8576ac'];
 const GRASS: Record<Terrain, { n: number; flowers: number; colors: string[] }> = {
-  moors: { n: 2600, flowers: 110, colors: ['#3f7a24', '#4b8a2c', '#33681c', '#579232'] },
-  witchwood: { n: 2000, flowers: 30, colors: ['#2a5620', '#336826', '#224a1a', '#3d7030'] },
-  fields: { n: 350, flowers: 20, colors: ['#66762a', '#77862f', '#586620'] },
-  ashen: { n: 110, flowers: 0, colors: ['#646a2c', '#727434'] },
-  peaks: { n: 90, flowers: 6, colors: ['#4f6838', '#5c7744'] },
-  waste: { n: 40, flowers: 0, colors: ['#857f44', '#928c50'] },
+  moors: { n: 2600, flowers: 80, colors: ['#4f7a30', '#5f8a38', '#436c29', '#6d9640'] },
+  witchwood: { n: 2000, flowers: 24, colors: ['#33532a', '#3d6230', '#2b4824', '#4a6e36'] },
+  fields: { n: 350, flowers: 16, colors: ['#8a8a3c', '#9a9444', '#767a34'] },
+  ashen: { n: 110, flowers: 0, colors: ['#6d6c34', '#7d7a3e'] },
+  peaks: { n: 90, flowers: 6, colors: ['#5a6a40', '#66764a'] },
+  waste: { n: 40, flowers: 0, colors: ['#8f8650', '#9c935c'] },
 };
 
 function shadeOf(hex: string, dl: number): string {

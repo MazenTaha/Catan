@@ -601,7 +601,7 @@ const HexHit = memo(function HexHit({
       onClick={isTarget ? () => onFire(id) : undefined}
       onKeyDown={isTarget ? onKey(() => onFire(id)) : undefined}
       onFocus={isTarget ? () => onHover(id) : undefined}
-      tabIndex={isTarget ? 0 : -1}
+      tabIndex={isTarget ? 0 : undefined}
       role={isTarget ? 'button' : undefined}
       aria-label={label ?? undefined}
     />

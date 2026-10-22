@@ -33,6 +33,11 @@
     outline-offset: 2px;
     border-radius: 10px;
   }
+  /* Board targets show focus through their own hover highlight, not a box around them. */
+  svg [tabindex]:focus,
+  svg [tabindex]:focus-visible {
+    outline: none;
+  }
   button {
     -webkit-tap-highlight-color: transparent;
   }

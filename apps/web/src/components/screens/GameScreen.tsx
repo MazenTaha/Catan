@@ -24,6 +24,7 @@ import { ActionsPanel, HandPanel, canSeatAct } from '../panels/RightRail';
 import { RookieTip } from '../ui/primitives';
 import { useNet } from '../../state/net';
 import { useBotDriver, useGameKeys, useTurnTimer } from './gameHooks';
+import { isTouchDevice } from '../../state/device';
 
 const VictoryScreen = lazy(() => import('../modals/VictoryScreen'));
 const World3D = lazy(() => import('../world/World3D'));
@@ -72,7 +73,9 @@ export function GameScreen() {
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   const layout = useLayout();
   const [sheetOpen, setSheetOpen] = useState(true);
-  const [view3d, setView3d] = useState(false);
+  // The 3D walk is desktop-only: phones and tablets keep the 2D board.
+  const [walk, setView3d] = useState(false);
+  const view3d = walk && !isTouchDevice;
   const placing = useStore((s) => s.mode !== null);
   const state = session?.state;
   const seat = state ? displaySeat(state) : 0;
@@ -108,22 +111,24 @@ export function GameScreen() {
           <BoardView state={state} canAct={canAct} onAction={onAction} />
         </ZoomPan>
       )}
-      <div className="absolute bottom-3 right-3 z-20 flex gap-0.5 rounded-xl border border-iron/80 bg-[#141617]/90 p-0.5 shadow-panel" role="group" aria-label="Board view">
-        {(['2D', '3D'] as const).map((v) => {
-          const on = (v === '3D') === view3d;
-          return (
-            <button
-              key={v}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
-              aria-pressed={on}
-              title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
-              onClick={() => setView3d(v === '3D')}
-            >
-              {v === '3D' ? '3D walk' : '2D board'}
-            </button>
-          );
-        })}
-      </div>
+      {!isTouchDevice && (
+        <div className="absolute bottom-3 right-3 z-20 flex gap-0.5 rounded-xl border border-iron/80 bg-[#141617]/90 p-0.5 shadow-panel" role="group" aria-label="Board view">
+          {(['2D', '3D'] as const).map((v) => {
+            const on = (v === '3D') === view3d;
+            return (
+              <button
+                key={v}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
+                aria-pressed={on}
+                title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
+                onClick={() => setView3d(v === '3D')}
+              >
+                {v === '3D' ? '3D walk' : '2D board'}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <RollOverlay state={state} />
       <div className={`absolute left-0 top-0 z-20 max-w-[min(360px,70%)] ${view3d ? 'hidden' : ''}`}>
         {ph.kind === 'setup' && canAct && (

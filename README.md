@@ -47,7 +47,7 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 4. A **7** wakes the Wraith: big hands discard half, the roller moves the Wraith and robs a neighbour.
 5. Race to the target with Outposts (1), Citadels (2), the Longest Causeway (2), the Greatest Host (2) and hidden Relics (1 each).
 
-**3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a low-poly world at sunset that you can explore in first person — sheep grazing round a barn on Pastures, a windmill in the Fields, kilns in the Hills, ore in the Mountains — with everyone's roads, settlements, cities and the robber in place. **W A S D** or the arrows walk, drag to look, **Shift** runs; on touch screens use the stick at the bottom-left. **Next land** jumps between the tiles your buildings touch. Placing pieces still happens on the 2D board.
+**3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a low-poly world at golden hour that you can explore in first person — sheep grazing round a barn on Pastures, a windmill in the Fields, kilns in the Hills, ore in the Mountains — with everyone's roads, settlements, cities and the robber in place. **W A S D** or the arrows walk, drag to look, **Shift** runs. **Next land** jumps between the tiles your buildings touch. Placing pieces still happens on the 2D board. The 3D walk is for desktop browsers only: on phones and tablets (including iPads) the switch is hidden and the game stays on the 2D board.
 
 The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES.md](docs/RULES.md).
 
@@ -91,7 +91,7 @@ Every state change emits typed `GameEvent`s; the web app derives the log, toasts
 - **Other art:** pieces, tokens, harbors and the Wraith live in `apps/web/src/art/pieces/Pieces.tsx`; icons in `apps/web/src/art/icons/Icon.tsx`; Omen cards in `apps/web/src/art/cards/OmenCard.tsx`. Each is a self-contained component.
 - **Audio:** drop files into `apps/web/public/audio/` and map them in [`apps/web/src/audio/manifest.json`](apps/web/src/audio/manifest.json) (e.g. `"dice": "dice.ogg"`). Mapped sounds play through Howler (lazy-loaded); unmapped ones fall back to the WebAudio synthesizer in `src/audio/synth.ts`.
 - **Names:** every player-facing name is in `apps/web/src/lexicon.ts`.
-- **Palette & components:** design tokens (the warm *Dusk* palette) are CSS variables in `apps/web/src/styles/tokens.css`, with shared component styles (`.panel`, `.btn`, `.tile`, `.chip`, `.meter`) in `apps/web/src/styles/index.css` and interactive building blocks (tooltips, segmented tabs, progress rings, steppers, modals) in `apps/web/src/components/ui/primitives.tsx`; an alternate *Frostbound* theme is defined in the tokens as an example.
+- **Palette & components:** design tokens (a cool graphite palette with antique-gold accents) are CSS variables in `apps/web/src/styles/tokens.css`, with shared component styles (`.panel`, `.btn`, `.tile`, `.chip`, `.meter`) in `apps/web/src/styles/index.css` and interactive building blocks (tooltips, segmented tabs, progress rings, steppers, modals) in `apps/web/src/components/ui/primitives.tsx`; an alternate *Frostbound* theme is defined in the tokens as an example.
 
 Licenses and attributions: [docs/CREDITS.md](docs/CREDITS.md). Design decisions: [docs/DECISIONS.md](docs/DECISIONS.md).
 "# Catan" 

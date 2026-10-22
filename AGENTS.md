@@ -13,7 +13,8 @@ Orientation for AI coding agents. Read this first, then `README.md` (player/run 
 - **Hot-seat** (several humans on one device, with a pass-the-device privacy curtain),
 - or any mix of these.
 
-It also has an optional **first-person 3D "walk"** of the live island (three.js, lazy-loaded).
+It also has an optional **first-person 3D "walk"** of the live island (three.js, lazy-loaded), offered on
+desktop only: `isTouchDevice` (`apps/web/src/state/device.ts`) hides it on phones and tablets, iPads included.
 
 Key constraints that shape everything:
 
@@ -187,12 +188,15 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 - **Current palette, cool black:** abyss `#090a0b`, surface-1 `#111314`, surface-2 `#1a1d1e`,
   raised `#212426`, iron (borders) `#3a4043`, muted text `#9ea4a7`. Accents: gold `#f2ac52`,
   ember/coral `#ff805c`, blood (danger) `#b0364a`, bone (text) `#f3e6d6`.
-  (README.md still calls the palette "Dusk"; that refers to the earlier plum palette and is stale.)
+  `--antique` (`#d6b270`) is the muted gold for engraved details such as panel-title lozenges.
 - Shared component classes in `styles/index.css`: `.panel`, `.btn`, `.btn-primary`, `.btn-danger`,
   `.chip`, `.tile`, `.meter`, plus animation utility classes.
 - Fonts: Cinzel (display), Cinzel Decorative (logo), Crimson Pro (body).
-- Game art has its own palette, separate from the UI. The anime-style pieces and terrain use a dark
-  wine outline ink `#2b1a22`, and the robber wears purple. Those are intentional art choices, not UI chrome.
+- Board art direction (DECISIONS #29): a sunlit medieval wilderness painted as miniatures. One light
+  everywhere: warm sun from the upper left, cool blue-green shade lower right (`art/color.ts` `lit`/`shade`).
+  No heavy ink outlines; only faint edge lines where a silhouette needs them. Small repeated scenery
+  comes from the shared `<use>` kit in `art/terrain/flora.tsx`; tiles compose it from their own seed.
+  The robber is charcoal, tokens are aged ivory. Keep the 3D walk on the same palette and light.
 
 ## 9. Conventions and gotchas
 
@@ -224,6 +228,8 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 
 ## 11. Recent history (newest first)
 
+- Sunlit medieval wilderness art pass: painted terrain, crafted pieces, ivory tokens, natural coast,
+  UI finish and a matching golden-hour 3D walk (DECISIONS #29).
 - Focus box removed when clicking land hexes.
 - Merged cloud work: compact UI, slimmer player strip, two-part trade tab, anime-style
   (cel-shaded) 3D walk and redrawn 2D board/pieces, simpler title menu, dice-roll animation in

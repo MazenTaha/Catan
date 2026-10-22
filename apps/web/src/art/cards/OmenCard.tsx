@@ -54,9 +54,9 @@ export const OmenCardFront = memo(function OmenCardFront({ type, width = 64 }: {
         </linearGradient>
       </defs>
       <rect x="1.5" y="1.5" width="77" height="113" rx="5" fill={`url(#omen-bg-${type})`} stroke={relic ? '#e2c071' : '#8a6d2f'} strokeWidth="2" />
-      <rect x="6" y="6" width="68" height="104" rx="3" fill="none" stroke="#3a3f4b" />
+      <rect x="6" y="6" width="68" height="104" rx="3" fill="none" stroke="#323739" />
       {/* gothic arch header */}
-      <path d="M14 46V26a26 26 0 0 1 52 0v20z" fill="#0a0b0d" stroke="#8a6d2f" strokeWidth="1" />
+      <path d="M14 46V26a26 26 0 0 1 52 0v20z" fill="#070809" stroke="#8a6d2f" strokeWidth="1" />
       <g transform="translate(10 4)">{ART[type]}</g>
       <path d="M10 60h60" stroke="#8a6d2f" strokeOpacity="0.6" />
       <text x="40" y="76" textAnchor="middle" fontFamily="Cinzel, serif" fontSize={type === 'decree' || type === 'harvest' ? 7.5 : 9} fill={relic ? '#e2c071' : '#e6dfcf'} letterSpacing="0.6">

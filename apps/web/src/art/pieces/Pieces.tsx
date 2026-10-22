@@ -69,10 +69,10 @@ export const OutpostPiece = memo(function OutpostPiece({ color, sigil, ghost, ri
       {!ghost && <ellipse cx={0} cy={13} rx={15} ry={4.5} fill="#000" opacity={0.55} />}
       {rim && <path d="M-11 14L-10 -7L0 -24L10 -7L11 14Z" fill="none" stroke={c} strokeWidth={5} opacity={0.35} />}
       <path d="M-10 13L-9 -6H9L10 13Z" fill={`url(#g-piece-${color})`} stroke={d} strokeWidth={1.6} />
-      <path d="M-12.5 -5.5L0 -22L12.5 -5.5Z" fill={d} stroke="#0a0b0d" strokeWidth={1.2} />
+      <path d="M-12.5 -5.5L0 -22L12.5 -5.5Z" fill={d} stroke="#070809" strokeWidth={1.2} />
       <path d="M-12.5 -5.5L0 -22L0 -5.5Z" fill="#fff" opacity={0.1} />
       <path d="M-9 2H9M-9.4 8H9.4" stroke={d} strokeWidth={0.7} opacity={0.8} />
-      <path d="M-3 13V8a3 3 0 0 1 6 0v5Z" fill="#0a0b0d" />
+      <path d="M-3 13V8a3 3 0 0 1 6 0v5Z" fill="#070809" />
       <SigilMark sigil={sigil} color={color} x={0} y={-0.5} size={9} />
       {!ghost && <Torch x={12.5} y={-3} />}
     </g>
@@ -86,7 +86,7 @@ export const CitadelPiece = memo(function CitadelPiece({ color, sigil, ghost, ri
     <g opacity={ghost ? 0.6 : 1} strokeDasharray={ghost ? '3 2' : undefined}>
       {!ghost && <ellipse cx={0} cy={15} rx={22} ry={5} fill="#000" opacity={0.55} />}
       {rim && <path d="M-20 16V-8L-15 -24L0 -38L15 -24L20 -8V16Z" fill="none" stroke={c} strokeWidth={5} opacity={0.35} />}
-      <path d="M17 -6L15 -22L13 -6ZM-13 -6L-15 -22L-17 -6Z" fill={d} stroke="#0a0b0d" strokeWidth={1} />
+      <path d="M17 -6L15 -22L13 -6ZM-13 -6L-15 -22L-17 -6Z" fill={d} stroke="#070809" strokeWidth={1} />
       <path
         d="M-19 15V-6H-14V-11H-9V-6H-5V-11H5V-6H9V-11H14V-6H19V15Z"
         fill={`url(#g-piece-${color})`}
@@ -98,7 +98,7 @@ export const CitadelPiece = memo(function CitadelPiece({ color, sigil, ghost, ri
       <path d="M-2.4 -10V-15a2.4 2.4 0 0 1 4.8 0V-10Z" fill="#ffcf6b" />
       {!ghost && <circle cx={0} cy={-13} r={7} fill="url(#g-torch)" opacity={0.8} />}
       <path d="M-19 4H19" stroke={d} strokeWidth={0.7} opacity={0.8} />
-      <path d="M-4 15V9a4 4 0 0 1 8 0v6Z" fill="#0a0b0d" />
+      <path d="M-4 15V9a4 4 0 0 1 8 0v6Z" fill="#070809" />
       <SigilMark sigil={sigil} color={color} x={-11.5} y={4} size={8} />
       <SigilMark sigil={sigil} color={color} x={11.5} y={4} size={8} />
     </g>
@@ -200,8 +200,8 @@ export const HarborBadge = memo(function HarborBadge({ kind }: { kind: HarborKin
   return (
     <g>
       <circle r={26} fill="url(#g-torch)" opacity={0.45} />
-      <path d="M-20 -15H20V11L0 18L-20 11Z" fill="#14161c" stroke="#8a6d2f" strokeWidth={1.6} />
-      <path d="M-17 -12H17V9L0 15L-17 9Z" fill="none" stroke="#3a3f4b" strokeWidth={0.8} />
+      <path d="M-20 -15H20V11L0 18L-20 11Z" fill="#111314" stroke="#8a6d2f" strokeWidth={1.6} />
+      <path d="M-17 -12H17V9L0 15L-17 9Z" fill="none" stroke="#323739" strokeWidth={0.8} />
       <text y={kind === 'any' ? 4 : -1} textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700} fontSize={12} fill="#e6dfcf">
         {rate}
       </text>

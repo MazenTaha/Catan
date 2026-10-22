@@ -62,12 +62,12 @@ export const PlayerDisc = memo(function PlayerDisc({
         </radialGradient>
       </defs>
       {active && <circle cx="20" cy="20" r="19" fill="none" stroke="#c9a24b" strokeWidth="2" className="anim-pulse" />}
-      <circle cx="20" cy="20" r="15.5" fill={`url(#${id})`} stroke="#0a0b0d" strokeWidth="2" />
+      <circle cx="20" cy="20" r="15.5" fill={`url(#${id})`} stroke="#070809" strokeWidth="2" />
       <circle cx="20" cy="20" r="15.5" fill="none" stroke="#8a6d2f" strokeWidth="0.8" />
       <g transform="translate(10.5 10.5) scale(0.95)">
         <path
           d={SIGIL_PATH[sigil]}
-          fill={color === 'bone' ? '#2a2620' : '#0d0e12'}
+          fill={color === 'bone' ? '#2a2620' : '#0a0b0c'}
           fillOpacity="0.78"
           fillRule="evenodd"
         />

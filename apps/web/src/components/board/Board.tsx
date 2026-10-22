@@ -177,7 +177,7 @@ const Tokens = memo(function Tokens({ board, colorblind }: { board: BoardT; colo
             )}
             {colorblind && res && (
               <g transform="translate(0 -66)">
-                <circle r={11} fill="#0d0e12" stroke="#c9a24b" strokeWidth={1} opacity={0.9} />
+                <circle r={11} fill="#0a0b0c" stroke="#c9a24b" strokeWidth={1} opacity={0.9} />
                 <ResGlyphSvg res={res} size={14} color="#e6dfcf" />
               </g>
             )}

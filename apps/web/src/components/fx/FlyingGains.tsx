@@ -70,7 +70,7 @@ export function FlyingGains({ state, seat, disabled }: { state: GameState; seat:
               left: 0,
               top: 0,
               borderColor: RES_COLOR[f.res],
-              background: '#15171d',
+              background: '#121415',
               color: RES_COLOR[f.res],
               boxShadow: `0 0 14px ${RES_COLOR[f.res]}88`,
             }}

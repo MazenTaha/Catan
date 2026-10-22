@@ -7,7 +7,6 @@ export type Effects = 'auto' | 'full' | 'lite';
 
 export interface Settings {
   master: number;
-  music: number;
   sfx: number;
   muted: boolean;
   reduceMotion: boolean;
@@ -29,7 +28,6 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   master: 0.8,
-  music: 0.5,
   sfx: 0.8,
   muted: false,
   reduceMotion: false,

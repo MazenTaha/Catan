@@ -21,10 +21,7 @@ export function App() {
 
   // Audio may only start after a user gesture (autoplay policy).
   useEffect(() => {
-    const start = () => {
-      audio.unlock();
-      audio.startAmbient();
-    };
+    const start = () => audio.unlock();
     window.addEventListener('pointerdown', start, { once: true });
     window.addEventListener('keydown', start, { once: true });
     return () => {

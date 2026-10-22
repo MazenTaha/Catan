@@ -202,7 +202,7 @@ function makeLog(events: GameEvent[], state: GameState, startSeq: number): LogIt
 }
 
 function applyVolumes(s: Settings) {
-  audio.setVolumes({ master: s.master, music: s.music, sfx: s.sfx, muted: s.muted });
+  audio.setVolumes({ master: s.master, sfx: s.sfx, muted: s.muted });
 }
 
 function applyDocumentSettings(s: Settings) {
@@ -297,7 +297,6 @@ function advance(
   if (spoken.length) announce = spoken.join('. ');
 
   for (const s of soundsFor(events)) audio.play(s);
-  if (state.phase.kind === 'ended') audio.duck(false);
 
   const toast = toastFor(events, state) ?? cur.toast;
   const log = [...session.log, ...makeLog(events, state, session.seq)];
@@ -531,11 +530,9 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ tab });
   },
   openModal(modal) {
-    audio.duck(true);
     set({ modal });
   },
   closeModal() {
-    audio.duck(false);
     set({ modal: null });
   },
   setHoverPlayer(hoverPlayer) {

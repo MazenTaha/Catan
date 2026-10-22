@@ -51,7 +51,7 @@ function ConnectionBanner() {
   const lost = status === 'offline' || status === 'idle';
   return (
     <div className="fixed inset-x-0 top-3 z-[75] flex justify-center px-4" role="status" aria-live="polite">
-      <div className="flex items-center gap-3 rounded-2xl border border-ember/60 bg-[#2a1420]/95 px-4 py-2.5 text-[14px] shadow-panel">
+      <div className="flex items-center gap-3 rounded-2xl border border-ember/60 bg-[#24160f]/95 px-4 py-2.5 text-[14px] shadow-panel">
         <span className={`h-2.5 w-2.5 rounded-full ${lost ? 'bg-ember' : 'bg-gold anim-pulse'}`} aria-hidden />
         <span>{lost ? (error ?? 'Lost the connection to the game.') : 'Connection lost — reconnecting…'}</span>
         {lost && (
@@ -109,7 +109,7 @@ export function GameScreen() {
           <BoardView state={state} canAct={canAct} onAction={onAction} />
         </ZoomPan>
       )}
-      <div className="absolute bottom-3 right-3 z-20 flex gap-1 rounded-2xl border border-iron/80 bg-[#1a1220]/90 p-1 shadow-panel" role="group" aria-label="Board view">
+      <div className="absolute bottom-3 right-3 z-20 flex gap-1 rounded-2xl border border-iron/80 bg-[#141617]/90 p-1 shadow-panel" role="group" aria-label="Board view">
         {(['2D', '3D'] as const).map((v) => {
           const on = (v === '3D') === view3d;
           return (
@@ -179,7 +179,7 @@ export function GameScreen() {
       </div>
 
       {layout === 'narrow' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-iron/80 bg-[#1a1220]/95 shadow-panel">
+        <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-iron/80 bg-[#141617]/95 shadow-panel">
           <button className="flex w-full flex-col items-center gap-1 pb-1.5 pt-2 font-display text-[11px] uppercase tracking-[0.2em] text-gold" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen}>
             <span className="h-1 w-10 rounded-full bg-iron" aria-hidden />
             <span className="flex items-center gap-2">

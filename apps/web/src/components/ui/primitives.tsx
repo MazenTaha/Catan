@@ -36,7 +36,7 @@ export const ResourceCard = memo(function ResourceCard({
       style={{
         borderColor: need === 'have' ? c : need === 'missing' ? '#ff805c' : `${c}55`,
         borderStyle: need === 'missing' ? 'dashed' : 'solid',
-        background: `radial-gradient(120% 70% at 50% 0%, ${c}38, transparent 60%), linear-gradient(180deg, #2c2236, #1a1420)`,
+        background: `radial-gradient(120% 70% at 50% 0%, ${c}38, transparent 60%), linear-gradient(180deg, #202325, #121415)`,
         boxShadow:
           need === 'have'
             ? `0 0 0 1px ${c}, 0 0 20px -2px ${c}aa, 0 10px 18px -10px #000`
@@ -120,9 +120,9 @@ export function CostPips({ cost, hand }: { cost: Partial<ResourceCounts>; hand: 
           title={RESOURCE_NAME[p.r]}
           className="grid h-[24px] w-[24px] place-items-center rounded-lg border transition-colors"
           style={{
-            borderColor: p.have ? RES_COLOR[p.r] : '#5a4a66',
+            borderColor: p.have ? RES_COLOR[p.r] : '#4a5154',
             background: p.have ? `${RES_COLOR[p.r]}30` : '#00000030',
-            color: p.have ? RES_COLOR[p.r] : '#7a6c80',
+            color: p.have ? RES_COLOR[p.r] : '#737b7e',
             borderStyle: p.have ? 'solid' : 'dashed',
           }}
         >
@@ -219,7 +219,7 @@ export function Tooltip({
       {children}
       <span
         role="tooltip"
-        className={`tip-pop pointer-events-none absolute z-[80] hidden w-max max-w-[220px] rounded-lg border border-iron/80 bg-[#120d17]/95 px-2.5 py-1.5 text-center font-body text-[13px] normal-case leading-snug tracking-normal text-bone shadow-panel group-focus-within/tip:block group-hover/tip:block ${x} ${
+        className={`tip-pop pointer-events-none absolute z-[80] hidden w-max max-w-[220px] rounded-lg border border-iron/80 bg-[#0f1112]/95 px-2.5 py-1.5 text-center font-body text-[13px] normal-case leading-snug tracking-normal text-bone shadow-panel group-focus-within/tip:block group-hover/tip:block ${x} ${
           side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
         }`}
       >
@@ -436,7 +436,7 @@ export function Modal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 grid place-items-center bg-[#0c0710]/75 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#050606]/75 p-4"
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={reduce ? undefined : { opacity: 0 }}
@@ -483,7 +483,7 @@ export function RookieTip({ id, children }: { id: string; children: ReactNode })
   const dismiss = useStore((s) => s.dismissTip);
   if (!show) return null;
   return (
-    <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-gold/30 bg-gradient-to-br from-[#3a2418]/95 to-[#251a24]/95 px-3 py-2.5 text-[14px] text-bone/90 shadow-panel">
+    <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-gold/30 bg-gradient-to-br from-[#3a2418]/95 to-[#1a1c1d]/95 px-3 py-2.5 text-[14px] text-bone/90 shadow-panel">
       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-ember/20 text-ember">
         <Icon name="torch" size={15} />
       </span>

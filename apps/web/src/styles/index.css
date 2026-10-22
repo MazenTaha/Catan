@@ -16,12 +16,12 @@
   }
   body {
     @apply bg-abyss text-bone font-body antialiased;
-    /* A dusk sky: amber glow low on the horizon, plum overhead. */
+    /* Cool black: a faint amber glow low on the horizon, steel overhead. */
     background-image:
-      radial-gradient(ellipse 120% 60% at 50% 115%, rgb(255 128 72 / 0.22), transparent 60%),
-      radial-gradient(ellipse 90% 50% at 15% 0%, rgb(120 70 140 / 0.25), transparent 65%),
+      radial-gradient(ellipse 120% 60% at 50% 115%, rgb(255 128 72 / 0.1), transparent 60%),
+      radial-gradient(ellipse 90% 50% at 15% 0%, rgb(90 110 120 / 0.14), transparent 65%),
       radial-gradient(ellipse 70% 45% at 90% 10%, rgb(242 172 82 / 0.08), transparent 70%),
-      linear-gradient(180deg, #1a1322 0%, #140f1b 60%, #1b1018 100%);
+      linear-gradient(180deg, #0e1011 0%, #0a0b0c 60%, #0b0c0d 100%);
     background-attachment: fixed;
     overflow-x: hidden;
   }
@@ -53,7 +53,7 @@
     position: relative;
     border-radius: var(--radius);
     background:
-      linear-gradient(180deg, rgb(255 190 140 / 0.06), transparent 38%),
+      linear-gradient(180deg, rgb(220 230 235 / 0.05), transparent 38%),
       linear-gradient(160deg, rgb(var(--surface-2) / 0.92), rgb(var(--surface-1) / 0.94));
     border: 1px solid rgb(var(--iron) / 0.7);
     box-shadow:
@@ -63,7 +63,7 @@
   }
   .panel-raised {
     background:
-      linear-gradient(180deg, rgb(255 190 140 / 0.08), transparent 40%),
+      linear-gradient(180deg, rgb(220 230 235 / 0.06), transparent 40%),
       linear-gradient(160deg, rgb(var(--raised)), rgb(var(--surface-1)));
   }
   /* Rivets were part of the old iron look; keep the class as a no-op for older markup. */
@@ -285,7 +285,7 @@
   z-index: 59;
   background-image:
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>"),
-    radial-gradient(ellipse at 50% 45%, transparent 60%, rgb(20 6 16 / 0.5) 100%);
+    radial-gradient(ellipse at 50% 45%, transparent 60%, rgb(0 0 0 / 0.55) 100%);
 }
 
 @keyframes tip-pop {

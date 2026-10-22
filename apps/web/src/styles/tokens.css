@@ -1,20 +1,20 @@
 /* Hexfall design tokens. Colors are RGB triplets so Tailwind can apply alpha. */
 :root {
-  /* Dusk palette: deep plum surfaces, warm amber accents, soft coral highlights. */
-  --abyss: 18 14 24; /* #120e18 */
-  --surface-1: 30 23 38; /* #1e1726 */
-  --surface-2: 42 32 52; /* #2a2034 */
-  --raised: 52 40 62; /* #34283e */
-  --iron: 78 63 92; /* #4e3f5c */
+  /* Cool black palette: graphite surfaces, warm amber accents, soft coral highlights. */
+  --abyss: 9 10 11; /* #090a0b */
+  --surface-1: 17 19 20; /* #111314 */
+  --surface-2: 26 29 30; /* #1a1d1e */
+  --raised: 33 36 38; /* #212426 */
+  --iron: 58 64 67; /* #3a4043 */
   --tarnish: 160 110 62; /* #a06e3e */
   --gold: 242 172 82; /* #f2ac52 */
   --ember: 255 128 92; /* #ff805c */
   --blood: 176 54 74; /* #b0364a */
   --bone: 243 230 214; /* #f3e6d6 */
-  --muted: 176 158 150; /* #b09e96 — AA on surface-2 */
+  --muted: 158 164 167; /* #9ea4a7 — AA on surface-2 */
   --frost: 143 179 224; /* #8fb3e0 */
   --venom: 140 197 106; /* #8cc56a */
-  --glass: 38 29 47;
+  --glass: 22 24 26;
   --radius: 16px;
 
   --p-crimson: 196 48 43;

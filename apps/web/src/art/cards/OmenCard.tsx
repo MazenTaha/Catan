@@ -6,7 +6,7 @@ import { OMEN_NAME } from '../../lexicon';
 const ART: Record<OmenType, JSX.Element> = {
   warden: (
     <g stroke="#e6dfcf" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M30 8l12 6v14c0 10-6 18-12 22-6-4-12-12-12-22V14z" fill="#1c1a24" />
+      <path d="M30 8l12 6v14c0 10-6 18-12 22-6-4-12-12-12-22V14z" fill="#1a1c1e" />
       <path d="M22 22h16M26 22v8M34 22v8M30 30v10" stroke="#c9a24b" />
       <path d="M12 48 48 12M44 10l6 6M10 46l4 4" />
     </g>
@@ -49,7 +49,7 @@ export const OmenCardFront = memo(function OmenCardFront({ type, width = 64 }: {
     <svg width={width} height={width * 1.45} viewBox="0 0 80 116" aria-hidden className="shrink-0">
       <defs>
         <linearGradient id={`omen-bg-${type}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1e1a26" />
+          <stop offset="0%" stopColor="#1c1e20" />
           <stop offset="100%" stopColor="#0d0c12" />
         </linearGradient>
       </defs>

@@ -289,7 +289,7 @@ export function PassDeviceCurtain({ state }: { state: GameState }) {
   return (
     <motion.div
       className="fixed inset-0 z-[70] grid place-items-center p-4"
-      style={{ background: 'radial-gradient(ellipse at 50% 35%, #3a2030 0%, #120c18 55%, #08060b 85%)' }}
+      style={{ background: 'radial-gradient(ellipse at 50% 35%, #24282a 0%, #0d0f10 55%, #050606 85%)' }}
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       role="dialog"

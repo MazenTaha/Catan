@@ -62,7 +62,7 @@ export function TitleScreen() {
       </div>
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(24,14,26,0.2) 0%, rgba(24,14,26,0.82) 55%, #120c16 85%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(9,10,11,0.2) 0%, rgba(9,10,11,0.82) 55%, #090a0b 85%)' }}
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 anim-drift" style={{ background: 'linear-gradient(0deg, rgba(255,128,72,0.16), transparent)' }} />
 

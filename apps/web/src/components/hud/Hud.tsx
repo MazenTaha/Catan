@@ -264,7 +264,7 @@ export function FloatingToast() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-            className="relative flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl border border-iron/80 bg-[#1c1522]/95 py-2.5 pl-2.5 pr-4 text-[15px] shadow-panel"
+            className="relative flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl border border-iron/80 bg-[#16181a]/95 py-2.5 pl-2.5 pr-4 text-[15px] shadow-panel"
             role="status"
             data-testid="toast"
           >

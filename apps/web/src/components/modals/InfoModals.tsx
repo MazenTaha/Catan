@@ -123,7 +123,6 @@ export function SettingsModal() {
       <h3 className="panel-title mb-2">Sound</h3>
       <div className="flex flex-col gap-2">
         <Slider label="Master" value={s.master} onChange={set('master')} />
-        <Slider label="Music" value={s.music} onChange={set('music')} />
         <Slider label="Effects" value={s.sfx} onChange={set('sfx')} />
         <Toggle label="Mute all" checked={s.muted} onChange={set('muted')} />
       </div>

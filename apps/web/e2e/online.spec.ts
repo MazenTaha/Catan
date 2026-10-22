@@ -79,8 +79,8 @@ test('online: host shares a room code, a friend joins, and both play the opening
   await host.getByTestId('fill-bots').click();
   await host.getByTestId('begin').click();
 
-  await expect(host.getByRole('region', { name: 'Turn' })).toBeVisible();
-  await expect(guest.getByRole('region', { name: 'Turn' })).toBeVisible();
+  await expect(host.getByRole('region', { name: 'Players' })).toBeVisible();
+  await expect(guest.getByRole('region', { name: 'Players' })).toBeVisible();
   await expect(guest.getByText(code)).toBeVisible();
 
   // Setup snake: Mazen, Sara, bot, bot, Sara, Mazen — each on their own screen.

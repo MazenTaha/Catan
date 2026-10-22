@@ -1,6 +1,3 @@
-import { motion, useAnimationControls } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
-
 const PIPS: Record<number, [number, number][]> = {
   1: [[50, 50]],
   2: [[28, 28], [72, 72]],
@@ -31,64 +28,5 @@ export function DieFace({ value, size = 52, red = false }: { value: number; size
         </g>
       ))}
     </svg>
-  );
-}
-
-/** Two tumbling dice; re-animates whenever `seq` changes. */
-export function DicePair({
-  dice,
-  seq,
-  reduceMotion,
-  size = 52,
-}: {
-  dice: [number, number] | null;
-  seq: number;
-  reduceMotion: boolean;
-  size?: number;
-}) {
-  const [faces, setFaces] = useState<[number, number]>(dice ?? [6, 6]);
-  const a = useAnimationControls();
-  const b = useAnimationControls();
-  const first = useRef(true);
-
-  useEffect(() => {
-    if (!dice) return;
-    if (first.current || reduceMotion) {
-      first.current = false;
-      setFaces(dice);
-      return;
-    }
-    let ticks = 0;
-    const id = window.setInterval(() => {
-      ticks++;
-      setFaces([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
-      if (ticks >= 8) {
-        window.clearInterval(id);
-        setFaces(dice);
-      }
-    }, 70);
-    const tumble = (dir: number) => ({
-      rotate: [0, dir * 200, dir * 330, dir * 360],
-      y: [0, -26, 4, 0],
-      x: [0, dir * 8, dir * 3, 0],
-      transition: { duration: 0.65, ease: [0.2, 0.7, 0.3, 1] as const, times: [0, 0.4, 0.8, 1] },
-    });
-    void a.start(tumble(1));
-    void b.start(tumble(-1));
-    return () => window.clearInterval(id);
-    // seq drives re-rolls; dice is read at that moment
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq]);
-
-  const red = dice ? dice[0] + dice[1] === 7 : false;
-  return (
-    <div className="flex items-center gap-2">
-      <motion.div animate={a}>
-        <DieFace value={faces[0]} size={size} red={red} />
-      </motion.div>
-      <motion.div animate={b}>
-        <DieFace value={faces[1]} size={size} red={red} />
-      </motion.div>
-    </div>
   );
 }

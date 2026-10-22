@@ -2,7 +2,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Suspense, lazy, useEffect } from 'react';
 import { audio } from './audio/engine';
 import { Embers } from './components/fx/Embers';
-import { CreditsModal, ImportModal, SettingsModal } from './components/modals/InfoModals';
+import { SettingsModal } from './components/modals/InfoModals';
 import { GameScreen } from './components/screens/GameScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
 import { TitleScreen } from './components/screens/TitleScreen';
@@ -51,8 +51,6 @@ export function App() {
       </div>
       <AnimatePresence>
         {modal === 'settings' && <SettingsModal key="settings" />}
-        {modal === 'credits' && <CreditsModal key="credits" />}
-        {modal === 'import' && <ImportModal key="import" />}
       </AnimatePresence>
       {modal === 'rules' && (
         <Suspense fallback={null}>

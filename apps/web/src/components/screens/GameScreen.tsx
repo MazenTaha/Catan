@@ -6,7 +6,7 @@ import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
 import { ZoomPan } from '../board/ZoomPan';
 import { FlyingGains } from '../fx/FlyingGains';
-import { DiceTray, FloatingToast, TopBar, TurnBanner } from '../hud/Hud';
+import { FloatingToast, RollOverlay, TopBar, instruction } from '../hud/Hud';
 import { VIEWBOX } from '../board/geometry';
 import {
   ConfirmNewModal,
@@ -87,16 +87,15 @@ export function GameScreen() {
   const actor = activeActor(state);
   const canAct = canSeatAct(state, seat);
   const ph = state.phase;
-  const canRoll = canAct && ph.kind === 'roll' && state.currentPlayer === seat;
   const humanSeat = state.players[seat].kind === 'human';
   const needsBoard = canAct && humanSeat && (ph.kind === 'setup' || ph.kind === 'move-wraith' || placing);
 
-  // The board takes all the height left under the top bar and turn banner.
+  // The board takes all the height left under the top bar and the players row.
   const board = (
     <div
       data-board
       className="relative mx-auto w-full"
-      style={{ maxWidth: layout === 'narrow' ? undefined : `min(100%, calc((100vh - 168px) * ${(VIEWBOX.w / VIEWBOX.h).toFixed(3)}))` }}
+      style={{ maxWidth: layout === 'narrow' ? undefined : `min(100%, calc((100vh - 150px) * ${(VIEWBOX.w / VIEWBOX.h).toFixed(3)}))` }}
     >
       {view3d ? (
         <div className="w-full" style={{ aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` }}>
@@ -109,13 +108,13 @@ export function GameScreen() {
           <BoardView state={state} canAct={canAct} onAction={onAction} />
         </ZoomPan>
       )}
-      <div className="absolute bottom-3 right-3 z-20 flex gap-1 rounded-2xl border border-iron/80 bg-[#141617]/90 p-1 shadow-panel" role="group" aria-label="Board view">
+      <div className="absolute bottom-3 right-3 z-20 flex gap-0.5 rounded-xl border border-iron/80 bg-[#141617]/90 p-0.5 shadow-panel" role="group" aria-label="Board view">
         {(['2D', '3D'] as const).map((v) => {
           const on = (v === '3D') === view3d;
           return (
             <button
               key={v}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-display text-[12px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
               aria-pressed={on}
               title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
               onClick={() => setView3d(v === '3D')}
@@ -125,6 +124,7 @@ export function GameScreen() {
           );
         })}
       </div>
+      <RollOverlay state={state} />
       <div className={`absolute left-0 top-0 z-20 max-w-[min(360px,70%)] ${view3d ? 'hidden' : ''}`}>
         {ph.kind === 'setup' && canAct && (
           <RookieTip id="setup">
@@ -138,9 +138,10 @@ export function GameScreen() {
 
   const center = (
     <div className="flex min-h-0 flex-col gap-2">
-      <TurnBanner state={state} seat={seat}>
-        <DiceTray state={state} canRoll={canRoll} onRoll={() => dispatch({ type: 'RollDice', player: seat })} />
-      </TurnBanner>
+      <PlayersPanel state={state} seat={seat} />
+      <p className="sr-only" aria-live="polite">
+        {instruction(state, seat)}
+      </p>
       {board}
     </div>
   );
@@ -148,15 +149,13 @@ export function GameScreen() {
   return (
     <div className="flex min-h-screen flex-col gap-2 p-2 sm:p-3">
       <TopBar state={state} />
-      {layout !== 'wide' && <PlayersPanel state={state} seat={seat} horizontal />}
       <div
         className={`grid flex-1 gap-3 ${
           layout === 'wide' ? 'grid-cols-[minmax(240px,17vw)_minmax(0,1fr)_minmax(350px,24vw)]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
         }`}
       >
         {layout === 'wide' && (
-          <aside className="flex min-h-0 flex-col gap-3" aria-label="Players and events">
-            <PlayersPanel state={state} seat={seat} />
+          <aside className="flex min-h-0 flex-col gap-3" aria-label="Claims and events">
             <BonusPanel state={state} />
             <RecentLog state={state} seat={seat} />
           </aside>

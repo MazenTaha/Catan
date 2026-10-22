@@ -17,6 +17,7 @@ export const ResourceCard = memo(function ResourceCard({
   compact = false,
   hidden = false,
   need = null,
+  fluid = false,
 }: {
   res: Resource;
   count: number;
@@ -25,13 +26,15 @@ export const ResourceCard = memo(function ResourceCard({
   compact?: boolean;
   hidden?: boolean;
   need?: 'have' | 'missing' | null;
+  /** Fill the parent's width (the hand shares its row between five cards). */
+  fluid?: boolean;
 }) {
   const c = RES_COLOR[res];
   const empty = count === 0;
   return (
     <div
       className={`group relative flex flex-col items-center justify-between overflow-hidden rounded-xl border px-1 pb-1.5 pt-2 transition-[transform,opacity,box-shadow,border-color] duration-200 hover:-translate-y-1 ${
-        compact ? 'h-[78px] w-[56px]' : 'h-[96px] w-[64px]'
+        compact ? 'h-[78px] w-[56px]' : fluid ? 'h-[92px] w-full' : 'h-[96px] w-[64px]'
       } ${(dim || empty) && need !== 'have' ? 'opacity-50' : ''}`}
       style={{
         borderColor: need === 'have' ? c : need === 'missing' ? '#ff805c' : `${c}55`,
@@ -258,7 +261,7 @@ export function IconButton({
         aria-label={label}
         aria-pressed={pressed}
       >
-        <Icon name={icon} size={19} />
+        <Icon name={icon} size={17} />
       </button>
     </Tooltip>
   );
@@ -458,7 +461,7 @@ export function Modal({
         <header className="relative flex items-center gap-3 px-6 pb-3 pt-5">
           {icon && (
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gold/15 text-gold shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)]">
-              <Icon name={icon} size={19} />
+              <Icon name={icon} size={17} />
             </span>
           )}
           <h2 className="font-display text-lg uppercase tracking-[0.14em] text-gold">{title}</h2>

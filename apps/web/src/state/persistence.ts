@@ -1,5 +1,5 @@
-import type { Action, GameConfig, GameRecord, GameState, PlayerColor, Sigil } from '@hexfall/engine';
-import { makeRecord, parseRecord, replay } from '@hexfall/engine';
+import type { Action, GameConfig, GameState, PlayerColor, Sigil } from '@hexfall/engine';
+import { makeRecord } from '@hexfall/engine';
 
 export type BotSpeed = 'slow' | 'normal' | 'fast' | 'instant';
 export type HandPrivacy = 'curtain' | 'off';
@@ -196,10 +196,4 @@ export function readAutosave(): { config: GameConfig; actions: Action[]; state: 
 
 export function exportRecord(config: GameConfig, actions: Action[]): string {
   return JSON.stringify(makeRecord(config, actions), null, 2);
-}
-
-export function importRecord(json: string): { record: GameRecord; state: GameState } {
-  const record = parseRecord(json);
-  const { state } = replay(record);
-  return { record, state };
 }

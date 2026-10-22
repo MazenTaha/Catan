@@ -134,16 +134,16 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
               <TerrainArt type={h.terrain} seed={`${board.seed}:${h.id}`} />
               <path d={HEX_PATH} fill="url(#g-tile-vignette)" />
             </g>
-            {/* bevel: soft inner edge, light upper-left rim */}
-            <polygon points={hexPoints(96.5)} fill="none" stroke="#000" strokeOpacity={0.3} strokeWidth={4} />
+            {/* a bright inner rim just inside the ink edge, like a lacquered game tile */}
+            <polygon points={hexPoints(94)} fill="none" stroke="#fffbe6" strokeOpacity={0.45} strokeWidth={2} />
             <polygon points={hexPoints(98.5)} fill="none" stroke="url(#g-bevel-light)" strokeWidth={2.4} />
           </g>
         );
       })}
       {/* one shared grain pass over the whole board */}
-      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.22} style={{ mixBlendMode: 'multiply' }} />
+      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.1} style={{ mixBlendMode: 'multiply' }} />
       <Moonlight />
-      {/* iron seams between tiles */}
+      {/* ink outlines between tiles */}
       {board.hexes.map((h) => {
         const c = hexCenter(h.id);
         return (
@@ -152,9 +152,9 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
             points={hexPoints(100)}
             transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
             fill="none"
-            stroke="#15110a"
-            strokeOpacity={0.85}
-            strokeWidth={2}
+            stroke="#2b1a22"
+            strokeWidth={3.5}
+            strokeLinejoin="round"
           />
         );
       })}

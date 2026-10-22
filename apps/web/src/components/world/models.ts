@@ -8,26 +8,109 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  * per-world `Kit` so the whole scene can be disposed in one sweep, and static models are
  * "baked" (merged per material) so a detailed house costs a handful of draw calls.
  */
+/** Warm rim light on silhouettes, shared by every cel-shaded material. */
+export const RIM = { color: new THREE.Color('#ffb07a'), strength: 0.3 };
+
+/** GLSL for a gentle wind sway on instanced foliage (taller vertices move more). */
+export function swayGlsl(amount: number): string {
+  return `
+    #ifdef USE_INSTANCING
+      vec3 ip = vec3(instanceMatrix[3]);
+    #else
+      vec3 ip = vec3(0.0);
+    #endif
+    float swayH = max(transformed.y, 0.0);
+    transformed.x += sin(uTime * 1.7 + ip.x * 0.31 + ip.z * 0.23) * swayH * ${amount.toFixed(3)};
+    transformed.z += cos(uTime * 1.3 + ip.x * 0.19) * swayH * ${(amount * 0.6).toFixed(3)};`;
+}
+
+/**
+ * Turns a toon material into the game's anime look: banded light from `gradientMap`, a soft
+ * rim of warm light along silhouettes (not on faces turned to the sky, so ground and grass
+ * don't glow) and, for foliage, a wind sway. Each variant gets its own shader cache key.
+ */
+export function celShade(
+  m: THREE.Material,
+  sway?: { uTime: { value: number }; amount: number },
+): void {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.rimColor = { value: RIM.color };
+    sh.uniforms.rimStrength = { value: RIM.strength };
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform vec3 rimColor;\nuniform float rimStrength;',
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        `float rimF = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
+        float rimSide = 1.0 - smoothstep(0.5, 0.9, abs(normal.y));
+        outgoingLight += rimColor * smoothstep(0.35, 0.6, rimF) * rimSide * rimStrength;
+        #include <opaque_fragment>`,
+      );
+    if (sway) {
+      sh.uniforms.uTime = sway.uTime;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uTime;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>${swayGlsl(sway.amount)}`);
+    }
+  };
+  m.customProgramCacheKey = () => `cel${sway ? `-sway${sway.amount}` : ''}`;
+}
+
 export class Kit {
   private mats = new Map<string, THREE.Material>();
+  private ramp: THREE.DataTexture | null = null;
+
+  /** Three bands of light (shadow, mid, lit) with hard steps: the cel-shaded look. */
+  toonRamp(): THREE.DataTexture {
+    if (!this.ramp) {
+      const steps = new Uint8Array([92, 172, 255]);
+      this.ramp = new THREE.DataTexture(steps, steps.length, 1, THREE.RedFormat);
+      this.ramp.minFilter = this.ramp.magFilter = THREE.NearestFilter;
+      this.ramp.generateMipmaps = false;
+      this.ramp.needsUpdate = true;
+    }
+    return this.ramp;
+  }
+
+  /** A cel-shaded material from a colour, slightly brighter and richer than the flat swatch. */
+  toon(
+    color: string | THREE.Color,
+    extra?: {
+      emissive?: string;
+      emissiveIntensity?: number;
+      map?: THREE.Texture;
+      vertexColors?: boolean;
+      side?: THREE.Side;
+    },
+  ): THREE.MeshToonMaterial {
+    const c = new THREE.Color(color);
+    c.offsetHSL(0, 0.06, 0.02);
+    const m = new THREE.MeshToonMaterial({
+      color: c,
+      gradientMap: this.toonRamp(),
+      emissive: extra?.emissive ?? '#000000',
+      emissiveIntensity: extra?.emissiveIntensity ?? 1,
+      map: extra?.map ?? null,
+      vertexColors: extra?.vertexColors ?? false,
+      side: extra?.side ?? THREE.FrontSide,
+    });
+    celShade(m);
+    return m;
+  }
   private geos = new Map<string, THREE.BufferGeometry>();
   private templates = new Map<string, THREE.Object3D>();
 
+  /** Shared cel-shaded material for a colour (roughness/smooth are accepted for older callers). */
   mat(
     color: string,
     extra?: { emissive?: string; emissiveIntensity?: number; roughness?: number; smooth?: boolean },
-  ): THREE.MeshStandardMaterial {
-    const key = `std|${color}|${extra?.emissive ?? ''}|${extra?.emissiveIntensity ?? ''}|${extra?.roughness ?? ''}|${extra?.smooth ? 's' : ''}`;
-    let m = this.mats.get(key) as THREE.MeshStandardMaterial | undefined;
+  ): THREE.MeshToonMaterial {
+    const key = `toon|${color}|${extra?.emissive ?? ''}|${extra?.emissiveIntensity ?? ''}`;
+    let m = this.mats.get(key) as THREE.MeshToonMaterial | undefined;
     if (!m) {
-      m = new THREE.MeshStandardMaterial({
-        color,
-        flatShading: !extra?.smooth,
-        roughness: extra?.roughness ?? 0.85,
-        metalness: 0,
-        emissive: extra?.emissive ?? '#000000',
-        emissiveIntensity: extra?.emissiveIntensity ?? 1,
-      });
+      m = this.toon(color, extra);
       this.mats.set(key, m);
     }
     return m;
@@ -39,6 +122,30 @@ export class Kit {
     let m = this.mats.get(key) as THREE.MeshBasicMaterial | undefined;
     if (!m) {
       m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+      m.userData.outlineParameters = { visible: false };
+      this.mats.set(key, m);
+    }
+    return m;
+  }
+
+  /** A blurry rose-white puff for low mist; shared per opacity. */
+  mist(opacity: number): THREE.SpriteMaterial {
+    const key = `mist|${opacity}`;
+    let m = this.mats.get(key) as THREE.SpriteMaterial | undefined;
+    if (!m) {
+      const size = 128;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d')!;
+      const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+      g.addColorStop(0, 'rgba(255,226,214,0.9)');
+      g.addColorStop(0.5, 'rgba(255,206,196,0.35)');
+      g.addColorStop(1, 'rgba(255,200,190,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+      const map = new THREE.CanvasTexture(c);
+      map.colorSpace = THREE.SRGBColorSpace;
+      m = new THREE.SpriteMaterial({ map, transparent: true, opacity, depthWrite: false });
       this.mats.set(key, m);
     }
     return m;
@@ -60,6 +167,7 @@ export class Kit {
       ctx.fillRect(0, 0, size, size);
       const map = new THREE.CanvasTexture(c);
       m = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false });
+      m.userData.outlineParameters = { visible: false };
       this.mats.set('blobShadow', m);
     }
     return m;
@@ -102,6 +210,7 @@ export class Kit {
   }
 
   dispose(): void {
+    this.ramp?.dispose();
     this.mats.forEach((m) => {
       (m as THREE.MeshStandardMaterial).map?.dispose();
       m.dispose();
@@ -876,6 +985,95 @@ export function makeMountain(
   return g;
 }
 
+/**
+ * A karst pillar from a stone forest: a tall, slightly tapered column of banded rock with a
+ * mossy green crown and, on bigger ones, a few tiny pines clinging to the top.
+ */
+export function makeKarst(
+  kit: Kit,
+  rnd: () => number,
+  radius: number,
+  height: number,
+): THREE.Group {
+  const g = new THREE.Group();
+  const rings = 6;
+  const geo = kit.own(new THREE.CylinderGeometry(radius * 0.74, radius, height, 10, rings));
+  const pos = geo.attributes.position;
+  // Each ring bulges or pinches a little, like stacked strata; the column leans slightly.
+  const ringK = Array.from({ length: rings + 1 }, () => 1 + (rnd() - 0.5) * 0.18);
+  const lean = (rnd() - 0.5) * 0.08;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const row = Math.round(((y + height / 2) / height) * rings);
+    const k = ringK[row] * (1 + (rnd() - 0.5) * 0.06);
+    pos.setX(i, pos.getX(i) * k + lean * (y + height / 2));
+    pos.setZ(i, pos.getZ(i) * k);
+  }
+  geo.computeVertexNormals();
+  const tone = ['#c4b8a4', '#b8ad9a', '#cdbfa8'][Math.floor(rnd() * 3)];
+  g.add(mesh(geo, kit.mat(tone), 0, height / 2, 0));
+  // A darker band of strata partway up.
+  const bandY = height * (0.3 + rnd() * 0.3);
+  const bandR = radius * (1 - (bandY / height) * 0.26) * 1.04;
+  g.add(
+    mesh(
+      kit.own(new THREE.CylinderGeometry(bandR, bandR * 1.02, height * 0.06, 10)),
+      kit.mat(shade(tone, -0.08)),
+      lean * bandY,
+      bandY,
+      0,
+    ),
+  );
+  // The mossy crown.
+  const topR = radius * 0.74 * ringK[rings];
+  const crown = mesh(
+    kit.geo('karstCrown', () => new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2)),
+    kit.mat(rnd() < 0.5 ? '#4f8f36' : '#5a9a3c'),
+    lean * height,
+    height - 0.05,
+    0,
+  );
+  crown.scale.set(topR * 1.08, Math.max(0.5, topR * 0.42), topR * 1.08);
+  g.add(crown);
+  // A collar of moss hanging over the rim.
+  g.add(
+    mesh(
+      kit.own(
+        new THREE.CylinderGeometry(topR * 1.09, topR * 1.0, Math.min(1.2, height * 0.08), 10),
+      ),
+      kit.mat('#3f7a2e'),
+      lean * height,
+      height - Math.min(0.6, height * 0.04),
+      0,
+    ),
+  );
+  if (radius > 1.6) {
+    const pines = 1 + Math.floor(rnd() * 3);
+    for (let i = 0; i < pines; i++) {
+      const a = rnd() * Math.PI * 2;
+      const d = rnd() * topR * 0.55;
+      const s = 0.5 + rnd() * 0.5 + radius * 0.04;
+      const pine = mesh(
+        kit.geo('karstPine', () => new THREE.ConeGeometry(0.7, 2.2, 7).translate(0, 1.1, 0)),
+        kit.mat('#245f35'),
+        lean * height + Math.sin(a) * d,
+        height + topR * 0.2,
+        Math.cos(a) * d,
+      );
+      pine.scale.setScalar(s);
+      g.add(pine);
+    }
+  }
+  return g;
+}
+
+/** A soft, glowing wisp of evening mist (a camera-facing sprite). */
+export function makeMist(kit: Kit, opacity = 0.4): THREE.Sprite {
+  const s = new THREE.Sprite(kit.mist(opacity));
+  s.renderOrder = 1;
+  return s;
+}
+
 export function makeBoulder(kit: Kit, rnd: () => number, r: number, color: string): THREE.Mesh {
   const m = mesh(
     kit.geo('boulder', () => new THREE.DodecahedronGeometry(1, 0)),
@@ -1504,6 +1702,7 @@ export function makeCloud(kit: Kit, rnd: () => number): THREE.Group {
     emissiveIntensity: 0.45,
     smooth: true,
   });
+  m.userData.outlineParameters = { visible: false };
   const n = 5 + Math.floor(rnd() * 4);
   for (let i = 0; i < n; i++) {
     const mid = 1 - Math.abs(i - (n - 1) / 2) / n;

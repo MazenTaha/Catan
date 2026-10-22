@@ -41,7 +41,7 @@ export function TitleScreen() {
   const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
-      className={`btn w-72 justify-start !rounded-2xl !px-5 !py-3.5 text-[15px] ${primary ? 'btn-primary' : ''}`}
+      className={`btn w-60 justify-start !rounded-xl !px-4 !py-2.5 text-[13px] ${primary ? 'btn-primary' : ''}`}
       onClick={() => {
         audio.unlock();
         audio.play('click');
@@ -49,7 +49,7 @@ export function TitleScreen() {
       }}
       data-testid={testid}
     >
-      <Icon name={icon} size={18} /> {label}
+      <Icon name={icon} size={16} /> {label}
     </button>
   );
   return (
@@ -85,18 +85,11 @@ export function TitleScreen() {
           {online && item(`Rejoin ${online.code}`, 'user', () => net.resume(online.code, online.token), false, 'rejoin')}
           {save && item('Continue', 'hourglass', () => continueGame(), false, 'continue')}
           {item('How to play', 'rules', () => openModal('rules'))}
-          {item('Load record', 'import', () => openModal('import'))}
           {item('Settings', 'settings', () => openModal('settings'))}
-          {item('Credits', 'scroll', () => openModal('credits'))}
         </motion.nav>
         {online && (net.status === 'connecting' || net.error) && (
           <p className="mt-4 text-[14px] text-muted" aria-live="polite">
             {net.status === 'connecting' ? `Rejoining ${online.code}…` : net.error}
-          </p>
-        )}
-        {save && (
-          <p className="mt-4 text-[14px] text-muted">
-            Saved game · round {save.state.round || 'setup'}
           </p>
         )}
       </div>

@@ -1,7 +1,7 @@
 # AGENTS.md — Catan Night (repo codename "Hexfall")
 
 Orientation for AI coding agents. Read this first, then `README.md` (player/run guide) and
-`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-10-22.
+`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-10-23.
 
 ## 1. What this is
 
@@ -170,7 +170,7 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 | `components/hud/` | Top bar, turn banner/players row, dice and dice-roll animation, toasts |
 | `components/panels/` | Left rail (claims, recent log), right rail (hand, Build / Cards / Trade tabs, End turn) |
 | `components/modals/` | Discard, steal, trade, dev cards, curtain, victory, settings, credits, import, rulebook |
-| `components/world/` | 3D walk: `World3D.tsx`, `world.ts` (island, controls, animals), `models.ts` (low-poly models); lazy chunk around 610 kB |
+| `components/world/` | 3D walk: `World3D.tsx`, `world.ts` (island, biomes, controls, animals), `models.ts` (low-poly models, material finishes, `bake`), `terrain.ts` (ground heights, colours), `wheat.ts` (instanced wheat, GPU wind), `assets.ts` (Blender model slots); lazy chunk around 710 kB |
 | `components/ui/primitives.tsx` | Shared building blocks: ResourceCard, Tooltip, IconButton, segmented tabs, steppers, Modal |
 | `art/` | Procedural terrain (`terrain/TerrainArt.tsx`), pieces/tokens/harbors/robber (`pieces/Pieces.tsx`), sigils, icons, dev-card art; `art/manifest.ts` can swap in image files |
 | `audio/` | `engine.ts` (SFX bus, optional Howler files via `manifest.json`), `synth.ts` (WebAudio SFX recipes). **SFX only.** |
@@ -197,6 +197,8 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
   No heavy ink outlines; only faint edge lines where a silhouette needs them. Small repeated scenery
   comes from the shared `<use>` kit in `art/terrain/flora.tsx`; tiles compose it from their own seed.
   The robber is charcoal, tokens are aged ivory. Keep the 3D walk on the same palette and light.
+  Colour (DECISIONS #30) is tuned per terrain, vivid but natural: spring meadows, gold wheat, terracotta
+  clay, cool slate, honey sand, clear blue water. Never apply one global filter or a blanket saturation boost.
 
 ## 9. Conventions and gotchas
 
@@ -228,6 +230,9 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 
 ## 11. Recent history (newest first)
 
+- Living medieval countryside: per-terrain 2D colour, PBR-lit 3D walk with shaped ground, showcase
+  wheat with GPU wind, rock masses, sea depth colour, larger buildings; Blender model slots
+  (DECISIONS #30, `docs/BLENDER_ASSET_PIPELINE.md`).
 - Sunlit medieval wilderness art pass: painted terrain, crafted pieces, ivory tokens, natural coast,
   UI finish and a matching golden-hour 3D walk (DECISIONS #29).
 - Focus box removed when clicking land hexes.
@@ -249,6 +254,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Add or change a sound effect | `audio/synth.ts` (recipe + `SfxName`), `audio/manifest.json`, `SOUND_FOR` in `state/store.ts` |
 | Change colors or theme | `styles/tokens.css`, then grep for hard-coded hex values in `components/` |
 | Change board visuals | `components/board/*`, `art/terrain/TerrainArt.tsx`, `art/pieces/Pieces.tsx` |
-| Change the 3D walk | `components/world/models.ts`, `world.ts` |
+| Change the 3D walk | `components/world/models.ts`, `world.ts`, `terrain.ts`, `wheat.ts`; measure draw calls/fps on real GPU |
+| Replace a 3D model with a Blender file | `docs/BLENDER_ASSET_PIPELINE.md`, `components/world/assets.ts` |
 | Change the online protocol | `packages/net/src/index.ts` (types + lobby rules), then `apps/server/src/hub.ts` and `apps/web/src/state/net.ts` |
 | Add a setting | `Settings` and `DEFAULT_SETTINGS` in `state/persistence.ts`, UI in `components/modals/InfoModals.tsx`; apply it in `store.ts` |

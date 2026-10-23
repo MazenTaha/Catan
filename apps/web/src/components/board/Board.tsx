@@ -153,7 +153,7 @@ const Island = memo(function Island({ board }: { board: BoardT }) {
         );
       })}
       {/* one shared grain pass over the whole board */}
-      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.08} style={{ mixBlendMode: 'multiply' }} />
+      <path d={ISLAND_PATH} fill="#fff" filter="url(#f-noise)" opacity={0.06} style={{ mixBlendMode: 'multiply' }} />
       <Sunlight />
       {/* fine seams between the tiles */}
       {board.hexes.map((h) => {

@@ -46,3 +46,49 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **UI** keeps the graphite palette: panel titles carry an engraved antique-gold lozenge (`--antique`) instead of a glowing dot, panels a faint metal edge, muted text was lifted to `#acb1b2`, build tiles show available/selected/unavailable clearly, resource cards share one crafted finish, and ore's colour moved from violet to brushed steel.
     - **3D walk** follows the same direction with the same renderer and controls: golden-hour sky and warm haze instead of indigo/rose, warm sun with a cool fill and an olive ground bounce, softer toon bands, thin olive-charcoal outlines instead of plum, natural ground palettes, restrained wildflowers, rocky snow-capped peaks instead of karst pillars (also on the horizon), stones instead of cacti, iron-grey ore instead of neon cyan, cream clouds and a charcoal robber.
     - Performance rules from #22–23 are unchanged: everything new is static and painted once; motion is still opacity/transform on whole small layers and stops in Lite and reduced motion.
+
+
+30. **A living medieval countryside, and a rebuilt 3D walk** (refines #29: same light, livelier colour).
+    - **2D board:** each terrain was retuned on its own with clear light, middle and shadow values instead of one muted, olive-leaning palette:
+      - spring-green meadows and varied, cooler forest canopies;
+      - luminous gold wheat, with the young crop fresh green rather than olive;
+      - terracotta clay with brighter crests;
+      - cool slate peaks with readable sunlit faces;
+      - pale honey sand.
+
+      The grain overlay is neutral grey instead of brown, and the sunlight washes are lighter. The broad blurred turquoise halo around the island became a narrow, lightly blurred shelf of shallows on a clearer blue sea. Settlements, cities and roads have a thin dark outline around the whole piece, so player colours separate from any terrain, white pieces on wheat included.
+    - **3D renderer:** the cel-shaded toon materials and the ink-outline pass (which drew the whole scene a second time) were replaced by physically based materials with a finish per material:
+      - rough foliage, cloth and plaster;
+      - slightly glossier timber and stone;
+      - controlled metal on small parts.
+
+      Lighting is a late-afternoon sun (about 30° up) plus image-based fill from a small generated sky (PMREM), with a deliberately neutral, less blue fill so shade keeps its colour. Neutral tone mapping keeps saturated colours, and light haze leaves the island clear. Shadows: one 2048 px map covering 80 m around the walker, snapped to texels so edges don't crawl. Wheat, grass and flowers receive shadows but don't cast them.
+    - **Ground:** each tile is now a shaped, vertex-coloured surface (`components/world/terrain.ts`) over a neutral detail texture:
+      - pastures roll, hills mound, dunes ripple, fields stay flat;
+      - paths are worn in, clay pits are stepped, and there is scree with alpine grass.
+
+      Heights are zero along tile edges, where roads and settlements stand, calm at the centre sign, and flattened under props, so placement never depends on the mesh. The walker's eye follows the ground, smoothed, and the head bob was removed.
+    - **Water:** a single sea plane coloured in the shader by distance to the island: pale turquoise over the sand, a blue-green shelf, then deep blue, reflecting the sky. A narrow sand ring and soft foam make the shore.
+    - **Wheat** (`wheat.ts`):
+      - each clump is five stalks, each with a stem, two leaves and a kernel head with awns (about 90 triangles a stalk), plus a 6-triangle far version;
+      - clumps are planted in rows across 2–4 plots per tile, split by paths, with an entry path to the sign and an occasional harvested plot with stooks;
+      - instancing is in 7 m cells that swap between near and far detail by distance.
+
+      Wind runs in the vertex shader (gust envelope, travelling wave, per-stalk flutter, bending more toward the tips) in one world direction. It stops under reduced motion and in Lite.
+    - **Biomes and pieces:**
+      - **Mountains and hills** are angular rock masses in strata (`makeCrag`), with grass on the ledges and snow above a line; hills get flat-topped clay banks.
+      - **Trees** are lumpy broadleaves and star-rimmed conifers of varied size, in groves with undergrowth.
+      - **Flowers** grow in drifts.
+      - **Settlements and cities** are 1.4 times larger, so doors are about 2 m next to the 1.7 m eye. The city adds a second house and a curtain wall.
+      - **Roads** run vertex to vertex as natural cobbles with timber rails painted in the owner's colour.
+      - **The barn** became a thatched timber byre.
+    - **Performance (Intel UHD, Full, same views):** the main reductions were the static props across the whole island merged into one mesh per finish (colour carried as vertex colour), sheep parts merged, no outline pass, a cheap chamfered box instead of `RoundedBoxGeometry`, and shaders compiled in parallel before the first frame.
+
+      | | Before | After |
+      |---|---|---|
+      | Frame rate | 27–60 fps | 60 fps |
+      | Draw calls per frame | up to 3,100 | 200–700 |
+      | Opening the walk | 1.5–2 s | 2.4–2.9 s (much more content) |
+
+      A world disposed while its shaders are still linking releases them only afterwards: deleting them mid-link made the driver log errors under React's dev double-mount.
+    - **Blender-ready slots** (`assets.ts`, `docs/BLENDER_ASSET_PIPELINE.md`): trees, wheat (near and far), rocks, sheep, settlements, cities, docks, boats and windmills are typed slots. Each draws its procedural model unless a local GLB is listed in `ASSET_FILES` (empty by default, so nothing is requested). A listed GLB is loaded once per page and swapped in at the same placements; a material named `Owner…` is tinted in the player's colour. A missing or broken file keeps the procedural model, with one warning. Collision comes from each slot's footprint, never from the mesh.

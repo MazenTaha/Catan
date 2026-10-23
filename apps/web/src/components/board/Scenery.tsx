@@ -74,8 +74,8 @@ export const Sea = memo(function Sea() {
           (w) =>
             `M${r1(w.x - 12 * w.s)} ${r1(w.y)}q${r1(6 * w.s)} ${r1(-5 * w.s)} ${r1(12 * w.s)} 0q${r1(6 * w.s)} ${r1(-5 * w.s)} ${r1(12 * w.s)} 0`,
         ).join('')}
-        stroke="#b9d3cb"
-        strokeOpacity={0.22}
+        stroke="#bfe2ec"
+        strokeOpacity={0.2}
         strokeWidth={1.4}
         strokeLinecap="round"
         fill="none"
@@ -133,10 +133,12 @@ export function Shore() {
   const ring = { d: ISLAND_PATH, fill: 'none', strokeLinejoin: 'round' as const };
   return (
     <g>
-      <path d={ISLAND_PATH} transform="translate(9 16)" fill="#04100f" opacity={0.5} filter="url(#f-soft)" />
+      <path d={ISLAND_PATH} transform="translate(9 16)" fill="#04121e" opacity={0.45} filter="url(#f-soft)" />
+      {/* a narrow shelf of clear shallows: blue-green at its edge, turquoise over pale sand by the beach */}
       <g filter="url(#f-water)">
-        <path {...ring} stroke="#2a6164" strokeWidth={104} opacity={0.5} />
-        <path {...ring} stroke="#4d8680" strokeWidth={56} opacity={0.55} />
+        <path {...ring} stroke="#196a82" strokeWidth={62} opacity={0.55} />
+        <path {...ring} stroke="#258b98" strokeWidth={46} opacity={0.6} />
+        <path {...ring} stroke="#4fa9a6" strokeWidth={36} opacity={0.55} />
       </g>
       {[
         { k: 1.052, o: 0.42, w: 1.7, dash: '26 8 10 6 18 9' },
@@ -155,9 +157,9 @@ export function Shore() {
       ))}
       {/* the board's edge: a band of earth showing under the beach, deepest at the bottom */}
       <path {...ring} transform="translate(0 6)" stroke="#2b2318" strokeWidth={31} />
-      <path {...ring} stroke="#9c8459" strokeWidth={26} />
-      <path {...ring} stroke="#cdb784" strokeWidth={21} />
-      <path {...ring} stroke="#e2d0a0" strokeWidth={13} />
+      <path {...ring} stroke="#a8884f" strokeWidth={26} />
+      <path {...ring} stroke="#dcc184" strokeWidth={21} />
+      <path {...ring} stroke="#f0dca6" strokeWidth={13} />
       <path d={ISLAND_PATH} fill="#1a140b" />
     </g>
   );

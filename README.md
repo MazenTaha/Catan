@@ -47,7 +47,7 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 4. A **7** wakes the Wraith: big hands discard half, the roller moves the Wraith and robs a neighbour.
 5. Race to the target with Outposts (1), Citadels (2), the Longest Causeway (2), the Greatest Host (2) and hidden Relics (1 each).
 
-**3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a low-poly world at golden hour that you can explore in first person — sheep grazing round a barn on Pastures, a windmill in the Fields, kilns in the Hills, ore in the Mountains — with everyone's roads, settlements, cities and the robber in place. **W A S D** or the arrows walk, drag to look, **Shift** runs. **Next land** jumps between the tiles your buildings touch. Placing pieces still happens on the 2D board. The 3D walk is for desktop browsers only: on phones and tablets (including iPads) the switch is hidden and the game stays on the 2D board.
+**3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a low-poly world in late-afternoon sun that you can explore in first person — sheep grazing round a barn on Pastures, a windmill in the Fields, kilns in the Hills, ore in the Mountains — with everyone's roads, settlements, cities and the robber in place. **W A S D** or the arrows walk, drag to look, **Shift** runs. **Next land** jumps between the tiles your buildings touch. Placing pieces still happens on the 2D board. The 3D walk is for desktop browsers only: on phones and tablets (including iPads) the switch is hidden and the game stays on the 2D board.
 
 The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES.md](docs/RULES.md).
 
@@ -86,7 +86,7 @@ Every state change emits typed `GameEvent`s; the web app derives the log, toasts
 
 ## Replacing art and audio
 
-- **3D walk:** the world is built from three.js primitives in `apps/web/src/components/world/` (`models.ts` for each model, `world.ts` for the island, controls and animals) and is lazy-loaded only when the 3D view is opened.
+- **3D walk:** the world is built from three.js primitives in `apps/web/src/components/world/` (`models.ts` for each model, `world.ts` for the island, controls and animals, `terrain.ts` for the ground, `wheat.ts` for the fields) and is lazy-loaded only when the 3D view is opened. Hand-made Blender models can replace slots one at a time: see `docs/BLENDER_ASSET_PIPELINE.md`.
 - **Terrain art:** set image URLs in [`apps/web/src/art/manifest.ts`](apps/web/src/art/manifest.ts) (files go in `apps/web/public/art/`). Each image is drawn into a 174×200 box centred on the hex and clipped to it. Leave an entry `null` to keep the procedural art.
 - **Other art:** pieces, tokens, harbors and the Wraith live in `apps/web/src/art/pieces/Pieces.tsx`; icons in `apps/web/src/art/icons/Icon.tsx`; Omen cards in `apps/web/src/art/cards/OmenCard.tsx`. Each is a self-contained component.
 - **Audio:** drop files into `apps/web/public/audio/` and map them in [`apps/web/src/audio/manifest.json`](apps/web/src/audio/manifest.json) (e.g. `"dice": "dice.ogg"`). Mapped sounds play through Howler (lazy-loaded); unmapped ones fall back to the WebAudio synthesizer in `src/audio/synth.ts`.

@@ -48,6 +48,8 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<World | null>(null);
   const [hex, setHex] = useState<number | null>(null);
+  /** The first frame has been drawn (shaders compile in the background before that). */
+  const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
   const touch = useMemo(
@@ -73,7 +75,10 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       world = new World(canvas, stateRef.current.board, {
         lite,
         reduceMotion: reduce,
-        onHexChange: setHex,
+        onHexChange: (h) => {
+          setHex(h);
+          setReady(true);
+        },
         onBleat: () => audio.play('bleat'),
       });
     } catch {
@@ -81,8 +86,12 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       return;
     }
     worldRef.current = world;
+    // Dev builds only: lets inspection scripts place the camera and read the board.
+    const dev = window as unknown as { __world3d?: { world: World; state: () => GameState } };
+    if (import.meta.env.DEV) dev.__world3d = { world, state: () => stateRef.current };
     world.setPieces(stateRef.current);
     landIdx.current = 0;
+    setReady(false);
     world.goTo(landsRef.current[0] ?? 0);
     const ro = new ResizeObserver(() => world.resize(wrap.clientWidth, wrap.clientHeight));
     ro.observe(wrap);
@@ -90,6 +99,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
     wrap.focus({ preventScroll: true });
     return () => {
       ro.disconnect();
+      if (dev.__world3d?.world === world) delete dev.__world3d;
       world.dispose();
       worldRef.current = null;
     };
@@ -224,7 +234,13 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
         </div>
       )}
 
-      {!failed && (
+      {!failed && !ready && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-1/60 font-display text-gold">
+          Building the island…
+        </div>
+      )}
+
+      {!failed && ready && (
         <>
           <div
             className="pointer-events-none absolute left-2 top-2 max-w-[70%] rounded-md bg-abyss/75 px-3 py-1.5 text-bone shadow-panel backdrop-blur-sm"
@@ -270,6 +286,17 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
             >
               Next land
             </button>
+            <button
+              className="btn !px-3 !py-1 text-[12px]"
+              onClick={() => {
+                setShowHelp((v) => !v);
+                wrapRef.current?.focus({ preventScroll: true });
+              }}
+              aria-pressed={showHelp}
+              title="Show how to move"
+            >
+              Controls
+            </button>
           </div>
 
           {needsBoard && (
@@ -289,7 +316,8 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
                 <>
                   <b className="text-gold">W A S D</b> or <b className="text-gold">arrows</b> to
                   walk · <b className="text-gold">drag</b> to look ·{' '}
-                  <b className="text-gold">Shift</b> to run
+                  <b className="text-gold">Shift</b> to run · <b className="text-gold">Next land</b>{' '}
+                  jumps between your lands
                 </>
               )}
             </div>

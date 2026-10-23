@@ -89,9 +89,9 @@ const EDGE = 'rgba(14,20,12,0.5)';
 // ------------------------------------------------------------------ trees
 
 const CANOPIES = [
-  { dark: '#233d20', mid: '#3c6430', light: '#6d9143', sun: '#b8c56e' }, // oak
-  { dark: '#2a4425', mid: '#4a7035', light: '#83a14b', sun: '#cfd07c' }, // beech, warmer
-  { dark: '#1d3521', mid: '#33582f', light: '#5c8242', sun: '#a9bd6a' }, // deep shade
+  { dark: '#1a4630', mid: '#2e7a3c', light: '#5eae4a', sun: '#c2e27c' }, // oak
+  { dark: '#21502c', mid: '#438a3a', light: '#88c150', sun: '#e0ea8c' }, // beech, warmer
+  { dark: '#123d33', mid: '#246a4b', light: '#4b9a60', sun: '#a9d88c' }, // deep shade, cooler
 ] as const;
 
 /** A broadleaf: lobed canopy in three tones over a short trunk, origin at the trunk's foot. */
@@ -166,20 +166,20 @@ function Conifer({ k }: { k: number }) {
   const outline = [...left, top, ...right.reverse()];
   const d = `M${outline.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`;
   const litD = `M${[...left, top, [top[0] + 0.5, -4] as Pt].map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`;
-  const dark = k % 2 ? '#1b3427' : '#20392a';
+  const dark = k % 2 ? '#113a32' : '#164236';
   return (
     <g id={`fl-fir-${k}`}>
       <Shadow rx={11} ry={3.4} />
       <path d="M-1 0.5V-5H1.2V0.5Z" fill="#45372a" />
       <path d={d} fill={dark} stroke={EDGE} strokeWidth={0.9} strokeLinejoin="round" />
-      <path d={litD} fill={k % 2 ? '#3a5f43' : '#43684a'} />
+      <path d={litD} fill={k % 2 ? '#2b6a4e' : '#347757'} />
       {left
         .filter((_, i) => i % 2 === 0)
         .map(([x, y], i) => (
           <path
             key={i}
             d={`M${r1(x + 0.6)} ${r1(y - 0.4)}L${r1(x * 0.5)} ${r1(y - 2.4)}`}
-            stroke="#89a873"
+            stroke="#92cc96"
             strokeWidth={0.9}
             strokeLinecap="round"
             opacity={0.65}
@@ -195,9 +195,9 @@ function Conifer({ k }: { k: number }) {
 function Scrub({ k }: { k: number }) {
   const J = new Jit(`scrub-${k}`);
   const pal = [
-    ['#3d5229', '#5f7438', '#93a35a'],
-    ['#44542a', '#6d7a3c', '#a6ad66'],
-    ['#344a26', '#55703a', '#8aa35c'],
+    ['#2d5a2a', '#4e8a3a', '#9dcd63'],
+    ['#3a5e28', '#6a9540', '#b8d472'],
+    ['#244f2f', '#42804b', '#8ec47b'],
   ][k % 3];
   return (
     <g id={`fl-scrub-${k}`}>
@@ -222,17 +222,17 @@ function DryShrub({ k }: { k: number }) {
       <Shadow rx={6} ry={1.8} o={0.22} />
       <path d={twigs.join('')} stroke="#7a6446" strokeWidth={0.8} fill="none" strokeLinecap="round" />
       {[...Array(5)].map((_, i) => (
-        <circle key={i} cx={r1(J.j(5))} cy={r1(-3 - J.n() * 4)} r={1} fill={i % 2 ? '#8e9670' : '#a3a77c'} />
+        <circle key={i} cx={r1(J.j(5))} cy={r1(-3 - J.n() * 4)} r={1} fill={i % 2 ? '#93a66a' : '#b3bf82'} />
       ))}
     </g>
   );
 }
 
 const STONE = {
-  lime: { lit: '#d8d1bf', mid: '#aea795', dark: '#6f6c63' },
-  char: { lit: '#9a9890', mid: '#6c6c68', dark: '#3c3e3d' },
-  ochre: { lit: '#e2cd9c', mid: '#bea06c', dark: '#7e6744' },
-  clay: { lit: '#c99470', mid: '#9c6648', dark: '#5e3a2a' },
+  lime: { lit: '#e4e0d3', mid: '#b5b3aa', dark: '#6b717b' },
+  char: { lit: '#a9aeb4', mid: '#737c85', dark: '#38424d' },
+  ochre: { lit: '#f2d99e', mid: '#d0a866', dark: '#8b6a3f' },
+  clay: { lit: '#eba67a', mid: '#b96b42', dark: '#6b3326' },
 } as const;
 export type StoneKind = keyof typeof STONE;
 
@@ -272,11 +272,11 @@ function Sheep({ right }: { right: boolean }) {
       <path
         d="M-5.6-4.4C-6.2-7.4-3.4-8.6-1.6-8.2C-0.4-9.6 2.4-9.6 3.4-8C5.6-8.4 6.8-6 5.8-4.2C6.4-2.2 4.6-1.6 3.2-1.8C1.6-1 -1-1 -2.4-1.8C-4.4-1.4-6.4-2.4-5.6-4.4Z"
         transform={right ? undefined : 'scale(-1 1)'}
-        fill="#d9d2c0"
+        fill="#e6e2d6"
         stroke={EDGE}
         strokeWidth={0.6}
       />
-      <ellipse cx={-1.6} cy={-6.4} rx={3.6} ry={1.8} fill="#f3eee0" />
+      <ellipse cx={-1.6} cy={-6.4} rx={3.6} ry={1.8} fill="#fcfaf2" />
       <path d={`M${5.2 * s} -5.6c${1.4 * s} -0.8 ${2.8 * s} -0.4 ${2.9 * s} 1c${0.1 * s} 1.2 ${-0.8 * s} 1.8 ${-1.8 * s} 1.6z`} fill="#2c2926" />
       <path d={`M${5.4 * s} -5.6l${-0.9 * s} -0.9`} stroke="#2c2926" strokeWidth={0.9} strokeLinecap="round" />
     </g>
@@ -294,8 +294,8 @@ function Tuft({ k }: { k: number }) {
   });
   return (
     <g id={`fl-tuft-${k}`} fill="none" strokeLinecap="round">
-      <path d={blades.join('')} stroke={k % 2 ? '#3f6329' : '#4b6f2d'} strokeWidth={1} />
-      <path d={blades.slice(0, 3).join('')} stroke="#9bb35d" strokeWidth={0.6} opacity={0.7} />
+      <path d={blades.join('')} stroke={k % 2 ? '#2e6a2d' : '#3e7e31'} strokeWidth={1} />
+      <path d={blades.slice(0, 3).join('')} stroke="#aedb6c" strokeWidth={0.6} opacity={0.7} />
     </g>
   );
 }
@@ -307,7 +307,7 @@ function Flowers({ kind }: { kind: 'daisy' | 'poppy' | 'lavender' | 'buttercup' 
   const grass = (
     <path
       d={spots.map(([x, y]) => `M${r1(x)} ${r1(y + 1.6)}l${r1(J.j(0.6))} -2.4`).join('')}
-      stroke="#3f6329"
+      stroke="#2e6a2d"
       strokeWidth={0.7}
       strokeLinecap="round"
     />
@@ -317,11 +317,11 @@ function Flowers({ kind }: { kind: 'daisy' | 'poppy' | 'lavender' | 'buttercup' 
       <g id="fl-flw-lavender">
         {grass}
         {spots.map(([x, y], i) => (
-          <path key={i} d={`M${r1(x)} ${r1(y)}v-3.2`} stroke={i % 2 ? '#8576ac' : '#9a8cbe'} strokeWidth={1.4} strokeLinecap="round" />
+          <path key={i} d={`M${r1(x)} ${r1(y)}v-3.2`} stroke={i % 2 ? '#8a6cc4' : '#a68ad8'} strokeWidth={1.4} strokeLinecap="round" />
         ))}
       </g>
     );
-  const petal = { daisy: '#f2eee2', poppy: '#c2402b', buttercup: '#e6c450' }[kind];
+  const petal = { daisy: '#fcfaf2', poppy: '#d83a24', buttercup: '#f4d03c' }[kind];
   const heart = { daisy: '#e0b13e', poppy: '#2a1e18', buttercup: '#b98f2a' }[kind];
   return (
     <g id={`fl-flw-${kind}`}>
@@ -340,7 +340,7 @@ function Flowers({ kind }: { kind: 'daisy' | 'poppy' | 'lavender' | 'buttercup' 
 function Reeds() {
   return (
     <g id="fl-reeds" strokeLinecap="round" fill="none">
-      <path d="M-3 0Q-3.4-4-4.2-7M-1 0V-8.5M1 0Q1.6-4 2.6-7.4M3 0Q3.2-3 4.4-5" stroke="#5e6f34" strokeWidth={0.8} />
+      <path d="M-3 0Q-3.4-4-4.2-7M-1 0V-8.5M1 0Q1.6-4 2.6-7.4M3 0Q3.2-3 4.4-5" stroke="#4c8034" strokeWidth={0.8} />
       <path d="M-1-6.5V-8.5M2.3-5.8l.3-1.6" stroke="#7a5a36" strokeWidth={1.4} />
     </g>
   );
@@ -351,9 +351,9 @@ function Stook() {
   return (
     <g id="fl-stook">
       <Shadow rx={5.5} ry={1.7} />
-      <path d="M-4.4 0L-1.2-8.6H1.2L4.4 0Z" fill="#c5a04c" stroke={EDGE} strokeWidth={0.6} strokeLinejoin="round" />
-      <path d="M-4.4 0L-1.2-8.6H0.2L-0.6 0Z" fill="#e8cf8a" />
-      <path d="M-1.2-8.6L-2.6-11M0-8.6V-11.4M1.2-8.6L2.6-11" stroke="#d9b866" strokeWidth={0.8} strokeLinecap="round" />
+      <path d="M-4.4 0L-1.2-8.6H1.2L4.4 0Z" fill="#dbaa3c" stroke={EDGE} strokeWidth={0.6} strokeLinejoin="round" />
+      <path d="M-4.4 0L-1.2-8.6H0.2L-0.6 0Z" fill="#f7dd8a" />
+      <path d="M-1.2-8.6L-2.6-11M0-8.6V-11.4M1.2-8.6L2.6-11" stroke="#eec65c" strokeWidth={0.8} strokeLinecap="round" />
       <path d="M-2.5-4.2H2.5" stroke="#7d6036" strokeWidth={0.9} />
     </g>
   );

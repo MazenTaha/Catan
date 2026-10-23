@@ -127,14 +127,14 @@ function Forest({ seed }: { seed: string }) {
         <path
           key={i}
           d={blob(J, J.j(70), J.j(80), J.between(16, 30), J.between(9, 16), 9, 0.25)}
-          fill={i % 2 ? '#2a4324' : '#5d7b3c'}
+          fill={i % 2 ? '#1b4a2f' : '#5fa046'}
           opacity={i % 2 ? 0.45 : 0.35}
         />
       ))}
-      <TokenBed J={J} fill="#4f6d34" o={0.55} />
+      <TokenBed J={J} fill="#47893f" o={0.55} />
       {/* a sunlit clearing */}
-      <path d={blob(J, clearing[0], clearing[1], 17, 11, 9, 0.2)} fill="#7f8f46" opacity={0.75} />
-      <path d={blob(J, clearing[0] - 3, clearing[1] - 2, 10, 6, 8, 0.2)} fill="#c9bf74" opacity={0.3} />
+      <path d={blob(J, clearing[0], clearing[1], 17, 11, 9, 0.2)} fill="#8cc254" opacity={0.75} />
+      <path d={blob(J, clearing[0] - 3, clearing[1] - 2, 10, 6, 8, 0.2)} fill="#eadf86" opacity={0.32} />
       <Use id="fl-stump" x={clearing[0] + 3} y={clearing[1] + 3} />
       <Use id="fl-flw-daisy" x={clearing[0] - 8} y={clearing[1] - 1} s={0.8} />
       {trees.map((t, i) => (
@@ -161,7 +161,7 @@ function Hills({ seed }: { seed: string }) {
     const crest = band(J, y0, 5).map(([x, y]) => [x, y - 16 * Math.exp(-(((x - cx) / 46) ** 2))] as Pt);
     return { crest, cx };
   });
-  const FILL = ['#b97a52', '#a9643f', '#985535'];
+  const FILL = ['#dc8854', '#c7683a', '#aa4f2c'];
   const pit = { x: -side * 40, y: -34 + J.j(6) };
   const pitPts = blobPts(J, pit.x, pit.y, 19, 9, 10, 0.16);
   return (
@@ -173,19 +173,19 @@ function Hills({ seed }: { seed: string }) {
           {/* cool shade on the flank turned away from the sun */}
           <path
             d={`${smoothOpen(crest.filter(([x]) => x >= cx - 4))}L118 ${r1(crest[crest.length - 1][1] + 26)}Q${r1(cx + 40)} ${r1(crest[0][1] + 18)} ${r1(cx - 2)} ${r1(crest[0][1] + 10)}Z`}
-            fill="#4a2a22"
-            opacity={0.22}
+            fill="#3a1d2a"
+            opacity={0.24}
           />
           {/* soil strata following the slope */}
           <path
             d={[9, 17, 26].map((dy) => smoothOpen(crest.map(([x, y]) => [x, y + dy + Math.sin(x / 20 + i) * 1.5] as Pt))).join('')}
-            stroke={i % 2 ? '#c88a60' : '#7f4329'}
+            stroke={i % 2 ? '#f0a978' : '#82371e'}
             strokeWidth={1}
             fill="none"
             opacity={0.3}
           />
           {/* sunlit crest */}
-          <path d={smoothOpen(crest)} stroke="#e3aa7c" strokeWidth={2.4} fill="none" opacity={0.8} strokeLinecap="round" />
+          <path d={smoothOpen(crest)} stroke="#f7c08c" strokeWidth={2.4} fill="none" opacity={0.8} strokeLinecap="round" />
           <path d={smoothOpen(crest.map(([x, y]) => [x, y + 3] as Pt))} stroke="#6e3825" strokeWidth={1} fill="none" opacity={0.3} />
           {crest
             .filter((_, j) => j % 3 === i % 3)
@@ -201,17 +201,17 @@ function Hills({ seed }: { seed: string }) {
         return (
           <g transform={`translate(${r1(x0)} ${r1(y0 + 2)})`}>
             <path d="M-12 0Q0 -3 12 -1L13 8Q0 6 -11 9Z" fill="#7a3e27" />
-            <path d="M-12 0Q0 -3 12 -1L12.4 2Q0 0 -11.6 3Z" fill="#c9845a" />
-            <path d="M-11 5Q0 3 12.6 4.4" stroke="#a65f3d" strokeWidth={0.8} fill="none" />
-            <path d="M-12 0Q0 -3 12 -1" stroke="#e7b48a" strokeWidth={1.1} fill="none" />
+            <path d="M-12 0Q0 -3 12 -1L12.4 2Q0 0 -11.6 3Z" fill="#e2905a" />
+            <path d="M-11 5Q0 3 12.6 4.4" stroke="#b65d34" strokeWidth={0.8} fill="none" />
+            <path d="M-12 0Q0 -3 12 -1" stroke="#f8c899" strokeWidth={1.1} fill="none" />
           </g>
         );
       })()}
-      <TokenBed J={J} fill="#c58a62" o={0.4} />
+      <TokenBed J={J} fill="#e0945f" o={0.4} />
       {/* clay cut: a dug pit, its lower-right wall in sun, the far wall in shade */}
       <g>
         <path d={smoothClosed(pitPts)} fill="#5c3022" />
-        <path d={blob(J, pit.x + 3, pit.y + 2.5, 15, 6, 9, 0.14)} fill="#b56d48" />
+        <path d={blob(J, pit.x + 3, pit.y + 2.5, 15, 6, 9, 0.14)} fill="#d07846" />
         <path d={blob(J, pit.x - 1.5, pit.y - 1.2, 14, 5.2, 9, 0.14)} fill="#6b3826" />
         <path d={blob(J, pit.x - 2, pit.y + 0.5, 7, 2.4, 7, 0.2)} fill="#7f4a36" />
         <path d={smoothOpen(pitPts.slice(3, 9))} stroke="#dba27c" strokeWidth={1.3} fill="none" opacity={0.85} />
@@ -283,7 +283,7 @@ function Pasture({ seed }: { seed: string }) {
           <path
             key={i}
             d={smoothOpen(band(J, -84 + i * 42 + J.j(6), 7))}
-            stroke={i % 2 ? '#456f2e' : '#a3bd66'}
+            stroke={i % 2 ? '#3a8a3c' : '#bce277'}
             strokeWidth={22}
             opacity={i % 2 ? 0.22 : 0.26}
             fill="none"
@@ -291,22 +291,22 @@ function Pasture({ seed }: { seed: string }) {
         ))}
       </g>
       {[...Array(5)].map((_, i) => (
-        <path key={i} d={blob(J, J.j(70), J.j(80), J.between(10, 20), J.between(6, 10), 8, 0.25)} fill={i % 2 ? '#3f662b' : '#b2c878'} opacity={0.22} />
+        <path key={i} d={blob(J, J.j(70), J.j(80), J.between(10, 20), J.between(6, 10), 8, 0.25)} fill={i % 2 ? '#2f7a38' : '#cbe98e'} opacity={0.24} />
       ))}
-      <TokenBed J={J} fill="#9dbb62" o={0.3} />
+      <TokenBed J={J} fill="#a8d86c" o={0.3} />
       {/* a dry-stone wall across one side */}
       <g fill="none" strokeLinecap="round">
-        <path d={smoothOpen(wall)} transform="translate(1.4 2)" stroke="#23331d" strokeWidth={4.6} opacity={0.35} />
-        <path d={smoothOpen(wall)} stroke="#9f9886" strokeWidth={3.8} />
-        <path d={smoothOpen(wall)} stroke="#d6cfbd" strokeWidth={1.4} transform="translate(-0.3 -0.9)" strokeDasharray="3 1.5" />
+        <path d={smoothOpen(wall)} transform="translate(1.4 2)" stroke="#183424" strokeWidth={4.6} opacity={0.35} />
+        <path d={smoothOpen(wall)} stroke="#aaa79b" strokeWidth={3.8} />
+        <path d={smoothOpen(wall)} stroke="#ebe7da" strokeWidth={1.4} transform="translate(-0.3 -0.9)" strokeDasharray="3 1.5" />
         <path d={smoothOpen(wall)} stroke="#6c6759" strokeWidth={3.8} strokeDasharray="0.6 3.6" />
       </g>
       {hasPond && (
         <g>
-          <path d={blob(J, pond[0], pond[1], 17, 9.5, 10, 0.12)} fill="#4a6b2e" />
-          <path d={blob(J, pond[0], pond[1] + 0.5, 14.5, 7.6, 10, 0.12)} fill="#56807e" />
-          <path d={blob(J, pond[0] + 2.5, pond[1] + 1.8, 9, 4.2, 8, 0.15)} fill="#3f6669" />
-          <path d={`M${r1(pond[0] - 9)} ${r1(pond[1] - 2.5)}q5 -2.6 11 -1.6`} stroke="#d8e6d6" strokeWidth={1.1} fill="none" opacity={0.6} strokeLinecap="round" />
+          <path d={blob(J, pond[0], pond[1], 17, 9.5, 10, 0.12)} fill="#3e7f37" />
+          <path d={blob(J, pond[0], pond[1] + 0.5, 14.5, 7.6, 10, 0.12)} fill="#4aa6b8" />
+          <path d={blob(J, pond[0] + 2.5, pond[1] + 1.8, 9, 4.2, 8, 0.15)} fill="#2c7a98" />
+          <path d={`M${r1(pond[0] - 9)} ${r1(pond[1] - 2.5)}q5 -2.6 11 -1.6`} stroke="#eaf8f8" strokeWidth={1.1} fill="none" opacity={0.6} strokeLinecap="round" />
           <Use id="fl-reeds" x={pond[0] - 13} y={pond[1] + 3} />
           <Use id="fl-reeds" x={pond[0] + 12} y={pond[1] - 3} s={0.8} />
         </g>
@@ -328,10 +328,10 @@ function Pasture({ seed }: { seed: string }) {
 // ------------------------------------------------------------------ fields (grain)
 
 const PLOTS = [
-  { fill: '#d2a84c', furrow: '#9d7429', crop: '#efd690', ripe: true }, // ripe wheat
-  { fill: '#c18e3a', furrow: '#8a6224', crop: '#e3bd6c', ripe: true }, // deep gold
-  { fill: '#d9c58b', furrow: '#ae955a', crop: '#f0e3ba', ripe: false }, // harvested stubble
-  { fill: '#9a9c4c', furrow: '#6c7234', crop: '#b9bb72', ripe: false }, // young barley
+  { fill: '#e8b83e', furrow: '#a8761c', crop: '#fde69a', ripe: true }, // ripe wheat
+  { fill: '#d99a2a', furrow: '#955f16', crop: '#f6cb64', ripe: true }, // deep gold
+  { fill: '#e8c574', furrow: '#b38840', crop: '#f8e4a6', ripe: false }, // harvested stubble
+  { fill: '#9cc54e', furrow: '#5f8e30', crop: '#d0e682', ripe: false }, // young barley
 ];
 
 function Fields({ seed }: { seed: string }) {
@@ -409,13 +409,13 @@ function Fields({ seed }: { seed: string }) {
       </g>
       {/* hedgerows between the plots */}
       <g fill="none" strokeLinecap="round">
-        <path d={smoothOpen(L1)} stroke="#1f2c15" strokeWidth={6.5} opacity={0.3} transform="translate(1.5 2)" />
-        <path d={smoothOpen(L1)} stroke="#3c5127" strokeWidth={5.5} strokeDasharray="0.1 4.4" />
-        <path d={smoothOpen(L1)} stroke="#73903f" strokeWidth={3} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
+        <path d={smoothOpen(L1)} stroke="#14301f" strokeWidth={6.5} opacity={0.3} transform="translate(1.5 2)" />
+        <path d={smoothOpen(L1)} stroke="#2a6a2f" strokeWidth={5.5} strokeDasharray="0.1 4.4" />
+        <path d={smoothOpen(L1)} stroke="#6cb34b" strokeWidth={3} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
         <g clipPath={`url(#${regions[1]})`}>
-          <path d={smoothOpen(L2)} stroke="#1f2c15" strokeWidth={6} opacity={0.3} transform="translate(1.5 2)" />
-          <path d={smoothOpen(L2)} stroke="#3c5127" strokeWidth={5} strokeDasharray="0.1 4.4" />
-          <path d={smoothOpen(L2)} stroke="#73903f" strokeWidth={2.8} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
+          <path d={smoothOpen(L2)} stroke="#14301f" strokeWidth={6} opacity={0.3} transform="translate(1.5 2)" />
+          <path d={smoothOpen(L2)} stroke="#2a6a2f" strokeWidth={5} strokeDasharray="0.1 4.4" />
+          <path d={smoothOpen(L2)} stroke="#6cb34b" strokeWidth={2.8} strokeDasharray="0.1 4.4" transform="translate(-0.7 -0.9)" />
         </g>
       </g>
       {[0.2, 0.75].map((t, i) => {
@@ -486,20 +486,20 @@ function peak(p: Peak, J: Jit, k: number) {
   });
   return (
     <g key={k} strokeLinejoin="round">
-      <path d={poly(silhouette)} fill="#4f5659" stroke="rgba(18,22,22,0.5)" strokeWidth={1} />
-      <path d={poly(litFace)} fill="#aea891" />
-      <path d={poly([ridge[0], ridge[1], [p.x - p.w * 0.42, p.top + h * 0.55], [p.x - p.w * 0.22, p.top + h * 0.26]])} fill="#c9c2aa" opacity={0.8} />
-      <path d={poly([ridge[1], ridge[2], [p.x - p.w * 0.2, p.top + h * 0.8], [p.x - p.w * 0.12, p.top + h * 0.5]])} fill="#8f8a76" opacity={0.45} />
+      <path d={poly(silhouette)} fill="#475665" stroke="rgba(14,22,32,0.5)" strokeWidth={1} />
+      <path d={poly(litFace)} fill="#c6c9c4" />
+      <path d={poly([ridge[0], ridge[1], [p.x - p.w * 0.42, p.top + h * 0.55], [p.x - p.w * 0.22, p.top + h * 0.26]])} fill="#e2e0d6" opacity={0.8} />
+      <path d={poly([ridge[1], ridge[2], [p.x - p.w * 0.2, p.top + h * 0.8], [p.x - p.w * 0.12, p.top + h * 0.5]])} fill="#97a3ab" opacity={0.45} />
       {crevices.map((d, i) => (
-        <path key={i} d={d} stroke="#6b6655" strokeWidth={1} fill="none" opacity={0.85} />
+        <path key={i} d={d} stroke="#5a6672" strokeWidth={1} fill="none" opacity={0.85} />
       ))}
-      <path d={`M${r1(p.x + p.w * 0.35)} ${r1(p.top + h * 0.5)}l${r1(p.w * 0.2)} ${r1(h * 0.18)}M${r1(p.x + p.w * 0.3)} ${r1(p.top + h * 0.75)}l${r1(p.w * 0.25)} ${r1(h * 0.1)}`} stroke="#3a4144" strokeWidth={1} opacity={0.7} />
-      <path d={poly(snow)} fill="#bcc3c6" />
-      <path d={poly(snowLit)} fill="#efebe0" />
+      <path d={`M${r1(p.x + p.w * 0.35)} ${r1(p.top + h * 0.5)}l${r1(p.w * 0.2)} ${r1(h * 0.18)}M${r1(p.x + p.w * 0.3)} ${r1(p.top + h * 0.75)}l${r1(p.w * 0.25)} ${r1(h * 0.1)}`} stroke="#2f3d4b" strokeWidth={1} opacity={0.7} />
+      <path d={poly(snow)} fill="#b7c9d8" />
+      <path d={poly(snowLit)} fill="#f7f6f0" />
       {/* alpine grass creeping up the foot */}
       <path
         d={`M${r1(p.x - p.w - 4)} ${r1(p.base + 4)}Q${r1(p.x - p.w * 0.5)} ${r1(p.base - h * 0.22)} ${r1(p.x)} ${r1(p.base - h * 0.12)}Q${r1(p.x + p.w * 0.5)} ${r1(p.base - h * 0.2)} ${r1(p.x + p.w + 4)} ${r1(p.base + 6)}Z`}
-        fill="#5f6b45"
+        fill="#5c9448"
         opacity={0.7}
       />
     </g>
@@ -519,11 +519,11 @@ function Mountains({ seed }: { seed: string }) {
     <g>
       <Base id="g-mountains" />
       {/* a far range in the haze */}
-      <path d={`${smoothOpen(band(J, -70, 10, 18).map(([x, y], i) => [x, y - (i % 2 ? 14 : 0)] as Pt))}L118 -20L-118 -20Z`} fill="#a2a9a8" opacity={0.6} />
+      <path d={`${smoothOpen(band(J, -70, 10, 18).map(([x, y], i) => [x, y - (i % 2 ? 14 : 0)] as Pt))}L118 -20L-118 -20Z`} fill="#a8bccb" opacity={0.6} />
       {peaks.map((p, i) => peak(p, J, i))}
       {/* scree apron under the token, and foothills */}
-      <path d={blob(J, 0, 30, 70, 34, 12, 0.14)} fill="#68704f" opacity={0.85} />
-      <TokenBed J={J} fill="#7f8471" o={0.3} />
+      <path d={blob(J, 0, 30, 70, 34, 12, 0.14)} fill="#76848d" opacity={0.85} />
+      <TokenBed J={J} fill="#97a3aa" o={0.3} />
       {scatter(J, 6, 14, (x, y) => y > 16 && inHex(x, y, 8) && offToken(x, y, 32)).map(([x, y], i) => (
         <Use key={`g${i}`} id={`fl-tuft-${i % 2}`} x={x} y={y} o={0.8} />
       ))}
@@ -537,14 +537,14 @@ function Mountains({ seed }: { seed: string }) {
       {scatter(J, 3, 18, (x, y) => y > -10 && y < 40 && inHex(x, y, 14) && offToken(x, y, 36)).map(([x, y], i) => (
         <g key={`o${i}`} transform={`translate(${r1(x)} ${r1(y)})`}>
           <path d="M-2.4 0L0-2L2.4 0L0 1.6Z" fill="#454b50" />
-          <path d="M-1.4-0.3L0-1.4L1.2-0.2Z" fill="#e2ded0" />
+          <path d="M-1.4-0.3L0-1.4L1.2-0.2Z" fill="#f1f4f6" />
         </g>
       ))}
       {/* a timbered mine entrance at the foot */}
       <g transform={`translate(${r1(mine.x)} ${r1(mine.y)})`} strokeLinejoin="round">
         <ellipse cx={4} cy={9} rx={15} ry={3} fill="#121614" opacity={0.3} />
-        <path d="M-13 9Q-14 -10 0 -12Q14 -10 13 9Z" fill="#6f6f68" />
-        <path d="M-13 9Q-14 -10 0 -12Q-6 -6 -6 9Z" fill="#9a978a" />
+        <path d="M-13 9Q-14 -10 0 -12Q14 -10 13 9Z" fill="#6b757d" />
+        <path d="M-13 9Q-14 -10 0 -12Q-6 -6 -6 9Z" fill="#a8aeb1" />
         <path d="M-6.5 9V-2Q-6.5 -6.5 0 -6.5Q6.5 -6.5 6.5 -2V9Z" fill="#1b1c1b" />
         <path d="M-7.5 9V-3.5M7.5 9V-3.5M-9 -4.5H9" stroke="#5a4330" strokeWidth={2.2} />
         <path d="M-8 9V-3.5M-9 -5.2H9" stroke="#8d6d48" strokeWidth={0.8} />
@@ -582,12 +582,12 @@ function Desert({ seed }: { seed: string }) {
         const windward: Pt[] = [...crest, [cx + w * 0.5, cy - 12], [cx - w * 0.4, cy - 8]];
         return (
           <g key={i}>
-            <path d={smoothClosed(windward)} fill="#f6e7bf" opacity={0.75} />
-            <path d={smoothClosed(lee)} fill="#987549" opacity={0.55} />
-            <path d={smoothOpen(crest)} stroke="#fdf3d6" strokeWidth={1.4} fill="none" strokeLinecap="round" />
+            <path d={smoothClosed(windward)} fill="#fdf0cc" opacity={0.75} />
+            <path d={smoothClosed(lee)} fill="#bb8a4e" opacity={0.5} />
+            <path d={smoothOpen(crest)} stroke="#fff8e2" strokeWidth={1.4} fill="none" strokeLinecap="round" />
             <path
               d={[1, 2, 3, 4].map((r) => smoothOpen(crest.map(([x, y]) => [x - r * 2, y - 4 - r * 4] as Pt).slice(0, 3))).join('')}
-              stroke="#b8935e"
+              stroke="#c99a58"
               strokeWidth={0.7}
               fill="none"
               opacity={0.4}

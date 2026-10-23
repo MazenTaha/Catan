@@ -41,6 +41,8 @@ export function ResGlyphSvg({ res, size = 16, color }: { res: Resource; size?: n
 
 /** Faint silhouette line. */
 const EDGE = 'rgba(16,13,9,0.62)';
+/** A thin dark line around each whole piece, so player colours lift off any terrain. */
+const HALO = '#0b0d0a';
 const STONE = '#8f897c';
 const STONE_LIT = '#cbc4b2';
 const DOOR = '#2a1f16';
@@ -87,7 +89,8 @@ export const OutpostPiece = memo(function OutpostPiece({ color, sigil, ghost, ri
   const t = tones(color);
   return (
     <g opacity={ghost ? 0.62 : 1} strokeDasharray={ghost ? '3 2' : undefined} strokeLinejoin="round">
-      {!ghost && <ellipse cx={5} cy={13.5} rx={15} ry={4} fill="#0a0d08" opacity={0.38} />}
+      {!ghost && <ellipse cx={5} cy={13.5} rx={15} ry={4} fill="#0a0d08" opacity={0.42} />}
+      {!ghost && <path d={SETTLEMENT_SIL} fill="none" stroke={HALO} strokeWidth={3.2} opacity={0.6} />}
       {rim && <path d={SETTLEMENT_SIL} fill="none" stroke={t.rim} strokeWidth={4.5} opacity={0.5} />}
       {/* stone plinth */}
       <path d="M-11.5 14V10.5H4L11.5 7.5V11L4 14Z" fill={STONE} stroke={EDGE} strokeWidth={0.8} />
@@ -119,7 +122,8 @@ export const CitadelPiece = memo(function CitadelPiece({ color, sigil, ghost, ri
   const t = tones(color);
   return (
     <g opacity={ghost ? 0.62 : 1} strokeDasharray={ghost ? '3 2' : undefined} strokeLinejoin="round">
-      {!ghost && <ellipse cx={5} cy={15.5} rx={23} ry={5} fill="#0a0d08" opacity={0.4} />}
+      {!ghost && <ellipse cx={5} cy={15.5} rx={23} ry={5} fill="#0a0d08" opacity={0.44} />}
+      {!ghost && <path d={CITY_SIL} fill="none" stroke={HALO} strokeWidth={3.2} opacity={0.6} />}
       {rim && <path d={CITY_SIL} fill="none" stroke={t.rim} strokeWidth={4.5} opacity={0.5} />}
       {/* stone plinth */}
       <path d="M-21 16V12.5H8L20 8.5V12L8 16Z" fill={STONE} stroke={EDGE} strokeWidth={0.8} />
@@ -183,7 +187,8 @@ export const CausewayPiece = memo(function CausewayPiece({
   const grain = `M${-h + 4} -0.4q8 -1.2 16 0t16 0t16 0M${-h + 9} 2q7 -0.9 14 0t14 0`;
   return (
     <g opacity={ghost ? 0.62 : 1} strokeDasharray={ghost ? '3 2' : undefined}>
-      {!ghost && <rect x={-h + 2.5} y={-2} width={L} height={10} rx={3} fill="#0a0d08" opacity={0.32} />}
+      {!ghost && <rect x={-h + 2.5} y={-2} width={L} height={10} rx={3} fill="#0a0d08" opacity={0.36} />}
+      {!ghost && <rect x={-h} y={-4.8} width={L} height={9.6} rx={2.4} fill="none" stroke={HALO} strokeWidth={3} opacity={0.55} />}
       {rim && (
         <rect x={-h - 3} y={-8.5} width={L + 6} height={17} rx={5} fill="none" stroke={lit(c, 0.45)} strokeWidth={4} opacity={0.5} />
       )}

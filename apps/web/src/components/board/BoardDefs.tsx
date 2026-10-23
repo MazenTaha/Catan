@@ -13,56 +13,61 @@ export const BoardDefs = memo(function BoardDefs() {
         <path d={HEX_PATH} />
       </clipPath>
 
+      {/* neutral grain: texture without tinting everything brown */}
       <filter id="f-noise" x="0" y="0" width="100%" height="100%">
         <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7" result="n" />
-        <feColorMatrix in="n" values="0 0 0 0 0.12  0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0.55 0" />
+        <feColorMatrix in="n" values="0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0.55 0" />
         <feComposite in2="SourceGraphic" operator="in" />
       </filter>
 
-      {/* terrain grounds: natural, slightly muted, brightest toward the sun */}
+      {/*
+        terrain grounds: each tuned on its own (light, middle, shadow), brightest toward the sun.
+        Greens run from spring meadow to cool forest shade, gold stays luminous, clay warm,
+        rock cool slate, sand pale honey; no shared beige filter.
+      */}
       <radialGradient id="g-forest" cx="32%" cy="26%" r="85%">
-        <stop offset="0%" stopColor="#5f7c3e" />
-        <stop offset="55%" stopColor="#3d5c2d" />
-        <stop offset="100%" stopColor="#2a4423" />
+        <stop offset="0%" stopColor="#5a9a45" />
+        <stop offset="55%" stopColor="#2f6e38" />
+        <stop offset="100%" stopColor="#1a4a32" />
       </radialGradient>
       <radialGradient id="g-hills" cx="32%" cy="26%" r="85%">
-        <stop offset="0%" stopColor="#cc9064" />
-        <stop offset="55%" stopColor="#ad6b44" />
-        <stop offset="100%" stopColor="#8a4e33" />
+        <stop offset="0%" stopColor="#e39661" />
+        <stop offset="55%" stopColor="#c76a3c" />
+        <stop offset="100%" stopColor="#97452b" />
       </radialGradient>
       <radialGradient id="g-pasture" cx="34%" cy="28%" r="80%">
-        <stop offset="0%" stopColor="#98b55e" />
-        <stop offset="60%" stopColor="#729743" />
-        <stop offset="100%" stopColor="#557a33" />
+        <stop offset="0%" stopColor="#a6d465" />
+        <stop offset="60%" stopColor="#6db245" />
+        <stop offset="100%" stopColor="#3f8a3a" />
       </radialGradient>
       <radialGradient id="g-fields" cx="34%" cy="28%" r="80%">
-        <stop offset="0%" stopColor="#e4c470" />
-        <stop offset="60%" stopColor="#cfa64d" />
-        <stop offset="100%" stopColor="#b08739" />
+        <stop offset="0%" stopColor="#f6d670" />
+        <stop offset="60%" stopColor="#e4b23f" />
+        <stop offset="100%" stopColor="#bf8a2a" />
       </radialGradient>
       <linearGradient id="g-mountains" x1="0.2" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#a3a59b" />
-        <stop offset="50%" stopColor="#7e8377" />
-        <stop offset="100%" stopColor="#5d6948" />
+        <stop offset="0%" stopColor="#b9c3ca" />
+        <stop offset="50%" stopColor="#8995a0" />
+        <stop offset="100%" stopColor="#5b7056" />
       </linearGradient>
       <radialGradient id="g-desert" cx="34%" cy="28%" r="80%">
-        <stop offset="0%" stopColor="#efd8a2" />
-        <stop offset="60%" stopColor="#dabd82" />
-        <stop offset="100%" stopColor="#bc9862" />
+        <stop offset="0%" stopColor="#f8e6b0" />
+        <stop offset="60%" stopColor="#eec983" />
+        <stop offset="100%" stopColor="#d4a462" />
       </radialGradient>
 
       {/* every tile: warm light falling from the upper left, cool shade gathering lower right */}
       <linearGradient id="g-tile-light" x1="0.1" y1="0" x2="0.9" y2="1">
-        <stop offset="0%" stopColor="#fff0c8" stopOpacity="0.2" />
-        <stop offset="42%" stopColor="#fff0c8" stopOpacity="0" />
-        <stop offset="70%" stopColor="#0f1c1e" stopOpacity="0" />
-        <stop offset="100%" stopColor="#0f1c1e" stopOpacity="0.28" />
+        <stop offset="0%" stopColor="#fff4d6" stopOpacity="0.16" />
+        <stop offset="42%" stopColor="#fff4d6" stopOpacity="0" />
+        <stop offset="70%" stopColor="#0c1d2a" stopOpacity="0" />
+        <stop offset="100%" stopColor="#0c1d2a" stopOpacity="0.22" />
       </linearGradient>
       {/* the same light across the whole island, so tiles agree with each other */}
       <linearGradient id="g-sunlight" x1="0.1" y1="0" x2="0.9" y2="1">
-        <stop offset="0%" stopColor="#ffe3a6" stopOpacity="0.14" />
-        <stop offset="45%" stopColor="#ffe3a6" stopOpacity="0" />
-        <stop offset="100%" stopColor="#10202a" stopOpacity="0.2" />
+        <stop offset="0%" stopColor="#fff0c4" stopOpacity="0.1" />
+        <stop offset="45%" stopColor="#fff0c4" stopOpacity="0" />
+        <stop offset="100%" stopColor="#0c1d2e" stopOpacity="0.16" />
       </linearGradient>
 
       <radialGradient id="g-ember">
@@ -97,20 +102,20 @@ export const BoardDefs = memo(function BoardDefs() {
         <stop offset="100%" stopColor="#4e3826" />
       </linearGradient>
 
-      {/* the sea: deep natural teal, warmed where the sun lies on it (upper left) */}
+      {/* the sea: clear blue, deepening away from the island, warmed where the sun lies on it */}
       <radialGradient id="g-sea" cx="50%" cy="48%" r="70%">
-        <stop offset="0%" stopColor="#2d5f66" />
-        <stop offset="45%" stopColor="#1e4850" />
-        <stop offset="80%" stopColor="#14333b" />
-        <stop offset="100%" stopColor="#0c2027" />
+        <stop offset="0%" stopColor="#1f6f8c" />
+        <stop offset="45%" stopColor="#165a7a" />
+        <stop offset="80%" stopColor="#0f4062" />
+        <stop offset="100%" stopColor="#0a2b46" />
       </radialGradient>
       <radialGradient id="g-sunglow" cx="10%" cy="-4%" r="62%">
-        <stop offset="0%" stopColor="#ffe2a8" stopOpacity="0.3" />
-        <stop offset="40%" stopColor="#f2c98a" stopOpacity="0.1" />
-        <stop offset="100%" stopColor="#f2c98a" stopOpacity="0" />
+        <stop offset="0%" stopColor="#ffe6b0" stopOpacity="0.24" />
+        <stop offset="40%" stopColor="#f2d39a" stopOpacity="0.08" />
+        <stop offset="100%" stopColor="#f2d39a" stopOpacity="0" />
       </radialGradient>
       <filter id="f-water" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="8" />
+        <feGaussianBlur stdDeviation="2" />
       </filter>
       <filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%">
         <feGaussianBlur stdDeviation="12" />

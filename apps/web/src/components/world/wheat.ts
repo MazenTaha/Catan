@@ -1,23 +1,13 @@
 import * as THREE from 'three';
 
 /**
- * Wheat for the 3D walk, the showcase crop. A clump is five stalks, each with a stem, two
- * narrow leaves and a shaped head of kernels with awns (about 90 triangles); the far version
- * keeps each stalk's silhouette in 6 triangles. Clumps are instanced in 7 m cells, and each cell
- * swaps between the near and far geometry by its distance to the walker, so the field you stand
- * in has character while distant fields stay cheap.
- *
- * Wind runs on the GPU: a slow gust envelope and a travelling wave in one world direction,
- * plus a little per-stalk flutter, bending stalks more towards their tips. No transforms are
- * touched per frame. Variation comes from fixed seeds, never from the game's RNG.
+ * The built-in wheat clump, used when the Blender-made clumps (`flora.glb`) aren't available:
+ * five stalks, each with a stem, two narrow leaves and a shaped head of kernels with awns
+ * (about 90 triangles); the far version keeps each stalk's silhouette in 6 triangles. Each
+ * vertex carries its stalk's `wphase` for the wind shader. Fixed seeds, never the game's RNG.
  */
 
 export type WheatDetail = 'near' | 'far';
-
-const WIND_DIR = new THREE.Vector2(0.82, 0.57).normalize();
-const CELL = 7;
-/** Cells whose centre is closer than this use the detailed clumps. */
-const NEAR_DIST = 14;
 
 function mulberry(seed: number): () => number {
   let a = seed >>> 0;
@@ -223,157 +213,4 @@ export function wheatClumpGeometry(detail: WheatDetail, lite: boolean): THREE.Bu
   const b = new Builder();
   for (const s of stalks) (detail === 'near' ? nearStalk : farStalk)(b, s);
   return b.geometry();
-}
-
-/**
- * Lit, rough and double-sided, with the wind in the vertex shader. `wind` = 0 keeps it still
- * (reduced motion, lite graphics).
- */
-export function wheatMaterial(uTime: { value: number }, wind: number): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({
-    color: '#ffffff',
-    vertexColors: true,
-    roughness: 0.78,
-    side: THREE.DoubleSide,
-  });
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.uTime = uTime;
-    sh.uniforms.uWind = { value: wind };
-    sh.uniforms.uWindDir = { value: WIND_DIR };
-    sh.vertexShader = sh.vertexShader
-      .replace(
-        '#include <common>',
-        '#include <common>\nuniform float uTime;\nuniform float uWind;\nuniform vec2 uWindDir;\nattribute float wphase;',
-      )
-      .replace('#include <begin_vertex>', `#include <begin_vertex>\n${WIND_GLSL}`);
-  };
-  m.customProgramCacheKey = () => `wheat-${wind > 0}`;
-  return m;
-}
-
-/** World-space wind, applied in instance-local space so every clump bends the same way. */
-export const WIND_GLSL = `
-  #ifdef USE_INSTANCING
-    vec3 wIp = vec3(instanceMatrix[3]);
-    mat3 wM = mat3(instanceMatrix);
-  #else
-    vec3 wIp = vec3(modelMatrix[3]);
-    mat3 wM = mat3(1.0);
-  #endif
-  float wH = clamp(position.y / 1.15, 0.0, 1.4);
-  float wBend = wH * wH;
-  float wAlong = dot(wIp.xz, uWindDir);
-  float wGust = 0.55 + 0.45 * sin(wAlong * 0.06 - uTime * 0.45);
-  float wWave = sin(wAlong * 0.42 - uTime * 1.7 + wphase * 1.2);
-  float wFl = sin(uTime * 3.6 + wphase * 6.2832 + wIp.x * 1.3 + wIp.z) * 0.16;
-  float wAmt = (0.3 + 0.7 * (wWave * 0.5 + 0.5) + wFl) * wGust * uWind * wBend;
-  vec3 wDir = transpose(wM) * vec3(uWindDir.x, 0.0, uWindDir.y);
-  wDir /= max(dot(wM[0], wM[0]), 1e-4);
-  transformed += wDir * wAmt;
-  transformed.y -= wAmt * wAmt * 1.5 * wH;
-`;
-
-interface Cell {
-  cx: number;
-  cz: number;
-  near: THREE.InstancedMesh;
-  far: THREE.InstancedMesh;
-}
-
-/** One visual for a level of detail: one or more geometry/material pairs drawn per instance. */
-export interface WheatVisual {
-  parts: { geometry: THREE.BufferGeometry; material: THREE.Material }[];
-}
-
-/**
- * All the wheat on the island. `add` collects clumps; `build` sorts them into cells with a near
- * and a far instanced mesh each (sharing one instance buffer); `update` picks per cell.
- */
-export class WheatCrop {
-  private items: { m: THREE.Matrix4; c: THREE.Color }[] = [];
-  private cells: Cell[] = [];
-  private group = new THREE.Group();
-
-  constructor(
-    private near: WheatVisual,
-    private far: WheatVisual,
-  ) {
-    this.group.name = 'wheat';
-  }
-
-  get count(): number {
-    return this.items.length;
-  }
-
-  add(m: THREE.Matrix4, tint: THREE.Color) {
-    this.items.push({ m, c: tint });
-  }
-
-  build(scene: THREE.Scene) {
-    const byCell = new Map<string, { m: THREE.Matrix4; c: THREE.Color }[]>();
-    const p = new THREE.Vector3();
-    for (const it of this.items) {
-      p.setFromMatrixPosition(it.m);
-      const key = `${Math.floor(p.x / CELL)},${Math.floor(p.z / CELL)}`;
-      let list = byCell.get(key);
-      if (!list) byCell.set(key, (list = []));
-      list.push(it);
-    }
-    for (const [key, list] of byCell) {
-      const [i, j] = key.split(',').map(Number);
-      const near = this.instanced(this.near.parts[0], list.length);
-      list.forEach((it, k) => {
-        near.setMatrixAt(k, it.m);
-        near.setColorAt(k, it.c);
-      });
-      near.computeBoundingSphere();
-      const far = this.instanced(this.far.parts[0], list.length);
-      far.instanceMatrix = near.instanceMatrix;
-      far.instanceColor = near.instanceColor;
-      far.computeBoundingSphere();
-      far.visible = false;
-      this.group.add(near, far);
-      this.cells.push({ cx: (i + 0.5) * CELL, cz: (j + 0.5) * CELL, near, far });
-    }
-    scene.add(this.group);
-  }
-
-  private instanced(part: WheatVisual['parts'][number], n: number): THREE.InstancedMesh {
-    const im = new THREE.InstancedMesh(part.geometry, part.material, n);
-    im.castShadow = false;
-    im.receiveShadow = true;
-    return im;
-  }
-
-  /** Near detail around the walker, far everywhere else. */
-  update(x: number, z: number) {
-    for (const c of this.cells) {
-      const near = Math.hypot(c.cx - x, c.cz - z) < NEAR_DIST;
-      c.near.visible = near;
-      c.far.visible = !near;
-    }
-  }
-
-  /**
-   * Replaces the procedural clumps with another visual (e.g. a loaded model) without touching
-   * placement: every cell keeps its instance buffer. Multi-part visuals add meshes per part.
-   */
-  setVisual(detail: WheatDetail, visual: WheatVisual) {
-    if (detail === 'near') this.near = visual;
-    else this.far = visual;
-    for (const c of this.cells) {
-      const im = detail === 'near' ? c.near : c.far;
-      im.geometry = visual.parts[0].geometry;
-      im.material = visual.parts[0].material;
-      for (const part of visual.parts.slice(1)) {
-        const more = new THREE.InstancedMesh(part.geometry, part.material, im.count);
-        more.instanceMatrix = im.instanceMatrix;
-        more.instanceColor = im.instanceColor;
-        more.receiveShadow = true;
-        more.computeBoundingSphere();
-        im.add(more);
-      }
-      im.computeBoundingSphere();
-    }
-  }
 }

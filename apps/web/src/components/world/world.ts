@@ -9,15 +9,14 @@ import {
 } from '@hexfall/engine';
 import { COLOR_HEX } from '../../lexicon';
 import {
-  ASSET_FILES,
   SLOTS,
-  assetUrl,
   cloneAsset,
-  isShared,
-  loadAsset,
   type AssetSlot,
+  type GroundKind,
   type LoadedAsset,
+  type WorldAssets,
 } from './assets';
+import { Field, variantAt, type PlantVisual } from './field';
 import {
   Kit,
   STONE,
@@ -28,7 +27,6 @@ import {
   makeBoat,
   makeBrickStack,
   makeCity,
-  makeCloud,
   makeCrag,
   makeDock,
   makeFencePost,
@@ -42,7 +40,6 @@ import {
   makeRobber,
   makeSettlement,
   makeSheep,
-  makeSunSprite,
   makeTokenSprite,
   makeTrough,
   makeWindmill,
@@ -54,12 +51,14 @@ import {
   R,
   buildGround,
   detailTexture,
+  edgeDistance,
   fbm,
   onPath,
   tileHeight,
   type TileGround,
 } from './terrain';
-import { WheatCrop, wheatClumpGeometry, wheatMaterial } from './wheat';
+import { foliage, foliageDepth, groundDetail, makeSky, noiseTexture } from './shaders';
+import { wheatClumpGeometry } from './wheat';
 
 export { R };
 /** Eye height above the ground, metres. */
@@ -69,6 +68,21 @@ const WALK = 5;
 const RUN = 10;
 /** Procedural houses are modelled small; this brings doors to ~2 m next to a 1.7 m eye. */
 const PIECE_SCALE = 1.4;
+/** Grass and flowers shrink away between these distances (metres); cells past them aren't drawn. */
+const GRASS_FADE: [number, number] = [22, 30];
+const FLOWER_FADE: [number, number] = [30, 40];
+/** Grass and flowers keep this far (metres) from tile edges, where roads run and buildings stand. */
+const EDGE_CLEAR = 1.6;
+/** Wildflower models and how often a drift is of each kind. */
+const FLOWER_SLOTS: AssetSlot[] = ['flower.daisy', 'flower.buttercup', 'flower.poppy', 'flower.lavender'];
+const FLOWER_WEIGHTS = [0.36, 0.3, 0.22, 0.12];
+
+/** Index of the bucket `t` (0-1) falls in, given bucket weights summing to 1. */
+function weighted(weights: number[], t: number): number {
+  let acc = 0;
+  for (let i = 0; i < weights.length; i++) if (t < (acc += weights[i])) return i;
+  return weights.length - 1;
+}
 
 const topo = getTopology();
 
@@ -118,12 +132,15 @@ const SAIL: Record<HarborKind, string> = {
   ore: '#8d9fb4',
 };
 
-/** Late-afternoon sky: clear blue overhead, pale and hazy at the horizon, warm toward the sun. */
+/** Afternoon sky: deep clear blue overhead, pale and hazy at the horizon, warm toward the sun. */
 const SKY = {
-  zenith: new THREE.Color('#3a7fcb'),
-  upper: new THREE.Color('#7db3e2'),
-  horizon: new THREE.Color('#d6e6ee'),
-  glow: new THREE.Color('#ffe6bd'),
+  zenith: new THREE.Color('#2f73c4'),
+  upper: new THREE.Color('#6eaae6'),
+  horizon: new THREE.Color('#cfe2ee'),
+  glow: new THREE.Color('#ffe2b4'),
+  sun: new THREE.Color('#fff1d6'),
+  cloudLit: new THREE.Color('#fffaf0'),
+  cloudShade: new THREE.Color('#9fb0c8'),
 };
 
 /**
@@ -187,22 +204,27 @@ export class World {
   private sheep: Sheep[] = [];
   private spinners: THREE.Object3D[] = [];
   private boats: { obj: THREE.Object3D; phase: number; y: number }[] = [];
-  private clouds: THREE.Object3D[] = [];
   private pieces = new THREE.Group();
-  private robber: THREE.Group | null = null;
-  private foam: THREE.MeshBasicMaterial | null = null;
-  private wheat: WheatCrop | null = null;
+  private robber: THREE.Object3D | null = null;
+  /** Wheat, grass and flowers: instanced in cells, detail by distance. */
+  private fields: Field[] = [];
+  private grass: Field | null = null;
+  private flowers: Field | null = null;
   private inst: Instancer;
-  /** Swappable single objects (docks, boats, windmills), by slot. */
-  private objects: { slot: AssetSlot; obj: THREE.Object3D }[] = [];
-  /** Loaded models for slots, once they arrive. */
-  private loaded = new Map<AssetSlot, LoadedAsset>();
+  private sky!: THREE.Mesh;
+  /** Owner-tinted copies of model materials, by original and colour. */
   private ownerMats = new Map<string, THREE.Material>();
-  private lastState: GameState | null = null;
-  private sunGlow = makeSunSprite();
-  /** Late-afternoon sun in the west-north-west, about 30 degrees up. */
+  /** Per-world copies of shared plant materials with the wind shader, by original. */
+  private plantMats = new Map<string, THREE.Material>();
+  /** Depth pre-pass twins of leaf materials, by lit material. */
+  private depthMats = new Map<THREE.Material, THREE.Material>();
+  /** Afternoon sun in the west-north-west, about 30 degrees up. */
   private sunDir = new THREE.Vector3(-0.64, 0.5, -0.58).normalize();
   private robberHex = -1;
+  /** Shadow map bookkeeping: where its box is centred, frames drawn, and a forced redraw. */
+  private shadowAt = { x: NaN, z: NaN };
+  private shadowTick = 0;
+  private shadowDirty = true;
 
   private x = 0;
   private z = 0;
@@ -219,6 +241,7 @@ export class World {
     canvas: HTMLCanvasElement,
     board: Board,
     private opts: WorldOptions,
+    private assets: WorldAssets = { models: new Map(), ground: new Map() },
   ) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -232,17 +255,16 @@ export class World {
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = !opts.lite;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
 
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 1500);
     this.camera.rotation.order = 'YXZ';
-    this.inst = new Instancer(this.kit, this.uTime, opts.lite);
+    this.inst = new Instancer(this.kit, this.uTime, opts.lite, (slot) => this.model(slot), (slot, p) => this.partsFor(slot, p));
 
     this.buildSky();
     this.buildLights();
     this.buildIsland(board);
     this.scene.add(this.pieces);
-    for (const [slot, file] of Object.entries(ASSET_FILES) as [AssetSlot, string][])
-      void this.applyAsset(slot, file);
 
     this.startWhenCompiled();
   }
@@ -275,7 +297,7 @@ export class World {
 
   /** Rebuilds settlements, cities, roads and the robber from the game state. */
   setPieces(state: GameState): void {
-    this.lastState = state;
+    this.shadowDirty = true;
     for (const c of [...this.pieces.children]) this.pieces.remove(c);
     this.pieceColliders = [];
     const center = (v: string) => ({ x: topo.vertexPos[v].x * R, z: topo.vertexPos[v].y * R });
@@ -284,8 +306,10 @@ export class World {
       const [a, b] = topo.edgeVertices[e];
       const pa = center(a);
       const pb = center(b);
-      const road = makeRoad(this.kit, R, COLOR_HEX[state.players[owner].color]);
-      road.position.set((pa.x + pb.x) / 2, -0.04, (pa.z + pb.z) / 2);
+      const color = COLOR_HEX[state.players[owner].color];
+      const model = this.model('piece.road')?.[0];
+      const road = model ? cloneAsset(model, SLOTS['piece.road'], (m) => this.tinted(m, color)) : makeRoad(this.kit, R, color);
+      road.position.set((pa.x + pb.x) / 2, model ? -0.02 : -0.04, (pa.z + pb.z) / 2);
       road.rotation.y = Math.atan2(-(pb.z - pa.z), pb.x - pa.x);
       this.pieces.add(road);
     }
@@ -302,8 +326,11 @@ export class World {
     }
 
     if (!this.robber) {
-      this.robber = makeRobber(this.kit);
-      this.robber.scale.setScalar(1.1);
+      const model = this.model('piece.robber')?.[0];
+      this.robber = model ? cloneAsset(model, SLOTS['piece.robber']) : makeRobber(this.kit);
+      // The built-in pawn floats and bobs; the model stands on its own stone base.
+      this.robber.userData.hover = !model;
+      if (!model) this.robber.scale.setScalar(1.1);
       this.scene.add(this.robber);
     }
     if (this.robberHex !== state.wraithHex) {
@@ -318,59 +345,6 @@ export class World {
     this.pieceColliders.push({ ax: rb.x, az: rb.z, bx: rb.x, bz: rb.z, r: 0.9 });
   }
 
-  /**
-   * Loads a model for a slot and swaps it in for the procedural one, keeping every placement.
-   * Resolves false (and keeps the procedural model) if it can't be loaded.
-   */
-  async applyAsset(slot: AssetSlot, file: string): Promise<boolean> {
-    const asset = await loadAsset(assetUrl(file));
-    if (!asset || this.disposed) return false;
-    this.loaded.set(slot, asset);
-    const spec = SLOTS[slot];
-    switch (slot) {
-      case 'wheat.clump':
-      case 'wheat.clump.far':
-        this.wheat?.setVisual(slot === 'wheat.clump' ? 'near' : 'far', { parts: this.bakedParts(asset) });
-        break;
-      case 'tree.broadleaf':
-      case 'tree.conifer':
-      case 'rock.boulder':
-        this.inst.replace(slot, this.bakedParts(asset), spec.castShadow, this.scene);
-        break;
-      case 'building.settlement':
-      case 'building.city':
-        if (this.lastState) this.setPieces(this.lastState);
-        break;
-      case 'sheep':
-        for (const s of this.sheep) {
-          const old = s.rig.root;
-          s.rig = rigFromAsset(cloneAsset(asset, spec));
-          s.rig.root.scale.copy(old.scale);
-          old.removeFromParent();
-          this.scene.add(s.rig.root);
-        }
-        break;
-      default:
-        for (const o of this.objects) {
-          if (o.slot !== slot) continue;
-          const next = cloneAsset(asset, spec);
-          next.position.copy(o.obj.position);
-          next.rotation.copy(o.obj.rotation);
-          o.obj.parent?.add(next);
-          o.obj.removeFromParent();
-          for (const b of this.boats) if (b.obj === o.obj) b.obj = next;
-          if (slot === 'prop.windmill') {
-            // The procedural sails go with the old mill; a model may name its own "Sails".
-            this.spinners = this.spinners.filter((sp) => sp.parent !== o.obj);
-            const sails = next.getObjectByName('Sails');
-            if (sails) this.spinners.push(sails);
-          }
-          o.obj = next;
-        }
-    }
-    return true;
-  }
-
   dispose(): void {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
@@ -380,22 +354,22 @@ export class World {
   }
 
   private release(): void {
+    // Frees everything this renderer uploaded, cached models included: dispose() only drops
+    // the GPU copies, and the page cache keeps the data for the next world to upload again.
     const geos = new Set<THREE.BufferGeometry>();
     const mats = new Set<THREE.Material>();
     this.scene.traverse((o) => {
+      if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
       const m = o as THREE.Mesh;
-      if (m.geometry && !isShared(m.geometry)) geos.add(m.geometry);
-      if (m.material)
-        (Array.isArray(m.material) ? m.material : [m.material]).forEach(
-          (x) => !isShared(x) && mats.add(x),
-        );
+      if (m.geometry) geos.add(m.geometry);
+      if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => mats.add(x));
     });
     geos.forEach((g) => g.dispose());
     mats.forEach((m) => {
-      const map = (m as THREE.MeshStandardMaterial).map;
-      if (map && !isShared(map)) map.dispose();
+      for (const v of Object.values(m)) if ((v as THREE.Texture | null)?.isTexture) (v as THREE.Texture).dispose();
       m.dispose();
     });
+    noiseTexture().dispose();
     this.kit.dispose();
     this.envRT?.dispose();
     this.renderer.dispose();
@@ -429,38 +403,91 @@ export class World {
 
   // ---------------------------------------------------------------- assets
 
-  /** A loaded model's parts with their transforms baked in, owned by this world. */
-  private bakedParts(asset: LoadedAsset): { geometry: THREE.BufferGeometry; material: THREE.Material }[] {
-    return asset.parts.map((p) => ({
-      geometry: this.kit.own(p.geometry.clone().applyMatrix4(p.matrix)),
-      material: p.material,
-    }));
+  /** A slot's loaded variants, or undefined to draw it procedurally. */
+  private model(slot: AssetSlot): LoadedAsset[] | undefined {
+    return this.assets.models.get(slot);
+  }
+
+  /** An owner (or sail) material tinted in a colour; one copy per material and colour. */
+  private tinted(m: THREE.Material, color: string): THREE.Material {
+    const key = `${m.uuid}|${color}`;
+    let own = this.ownerMats.get(key);
+    if (!own) {
+      const c = m.clone() as THREE.MeshStandardMaterial;
+      c.color?.set(color);
+      own = this.kit.ownMat(c);
+      this.ownerMats.set(key, own);
+    }
+    return own;
+  }
+
+  /**
+   * A variant's parts with their transforms baked in, owned by this world. Plant materials get
+   * a per-world copy with the wind shader; `wphase` comes from the model's `_wphase` attribute.
+   */
+  private partsFor(slot: AssetSlot, asset: LoadedAsset): PlantVisual['parts'] {
+    return asset.parts.map((p) => {
+      const g = this.kit.own(p.geometry.clone().applyMatrix4(p.matrix));
+      const phase = g.getAttribute('_wphase');
+      if (phase) {
+        g.setAttribute('wphase', phase);
+        g.deleteAttribute('_wphase');
+      }
+      const material = this.plantMaterial(slot, p.material);
+      return { geometry: g, material, depth: this.depthMats.get(material) };
+    });
+  }
+
+  /** The material a slot's part is drawn with: shared as loaded, or a per-world foliage copy. */
+  private plantMaterial(slot: AssetSlot, m: THREE.Material): THREE.Material {
+    const leaf = /^leaf/i.test(m.name);
+    const plant = /^plant/i.test(m.name) && slot !== 'prop.stook';
+    if (!leaf && !plant) return m;
+    const key = `${slot}|${m.uuid}`;
+    let own = this.plantMats.get(key);
+    if (!own) {
+      const still = this.opts.lite || this.opts.reduceMotion;
+      const c = (m as THREE.MeshStandardMaterial).clone();
+      if (leaf) {
+        // Plain alpha test (no alpha to coverage): the depth pre-pass must agree exactly on
+        // which texels are leaf, or the sky shows through as bright fringes.
+        const o = { uTime: this.uTime, sway: still ? 0 : slot === 'shrub' ? 0.012 : 0.02, translucency: 0.35 };
+        foliage(c, o);
+        this.depthMats.set(c, this.kit.ownMat(foliageDepth(c, o)));
+      } else if (slot.startsWith('wheat')) {
+        const o = { uTime: this.uTime, wind: { amount: still ? 0 : 0.12, height: 1.15 }, translucency: 1 };
+        foliage(c, o);
+        // The near clumps fill the screen in layers: shade only the front-most stalk.
+        if (slot === 'wheat.clump') this.depthMats.set(c, this.kit.ownMat(foliageDepth(c, o)));
+      } else if (slot === 'grass.clump') {
+        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.35, height: 0.45 }, fade: GRASS_FADE, translucency: 0.7 });
+      } else {
+        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.3, height: 0.4 }, fade: FLOWER_FADE, translucency: 0.5 });
+      }
+      own = this.kit.ownMat(c);
+      this.plantMats.set(key, own);
+    }
+    return own;
   }
 
   /** A settlement or city: the loaded model if there is one, else the procedural one. */
   private piece(slot: AssetSlot, color: string): THREE.Object3D {
-    const asset = this.loaded.get(slot);
-    if (asset)
-      return cloneAsset(asset, SLOTS[slot], (m) => {
-        const key = `${m.uuid}|${color}`;
-        let own = this.ownerMats.get(key);
-        if (!own) {
-          const c = m.clone() as THREE.MeshStandardMaterial;
-          c.color?.set(color);
-          own = this.kit.ownMat(c);
-          this.ownerMats.set(key, own);
-        }
-        return own;
-      });
+    const asset = this.model(slot)?.[0];
+    if (asset) return cloneAsset(asset, SLOTS[slot], (m) => this.tinted(m, color));
     const obj = slot === 'building.city' ? makeCity(this.kit, color) : makeSettlement(this.kit, color);
     obj.scale.setScalar(PIECE_SCALE);
     return obj;
   }
 
-  /** Records a swappable object and keeps it out of the static bake. */
-  private place(slot: AssetSlot, obj: THREE.Object3D): THREE.Object3D {
+  /** A static prop: the loaded model if there is one (merged by the bake), else the procedural one. */
+  private prop(slot: AssetSlot, fallback: () => THREE.Object3D): THREE.Object3D {
+    const model = this.model(slot)?.[0];
+    return model ? cloneAsset(model, SLOTS[slot]) : fallback();
+  }
+
+  /** Keeps a moving or model-drawn object out of the static bake. */
+  private place(obj: THREE.Object3D): THREE.Object3D {
     obj.userData.dynamic = true;
-    this.objects.push({ slot, obj });
     return obj;
   }
 
@@ -474,38 +501,11 @@ export class World {
   }
 
   private buildSky() {
-    const geo = new THREE.SphereGeometry(1000, 48, 24);
-    const cols: number[] = [];
-    const pos = geo.attributes.position;
-    const c = new THREE.Color();
-    const v = new THREE.Vector3();
-    const sunFlat = new THREE.Vector3(this.sunDir.x, 0, this.sunDir.z).normalize();
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).normalize();
-      const t = THREE.MathUtils.clamp(v.y, 0, 1);
-      if (t < 0.18) c.copy(SKY.horizon).lerp(SKY.upper, t / 0.18);
-      else c.copy(SKY.upper).lerp(SKY.zenith, Math.pow((t - 0.18) / 0.82, 0.8));
-      // Warmer and brighter low on the sun's side of the sky.
-      const toward = Math.max(0, v.x * sunFlat.x + v.z * sunFlat.z);
-      c.lerp(SKY.glow, Math.pow(toward, 4) * Math.pow(1 - t, 2.5) * 0.75);
-      if (v.y < 0) c.copy(SKY.horizon);
-      cols.push(c.r, c.g, c.b);
-    }
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-    const sky = new THREE.Mesh(
-      geo,
-      new THREE.MeshBasicMaterial({
-        vertexColors: true,
-        side: THREE.BackSide,
-        fog: false,
-        depthWrite: false,
-      }),
-    );
-    sky.renderOrder = -2;
-    this.scene.add(sky);
+    this.sky = makeSky(this.sunDir, this.uTime, SKY, true);
+    this.scene.add(this.sky);
     this.scene.background = SKY.horizon.clone();
-    // Light atmospheric haze: the island stays clear, the far ranges turn blue-grey.
-    this.scene.fog = new THREE.Fog(SKY.horizon.clone(), 170, 980);
+    // Restrained atmospheric depth: the island stays crisp, the far ranges and sea turn hazy.
+    this.scene.fog = new THREE.Fog(SKY.horizon.clone(), 150, 820);
     this.buildEnvironment();
   }
 
@@ -543,7 +543,7 @@ export class World {
   }
 
   private buildLights() {
-    const sun = new THREE.DirectionalLight('#ffd9a6', 3.2);
+    const sun = new THREE.DirectionalLight('#ffe2b8', 3.3);
     sun.castShadow = !this.opts.lite;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -556,37 +556,100 @@ export class World {
     this.scene.add(sun);
     this.scene.add(sun.target);
     this.sun = sun;
-    this.sunGlow.scale.setScalar(200);
-    this.sunGlow.renderOrder = -1;
-    this.scene.add(this.sunGlow);
+  }
+
+  /** The ground material for a terrain: the loaded detail and normal maps, or the built-in texture. */
+  private groundMaterial(t: Terrain, seed: number): THREE.MeshStandardMaterial {
+    const kind: GroundKind = DETAIL_KIND[t];
+    const tex = this.assets.ground.get(kind);
+    if (!tex) {
+      const map = detailTexture(kind, seed + t.length * 97);
+      map.repeat.set(0.22, 0.22); // UVs are in metres: one repeat every ~4.5 m
+      return this.kit.ownMat(new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: 0.96 }));
+    }
+    // Shared textures: the same repeat for every world.
+    tex.map.repeat.set(0.22, 0.22);
+    tex.normal.repeat.set(0.22, 0.22);
+    const m = new THREE.MeshStandardMaterial({
+      map: tex.map,
+      normalMap: tex.normal,
+      normalScale: new THREE.Vector2(0.85, 0.85),
+      vertexColors: true,
+      roughness: 0.95,
+    });
+    groundDetail(m);
+    return this.kit.ownMat(m);
   }
 
   private buildIsland(board: Board) {
     const kit = this.kit;
     const seed = hashString(board.seed);
+    const lite = this.opts.lite;
+    const still = lite || this.opts.reduceMotion;
     this.buildSea();
 
     const beachGeo = kit.geo('beach', beachRing);
-    const sand = kit.mat('#e3cc94', { roughness: 0.95 });
+    const sandTex = this.assets.ground.get('sand');
+    const sand = kit.ownMat(
+      new THREE.MeshStandardMaterial({
+        color: '#ead3a0',
+        roughness: 0.95,
+        map: sandTex?.map ?? null,
+        normalMap: sandTex?.normal ?? null,
+      }),
+    );
     const groundMats = new Map<Terrain, THREE.MeshStandardMaterial>();
     const groundMat = (t: Terrain) => {
       let m = groundMats.get(t);
-      if (!m) {
-        const map = detailTexture(DETAIL_KIND[t], seed + t.length * 97);
-        map.repeat.set(0.22, 0.22); // UVs are in metres: one repeat every ~4.5 m
-        m = kit.ownMat(
-          new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: 0.96 }),
-        );
-        groundMats.set(t, m);
-      }
+      if (!m) groundMats.set(t, (m = this.groundMaterial(t, seed)));
       return m;
     };
     const statics = new THREE.Group();
-    const wheat = new WheatCrop(
-      { parts: [{ geometry: kit.own(wheatClumpGeometry('near', this.opts.lite)), material: kit.ownMat(wheatMaterial(this.uTime, this.opts.lite ? 0 : 0.13)) }] },
-      { parts: [{ geometry: kit.own(wheatClumpGeometry('far', this.opts.lite)), material: kit.ownMat(wheatMaterial(this.uTime, this.opts.lite ? 0 : 0.13)) }] },
+
+    // Wheat (near clumps in variants, a far clump), grass and flowers: instanced in cells.
+    const fallbackWheat = (d: 'near' | 'far'): PlantVisual => ({
+      parts: [
+        {
+          geometry: kit.own(wheatClumpGeometry(d, lite)),
+          material: kit.ownMat(
+            foliage(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, side: THREE.DoubleSide }), {
+              uTime: this.uTime,
+              wind: { amount: still ? 0 : 0.12, height: 1.15 },
+              translucency: 1,
+            }),
+          ),
+        },
+      ],
+    });
+    const wheatNear = this.model('wheat.clump');
+    const wheatMid = this.model('wheat.clump.mid')?.[0];
+    const wheatFar = this.model('wheat.clump.far')?.[0];
+    // Full detail only in the cells round the walker, a lighter clump to ~22 m, cards beyond.
+    const wheat = new Field(
+      'wheat',
+      wheatNear ? wheatNear.map((a) => ({ parts: this.partsFor('wheat.clump', a) })) : [fallbackWheat('near')],
+      wheatFar ? { parts: this.partsFor('wheat.clump.far', wheatFar) } : fallbackWheat('far'),
+      7,
+      wheatMid ? 7 : 16,
+      Infinity,
+      wheatMid ? { visual: { parts: this.partsFor('wheat.clump.mid', wheatMid) }, dist: 22 } : null,
     );
-    this.wheat = wheat;
+    const grass = this.model('grass.clump');
+    this.grass = grass
+      ? new Field('grass', grass.map((a) => ({ parts: this.partsFor('grass.clump', a) })), null, 12, GRASS_FADE[1] + 9, GRASS_FADE[1] + 9)
+      : null;
+    const flowerKinds = FLOWER_SLOTS.filter((s) => this.model(s));
+    this.flowers =
+      flowerKinds.length === FLOWER_SLOTS.length
+        ? new Field(
+            'flowers',
+            flowerKinds.map((s) => ({ parts: this.partsFor(s, this.model(s)![0]) })),
+            null,
+            16,
+            FLOWER_FADE[1] + 11,
+            FLOWER_FADE[1] + 11,
+          )
+        : null;
 
     board.hexes.forEach((hex, i) => {
       const p = topo.hexPos[i];
@@ -656,7 +719,7 @@ export class World {
 
       // Seat every prop on the finished ground (big props sit on their own level patch).
       for (const c of g.children) c.position.y += tileHeight(tile, c.position.x, c.position.z);
-      const ground = mesh(kit.own(buildGround(tile, this.opts.lite ? 14 : 22)), groundMat(hex.terrain), cx, 0, cz, false);
+      const ground = mesh(kit.own(buildGround(tile, lite ? 14 : 22)), groundMat(hex.terrain), cx, 0, cz, false);
       ground.receiveShadow = true;
       this.scene.add(ground);
       const b = mesh(beachGeo, sand, cx, -0.32, cz, false);
@@ -664,74 +727,77 @@ export class World {
       this.scene.add(b);
       statics.add(g);
     });
-    this.buildFoam(board);
     for (const h of board.harbors) this.buildHarbor(h.edge, h.hex, h.kind);
 
     // Everything static across the island merges into one mesh per material.
     this.scene.add(statics);
     bake(statics, kit);
-    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z));
-    wheat.build(this.scene);
 
     const rnd = mulberry(seed ^ 0x51ed);
-    // A far-off ring of hazy ranges and drifting clouds give the horizon depth.
+    // A far-off ring of hazy ranges gives the horizon depth.
+    const crags = this.model('rock.crag');
     const horizon = new THREE.Group();
     for (let i = 0; i < 20; i++) {
       const a = (i / 20) * Math.PI * 2 + rnd() * 0.2;
       const d = 520 + rnd() * 180;
       for (let k = 0, n = 2 + Math.floor(rnd() * 3); k < n; k++) {
         const r = 30 + rnd() * 34;
-        const m = makeCrag(kit, rnd, r, r * (1.0 + rnd() * 0.9), 'slate', true);
+        const h = r * (1.0 + rnd() * 0.9);
         const off = (rnd() - 0.5) * 90;
-        m.position.set(
-          Math.sin(a) * (d + (rnd() - 0.5) * 60) + Math.cos(a) * off,
-          -3,
-          Math.cos(a) * (d + (rnd() - 0.5) * 60) - Math.sin(a) * off,
-        );
+        const x = Math.sin(a) * (d + (rnd() - 0.5) * 60) + Math.cos(a) * off;
+        const z = Math.cos(a) * (d + (rnd() - 0.5) * 60) - Math.sin(a) * off;
+        if (crags) {
+          this.inst.crag(x, z, r * 1.2, h * 0.62, rnd() * Math.PI * 2, 'rock.crag', rnd, -4, true);
+          continue;
+        }
+        const m = makeCrag(kit, rnd, r, h, 'slate', true);
+        m.position.set(x, -3, z);
         horizon.add(m);
       }
     }
-    horizon.traverse((o) => (o.castShadow = o.receiveShadow = false));
-    bake(horizon, kit);
-    this.scene.add(horizon);
-    for (let i = 0; i < (this.opts.lite ? 8 : 14); i++) {
-      const c = makeCloud(kit, rnd);
-      const a = rnd() * Math.PI * 2;
-      const d = 60 + rnd() * 300;
-      c.position.set(Math.sin(a) * d, 70 + rnd() * 50, Math.cos(a) * d);
-      c.scale.multiplyScalar(1.3 + rnd() * 1.2);
-      c.traverse((o) => (o.castShadow = false));
-      this.scene.add(c);
-      this.clouds.push(c);
+    if (horizon.children.length) {
+      horizon.traverse((o) => (o.castShadow = o.receiveShadow = false));
+      bake(horizon, kit);
+      this.scene.add(horizon);
     }
+
+    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z));
+    this.fields = [wheat, this.grass, this.flowers].filter((f): f is Field => !!f);
+    for (const f of this.fields) f.build(this.scene);
   }
 
   /**
-   * The sea: one plane whose colour comes from its distance to the island in the shader:
-   * pale turquoise over the sand right by the beach, clear blue-green over the shelf, deep blue
-   * beyond. Restrained low waves; the sky reflects in it at grazing angles.
+   * The sea: one plane coloured in the shader by its distance to the island (pale turquoise
+   * over the sand, a clear blue-green shelf, deep blue beyond), with a moving wave normal from
+   * the shared noise for sun glints and sky reflection, and foam where it meets the beach:
+   * a lapping fringe plus swell lines rolling in.
    */
   private buildSea() {
     const land = topo.hexPos.map((p) => new THREE.Vector2(p.x * R, p.y * R));
-    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.14, flatShading: true });
+    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1 });
+    const calm = this.opts.reduceMotion ? 0 : 1;
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.uTime;
+      sh.uniforms.uCalm = { value: calm };
       sh.uniforms.uLand = { value: land };
-      sh.uniforms.uDeep = { value: new THREE.Color('#0d4568') };
-      sh.uniforms.uShelf = { value: new THREE.Color('#17809c') };
-      sh.uniforms.uLagoon = { value: new THREE.Color('#58c7bf') };
+      sh.uniforms.uNoise = { value: noiseTexture() };
+      sh.uniforms.uDeep = { value: new THREE.Color('#0d4a78') };
+      sh.uniforms.uShelf = { value: new THREE.Color('#1784a6') };
+      sh.uniforms.uLagoon = { value: new THREE.Color('#47aeb0') };
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec2 vSea;')
+        .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uCalm;\nvarying vec2 vSea;')
         .replace(
           '#include <begin_vertex>',
           `#include <begin_vertex>
-          transformed.z += sin(position.x * 0.11 + uTime * 0.9) * 0.1 + cos(position.y * 0.14 + uTime * 0.7) * 0.08;
+          transformed.z += (sin(position.x * 0.11 + uTime * 0.9) * 0.08 + cos(position.y * 0.14 + uTime * 0.7) * 0.06) * uCalm;
           vSea = (modelMatrix * vec4(transformed, 1.0)).xz;`,
         );
       sh.fragmentShader = sh.fragmentShader
         .replace(
           '#include <common>',
           `#include <common>
+          uniform float uTime;
+          uniform sampler2D uNoise;
           uniform vec2 uLand[${land.length}];
           uniform vec3 uDeep;
           uniform vec3 uShelf;
@@ -746,9 +812,36 @@ export class World {
             vec2 q = abs(vSea - uLand[i]);
             seaD = min(seaD, max(q.x, q.x * 0.5 + q.y * 0.8660254) - ${((R * Math.sqrt(3)) / 2).toFixed(3)});
           }
-          vec3 seaC = mix(uDeep, uShelf, 1.0 - smoothstep(2.0, 18.0, seaD));
-          seaC = mix(seaC, uLagoon, 1.0 - smoothstep(1.0, 5.5, seaD));
-          diffuseColor.rgb *= seaC;`,
+          float seaN = texture2D(uNoise, vSea * 0.03 + uTime * 0.004).r;
+          vec3 seaC = mix(uDeep, uShelf, 1.0 - smoothstep(3.0, 22.0 + seaN * 8.0, seaD));
+          seaC = mix(seaC, uLagoon, 1.0 - smoothstep(1.5, 6.5 + seaN * 2.0, seaD));
+          // Foam: a lapping fringe on the sand and swell lines rolling in to the shore.
+          float fN = texture2D(uNoise, vSea * 0.09 - uTime * 0.012).g;
+          float fringe = (1.0 - smoothstep(0.6, 2.0 + fN * 1.4, seaD + sin(uTime * 0.9 + fN * 6.0) * 0.35));
+          float swell = sin(seaD * 1.6 - uTime * 1.3 + fN * 3.0) * 0.5 + 0.5;
+          float lines = smoothstep(0.86, 0.98, swell) * (1.0 - smoothstep(2.0, 9.0, seaD)) * smoothstep(0.42, 0.62, fN);
+          float seaFoam = clamp(fringe * 0.85 + lines * 0.55, 0.0, 1.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb * seaC, vec3(0.94, 0.97, 0.96), seaFoam);`,
+        )
+        .replace(
+          '#include <roughnessmap_fragment>',
+          '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, seaFoam);',
+        )
+        .replace(
+          '#include <normal_fragment_maps>',
+          `#include <normal_fragment_maps>
+          {
+            vec2 q1 = vSea * 0.11 + vec2(uTime * 0.011, uTime * 0.006);
+            vec2 q2 = vSea * 0.29 - vec2(uTime * 0.017, -uTime * 0.01);
+            float e = 1.0 / 256.0;
+            float hx = texture2D(uNoise, q1 + vec2(e, 0.0)).r - texture2D(uNoise, q1 - vec2(e, 0.0)).r
+              + 0.6 * (texture2D(uNoise, q2 + vec2(e, 0.0)).g - texture2D(uNoise, q2 - vec2(e, 0.0)).g);
+            float hz = texture2D(uNoise, q1 + vec2(0.0, e)).r - texture2D(uNoise, q1 - vec2(0.0, e)).r
+              + 0.6 * (texture2D(uNoise, q2 + vec2(0.0, e)).g - texture2D(uNoise, q2 - vec2(0.0, e)).g);
+            vec3 wn = normalize(vec3(-hx * 9.0, 1.0, -hz * 9.0));
+            wn = normalize(mix(wn, vec3(0.0, 1.0, 0.0), seaFoam * 0.8));
+            normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+          }`,
         );
     };
     mat.customProgramCacheKey = () => 'sea';
@@ -763,62 +856,62 @@ export class World {
   private scatterGround(ctx: HexCtx, blockers: Collider[]) {
     const spec = GRASS[ctx.tile.terrain];
     const n = Math.round(spec.n * (this.opts.lite ? 0.35 : 1));
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const v = new THREE.Vector3();
+    const sc = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
       const x = (ctx.rnd() * 2 - 1) * R;
       const z = (ctx.rnd() * 2 - 1) * R;
       if (!inHex(x, z, 0, 0, R * 0.95) || Math.hypot(x, z) < 0.9) continue;
-      if (onPath(ctx.tile, x, z, -0.2)) continue;
+      if (onPath(ctx.tile, x, z, -0.2) || edgeDistance(x, z) < EDGE_CLEAR) continue;
       const wx = ctx.cx + x;
       const wz = ctx.cz + z;
       if (blockers.some((c) => segDist(wx, wz, c) < c.r + 0.15)) continue;
       // Denser where the meadow noise is high, sparse elsewhere: clumps, not a carpet.
-      if (fbm(x / 4, z / 4, ctx.tile.seed + 3, 2) < spec.patch * (ctx.rnd() * 2 - 1)) continue;
-      this.inst.grass(wx, wz, spec.colors[Math.floor(ctx.rnd() * spec.colors.length)], ctx.rnd);
+      const lush = fbm(x / 4, z / 4, ctx.tile.seed + 3, 2);
+      if (lush < spec.patch * (ctx.rnd() * 2 - 1)) continue;
+      const color = spec.colors[Math.floor(ctx.rnd() * spec.colors.length)];
+      if (!this.grass) {
+        this.inst.grass(wx, wz, color, ctx.rnd);
+        continue;
+      }
+      const s = 0.7 + ctx.rnd() * 0.6 + Math.max(0, lush) * 0.4;
+      v.set(wx, tileHeight(ctx.tile, x, z), wz);
+      q.setFromEuler(e.set((ctx.rnd() - 0.5) * 0.15, ctx.rnd() * Math.PI * 2, (ctx.rnd() - 0.5) * 0.15, 'YXZ'));
+      m.compose(v, q, sc.set(s, s * (0.8 + ctx.rnd() * 0.45), s));
+      // Taller seeding tufts where the meadow is lush.
+      const variant = lush > 0.15 && ctx.rnd() < 0.55 ? 1 : 0;
+      this.grass.add(variant, m.clone(), new THREE.Color(color));
     }
     // Flowers grow in drifts of one kind each.
     const drifts = this.opts.lite ? Math.ceil(spec.drifts / 2) : spec.drifts;
     for (let d = 0; d < drifts; d++) {
-      const kind = FLOWERS[Math.floor(ctx.rnd() * FLOWERS.length)];
+      const pick = ctx.rnd();
+      const kind = this.flowers ? weighted(FLOWER_WEIGHTS, pick) : Math.floor(pick * FLOWERS.length);
       const ax = (ctx.rnd() * 2 - 1) * R * 0.75;
       const az = (ctx.rnd() * 2 - 1) * R * 0.75;
+      const spread = this.flowers && FLOWER_SLOTS[kind] === 'flower.lavender' ? 2.4 : 3.4;
       for (let i = 0; i < 18; i++) {
-        const x = ax + (ctx.rnd() - 0.5) * 3.4;
-        const z = az + (ctx.rnd() - 0.5) * 3.4;
+        const x = ax + (ctx.rnd() - 0.5) * spread;
+        const z = az + (ctx.rnd() - 0.5) * spread;
         if (!inHex(x, z, 0, 0, R * 0.9) || Math.hypot(x, z) < 1 || onPath(ctx.tile, x, z)) continue;
+        if (edgeDistance(x, z) < EDGE_CLEAR) continue;
         const wx = ctx.cx + x;
         const wz = ctx.cz + z;
         if (blockers.some((c) => segDist(wx, wz, c) < c.r + 0.2)) continue;
-        this.inst.flower(wx, wz, kind, ctx.rnd);
+        if (!this.flowers) {
+          this.inst.flower(wx, wz, FLOWERS[kind], ctx.rnd);
+          continue;
+        }
+        const s = 0.8 + ctx.rnd() * 0.5;
+        v.set(wx, tileHeight(ctx.tile, x, z), wz);
+        q.setFromEuler(e.set((ctx.rnd() - 0.5) * 0.2, ctx.rnd() * Math.PI * 2, (ctx.rnd() - 0.5) * 0.2, 'YXZ'));
+        m.compose(v, q, sc.set(s, s, s));
+        this.flowers.add(kind, m.clone(), new THREE.Color(1, 1, 1).multiplyScalar(0.92 + ctx.rnd() * 0.12));
       }
     }
-  }
-
-  /** A band of surf along every coastal edge, pulsing gently. */
-  private buildFoam(board: Board) {
-    const pos: number[] = [];
-    for (const e of topo.coastalEdges) {
-      const hex = topo.edgeHexes[e][0];
-      if (hex === undefined || !board.hexes[hex]) continue;
-      const c = topo.hexPos[hex];
-      const [a, b] = topo.edgeVertices[e].map((v) => topo.vertexPos[v]);
-      const at = (p: { x: number; y: number }, k: number) => [
-        (c.x + (p.x - c.x) * k) * R,
-        -0.52,
-        (c.y + (p.y - c.y) * k) * R,
-      ];
-      const [a1, b1, a2, b2] = [at(a, 1.15), at(b, 1.15), at(a, 1.24), at(b, 1.24)];
-      pos.push(...a1, ...a2, ...b1, ...b1, ...a2, ...b2);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    this.foam = new THREE.MeshBasicMaterial({
-      color: '#f2fbfa',
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    this.scene.add(new THREE.Mesh(this.kit.own(geo), this.foam));
   }
 
   /** A solid thing the walker bumps into; big ones also get a level patch of ground. */
@@ -863,7 +956,7 @@ export class World {
     this.entryPath(ctx, 1.3);
     const a = ctx.spawnAngle + Math.PI; // the byre sits opposite the gate
     const d = dir(a);
-    const barn = makeBarn(kit);
+    const barn = this.prop('prop.barn', () => makeBarn(kit));
     const bx = d.x * R * 0.34;
     const bz = d.z * R * 0.34;
     barn.position.set(bx, 0, bz);
@@ -887,7 +980,7 @@ export class World {
     for (const k of [-1, 1]) {
       const hx = bx - d.x * 3.9 + side.x * k * 3.3;
       const hz = bz - d.z * 3.9 + side.z * k * 3.3;
-      const bale = makeHayBale(kit);
+      const bale = this.prop('prop.haybale', () => makeHayBale(kit));
       bale.position.x = hx;
       bale.position.z = hz;
       bale.rotation.y = rnd() * Math.PI;
@@ -940,8 +1033,10 @@ export class World {
 
     // The flock.
     const flock = 7 + Math.floor(rnd() * 3);
+    const sheepModel = this.model('sheep')?.[0];
     for (let i = 0; i < flock; i++) {
-      const rig = makeSheep(kit, rnd);
+      const rig = sheepModel ? rigFromAsset(cloneAsset(sheepModel, SLOTS.sheep)) : makeSheep(kit, rnd);
+      if (sheepModel) rig.root.scale.setScalar(0.92 + rnd() * 0.16);
       let x = cx;
       let z = cz;
       for (let t = 0; t < 30; t++) {
@@ -1065,30 +1160,44 @@ export class World {
       ctx.tile.shade.push({ x: p.x, z: p.z, r: 2.4 });
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.55);
     }
-    // Undergrowth between the trunks.
+    // Undergrowth between the trunks, and young trees where light reaches the ground.
     for (let i = 0; i < 26; i++) {
       const p = this.scatter(ctx, taken, 0.5, 0.86);
       if (!p) continue;
       this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.5 + ctx.rnd() * 0.5);
     }
+    if (this.model('tree.sapling'))
+      for (let i = 0; i < 6; i++) {
+        const p = this.scatter(ctx, taken, 0.6, 0.7);
+        if (!p) continue;
+        this.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 'tree.sapling', 0.8 + ctx.rnd() * 0.5);
+        this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.25);
+      }
   }
 
-  private buildFields(ctx: HexCtx, wheat: WheatCrop) {
+  private buildFields(ctx: HexCtx, wheat: Field) {
     const a = ctx.spawnAngle + Math.PI + 0.9;
     const d = dir(a);
-    const mill = makeWindmill(this.kit);
+    const millModel = this.model('prop.windmill')?.[0];
+    let mill: { root: THREE.Object3D; blades: THREE.Object3D };
+    if (millModel) {
+      const root = cloneAsset(millModel, SLOTS['prop.windmill']);
+      mill = { root, blades: root.getObjectByName('Sails') ?? new THREE.Object3D() };
+    } else {
+      mill = makeWindmill(this.kit);
+    }
     const mx = d.x * R * 0.45;
     const mz = d.z * R * 0.45;
     mill.root.position.set(mx, 0, mz);
     mill.root.rotation.y = a + Math.PI;
-    ctx.g.add(this.place('prop.windmill', mill.root));
+    ctx.g.add(this.place(mill.root));
     this.spinners.push(mill.blades);
     this.addCircle(ctx.cx + mx, ctx.cz + mz, SLOTS['prop.windmill'].footprint);
     this.flat(ctx, mx, mz, 2.6);
 
     // Freshly rolled bales beside the mill.
     for (const k of [-1, 1]) {
-      const hb = makeHayBale(this.kit);
+      const hb = this.prop('prop.haybale', () => makeHayBale(this.kit));
       hb.position.x = mx + d.x * 2.6 + d.z * 1.5 * k;
       hb.position.z = mz + d.z * 2.6 - d.x * 1.5 * k;
       hb.rotation.y = a;
@@ -1104,7 +1213,7 @@ export class World {
    * a footpath from the way in to the centre sign, and clear margins along the tile edges where
    * roads and settlements stand.
    */
-  private plantWheat(ctx: HexCtx, wheat: WheatCrop, mill: { x: number; z: number }) {
+  private plantWheat(ctx: HexCtx, wheat: Field, mill: { x: number; z: number }) {
     const { rnd, tile } = ctx;
     this.entryPath(ctx, 1.5);
     const sp = dir(ctx.spawnAngle);
@@ -1129,8 +1238,8 @@ export class World {
     tile.plot = plot;
     tile.plotTone = [0, 1, 2, 3].map((k) => (k === harvested ? '#c9ab64' : k % 2 ? '#8f6a2c' : '#9c7631'));
 
-    const rowGap = this.opts.lite ? 0.62 : 0.46;
-    const step = this.opts.lite ? 0.48 : 0.36;
+    const rowGap = this.opts.lite ? 0.62 : 0.42;
+    const step = this.opts.lite ? 0.48 : 0.31;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -1159,7 +1268,7 @@ export class World {
           v.y = tileHeight(tile, x, z);
           q.setFromEuler(e.set((rnd() - 0.5) * 0.08, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.08, 'YXZ'));
           m.compose(v, q, s.set(sc, sc * (0.95 + rnd() * 0.1), sc));
-          wheat.add(m.clone(), tint.clone());
+          wheat.add(variantAt(v.x, v.z, wheat.variants), m.clone(), tint.clone());
         }
     }
     // The harvested plot: stubble, stooks and a cart track.
@@ -1179,7 +1288,7 @@ export class World {
     const taken: { x: number; z: number; r: number }[] = [];
     const kp = this.scatter(ctx, taken, 2.8, 0.6);
     if (kp) {
-      const k = makeKiln(this.kit);
+      const k = this.prop('prop.kiln', () => makeKiln(this.kit));
       k.position.set(kp.x, 0, kp.z);
       k.rotation.y = Math.atan2(-kp.x, -kp.z);
       ctx.g.add(k);
@@ -1209,10 +1318,15 @@ export class World {
       const r = 2 + ctx.rnd() * 1.6;
       const p = this.scatter(ctx, taken, r + 0.6, 0.82);
       if (!p) continue;
-      const m = makeCrag(this.kit, ctx.rnd, r, 1.4 + ctx.rnd() * 1.4, 'clay');
-      m.position.set(p.x, -0.15, p.z);
-      m.rotation.y = ctx.rnd() * Math.PI;
-      ctx.g.add(m);
+      const h = 1.4 + ctx.rnd() * 1.4;
+      if (this.model('rock.clay')) {
+        this.inst.crag(ctx.cx + p.x, ctx.cz + p.z, r, h, ctx.rnd() * Math.PI * 2, 'rock.clay', ctx.rnd, -0.15);
+      } else {
+        const m = makeCrag(this.kit, ctx.rnd, r, h, 'clay');
+        m.position.set(p.x, -0.15, p.z);
+        m.rotation.y = ctx.rnd() * Math.PI;
+        ctx.g.add(m);
+      }
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.85);
       this.flat(ctx, p.x, p.z, r * 0.8);
     }
@@ -1240,22 +1354,27 @@ export class World {
       const r = (i === 1 ? 4.6 : 3.5) + ctx.rnd() * 0.8;
       const h = (i === 1 ? 15 : 10.5) + ctx.rnd() * 4;
       const dist = R * 0.54;
-      const m = makeCrag(this.kit, ctx.rnd, r, h, 'slate');
-      m.position.set(d.x * dist, -0.2, d.z * dist);
-      m.rotation.y = ctx.rnd() * Math.PI;
-      ctx.g.add(m);
       const sa = a + (ctx.rnd() < 0.5 ? -0.45 : 0.45);
       const sd = dir(sa);
-      const shoulder = makeCrag(this.kit, ctx.rnd, r * 0.6, h * 0.45, 'slate');
-      shoulder.position.set(sd.x * (dist - 0.6), -0.2, sd.z * (dist - 0.6));
-      ctx.g.add(shoulder);
+      if (this.model('rock.crag')) {
+        // The formations carry their own shoulders and fallen blocks.
+        this.inst.crag(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r, h, a + Math.PI + (ctx.rnd() - 0.5), 'rock.crag', ctx.rnd, -0.2);
+      } else {
+        const m = makeCrag(this.kit, ctx.rnd, r, h, 'slate');
+        m.position.set(d.x * dist, -0.2, d.z * dist);
+        m.rotation.y = ctx.rnd() * Math.PI;
+        ctx.g.add(m);
+        const shoulder = makeCrag(this.kit, ctx.rnd, r * 0.6, h * 0.45, 'slate');
+        shoulder.position.set(sd.x * (dist - 0.6), -0.2, sd.z * (dist - 0.6));
+        ctx.g.add(shoulder);
+      }
       taken.push({ x: d.x * dist, z: d.z * dist, r: r + 1.2 });
       this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, r * 0.9);
       this.addCircle(ctx.cx + sd.x * (dist - 0.6), ctx.cz + sd.z * (dist - 0.6), r * 0.5);
       this.flat(ctx, d.x * dist, d.z * dist, r * 0.9);
       if (i === 1) {
         // A mine dug into the foot of the middle peak, its cart rolling out towards the sign.
-        const mine = makeMine(this.kit);
+        const mine = this.prop('prop.mine', () => makeMine(this.kit));
         const md = dist - r * 1.05;
         mine.position.set(d.x * md, 0, d.z * md);
         mine.rotation.y = a + Math.PI;
@@ -1273,9 +1392,15 @@ export class World {
     for (const off of [-1.05, 1.05]) {
       const d = dir(ctx.spawnAngle + off);
       const dist = R * (0.42 + ctx.rnd() * 0.1);
-      const o = makeOreRock(this.kit, ctx.rnd);
-      o.position.set(d.x * dist, 0, d.z * dist);
-      ctx.g.add(o);
+      if (this.model('rock.boulder')) {
+        for (let k = 0; k < 3; k++)
+          this.inst.rock(ctx.cx + d.x * dist + (ctx.rnd() - 0.5) * 1.4, ctx.cz + d.z * dist + (ctx.rnd() - 0.5) * 1.4,
+            k === 0 ? 1.15 : 0.55, '#6c7886', ctx.rnd);
+      } else {
+        const o = makeOreRock(this.kit, ctx.rnd);
+        o.position.set(d.x * dist, 0, d.z * dist);
+        ctx.g.add(o);
+      }
       this.addCircle(ctx.cx + d.x * dist, ctx.cz + d.z * dist, 1.2);
       this.flat(ctx, d.x * dist, d.z * dist, 1.3);
       taken.push({ x: d.x * dist, z: d.z * dist, r: 1.6 });
@@ -1339,6 +1464,12 @@ export class World {
       this.inst.rock(ctx.cx + p.x, ctx.cz + p.z, r, ctx.rnd() < 0.5 ? '#d1b583' : '#bfa274', ctx.rnd);
       if (r > 0.6) this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.8);
     }
+    // Hardy scrub in the hollows between the dunes.
+    for (let i = 0; i < 7; i++) {
+      const p = this.scatter(ctx, taken, 0.6, 0.84);
+      if (!p) continue;
+      this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.25 + ctx.rnd() * 0.2, true);
+    }
   }
 
   private buildHarbor(edge: string, hex: number, kind: HarborKind) {
@@ -1354,10 +1485,11 @@ export class World {
     nx /= l;
     nz /= l;
     const len = 8;
-    const dock = makeDock(this.kit, len);
-    dock.position.set(mx + nx * 1.5, -0.2, mz + nz * 1.5);
+    const dockModel = this.model('harbor.dock')?.[0];
+    const dock = dockModel ? cloneAsset(dockModel, SLOTS['harbor.dock']) : makeDock(this.kit, len);
+    dock.position.set(mx + nx * 1.5, dockModel ? -0.12 : -0.2, mz + nz * 1.5);
     dock.rotation.y = Math.atan2(nx, nz);
-    this.scene.add(this.place('harbor.dock', dock));
+    this.scene.add(this.place(dock));
     const sx = mx + nx * 1.5;
     const sz = mz + nz * 1.5;
     this.walkable.push({
@@ -1367,11 +1499,16 @@ export class World {
       bz: sz + nz * (len - 0.6),
       r: 0.9,
     });
-    const boat = makeBoat(this.kit, SAIL[kind]);
-    boat.position.set(sx + nx * (len - 1) + nz * 2.6, -0.5, sz + nz * (len - 1) - nx * 2.6);
+    const boatModel = this.model('harbor.boat')?.[0];
+    const boat = boatModel
+      ? cloneAsset(boatModel, SLOTS['harbor.boat'], (m) => this.tinted(m, SAIL[kind]))
+      : makeBoat(this.kit, SAIL[kind]);
+    // The model's origin is its waterline; the sea sits at -0.6.
+    const by = boatModel ? -0.66 : -0.5;
+    boat.position.set(sx + nx * (len - 1) + nz * 2.6, by, sz + nz * (len - 1) - nx * 2.6);
     boat.rotation.y = Math.atan2(nx, nz);
-    this.scene.add(this.place('harbor.boat', boat));
-    this.boats.push({ obj: boat, phase: hex * 1.7, y: -0.5 });
+    this.scene.add(this.place(boat));
+    this.boats.push({ obj: boat, phase: hex * 1.7, y: by });
     this.colliders.push({
       ax: boat.position.x - nx * 1.6,
       az: boat.position.z - nz * 1.6,
@@ -1399,27 +1536,30 @@ export class World {
         b.obj.position.y = b.y + Math.sin(t * 1.4 + b.phase) * 0.1;
         b.obj.rotation.z = Math.sin(t * 1.1 + b.phase) * 0.04;
       }
-      for (const c of this.clouds) {
-        c.position.x += dt * 1.6;
-        if (c.position.x > 360) c.position.x = -360;
-      }
-      if (this.robber) this.robber.position.y = (this.robber.userData.y ?? 0) + 0.1 + Math.sin(t * 2) * 0.08;
-      if (this.foam) this.foam.opacity = 0.3 + Math.sin(t * 1.3) * 0.08;
+      if (this.robber?.userData.hover) this.robber.position.y = (this.robber.userData.y ?? 0) + 0.1 + Math.sin(t * 2) * 0.08;
     }
     this.maybeBleat(dt);
-    this.wheat?.update(this.x, this.z);
+    for (const f of this.fields) f.update(this.x, this.z);
 
-    // Keep the sun's shadow box centred on the walker, snapped to whole shadow texels so
-    // shadow edges don't crawl as you move.
-    const texel = 80 / 2048;
-    const fx = Math.round(this.x / texel) * texel;
-    const fz = Math.round(this.z / texel) * texel;
-    this.sun.position.set(fx + this.sunDir.x * 120, this.sunDir.y * 120, fz + this.sunDir.z * 120);
-    this.sun.target.position.set(fx, 0, fz);
+    // The sun never moves and most casters are static, so the shadow map is redrawn only when
+    // its box moves (in steps of 100 whole texels, ~3.9 m, so edges never crawl), when pieces
+    // change, and every third frame for swaying trees, walking sheep and turning sails.
+    const step = (80 / 2048) * 100;
+    const fx = Math.round(this.x / step) * step;
+    const fz = Math.round(this.z / step) * step;
+    const moved = fx !== this.shadowAt.x || fz !== this.shadowAt.z;
+    if (moved) {
+      this.shadowAt = { x: fx, z: fz };
+      this.sun.position.set(fx + this.sunDir.x * 120, this.sunDir.y * 120, fz + this.sunDir.z * 120);
+      this.sun.target.position.set(fx, 0, fz);
+    }
+    this.shadowTick++;
+    this.renderer.shadowMap.needsUpdate = moved || this.shadowDirty || (animate && this.shadowTick % 3 === 0);
+    this.shadowDirty = false;
 
     this.camY += (this.groundAt(this.x, this.z) + EYE - this.camY) * Math.min(1, dt * 10);
     this.camera.position.set(this.x, this.camY, this.z);
-    this.sunGlow.position.copy(this.camera.position).addScaledVector(this.sunDir, 900);
+    this.sky.position.copy(this.camera.position);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     this.renderer.render(this.scene, this.camera);
 
@@ -1670,16 +1810,28 @@ interface Placed {
   color: THREE.Color;
 }
 
+/** A placement of a model-drawn slot: which variant, where, and a gentle tint. */
+interface Root extends Placed {
+  variant: number;
+  /** On the horizon: outside the shadow box, so it neither casts nor receives shadows. */
+  far?: boolean;
+}
+
+/** Authored size of the rock formations (radius, height), so placements can ask for metres. */
+const FORMATION: Partial<Record<AssetSlot, [number, number]>> = {
+  'rock.crag': [4.8, 12],
+  'rock.clay': [2.4, 1.6],
+};
+
 /**
- * Collects trees, rocks, grass, flowers and stooks across all tiles; each part becomes one
- * instanced mesh. Heights are resolved at `flush`, once the ground is final. Slots (trees,
- * rocks) also keep one root transform per placement so a loaded model can replace them.
+ * Collects trees, shrubs, rocks, rock formations, grass, flowers and stooks across all tiles.
+ * Slots with a loaded model become one instanced mesh per variant part; the rest are built from
+ * procedural parts, one instanced mesh each. Heights are resolved at `flush`, once the ground
+ * is final.
  */
 class Instancer {
   private lists = new Map<string, Placed[]>();
-  private roots = new Map<AssetSlot, Placed[]>();
-  private meshes = new Map<string, THREE.InstancedMesh>();
-  private rootMatrices = new Map<AssetSlot, THREE.Matrix4[]>();
+  private roots = new Map<AssetSlot, Root[]>();
   private q = new THREE.Quaternion();
   private e = new THREE.Euler();
   private up = new THREE.Vector3(0, 1, 0);
@@ -1688,6 +1840,8 @@ class Instancer {
     private kit: Kit,
     private uTime: { value: number },
     private lite: boolean,
+    private model: (slot: AssetSlot) => LoadedAsset[] | undefined,
+    private partsFor: (slot: AssetSlot, asset: LoadedAsset) => PlantVisual['parts'],
   ) {}
 
   private push(list: string, p: Omit<Placed, 'color'>, color: string | THREE.Color) {
@@ -1696,14 +1850,25 @@ class Instancer {
     l.push({ ...p, color: new THREE.Color(color) });
   }
 
-  private root(slot: AssetSlot, p: Omit<Placed, 'color'>) {
+  private root(slot: AssetSlot, p: Omit<Placed, 'color'>, rnd: () => number, tint: THREE.Color, far = false) {
     let l = this.roots.get(slot);
     if (!l) this.roots.set(slot, (l = []));
-    l.push({ ...p, color: new THREE.Color('#ffffff') });
+    l.push({ ...p, color: tint, variant: Math.floor(rnd() * this.model(slot)!.length), far });
+  }
+
+  /** A slight, natural difference from one plant to the next. */
+  private natural(rnd: () => number): THREE.Color {
+    const k = 0.9 + rnd() * 0.18;
+    return new THREE.Color(k * (0.97 + rnd() * 0.06), k, k * (0.94 + rnd() * 0.08));
   }
 
   tree(x: number, z: number, rnd: () => number, slot: AssetSlot, s: number) {
     const rot = rnd() * Math.PI * 2;
+    if (this.model(slot)) {
+      const tall = 0.9 + rnd() * 0.2;
+      this.root(slot, { x, z, y: 0, sx: s, sy: s * tall, sz: s, rot, tilt: 0 }, rnd, this.natural(rnd));
+      return;
+    }
     const pick = (a: string[]) => a[Math.floor(rnd() * a.length)];
     const P = (dx: number, dy: number, dz: number, sx: number, sy: number, sz: number, r = rot) => ({
       x: x + (dx * Math.cos(rot) + dz * Math.sin(rot)) * s,
@@ -1715,7 +1880,6 @@ class Instancer {
       rot: r,
       tilt: 0,
     });
-    this.root(slot, P(0, 0, 0, 1, 1, 1));
     if (slot === 'tree.conifer') {
       this.push(`${slot}|trunk`, P(0, 0, 0, 0.8, 0.9, 0.8), pick(BARK));
       const col = new THREE.Color(pick(PINE));
@@ -1749,8 +1913,16 @@ class Instancer {
     }
   }
 
-  bush(x: number, z: number, rnd: () => number, s: number) {
-    const col = new THREE.Color(LEAF[Math.floor(rnd() * LEAF.length)]).offsetHSL(0, -0.04, -0.03);
+  /** Undergrowth; `dry` turns it to sun-bleached scrub (the desert). */
+  bush(x: number, z: number, rnd: () => number, s: number, dry = false) {
+    if (this.model('shrub')) {
+      // Dry scrub: the green leaves pushed towards olive and straw.
+      const tint = dry ? new THREE.Color(1.75, 0.8, 0.36).multiplyScalar(0.8 + rnd() * 0.15) : this.natural(rnd);
+      const k = s * 1.15;
+      this.root('shrub', { x, z, y: -0.05, sx: k, sy: k * (0.85 + rnd() * 0.3), sz: k, rot: rnd() * Math.PI * 2, tilt: 0 }, rnd, tint);
+      return;
+    }
+    const col = new THREE.Color(dry ? '#a59a52' : LEAF[Math.floor(rnd() * LEAF.length)]).offsetHSL(0, -0.04, -0.03);
     for (let i = 0; i < 3; i++)
       this.push(
         'bush|leaf',
@@ -1769,6 +1941,23 @@ class Instancer {
   }
 
   rock(x: number, z: number, r: number, color: string, rnd: () => number) {
+    if (this.model('rock.boulder')) {
+      // The stone's own colours, nudged towards the local rock (sandstone, clay, slate).
+      const c = new THREE.Color(color);
+      const tint = new THREE.Color(1, 1, 1).lerp(c.multiplyScalar(1 / Math.max(c.r, c.g, c.b)), 0.7);
+      const p = {
+        x,
+        z,
+        y: -0.12 * r,
+        sx: r * (0.9 + rnd() * 0.4),
+        sy: r * (0.7 + rnd() * 0.4),
+        sz: r * (0.9 + rnd() * 0.4),
+        rot: rnd() * Math.PI * 2,
+        tilt: (rnd() - 0.5) * 0.3,
+      };
+      this.root('rock.boulder', p, rnd, tint.multiplyScalar(0.95 + rnd() * 0.1));
+      return;
+    }
     const p = {
       x,
       z,
@@ -1779,8 +1968,18 @@ class Instancer {
       rot: rnd() * 6,
       tilt: (rnd() - 0.5) * 0.5,
     };
-    this.root('rock.boulder', p);
     this.push('rock.boulder|rock', p, new THREE.Color(color).offsetHSL(0, 0, (rnd() - 0.5) * 0.06));
+  }
+
+  /** A rock formation (mountain mass or clay bank) of about radius `r` and height `h`; model only. */
+  crag(x: number, z: number, r: number, h: number, rot: number, slot: AssetSlot, rnd: () => number, y = 0, far = false) {
+    const [r0, h0] = FORMATION[slot]!;
+    const k = 0.94 + rnd() * 0.12;
+    // Mountains are massifs, not spires: broader and a little lower than the asked-for peak.
+    const wide = slot === 'rock.crag' ? 1.18 : 1;
+    const low = slot === 'rock.crag' ? 0.82 : 1;
+    const sx = (r / r0) * wide;
+    this.root(slot, { x, z, y, sx, sy: (h / h0) * low, sz: sx * (0.9 + rnd() * 0.2), rot, tilt: 0 }, rnd, new THREE.Color(k, k, k), far);
   }
 
   grass(x: number, z: number, color: string, rnd: () => number) {
@@ -1795,6 +1994,10 @@ class Instancer {
 
   stook(x: number, z: number, rnd: () => number) {
     const s = 0.85 + rnd() * 0.3;
+    if (this.model('prop.stook')) {
+      this.root('prop.stook', { x, z, y: -0.03, sx: s, sy: s * (0.9 + rnd() * 0.2), sz: s, rot: rnd() * Math.PI * 2, tilt: (rnd() - 0.5) * 0.08 }, rnd, this.natural(rnd));
+      return;
+    }
     this.push('stook', { x, z, y: 0, sx: s, sy: s, sz: s, rot: rnd() * 6, tilt: (rnd() - 0.5) * 0.12 }, '#e0b85a');
   }
 
@@ -1806,6 +2009,27 @@ class Instancer {
       this.q,
       new THREE.Vector3(p.sx, p.sy, p.sz),
     );
+  }
+
+  private add(scene: THREE.Scene, geometry: THREE.BufferGeometry, material: THREE.Material, list: Placed[], shadow: boolean,
+    groundAt: (x: number, z: number) => number, receive = true, depth?: THREE.Material) {
+    const im = new THREE.InstancedMesh(geometry, material, list.length);
+    list.forEach((p, i) => {
+      im.setMatrixAt(i, this.matrix(p, groundAt(p.x, p.z)));
+      im.setColorAt(i, p.color);
+    });
+    im.castShadow = shadow && !this.lite;
+    im.receiveShadow = receive;
+    im.computeBoundingSphere();
+    scene.add(im);
+    if (depth) {
+      // The depth pre-pass twin shares the instance buffers and draws before anything else.
+      const pre = new THREE.InstancedMesh(geometry, depth, list.length);
+      pre.instanceMatrix = im.instanceMatrix;
+      pre.boundingSphere = im.boundingSphere;
+      pre.renderOrder = -1;
+      scene.add(pre);
+    }
   }
 
   flush(scene: THREE.Scene, groundAt: (x: number, z: number) => number) {
@@ -1834,42 +2058,20 @@ class Instancer {
       const spec = specs[part];
       const mat = spec.mat();
       if (spec.sway && !this.lite) addSway(mat, this.uTime, spec.sway);
-      const im = new THREE.InstancedMesh(kit.geo(`inst-${part}`, geos[part]), mat, list.length);
-      list.forEach((p, i) => {
-        im.setMatrixAt(i, this.matrix(p, groundAt(p.x, p.z)));
-        im.setColorAt(i, p.color);
-      });
-      im.castShadow = spec.shadow && !this.lite;
-      im.receiveShadow = true;
-      im.computeBoundingSphere();
-      scene.add(im);
-      this.meshes.set(key, im);
+      this.add(scene, kit.geo(`inst-${part}`, geos[part]), mat, list, spec.shadow, groundAt);
     }
-    for (const [slot, list] of this.roots)
-      this.rootMatrices.set(slot, list.map((p) => this.matrix(p, groundAt(p.x, p.z))));
-  }
-
-  /** Swaps a slot's procedural parts for a loaded model's parts, placed at the same roots. */
-  replace(
-    slot: AssetSlot,
-    parts: { geometry: THREE.BufferGeometry; material: THREE.Material }[],
-    shadow: boolean,
-    scene: THREE.Scene,
-  ) {
-    const roots = this.rootMatrices.get(slot);
-    if (!roots?.length) return;
-    for (const [key, im] of this.meshes) if (key.startsWith(`${slot}|`)) im.visible = false;
-    parts.forEach((p, n) => {
-      const key = `${slot}|asset${n}`;
-      this.meshes.get(key)?.removeFromParent();
-      const im = new THREE.InstancedMesh(p.geometry, p.material, roots.length);
-      roots.forEach((m, i) => im.setMatrixAt(i, m));
-      im.castShadow = shadow && !this.lite;
-      im.receiveShadow = true;
-      im.computeBoundingSphere();
-      scene.add(im);
-      this.meshes.set(key, im);
-    });
+    // Model-drawn slots: one instanced mesh per variant part.
+    for (const [slot, list] of this.roots) {
+      const variants = this.model(slot)!;
+      variants.forEach((asset, v) => {
+        for (const far of [false, true]) {
+          const mine = list.filter((p) => p.variant === v && !!p.far === far);
+          if (!mine.length) continue;
+          for (const part of this.partsFor(slot, asset))
+            this.add(scene, part.geometry, part.material, mine, SLOTS[slot].castShadow && !far, groundAt, !far, part.depth);
+        }
+      });
+    }
   }
 }
 

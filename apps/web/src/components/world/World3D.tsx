@@ -3,6 +3,7 @@ import { TERRAIN_RESOURCE, getTopology, type GameState } from '@hexfall/engine';
 import { audio } from '../../audio/engine';
 import { COLOR_HEX, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
 import { liteEffects, prefersReducedMotion, useStore } from '../../state/store';
+import { preloadWorldAssets } from './assets';
 import { World } from './world';
 
 const topo = getTopology();
@@ -70,37 +71,53 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
-    let world: World;
-    try {
-      world = new World(canvas, stateRef.current.board, {
-        lite,
-        reduceMotion: reduce,
-        onHexChange: (h) => {
-          setHex(h);
-          setReady(true);
-        },
-        onBleat: () => audio.play('bleat'),
-      });
-    } catch {
-      setFailed(true);
-      return;
-    }
-    worldRef.current = world;
-    // Dev builds only: lets inspection scripts place the camera and read the board.
+    let world: World | null = null;
+    let ro: ResizeObserver | null = null;
+    let cancelled = false;
     const dev = window as unknown as { __world3d?: { world: World; state: () => GameState } };
-    if (import.meta.env.DEV) dev.__world3d = { world, state: () => stateRef.current };
-    world.setPieces(stateRef.current);
-    landIdx.current = 0;
     setReady(false);
-    world.goTo(landsRef.current[0] ?? 0);
-    const ro = new ResizeObserver(() => world.resize(wrap.clientWidth, wrap.clientHeight));
-    ro.observe(wrap);
-    world.resize(wrap.clientWidth, wrap.clientHeight);
-    wrap.focus({ preventScroll: true });
+    // Models and textures load first (once per page), so nothing pops in after the walk opens.
+    void preloadWorldAssets().then((assets) => {
+      if (cancelled) return;
+      let w: World;
+      try {
+        w = new World(
+          canvas,
+          stateRef.current.board,
+          {
+            lite,
+            reduceMotion: reduce,
+            onHexChange: (h) => {
+              setHex(h);
+              setReady(true);
+            },
+            onBleat: () => audio.play('bleat'),
+          },
+          assets,
+        );
+      } catch {
+        setFailed(true);
+        return;
+      }
+      world = w;
+      worldRef.current = w;
+      // Dev builds only: lets inspection scripts place the camera and read the board.
+      if (import.meta.env.DEV) dev.__world3d = { world: w, state: () => stateRef.current };
+      w.setPieces(stateRef.current);
+      landIdx.current = 0;
+      w.goTo(landsRef.current[0] ?? 0);
+      ro = new ResizeObserver(() => w.resize(wrap.clientWidth, wrap.clientHeight));
+      ro.observe(wrap);
+      w.resize(wrap.clientWidth, wrap.clientHeight);
+      wrap.focus({ preventScroll: true });
+    });
     return () => {
-      ro.disconnect();
-      if (dev.__world3d?.world === world) delete dev.__world3d;
-      world.dispose();
+      cancelled = true;
+      ro?.disconnect();
+      if (world) {
+        if (dev.__world3d?.world === world) delete dev.__world3d;
+        world.dispose();
+      }
       worldRef.current = null;
     };
   }, [boardSeed, lite, reduce]);

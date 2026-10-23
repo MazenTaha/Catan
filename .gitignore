@@ -9,3 +9,4 @@ playwright-report
 *.tsbuildinfo
 test-results
 playwright-report
+__pycache__

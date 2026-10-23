@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@hexfall/web", "exec", "vite", "--port", "5188", "--strictPort"],
       "port": 5188
+    },
+    {
+      "name": "hexfall-server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@hexfall/server", "dev"],
+      "port": 8787
     }
   ]
 }

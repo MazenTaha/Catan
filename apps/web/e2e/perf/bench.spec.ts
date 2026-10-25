@@ -224,7 +224,9 @@ async function views(page: Page): Promise<View[]> {
     const d = first('waste');
     if (d) out.push({ name: 'desert', x: d.x - 3, z: d.z + R * 0.85, yaw: lookAt(d.x - 3, d.z + R * 0.85, d.x, d.z), pitch: -0.08 });
     // A settlement and a city: the first of each, or the first two buildings.
-    const colliders = (w as unknown as { pieceColliders: { ax: number; az: number }[] }).pieceColliders;
+    // Building spots in the game's order (older builds: one collider per building, same order).
+    const ww = w as unknown as { spots?: { x: number; z: number }[]; pieceColliders: { ax: number; az: number }[] };
+    const colliders = ww.spots ? ww.spots.map((p) => ({ ax: p.x, az: p.z })) : ww.pieceColliders;
     const kinds = Object.values(s.buildings).map((b) => b.kind);
     const iS = Math.max(0, kinds.indexOf('outpost'));
     const iC = kinds.indexOf('citadel') >= 0 ? kinds.indexOf('citadel') : 1;
@@ -297,7 +299,8 @@ async function startRoute(page: Page, speed = 5): Promise<{ length: number; secs
     const forest = near(of('witchwood'), fields);
     const kinds = Object.values(s.buildings).map((b) => b.kind);
     const iC = kinds.indexOf('citadel') >= 0 ? kinds.indexOf('citadel') : 1;
-    const city = { x: w.pieceColliders[iC].ax, z: w.pieceColliders[iC].az };
+    const spot = (w as unknown as { spots?: { x: number; z: number }[] }).spots?.[iC];
+    const city = spot ? { x: spot.x, z: spot.z } : { x: w.pieceColliders[iC].ax, z: w.pieceColliders[iC].az };
     const peaks = near(of('peaks'), city);
     // The outermost land tile nearest the mountains, and its beach.
     const outer = w.landHexes.filter((h) => Math.hypot(h.x, h.z) > R * 3);
@@ -702,7 +705,7 @@ test('3D walk: entry, route and viewpoints', async ({ page, browserName }) => {
     log(row('after entry', stats));
     results.afterEntry = stats;
   }
-  await page.addStyleTag({ content: '[data-world3d] > :not(canvas) { display: none !important; }' });
+  await page.addStyleTag({ content: '[data-world3d] > :not(:has(canvas)) { display: none !important; }' });
   if (SCEN.has('route')) {
     await route(page, 'route-first');
     const cdp = process.env.PERF_PROFILE_ROUTE ? await page.context().newCDPSession(page) : null;
@@ -761,7 +764,7 @@ test('3D walk: entry, route and viewpoints', async ({ page, browserName }) => {
     const e2 = await enter(page);
     log(`late entry ${e2.ms.toFixed(0)} ms (long tasks ${e2.longMs} ms, longest ${e2.longest} ms)`);
     results.lateEntry = e2;
-    await page.addStyleTag({ content: '[data-world3d] > :not(canvas) { display: none !important; }' });
+    await page.addStyleTag({ content: '[data-world3d] > :not(:has(canvas)) { display: none !important; }' });
     await route(page, 'late-route');
     await runViews(page, 'late-');
     await exit(page);
@@ -961,3 +964,144 @@ test('2D board: hover, placement preview and bot turns on a late game', async ({
   if (problems.length) log(`2d console: ${problems.slice(0, 10).join(' | ')}`);
 });
 
+
+/**
+ * The enterable-building prototype (`/?scene=village`, src/devScenario.ts): fixed views of the
+ * cottage, its interior, the wheat, the windmill and (after an upgrade) the city hall, then a
+ * scripted walk from the wheat through the cottage door and out again. Same probe and numbers
+ * as the other scenarios; `PERF_SHOTS=1` keeps a screenshot of each view.
+ */
+test('3D walk: the village prototype (cottage, hall, windmill)', async ({ page }) => {
+  test.skip(!SCEN.has('village'));
+  test.setTimeout(900_000);
+  const problems: string[] = [];
+  watchConsole(page, problems);
+  await page.addInitScript(
+    ([effects, renderScale]) => {
+      if (sessionStorage.getItem('perf')) return;
+      localStorage.clear();
+      localStorage.setItem('hexfall.settings', JSON.stringify({ botSpeed: 'normal', rookieTips: false, muted: true, effects, turnTimer: 0, renderScale }));
+      sessionStorage.setItem('perf', '1');
+    },
+    [EFFECTS, RENDER_SCALE] as const,
+  );
+  await page.addInitScript(() => {
+    const w = window as unknown as { __longTasks: { t: number; d: number }[]; __ltObs?: boolean };
+    w.__longTasks = [];
+    w.__ltObs = true;
+    new PerformanceObserver((l) => l.getEntries().forEach((e) => w.__longTasks.push({ t: e.startTime, d: e.duration }))).observe({ type: 'longtask' });
+  });
+  const t0 = Date.now();
+  await page.goto(STRESS ? `/?scene=village&stress=${STRESS}` : '/?scene=village');
+  await page.getByTestId('world-location').waitFor({ timeout: 60_000 });
+  log(`village: page to first frame ${Date.now() - t0} ms (includes loading the app)`);
+  await page.evaluate(installProbe);
+  await page.addStyleTag({ content: '[data-world3d] > :not(div:has(canvas)) { display: none !important; }' });
+  log(`village render ${JSON.stringify(await info(page))}`);
+  await page.evaluate(() => {
+    type H = { key: string; x: number; z: number; y: number; rot: number; doors: { target: number; t: number; base: number; spec: { sign: number; open: number }; node: { rotation: { y: number } } | null }[] };
+    type W = { homes: H[]; mills: H[]; x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __g?: (x: number, z: number) => number };
+    const W = () => (window as unknown as { __world3d: { world: W } }).__world3d.world;
+    const find = (key: string) => [...W().homes, ...W().mills].find((x) => x.key === key)!;
+    const local = (h: H, x: number, z: number) => [h.x + x * Math.cos(h.rot) + z * Math.sin(h.rot), h.z - x * Math.sin(h.rot) + z * Math.cos(h.rot)];
+    const win = window as unknown as Record<string, unknown>;
+    // Camera at building-local (lx, lz), `lift` m above the ground there, looking at local (tx, tz) at height ty.
+    win.__at = (key: string, lx: number, lz: number, tx: number, tz: number, ty: number, lift = 0) => {
+      const w = W();
+      const h = find(key);
+      const [x, z] = local(h, lx, lz);
+      const [X, Z] = local(h, tx, tz);
+      w.__g ??= w.groundAt.bind(w);
+      const g = w.__g;
+      w.x = x;
+      w.z = z;
+      const eye = g(x, z) + lift + 1.7;
+      w.groundAt = lift ? (px, pz) => (px === w.x && pz === w.z ? eye - 1.7 : g(px, pz)) : g;
+      w.camY = eye;
+      w.yaw = Math.atan2(-(X - x), -(Z - z));
+      w.pitch = Math.atan2(h.y + ty - eye, Math.hypot(X - x, Z - z));
+    };
+    win.__open = (key: string) => {
+      for (const d of find(key).doors) {
+        d.target = 1;
+        d.t = 1;
+        if (d.node) d.node.rotation.y = d.base + d.spec.sign * d.spec.open;
+      }
+    };
+    // A walk along building-local points at 3 m/s (driven by real time, through the probe's hook).
+    win.__walk = (key: string, pts: number[][]) => {
+      const w = W();
+      const h = find(key);
+      if (w.__g) w.groundAt = w.__g;
+      const world = pts.map(([x, z]) => local(h, x, z));
+      const legs = world.slice(1).map((b, i) => ({ a: world[i], b, l: Math.hypot(b[0] - world[i][0], b[1] - world[i][1]) }));
+      const total = legs.reduce((s, l) => s + l.l, 0);
+      let start = -1;
+      let yaw = w.yaw;
+      (window as unknown as { __probe: { P: { hook: null | ((t: number) => void) } } }).__probe.P.hook = (now) => {
+        if (start < 0) start = now;
+        let d = Math.min(total - 1e-3, ((now - start) / 1000) * 3);
+        let leg = legs[0];
+        for (const l of legs) {
+          leg = l;
+          if (d < l.l) break;
+          d -= l.l;
+        }
+        const k = Math.min(1, d / leg.l);
+        w.x = leg.a[0] + (leg.b[0] - leg.a[0]) * k;
+        w.z = leg.a[1] + (leg.b[1] - leg.a[1]) * k;
+        const want = Math.atan2(-(leg.b[0] - leg.a[0]), -(leg.b[1] - leg.a[1]));
+        const diff = Math.atan2(Math.sin(want - yaw), Math.cos(want - yaw));
+        yaw += diff * 0.1;
+        w.yaw = yaw;
+        w.pitch = -0.08;
+      };
+      return total / 3;
+    };
+    win.__mill = () => W().mills[0].key;
+  });
+  const K = '-2,4';
+  const mill = await page.evaluate(() => (window as unknown as { __mill(): string }).__mill());
+  const out: Record<string, Stats> = {};
+  const view = async (name: string, expr: string) => {
+    await page.evaluate(expr);
+    await page.waitForTimeout(1200);
+    const { stats } = await sample(page);
+    out[name] = stats;
+    log(row(name, stats));
+    if (process.env.PERF_SHOTS) await page.locator('[data-world3d] canvas').screenshot({ path: path.join(OUT, `village-${name}.png`) });
+  };
+  const walk = async (name: string, key: string, pts: number[][]) => {
+    const secs = await page.evaluate(([key, pts]) => (window as unknown as { __walk(k: string, p: number[][]): number }).__walk(key, pts), [key, pts] as const);
+    const { stats } = await sample(page, secs * 1000 + 300);
+    await page.evaluate(() => ((window as unknown as { __probe: { P: { hook: unknown } } }).__probe.P.hook = null));
+    out[name] = stats;
+    log(row(name, stats));
+  };
+  await view('cottage-outside', `__at('${K}', 5, 12, 0, 0, 2.2)`);
+  await view('cottage-door', `__at('${K}', -0.6, 4.0, -0.85, 0, 1.6)`);
+  await page.evaluate(`__open('${K}')`);
+  await view('cottage-in-hearth', `__at('${K}', -0.75, 1.45, 0.8, -1.9, 1.0)`);
+  await view('cottage-in-door', `__at('${K}', 0.9, -0.95, -1.6, 1.0, 1.1)`);
+  await view('cottage-overhead', `__at('${K}', 10, 16, 0, 0, 0, 14)`);
+  await view('wheat', `__at('${K}', -1.5, 13, 1.5, 0, 2.5)`);
+  await page.evaluate(`__open('${mill}')`);
+  await view('mill-outside', `__at('${mill}', 3, 10, 0, 0, 4)`);
+  await view('mill-inside', `__at('${mill}', 0, 1.35, 0, -1.0, 1.0)`);
+  await walk('walk-in-out', K, [[-0.85, 16], [-0.85, 3.0], [-0.6, 0.6], [0.2, -0.6], [-0.6, 0.6], [-0.85, 3.0], [-0.85, 16]]);
+  // The settlement upgraded to a city hall (drawing only, through the world's own sync).
+  await page.evaluate(() => {
+    const d = (window as unknown as { __world3d: { world: { setPieces(s: unknown): void }; state(): { buildings: Record<string, object> } } }).__world3d;
+    const s = d.state();
+    d.world.setPieces({ ...s, buildings: { ...s.buildings, '-2,4': { ...s.buildings['-2,4'], kind: 'citadel' } } });
+  });
+  await page.evaluate(`__open('${K}')`);
+  await view('hall-outside', `__at('${K}', 6, 15, 0, 0, 3.5)`);
+  await view('hall-in-table', `__at('${K}', 0.5, 2.0, 0, -2.3, 1.4)`);
+  await view('hall-in-corner', `__at('${K}', -3.0, 1.8, 2.5, -1.2, 1.2)`);
+  await view('hall-overhead', `__at('${K}', 13, 18, 0, 0, 0, 16)`);
+  await walk('walk-hall', K, [[0, 18], [0, 4.2], [0, 0.4], [-2.2, 1.6], [0, 0.4], [0, 4.2], [0, 18]]);
+  log(`village memory ${JSON.stringify((await info(page)).memory)}`);
+  results.village = out;
+  if (problems.length) log(`village console: ${problems.slice(0, 10).join(' | ')}`);
+});

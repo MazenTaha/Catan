@@ -1,8 +1,8 @@
 """Buildings, pieces and props for the 3D walk -> apps/web/public/models/village.glb
 
-  Settlement   half-timbered house on a stone plinth, jettied upper floor (player roof + shutters)
-  City         stone hall, round keep with a banner, a second house, a curtain wall and gate
-  Windmill     tapered stone tower, shingled cap; node "Sails" turns (hub origin, faces -Y)
+  Cottage      the settlement, enterable (homes.py)
+  Hall         the city, enterable (homes.py)
+  Mill         the windmill with an enterable ground floor (homes.py); node "Sails" turns
   Dock         plank jetty on posts, running from its origin (the shore) along -Y
   Boat         clinker-built hull, mast, yard and a sail ("Owner_Sail" takes the harbour colour)
   Road         one 14 m edge: cobbles between kerbs, timber rails in the owner's colour
@@ -14,11 +14,13 @@
   Mine         timbered adit with rails and an ore cart
 
 Materials: "Village" (atlas x vertex colour), "Owner_Roof", "Owner_Trim", "Owner_Sail"
-(tinted at runtime), "Iron" (small metal parts), "Glow" (the robber's eyes).
+(tinted at runtime), "Iron" (small metal parts), "Glow" (the robber's eyes, embers), "Interior"
+(inside faces and furniture; the game gives it extra fill light).
 """
 
 from __future__ import annotations
 
+import importlib
 import math
 
 import bmesh
@@ -206,74 +208,6 @@ def chimney(b, c: Vector, h: float, r=None):
     box(b, c + UP * h, (0.82, 0.82, 0.14), V['stone'], (1.2, 0.3), STONE_DK)
 
 
-def house(b: MeshBuilder, r, c: Vector, w: float, d: float, plinth: float, floor1: float, floor2: float, roof_h: float,
-          jetty: float = 0.22, plaster=0, door_side='f', windows_front=2, chim: bool = True, thatched: bool = False):
-    """A half-timbered house standing on c, its front facing -Y."""
-    pc = PLASTER[plaster % len(PLASTER)]
-    # Stone plinth.
-    box(b, c, (w + 0.16, d + 0.16, plinth), V['stone'], (1.6, 0.8), STONE, faces='fblrt',
-        top=(V['stone'], (1.6, 1.6), STONE_DK), jitter=0.08, r=r)
-    z1 = c.z + plinth
-    # Ground floor: plaster walls with timber framing.
-    box(b, Vector((c.x, c.y, z1)), (w, d, floor1), V['plaster'], (2.0, 2.0), pc, faces='fblr')
-    for (o, ux, ww, out) in ((Vector((c.x - w / 2, c.y - d / 2, z1)), X, w, -Y),
-                             (Vector((c.x + w / 2, c.y + d / 2, z1)), -X, w, Y),
-                             (Vector((c.x - w / 2, c.y + d / 2, z1)), -Y, d, -X),
-                             (Vector((c.x + w / 2, c.y - d / 2, z1)), Y, d, X)):
-        wall_frame(b, o, ux, ww, floor1, 3, True, out)
-    # Door and windows on the front.
-    door(b, Vector((c.x - w * 0.18, c.y - d / 2, z1)), X, -Y, 0.95, 2.05)
-    window(b, Vector((c.x + w * 0.24, c.y - d / 2, z1 + floor1 * 0.58)), X, -Y, 0.7, 0.85)
-    window(b, Vector((c.x + w / 2, c.y, z1 + floor1 * 0.58)), Y, X, 0.6, 0.75)
-    window(b, Vector((c.x - w / 2, c.y + d * 0.1, z1 + floor1 * 0.58)), -Y, -X, 0.6, 0.75)
-    # Stone step at the door.
-    box(b, Vector((c.x - w * 0.18, c.y - d / 2 - 0.35, c.z)), (1.3, 0.7, plinth * 0.6), V['stone'], (1.3, 0.7), STONE_DK)
-    # Jettied upper floor.
-    z2 = z1 + floor1
-    w2, d2 = w + 0.1, d + jetty * 2
-    box(b, Vector((c.x, c.y, z2)), (w2, d2, floor2), V['plaster'], (2.0, 2.0), pc, faces='fblr')
-    # Joist ends under the jetty.
-    for k in range(6):
-        x = c.x - w2 / 2 + 0.3 + (w2 - 0.6) * k / 5
-        for s in (-1, 1):
-            beam(b, Vector((x, c.y + s * d / 2, z2 - 0.08)), Vector((x, c.y + s * d2 / 2 + 0.06, z2 - 0.08)), 0.12, 0.14, TIMBER, normal=UP)
-    aquad(b, Vector((c.x - w2 / 2, c.y - d2 / 2, z2)), X, Y, w2, jetty, V['planks'], (2, 2), mul(TIMBER_LT, 0.8))
-    aquad(b, Vector((c.x - w2 / 2, c.y + d / 2, z2)), X, Y, w2, jetty, V['planks'], (2, 2), mul(TIMBER_LT, 0.8))
-    for (o, ux, ww, out) in ((Vector((c.x - w2 / 2, c.y - d2 / 2, z2)), X, w2, -Y),
-                             (Vector((c.x + w2 / 2, c.y + d2 / 2, z2)), -X, w2, Y),
-                             (Vector((c.x - w2 / 2, c.y + d2 / 2, z2)), -Y, d2, -X),
-                             (Vector((c.x + w2 / 2, c.y - d2 / 2, z2)), Y, d2, X)):
-        wall_frame(b, o, ux, ww, floor2, 4, False, out)
-    for k in range(windows_front):
-        x = c.x - w2 / 2 + w2 * (k + 0.5) / windows_front
-        window(b, Vector((x, c.y - d2 / 2, z2 + floor2 * 0.52)), X, -Y, 0.62, 0.72)
-    window(b, Vector((c.x, c.y + d2 / 2, z2 + floor2 * 0.52)), -X, Y, 0.62, 0.72)
-    z3 = z2 + floor2
-    if thatched:
-        gable_roof(b, Vector((c.x, c.y, 0)), w2, d2, z3, z3 + roof_h, 0.45, M_VILLAGE, V['thatch'], THATCH, thick=0.3, r=r)
-    else:
-        gable_roof(b, Vector((c.x, c.y, 0)), w2, d2, z3, z3 + roof_h, 0.38, M_ROOF, V['tiles'], WHITE, r=r)
-    if chim:
-        chimney(b, Vector((c.x + w2 * 0.3, c.y + d2 * 0.18, z3 - 0.2)), roof_h + 0.8, r)
-    return z3 + roof_h
-
-
-def build_settlement(mats):
-    r = rng(601)
-    b = MeshBuilder()
-    house(b, r, Vector((0, 0, 0)), 3.6, 3.4, 0.45, 2.45, 1.75, 2.15)
-    # A lean-to woodshed and a barrel by the door.
-    box(b, Vector((-2.35, 0.4, 0)), (1.0, 2.2, 1.6), V['planks'], (1.2, 1.2), PLANK, top=(V['planks'], (1.2, 1.2), PLANK))
-    for k in range(4):
-        tube(b, [Vector((-2.35 + (k % 2) * 0.3 - 0.15, -0.75 + 0.5 * (k // 2) * 0.0, 0.18 + 0.36 * (k // 2))),
-                 Vector((-2.35 + (k % 2) * 0.3 - 0.15, 1.55, 0.18 + 0.36 * (k // 2)))],
-             [0.17, 0.17], 6, lambda t, s: mul(TIMBER_LT, 0.95 + 0.1 * (s % 2)), mat=M_VILLAGE)
-    tube(b, [Vector((0.9, -2.05, 0)), Vector((0.9, -2.05, 0.45)), Vector((0.9, -2.05, 0.9))], [0.3, 0.34, 0.3], 10,
-         lambda t, s: mul(PLANK, 0.9 + 0.12 * (s % 2)), mat=M_VILLAGE, cap=True)
-    ob = b.build('Settlement', mats)
-    return ob
-
-
 def tower(b: MeshBuilder, r, c: Vector, radius: float, h: float, roof_h: float, sides: int = 12, crenel: bool = True,
           banner: bool = True):
     """A round stone keep with a conical owner-tiled roof, arrow slits and a banner."""
@@ -326,90 +260,9 @@ def tower(b: MeshBuilder, r, c: Vector, radius: float, h: float, roof_h: float, 
         aquad(b, fl + Vector((1.14, 0, -0.65)), -X, UP, 1.1, 0.62, V['white'], (1.2, 1.2), WHITE, M_TRIM)
 
 
-def curtain_wall(b: MeshBuilder, r, a: Vector, c: Vector, h: float, thick: float = 0.8):
-    d = (c - a)
-    L = d.length
-    ux = d.normalized()
-    out = ux.cross(UP)
-    o = a - out * (thick / 2)
-    aquad(b, a + out * (thick / 2), ux, UP, L, h, V['stone'], (1.6, 1.6), STONE, jitter=0.06, r=r)
-    aquad(b, c - out * (thick / 2), -ux, UP, L, h, V['stone'], (1.6, 1.6), STONE_DK, jitter=0.06, r=r)
-    aquad(b, a + out * (thick / 2) + UP * h, ux, -out, L, thick, V['cobble'], (1, 1), STONE_DK)
-    n = int(L / 0.9)
-    for k in range(n):
-        if k % 2:
-            continue
-        p = a + ux * (L * (k + 0.5) / n) + out * (thick * 0.3) + UP * h
-        box(b, p, (0.5, 0.3, 0.5), V['stone'], (0.5, 0.5), STONE)
-
-
-def build_city(mats):
-    r = rng(602)
-    b = MeshBuilder()
-    # The keep behind, the hall in front of it, a house to the side, a wall with a gate.
-    tower(b, r, Vector((1.6, 1.6, 0)), 1.75, 8.0, 3.4)
-    # Stone hall: ground floor of stone, timbered upper floor, owner roof.
-    hc = Vector((-0.9, 0.3, 0))
-    box(b, hc, (5.2, 4.0, 0.5), V['stone'], (1.6, 0.8), STONE_DK, top=(V['stone'], (1.6, 1.6), STONE_DK))
-    box(b, hc + UP * 0.5, (5.0, 3.8, 3.0), V['stone'], (1.6, 1.6), STONE, faces='fblr', jitter=0.06, r=r)
-    door(b, hc + Vector((-0.6, -1.9, 0.5)), X, -Y, 1.2, 2.3)
-    for x in (-1.9, 0.9, 1.9):
-        window(b, hc + Vector((x, -1.9, 2.1)), X, -Y, 0.6, 1.0, shutters=False)
-    w2, d2, z2 = 5.2, 4.1, 3.5
-    box(b, hc + UP * z2, (w2, d2, 2.0), V['plaster'], (2.0, 2.0), PLASTER[1], faces='fblr')
-    for (o, ux, ww, out) in ((hc + Vector((-w2 / 2, -d2 / 2, z2)), X, w2, -Y), (hc + Vector((w2 / 2, d2 / 2, z2)), -X, w2, Y),
-                             (hc + Vector((-w2 / 2, d2 / 2, z2)), -Y, d2, -X), (hc + Vector((w2 / 2, -d2 / 2, z2)), Y, d2, X)):
-        wall_frame(b, o, ux, ww, 2.0, 5, True, out)
-    for x in (-1.6, 0.0, 1.6):
-        window(b, hc + Vector((x, -d2 / 2, z2 + 1.05)), X, -Y, 0.6, 0.75)
-    gable_roof(b, hc, w2, d2, z2 + 2.0, z2 + 4.4, 0.4, M_ROOF, V['tiles'], WHITE, r=r)
-    chimney(b, hc + Vector((-1.6, 0.6, z2 + 1.8)), 3.2, r)
-    # A smaller house to the east.
-    house(b, r, Vector((3.0, -1.7, 0)), 2.4, 2.6, 0.4, 2.2, 1.5, 1.7, plaster=2, windows_front=1, chim=False)
-    # Curtain wall round the back with a gatehouse at the front-left.
-    curtain_wall(b, r, Vector((-4.3, -2.6, 0)), Vector((-4.3, 3.4, 0)), 2.6)
-    curtain_wall(b, r, Vector((-4.3, 3.4, 0)), Vector((4.2, 3.6, 0)), 2.6)
-    for p in (Vector((-4.3, -2.6, 0)), Vector((-4.3, 3.4, 0)), Vector((4.2, 3.6, 0))):
-        tower(b, r, p, 0.75, 3.6, 1.3, sides=8, crenel=False, banner=False)
-    ob = b.build('City', mats)
-    return ob
-
-
-def build_windmill(mats):
-    r = rng(603)
-    b = MeshBuilder()
-    # Tapered stone tower, 8 sides.
-    sides = 8
-    H = 6.2
-    r0, r1 = 1.75, 1.3
-    for i in range(sides):
-        a0 = math.tau * (i + 0.5) / sides
-        a1 = math.tau * (i + 1.5) / sides
-        p0, p1 = Vector((math.cos(a0) * r0, math.sin(a0) * r0, 0)), Vector((math.cos(a1) * r0, math.sin(a1) * r0, 0))
-        q0, q1 = Vector((math.cos(a0) * r1, math.sin(a0) * r1, H)), Vector((math.cos(a1) * r1, math.sin(a1) * r1, H))
-        rows = 4
-        for k in range(rows):
-            t0, t1 = k / rows, (k + 1) / rows
-            a = p0.lerp(q0, t0)
-            bb = p1.lerp(q1, t0)
-            cc = p1.lerp(q1, t1)
-            d = p0.lerp(q0, t1)
-            u0, v0, u1, v1 = V['stone']
-            b.poly([a, bb, cc, d], mul(STONE, 0.95 + 0.1 * r.random()), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], mat=M_VILLAGE, smooth=False)
-    # Door on the front (-Y), small windows.
-    door(b, Vector((0, -1.72, 0)), X, -Y, 0.9, 1.95)
-    window(b, Vector((0, -1.5, 3.9)), X, Vector((0, -1, 0.07)).normalized(), 0.5, 0.6, shutters=False)
-    window(b, Vector((1.45, 0, 2.6)), Y, X, 0.45, 0.55, shutters=False)
-    # Gallery ring and the turning cap, shingled.
-    tube(b, [Vector((0, 0, H - 0.05)), Vector((0, 0, H + 0.2))], [r1 + 0.35, r1 + 0.35], 12, lambda t, s: mul(TIMBER, 1.0),
-         mat=M_VILLAGE, cap=True)
-    cap_pts = [Vector((0, 0, H + 0.2)), Vector((0, 0, H + 1.0)), Vector((0, 0, H + 1.8)), Vector((0, 0, H + 2.45))]
-    tube(b, cap_pts, [r1 + 0.25, r1 + 0.05, 0.75, 0.05], 12, lambda t, s: mul(THATCH, 0.95 + 0.08 * (s % 2)),
-         mat=M_VILLAGE, uv_rect=V['thatch'], uv_repeat=(1.0, 1.0))
-    # Windshaft housing at the front of the cap.
-    box(b, Vector((0, -1.2, H + 0.55)), (0.7, 0.8, 0.7), V['planks'], (0.7, 0.7), TIMBER_LT)
-    ob = b.build('Windmill', mats)
-    # Sails: a separate child node with its origin at the hub, lying in the XZ plane, facing -Y.
+def build_sails(mats):
+    """The mill's sails: a child node with its origin at the hub, lying in the XZ plane and
+    facing -Y; the game turns it about its local Z."""
     sb = MeshBuilder()
     tube(sb, [Vector((0, 0.5, 0)), Vector((0, -0.25, 0))], [0.16, 0.16], 8, lambda t, s: TIMBER, cap=True)
     for k in range(4):
@@ -425,14 +278,11 @@ def build_windmill(mats):
         beam(sb, o + side * 0.95, o + d * 3.4 + side * 0.95, 0.05, 0.05, TIMBER, normal=-Y)
         cl = o + Vector((0, -0.02, 0))
         u0, v0, u1, v1 = V['cloth']
-        sb.poly([cl, cl + d * 3.4, cl + d * 3.4 + side * 0.92, cl + side * 0.92], (0.95, 0.92, 0.84),
+        sb.poly([cl, cl + d * 3.4, cl + d * 3.4 + side * 0.92, cl + side * 0.92], (0.97, 0.94, 0.86),
                 [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], mat=M_VILLAGE, smooth=False)
-        sb.poly([cl + side * 0.92, cl + d * 3.4 + side * 0.92, cl + d * 3.4, cl], (0.9, 0.87, 0.8),
+        sb.poly([cl + side * 0.92, cl + d * 3.4 + side * 0.92, cl + d * 3.4, cl], (0.92, 0.89, 0.82),
                 [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], mat=M_VILLAGE, smooth=False)
-    sails = sb.build('Sails', mats)
-    sails.parent = ob
-    sails.location = (0, -1.65, H + 0.6)
-    return ob
+    return sb.build('Sails', mats)
 
 
 def build_dock(mats):
@@ -874,13 +724,22 @@ def build(atlas):
         material('Iron', color=srgb('#3e3d40'), rough=0.45, metal=0.8),
         material('Owner_Sail', image=atlas, rough=0.95, double=True),
         material('Glow', color=(0, 0, 0), rough=1.0, emission=srgb('#ff7a3c')),
+        material('Interior', image=atlas, rough=0.88),
     ]
-    objs = [build_settlement(mats), build_city(mats), build_windmill(mats), build_dock(mats), build_boat(mats),
-            build_road(mats), build_robber(mats), build_sheep(mats), build_barn(mats), build_kiln(mats),
-            build_haybale(mats), build_mine(mats)]
+    import homes
+    importlib.reload(homes)
+    buildings = homes.build(mats)
+    objs = [*buildings, build_dock(mats), build_boat(mats), build_road(mats), build_robber(mats), build_sheep(mats),
+            build_barn(mats), build_kiln(mats), build_haybale(mats), build_mine(mats)]
     layout_row(objs, gap=4.0)
-    bake = [o for o in objs if o.name not in ('Road',)]
+    bake = [o for o in objs if o.name not in ('Road', *[b.name for b in buildings])]
     bake_ao([*bake, *[c for o in bake for c in o.children]], strength=0.6, distance=1.6, samples=32)
+    # Buildings: the shells as usual; rooms and furniture more gently (a closed room would go
+    # dark everywhere at full strength), doors and sails like the shells.
+    shells = [o for o in buildings]
+    parts = [c for o in buildings for c in o.children if 'Interior' not in c.name]
+    bake_ao([*shells, *parts], strength=0.55, distance=1.4, samples=32)
+    bake_ao([c for o in buildings for c in o.children if 'Interior' in c.name], strength=0.4, distance=0.9, samples=32)
     export_glb(objs, 'village.glb', images='JPEG')
     save_blend(sc, 'village.blend')
     return stats(objs)

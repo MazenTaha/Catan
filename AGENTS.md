@@ -66,7 +66,7 @@ apps/server       @hexfall/server  Node game server: rooms, codes, authoritative
 apps/web          @hexfall/web     React 18 + Vite 5 + Zustand 5 + Framer Motion + Tailwind 3 + three.js
 assets/blender    Blender build scripts + editable .blend sources + atlases for the 3D walk's models
 docs/             PLAN.md (architecture/milestones), DECISIONS.md (numbered log), RULES.md, CREDITS.md,
-                  BLENDER_ASSET_PIPELINE.md, BROWSER_PERFORMANCE_REPORT.md
+                  BLENDER_ASSET_PIPELINE.md, BROWSER_PERFORMANCE_REPORT.md, VILLAGE_PROTOTYPE.md
 design/           untracked local visual references (not in git)
 .claude/          launch.json for the Claude desktop preview
 ```
@@ -177,7 +177,7 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 | `components/hud/` | Top bar, turn banner/players row, dice and dice-roll animation, toasts |
 | `components/panels/` | Left rail (claims, recent log), right rail (hand, Build / Cards / Trade tabs, End turn) |
 | `components/modals/` | Discard, steal, trade, dev cards, curtain, victory, settings, credits, import, rulebook |
-| `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat), `adaptive.ts` (Auto's adaptive resolution), `stress.ts` (dev-only stress presets); lazy chunk around 720 kB |
+| `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat), `adaptive.ts` (Auto's adaptive resolution), `stress.ts` (dev-only stress presets), `buildings.json` + `buildings.ts` (enterable cottage/hall/mill: room plans shared with Blender, collision capsules, floors, doors); lazy chunk around 730 kB |
 | `components/ui/primitives.tsx` | Shared building blocks: ResourceCard, Tooltip, IconButton, segmented tabs, steppers, Modal |
 | `art/` | Procedural terrain (`terrain/TerrainArt.tsx`), pieces/tokens/harbors/robber (`pieces/Pieces.tsx`), sigils, icons, dev-card art; `art/manifest.ts` can swap in image files |
 | `audio/` | `engine.ts` (SFX bus, optional Howler files via `manifest.json`), `synth.ts` (WebAudio SFX recipes). **SFX only.** |
@@ -238,6 +238,10 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 
 ## 11. Recent history (newest first)
 
+- Enterable buildings prototype (DECISIONS #33, `docs/VILLAGE_PROTOTYPE.md`): settlements are a
+  cottage, cities a hall, windmills a mill, each with a finished room, a hinged door (E) and
+  plan-driven collision; buildings face their best tile, roads stop at their walls, plants clear
+  round them; `?scene=village` opens the scenario (dev/benchmark builds); `e2e/buildings.spec.ts`.
 - Browser performance pass (DECISIONS #32, `docs/BROWSER_PERFORMANCE_REPORT.md`): `pnpm bench`; sky/sea draw order, shore-distance texture, per-tile instancing, frozen static matrices, instanced sheep, parallel PMREM compile, robber precompile, WebGL context released on exit; *3D resolution* setting and adaptive resolution in Auto; dev-only stress presets (`?stress=`).
 - Blender visual upgrade of the 3D walk (DECISIONS #31): scripted Blender models for wheat (3 near
   variants + mid + far), grass, wildflowers, broadleaf and conifer trees, saplings, shrubs,
@@ -270,6 +274,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Change colors or theme | `styles/tokens.css`, then grep for hard-coded hex values in `components/` |
 | Change board visuals | `components/board/*`, `art/terrain/TerrainArt.tsx`, `art/pieces/Pieces.tsx` |
 | Change the 3D walk | `components/world/world.ts`, `field.ts`, `shaders.ts`, `terrain.ts`; measure with `pnpm bench` (GPU and main-thread ms, missed frames; not just fps). Run old and new builds alternately and pause other GPU users (Wallpaper Engine on this PC) |
-| Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py`; register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |
+| Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py` (this PC: `D:\Blender\blender.exe`); register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |
+| Change a building's room, door or furniture | `components/world/buildings.json` (one plan for the model and the collision), then rebuild the village (`-- village`); check with `/?scene=village` and `pnpm e2e buildings` |
 | Change the online protocol | `packages/net/src/index.ts` (types + lobby rules), then `apps/server/src/hub.ts` and `apps/web/src/state/net.ts` |
 | Add a setting | `Settings` and `DEFAULT_SETTINGS` in `state/persistence.ts`, UI in `components/modals/InfoModals.tsx`; apply it in `store.ts` |

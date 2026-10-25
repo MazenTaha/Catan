@@ -12,7 +12,8 @@ DECISIONS #31 explains the choices; this file is the how-to.
 
 | What | Where |
 |---|---|
-| Build scripts | `assets/blender/build.py` (entry), `common.py` (mesh builder, materials, AO bake, export), `textures.py`, `flora.py`, `rocks.py`, `village.py` |
+| Build scripts | `assets/blender/build.py` (entry), `common.py` (mesh builder, materials, AO bake, export), `textures.py`, `flora.py`, `rocks.py`, `village.py`, `homes.py` (the enterable cottage, hall and mill, called by `village.py`) |
+| Room plans | `apps/web/src/components/world/buildings.json`: one plan per enterable building (room size, walls, doors, windows, furniture boxes), read by `homes.py` to build and by `buildings.ts` for collision, floors and doors |
 | Editable sources | `assets/blender/flora.blend`, `rocks.blend`, `village.blend` (one scene each, written by the build) |
 | Texture atlases | `assets/blender/textures/flora_atlas.png`, `rock.png`, `village_atlas.png` (embedded into the GLBs) |
 | Game models | `apps/web/public/models/flora.glb`, `rocks.glb`, `village.glb` |
@@ -69,12 +70,12 @@ One GLB per family; each variant is a root node with that name. Triangles as exp
 | `BoulderA` `BoulderB` `BoulderC` | `rock.boulder` | 114–130 | Rock |
 | `CragA` `CragB` `CragC` | `rock.crag` (mountain massifs) | 1,078–1,178 | Rock |
 | `ClayA` `ClayB` | `rock.clay` (terraced clay banks) | 306, 466 | Rock |
-| **village.glb** (1.0 MB, 1024 px building atlas, JPEG) | | | |
-| `Settlement` | `building.settlement` | 1,392 | Village, Owner_Roof, Owner_Trim |
-| `City` | `building.city` | 2,876 | Village, Owner_Roof, Owner_Trim, Iron |
+| **village.glb** (1.3 MB, 1024 px building atlas, JPEG) | | | |
+| `Cottage` (+ `CottageInterior`, `CottageDoor`) | `building.settlement` | 2,125 + 1,298 + 50 | Village, Owner_Roof, Owner_Trim, Interior, Glow, Iron |
+| `Hall` (+ `HallInterior`, `HallDoorA`, `HallDoorB`) | `building.city` | 2,322 + 3,032 + 100 | Village, Owner_Roof, Owner_Trim, Iron, Interior, Glow |
 | `Road` | `piece.road` | 464 | Village, Owner_Trim |
 | `Robber` | `piece.robber` | 458 | Village, Glow |
-| `Windmill` (+ child `Sails`) | `prop.windmill` | 626 | Village |
+| `Mill` (+ `MillInterior`, `MillDoor`, `Sails`) | `prop.windmill` | 854 + 688 + 50 + 374 | Village, Interior, Iron |
 | `Dock` | `harbor.dock` | 506 | Village |
 | `Boat` | `harbor.boat` | 472 | Village, Owner_Sail |
 | `Sheep` (+ `Head`, `LegFL/FR/BL/BR`, `Tail`) | `sheep` | 608 | Village |
@@ -135,7 +136,7 @@ fallback.
 
 | Topic | Rule |
 |---|---|
-| Units | 1 Blender unit = 1 m. A land tile is 14 m centre to corner. Eye height 1.7 m; doors 2.0–2.3 m. |
+| Units | 1 Blender unit = 1 m. A land tile is 14 m centre to corner; a road is one 14 m edge. Eye height 1.7 m above the floor (the walker is 0.7 m wide). Doors 2.1–2.5 m high, 1.05–1.5 m wide (≥ 0.35 m clear past the walker); rooms 2.6 m (cottage, mill) and 3.6 m (hall) to the ceiling; floors 0.24–0.36 m up on a stone plinth; walls 0.26–0.42 m thick. The board is never stretched: a building stands on its corner, its walls clear of the next corner's (≥ 24 m away), and roads stop at its walls. |
 | Axes | Model with Z up and the front facing −Y. The glTF exporter (+Y Up) turns that into the game's +Y up, front +Z. No corrective rotations. |
 | Origin | Ground contact, centre of the footprint (trees: trunk base; dock: shore end; boat: waterline; windmill `Sails`: hub). |
 | Transforms | Applied (`export_apply`); a root's own translation is ignored by the game. |
@@ -143,7 +144,8 @@ fallback.
 | Materials | Principled BSDF; base colour = image × colour attribute (the exporter maps it to `baseColorTexture` + `COLOR_0`). Alpha clip via a Greater Than node (exports `alphaMode: MASK`). |
 | Atlases | Regions are listed in `textures.py` (`FLORA`, `VILLAGE`). Atlas regions can't repeat, so `aquad` cuts large faces into tiles; leaf cards sample 3 % inside their region so mipmaps don't bleed in a neighbour. |
 | Images in GLBs | PNG only where alpha is needed (flora); rocks and village export JPEG (q88). No KTX2, Draco or meshopt: no decoders are set up. |
-| Animated nodes | Sheep: `Head`, `LegFL`, `LegFR`, `LegBL`, `LegBR`, `Tail`, origins at the joints. Windmill: `Sails`, turning about its local Z (glTF). |
+| Animated nodes | Sheep: `Head`, `LegFL`, `LegFR`, `LegBL`, `LegBR`, `Tail`, origins at the joints. Windmill: `Sails`, turning about its local Z (glTF). Doors: `<Building>Door` (hall: `HallDoorA`, `HallDoorB`), origin on the hinge at floor level, leaf along local +X when closed; the game swings it about +Y. |
+| Rooms | Walls are thick solids (inner and outer faces, reveals round every opening), never double-sided. Inside faces and furniture use the `Interior` material; furniture and props sit in the `<Building>Interior` child, which the game hides beyond 34 m. Collision comes from `buildings.json`, not the meshes. |
 
 ## 6. Budgets
 
@@ -186,7 +188,8 @@ Rules of thumb that held:
 - The Blender scenes are generated, not hand-sculpted: shapes come from bmesh operations
   (fracture cuts, lofts, lathes, cards), detail from vertex colours and small atlases.
 - Blender previews (EEVEE) don't match the game exactly; the browser is the reference.
-- Settlements and cities face the island's centre, as before; their plinths assume the flat
-  ground at tile edges.
+- Settlements and cities face the most inviting tile at their corner (a wheat field first, then
+  pasture, hills, forest, mountains, desert); their plinths assume the flat ground at tile edges.
+  Plants and rocks inside a building's clearing are hidden (scaled to nothing) while it stands.
 - Wheat swaps detail by 7 m cells, so a careful eye can see a cell change at the near/mid
   boundary while walking.

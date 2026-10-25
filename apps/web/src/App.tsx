@@ -2,6 +2,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Suspense, lazy, useEffect } from 'react';
 import { audio } from './audio/engine';
 import { Embers } from './components/fx/Embers';
+import { startScene } from './devScenario';
 import { SettingsModal } from './components/modals/InfoModals';
 import { GameScreen } from './components/screens/GameScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
@@ -18,6 +19,11 @@ export function App() {
   const announce = useStore((s) => s.announce);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   const lite = useStore((s) => liteEffects(s.settings));
+
+  // Development builds: `?scene=village` opens the walk's building scenario (devScenario.ts).
+  useEffect(() => {
+    void startScene();
+  }, []);
 
   // Audio may only start after a user gesture (autoplay policy).
   useEffect(() => {

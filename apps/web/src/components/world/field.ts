@@ -8,6 +8,49 @@ import * as THREE from 'three';
  * seeded RNG; the GPU does all the motion.
  */
 
+/** A circle on the ground kept clear of plants and props (round a building). */
+export interface Circle {
+  x: number;
+  z: number;
+  r: number;
+}
+
+const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
+
+/**
+ * Every instance of the scattered plants and props, so the ones standing where a building goes
+ * up can be hidden (scaled to nothing) and shown again if it goes. Placement itself never
+ * changes: buildings come from the game, scenery from the world's own seed.
+ */
+export class Clearings {
+  private entries: { mesh: THREE.InstancedMesh; i: number; m: THREE.Matrix4; x: number; z: number; hidden: boolean }[] = [];
+
+  add(mesh: THREE.InstancedMesh, i: number, m: THREE.Matrix4) {
+    this.entries.push({ mesh, i, m, x: m.elements[12], z: m.elements[14], hidden: false });
+  }
+
+  /** Hides every instance inside one of `circles` and shows the others again. */
+  apply(circles: Circle[]) {
+    const touched = new Set<THREE.InstancedMesh>();
+    for (const e of this.entries) {
+      let hide = false;
+      for (const c of circles) {
+        const dx = e.x - c.x;
+        const dz = e.z - c.z;
+        if (dx * dx + dz * dz < c.r * c.r) {
+          hide = true;
+          break;
+        }
+      }
+      if (hide === e.hidden) continue;
+      e.hidden = hide;
+      e.mesh.setMatrixAt(e.i, hide ? HIDDEN : e.m);
+      touched.add(e.mesh);
+    }
+    for (const m of touched) m.instanceMatrix.needsUpdate = true;
+  }
+}
+
 export interface PlantVisual {
   /** `depth`: an optional depth-only pre-pass material (cut-out foliage). */
   parts: { geometry: THREE.BufferGeometry; material: THREE.Material; depth?: THREE.Material }[];
@@ -70,7 +113,7 @@ export class Field {
     this.items.push({ v: variant % this.near.length, m, c: tint });
   }
 
-  build(scene: THREE.Scene) {
+  build(scene: THREE.Scene, clearings?: Clearings) {
     const byCell = new Map<string, Item[]>();
     const p = new THREE.Vector3();
     for (const it of this.items) {
@@ -87,7 +130,7 @@ export class Field {
         const mine = list.filter((it) => it.v === v);
         if (!mine.length) return;
         for (const part of vis.parts) {
-          const im = instanced(part, mine);
+          const im = instanced(part, mine, clearings);
           near.add(im);
           if (part.depth) {
             // Depth pre-pass twin (shares the instance buffer), drawn before everything else.
@@ -102,7 +145,7 @@ export class Field {
       const tier = (vis: PlantVisual | null) => {
         if (!vis) return null;
         const g = new THREE.Group();
-        for (const part of vis.parts) g.add(instanced(part, list));
+        for (const part of vis.parts) g.add(instanced(part, list, clearings));
         g.visible = false;
         this.group.add(g);
         return g;
@@ -130,11 +173,12 @@ export class Field {
   }
 }
 
-function instanced(part: PlantVisual['parts'][number], items: Item[]): THREE.InstancedMesh {
+function instanced(part: PlantVisual['parts'][number], items: Item[], clearings?: Clearings): THREE.InstancedMesh {
   const im = new THREE.InstancedMesh(part.geometry, part.material, items.length);
   items.forEach((it, k) => {
     im.setMatrixAt(k, it.m);
     im.setColorAt(k, it.c);
+    clearings?.add(im, k, it.m);
   });
   im.castShadow = false;
   im.receiveShadow = true;

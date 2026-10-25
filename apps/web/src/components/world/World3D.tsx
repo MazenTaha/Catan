@@ -7,6 +7,7 @@ import { setLiteDeferral } from '../../state/frameWatch';
 import { PERF_HOOKS } from '../../perfHooks';
 import { preloadWorldAssets } from './assets';
 import { NO_STRESS, parseStress } from './stress';
+import { sceneBuilding } from '../../devScenario';
 import { World } from './world';
 
 const topo = getTopology();
@@ -55,13 +56,16 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   const adaptiveRef = useRef(adaptive);
   adaptiveRef.current = adaptive;
   const wrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const holderRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<World | null>(null);
   const [hex, setHex] = useState<number | null>(null);
   /** The first frame has been drawn (shaders compile in the background before that). */
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
+  /** "Open door" / "Close door" when a door is in reach (set by the world only on change). */
+  const [hint, setHint] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const touch = useMemo(
     () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches,
     [],
@@ -77,9 +81,14 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   // The world is built once per board; pieces are synced below.
   const boardSeed = state.board.seed;
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const holder = holderRef.current;
     const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
+    if (!holder || !wrap) return;
+    // Each world draws on a canvas of its own: closing a world gives its WebGL context back,
+    // and a lost context can't be reused by the next one.
+    const canvas = document.createElement('canvas');
+    canvas.className = 'block h-full w-full';
+    holder.appendChild(canvas);
     let world: World | null = null;
     let ro: ResizeObserver | null = null;
     let cancelled = false;
@@ -103,6 +112,8 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
               setReady(true);
             },
             onBleat: () => audio.play('bleat'),
+            onHint: setHint,
+            onNotice: setNotice,
             stress: PERF_HOOKS ? parseStress(new URLSearchParams(location.search).get('stress')) : NO_STRESS,
           },
           assets,
@@ -117,7 +128,8 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       if (PERF_HOOKS) dev.__world3d = { world: w, state: () => stateRef.current };
       w.setPieces(stateRef.current);
       landIdx.current = 0;
-      w.goTo(landsRef.current[0] ?? 0);
+      const scene = sceneBuilding();
+      if (!scene || !w.goToBuilding(scene)) w.goTo(landsRef.current[0] ?? 0);
       ro = new ResizeObserver(() => w.resize(wrap.clientWidth, wrap.clientHeight));
       ro.observe(wrap);
       w.resize(wrap.clientWidth, wrap.clientHeight);
@@ -130,6 +142,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
         if (dev.__world3d?.world === world) delete dev.__world3d;
         world.dispose();
       }
+      canvas.remove();
       worldRef.current = null;
     };
   }, [boardSeed, lite, reduce]);
@@ -159,12 +172,33 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
     return () => window.clearTimeout(id);
   }, [showHelp]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 3500);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
   // ------------------------------------------------------------ input
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // E works doors; it never reaches the game's own keys (Space still rolls / ends the turn).
+    if ((e.code === 'KeyE' || e.key === 'e' || e.key === 'E') && !e.repeat) {
+      e.preventDefault();
+      e.stopPropagation();
+      worldRef.current?.interact();
+      return;
+    }
+    if (e.key === 'Escape' && !useStore.getState().modal) {
+      e.preventDefault();
+      e.stopPropagation();
+      onExit();
+      return;
+    }
     if (!MOVE_KEYS.has(e.code)) return;
     e.preventDefault();
     worldRef.current?.keys.add(e.code);
+    // Once the player starts walking the controls are known: make room for door hints.
+    if (showHelp && !e.code.startsWith('Shift')) setShowHelp(false);
   };
   const onKeyUp = (e: React.KeyboardEvent) => worldRef.current?.keys.delete(e.code);
   const clearKeys = () => worldRef.current?.keys.clear();
@@ -258,7 +292,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       onPointerCancel={onPointerUp}
       style={{ cursor: 'grab', background: '#cfeaff' }}
     >
-      <canvas ref={canvasRef} className="block h-full w-full" />
+      <div ref={holderRef} className="h-full w-full" />
 
       {failed && (
         <div className="absolute inset-0 grid place-items-center bg-abyss/90 p-6 text-center text-bone">
@@ -319,6 +353,9 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
           </div>
 
           <div className="absolute right-2 top-2 flex flex-col items-end gap-1.5">
+            <button className="btn !px-3 !py-1 text-[12px]" onClick={onExit} title="Back to the 2D board (Esc)">
+              Board <kbd className="ml-1 rounded border border-iron/80 px-1 text-[10px] text-muted">Esc</kbd>
+            </button>
             <button
               className="btn !px-3 !py-1 text-[12px]"
               onClick={nextLand}
@@ -356,10 +393,30 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
                 <>
                   <b className="text-gold">W A S D</b> or <b className="text-gold">arrows</b> to
                   walk · <b className="text-gold">drag</b> to look ·{' '}
-                  <b className="text-gold">Shift</b> to run · <b className="text-gold">Next land</b>{' '}
-                  jumps between your lands
+                  <b className="text-gold">Shift</b> to run · <b className="text-gold">E</b> opens
+                  doors · <b className="text-gold">Esc</b> back to the board
                 </>
               )}
+            </div>
+          )}
+
+          {hint && !showHelp && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-14 mx-auto flex w-fit items-center gap-2 rounded-md bg-abyss/80 px-3 py-1.5 text-[13px] text-bone shadow-panel backdrop-blur-sm"
+              data-testid="world-hint"
+            >
+              <kbd className="rounded border border-gold/70 bg-surface-2 px-1.5 font-display text-[12px] text-gold">E</kbd>
+              {hint}
+            </div>
+          )}
+
+          {notice && (
+            <div
+              className="pointer-events-none absolute inset-x-0 top-24 mx-auto w-fit max-w-[90%] rounded-md bg-abyss/85 px-3 py-1.5 text-center text-[13px] text-bone shadow-panel"
+              role="status"
+              data-testid="world-notice"
+            >
+              {notice}
             </div>
           )}
 

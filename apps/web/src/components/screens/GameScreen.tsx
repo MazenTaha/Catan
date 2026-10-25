@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { sceneOpensWalk } from '../../devScenario';
 import { activeActor, type Action } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
 import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
@@ -74,7 +75,7 @@ export function GameScreen() {
   const layout = useLayout();
   const [sheetOpen, setSheetOpen] = useState(true);
   // The 3D walk is desktop-only: phones and tablets keep the 2D board.
-  const [walk, setView3d] = useState(false);
+  const [walk, setView3d] = useState(sceneOpensWalk);
   const view3d = walk && !isTouchDevice;
   const placing = useStore((s) => s.mode !== null);
   const state = session?.state;

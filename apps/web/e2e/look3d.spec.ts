@@ -183,7 +183,7 @@ test('3D walk look and cost', async ({ page }) => {
     dev.world.setPieces({ ...s, buildings: b });
   });
   // Hide the overlays so the pictures show the scene.
-  await page.addStyleTag({ content: '[data-world3d] > :not(canvas) { display: none !important; }' });
+  await page.addStyleTag({ content: '[data-world3d] > :not(:has(canvas)) { display: none !important; }' });
 
   const list = await views(page);
   const rows: string[] = [];

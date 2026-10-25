@@ -16,7 +16,7 @@ import {
   type LoadedAsset,
   type WorldAssets,
 } from './assets';
-import { Field, variantAt, type PlantVisual } from './field';
+import { Clearings, Field, variantAt, type Circle, type PlantVisual } from './field';
 import {
   Kit,
   STONE,
@@ -59,6 +59,7 @@ import {
 } from './terrain';
 import { foliage, foliageDepth, groundDetail, makeSky, noiseTexture } from './shaders';
 import { AdaptiveScale } from './adaptive';
+import { buildingShape, toLocal, toWorld, type BuildingKind, type BuildingShape, type DoorSpec } from './buildings';
 import { NO_STRESS, type Stress } from './stress';
 import { wheatClumpGeometry } from './wheat';
 
@@ -95,6 +96,70 @@ interface Collider {
   bx: number;
   bz: number;
   r: number;
+  /** Query stamp, so a collider listed in several grid cells is tested once. */
+  q?: number;
+}
+
+/** Colliders bucketed in 4 m cells, so the walker only tests what is near it. */
+class ColliderGrid {
+  private cells = new Map<number, Collider[]>();
+  private stamp = 0;
+  private static S = 4;
+
+  constructor(list: Collider[]) {
+    const S = ColliderGrid.S;
+    for (const c of list) {
+      const x0 = Math.floor((Math.min(c.ax, c.bx) - c.r) / S);
+      const x1 = Math.floor((Math.max(c.ax, c.bx) + c.r) / S);
+      const z0 = Math.floor((Math.min(c.az, c.bz) - c.r) / S);
+      const z1 = Math.floor((Math.max(c.az, c.bz) + c.r) / S);
+      for (let i = x0; i <= x1; i++)
+        for (let j = z0; j <= z1; j++) {
+          const k = (i + 4096) * 8192 + (j + 4096);
+          let l = this.cells.get(k);
+          if (!l) this.cells.set(k, (l = []));
+          l.push(c);
+        }
+    }
+  }
+
+  /** Colliders whose cells touch a circle of `pad` round (x, z), each once. */
+  near(x: number, z: number, pad: number, out: Collider[]): void {
+    const S = ColliderGrid.S;
+    const q = ++this.stamp;
+    for (let i = Math.floor((x - pad) / S); i <= Math.floor((x + pad) / S); i++)
+      for (let j = Math.floor((z - pad) / S); j <= Math.floor((z + pad) / S); j++) {
+        const l = this.cells.get((i + 4096) * 8192 + (j + 4096));
+        if (!l) continue;
+        for (const c of l) {
+          if (c.q === q) continue;
+          c.q = q;
+          out.push(c);
+        }
+      }
+  }
+}
+
+/** A door in the world: its plan, the leaf's node, how open it is (0-1) and where it's going. */
+interface HouseDoor {
+  spec: DoorSpec;
+  node: THREE.Object3D | null;
+  base: number;
+  t: number;
+  target: number;
+}
+
+/** An enterable building placed in the world (a settlement, city or windmill with a model). */
+interface House {
+  key: string;
+  kind: BuildingKind;
+  shape: BuildingShape;
+  x: number;
+  z: number;
+  y: number;
+  rot: number;
+  interior: THREE.Object3D | null;
+  doors: HouseDoor[];
 }
 
 interface Sheep {
@@ -134,6 +199,10 @@ export interface WorldOptions {
   reduceMotion: boolean;
   onHexChange(hex: number | null): void;
   onBleat(): void;
+  /** The door hint to show (null: none); called only when it changes. */
+  onHint?(hint: string | null): void;
+  /** A short notice, e.g. after being moved out of a building that changed. */
+  onNotice?(text: string): void;
   /** Share of the display's resolution the scene is drawn at (the setting; default 1). */
   renderScale?: number;
   /** Graphics "Auto": lower the resolution further while frames keep running late. */
@@ -224,6 +293,20 @@ export class World {
 
   private colliders: Collider[] = [];
   private pieceColliders: Collider[] = [];
+  private grid: ColliderGrid | null = null;
+  private pieceGrid = new ColliderGrid([]);
+  private near: Collider[] = [];
+  /** Enterable buildings: the windmills (fixed) and the settlements and cities (from the game). */
+  private mills: House[] = [];
+  private homes: House[] = [];
+  /** Which doors were left open, by building and door, so a rebuild of the pieces keeps them. */
+  private doorOpen = new Map<string, number>();
+  private hint: string | null = null;
+  /** Scattered plants and props, and the circles kept clear round the game's buildings. */
+  private clear = new Clearings();
+  private clearings: Circle[] = [];
+  /** Every building's spot and kind, in the game's order (inspection and the benchmark). */
+  spots: { x: number; z: number; kind: string; vertex: string }[] = [];
   /** Docks: walkable strips beyond the beach. */
   private walkable: Collider[] = [];
   private landHexes: { id: number; x: number; z: number }[] = [];
@@ -363,7 +446,18 @@ export class World {
     this.tryMove(s.x, s.z);
     this.yaw = s.yaw;
     this.pitch = -0.12;
+    const inside = this.houseAt(this.x, this.z);
+    if (inside) this.stepOutside(inside);
     this.camY = this.groundAt(this.x, this.z) + EYE;
+  }
+
+  /** Teleports to just outside a building's door, facing it (development scenario, tests). */
+  goToBuilding(vertex: string): boolean {
+    const h = this.homes.find((x) => x.key === vertex);
+    if (!h) return false;
+    this.stepOutside(h);
+    this.pitch = -0.05;
+    return true;
   }
 
   /** Rebuilds settlements, cities, roads and the robber from the game state. */
@@ -372,6 +466,9 @@ export class World {
     this.shadowDirty = true;
     for (const c of [...this.pieces.children]) this.pieces.remove(c);
     this.pieceColliders = [];
+    const before = new Map(this.homes.map((h) => [h.key, h.kind]));
+    this.homes = [];
+    this.spots = [];
     const center = (v: string) => ({ x: topo.vertexPos[v].x * R, z: topo.vertexPos[v].y * R });
 
     for (const [e, owner] of Object.entries(state.causeways)) {
@@ -381,8 +478,15 @@ export class World {
       const color = COLOR_HEX[state.players[owner].color];
       const model = this.model('piece.road')?.[0];
       const road = model ? cloneAsset(model, SLOTS['piece.road'], (m) => this.tinted(m, color)) : makeRoad(this.kit, R, color);
-      road.position.set((pa.x + pb.x) / 2, model ? -0.02 : -0.04, (pa.z + pb.z) / 2);
+      // A road stops at the walls of an enterable building at either end instead of running
+      // through its doorway and across the floor.
+      const ta = this.roadTrim(state, a);
+      const tb = this.roadTrim(state, b);
+      const k = (R - ta - tb) / R;
+      const m = (ta + (R - ta - tb) / 2) / R;
+      road.position.set(pa.x + (pb.x - pa.x) * m, model ? -0.02 : -0.04, pa.z + (pb.z - pa.z) * m);
       road.rotation.y = Math.atan2(-(pb.z - pa.z), pb.x - pa.x);
+      road.scale.x = k;
       this.pieces.add(road);
     }
     for (const [v, b] of Object.entries(state.buildings)) {
@@ -390,11 +494,18 @@ export class World {
       const color = COLOR_HEX[state.players[b.owner].color];
       const slot: AssetSlot = b.kind === 'citadel' ? 'building.city' : 'building.settlement';
       const obj = this.piece(slot, color);
+      const rot = this.facing(v, state, p);
       obj.position.set(p.x, 0, p.z);
-      obj.rotation.y = Math.atan2(-p.x, -p.z);
+      obj.rotation.y = rot;
       this.pieces.add(obj);
-      const r = SLOTS[slot].footprint;
-      this.pieceColliders.push({ ax: p.x, az: p.z, bx: p.x, bz: p.z, r });
+      this.spots.push({ x: p.x, z: p.z, kind: b.kind, vertex: v });
+      if (this.model(slot)) {
+        const house = this.makeHouse(v, b.kind === 'citadel' ? 'hall' : 'cottage', obj, p.x, p.z, 0, rot);
+        this.homes.push(house);
+        this.pieceColliders.push(...this.houseColliders(house));
+      } else {
+        this.pieceColliders.push({ ax: p.x, az: p.z, bx: p.x, bz: p.z, r: SLOTS[slot].footprint });
+      }
     }
 
     const robber = this.addRobber();
@@ -408,14 +519,181 @@ export class World {
     }
     const rb = robber.position;
     this.pieceColliders.push({ ax: rb.x, az: rb.z, bx: rb.x, bz: rb.z, r: 0.9 });
+    this.pieceGrid = new ColliderGrid(this.pieceColliders);
+    // Wheat, grass, flowers, trees and rocks give way where a building stands.
+    this.clearings = [
+      ...this.homes.map((h) => ({ x: h.x, z: h.z, r: h.kind === 'hall' ? 6.2 : 4.2 })),
+      ...this.mills.map((m) => ({ x: m.x, z: m.z, r: 3.0 })),
+    ];
+    this.clear.apply(this.clearings);
+    // Standing in a building that just appeared or changed (a settlement upgraded to a city)?
+    // Step outside its door rather than end up inside a wall or a table.
+    const inside = this.homes.find((h) => before.get(h.key) !== h.kind && this.onFloorOf(h, this.x, this.z));
+    if (inside && before.size) {
+      this.stepOutside(inside);
+      this.opts.onNotice?.(inside.kind === 'hall' ? 'The settlement became a city: you stepped outside.' : 'A building went up here: you stepped outside.');
+    }
+  }
+
+  /** How far a road keeps back from corner `v` (metres): clear of a model building's walls. */
+  private roadTrim(state: GameState, v: string): number {
+    const b = state.buildings[v];
+    if (!b) return 0;
+    const slot: AssetSlot = b.kind === 'citadel' ? 'building.city' : 'building.settlement';
+    if (!this.model(slot)) return 0;
+    return b.kind === 'citadel' ? 4.8 : 3.0;
+  }
+
+  /**
+   * Which way a building on corner `v` faces: its door opens onto the most inviting of the
+   * tiles meeting there (a wheat field first, then pasture, hills, forest, mountains, desert),
+   * looking towards that tile's centre; ties go to the one nearer the island's middle.
+   */
+  private facing(v: string, state: GameState, p: { x: number; z: number }): number {
+    const order: Terrain[] = ['fields', 'moors', 'ashen', 'witchwood', 'peaks', 'waste'];
+    let best: { h: number; score: number } | null = null;
+    for (const h of topo.vertexHexes[v]) {
+      const t = state.board.hexes[h].terrain;
+      const hp = topo.hexPos[h];
+      const score = order.indexOf(t) * 100 + Math.hypot(hp.x, hp.y);
+      if (!best || score < best.score) best = { h, score };
+    }
+    if (!best) return Math.atan2(-p.x, -p.z);
+    const hp = topo.hexPos[best.h];
+    return Math.atan2(hp.x * R - p.x, hp.y * R - p.z);
+  }
+
+  /** An enterable building around a placed model: its doors (state kept across rebuilds) and room. */
+  private makeHouse(key: string, kind: BuildingKind, obj: THREE.Object3D, x: number, z: number, y: number, rot: number): House {
+    const shape = buildingShape(kind);
+    const named = (name: string) => obj.getObjectByName(name) ?? null;
+    const doors = shape.doors.map((spec, i) => {
+      const node = named(spec.node);
+      const open = this.doorOpen.get(`${key}:${i}`) ?? 0;
+      const d: HouseDoor = { spec, node, base: node?.rotation.y ?? 0, t: open, target: open };
+      if (node) node.rotation.y = d.base + spec.sign * spec.open * open;
+      return d;
+    });
+    const interior = named(shape.interior);
+    return { key, kind, shape, x, z, y, rot, interior, doors };
+  }
+
+  /** A building's walls, furniture and outside props as world colliders. */
+  private houseColliders(h: House): Collider[] {
+    return h.shape.colliders.map((c) => {
+      const [ax, az] = toWorld(c.ax, c.az, h.x, h.z, h.rot);
+      const [bx, bz] = toWorld(c.bx, c.bz, h.x, h.z, h.rot);
+      return { ax, az, bx, bz, r: c.r };
+    });
+  }
+
+  private onFloorOf(h: House, x: number, z: number): boolean {
+    if (Math.abs(x - h.x) > 7 || Math.abs(z - h.z) > 7) return false;
+    const [lx, lz] = toLocal(x, z, h.x, h.z, h.rot);
+    return h.shape.onFloor(lx, lz);
+  }
+
+  /** The house whose floor (x, z) is on, if any. */
+  private houseAt(x: number, z: number): House | undefined {
+    for (const h of this.homes) if (this.onFloorOf(h, x, z)) return h;
+    for (const h of this.mills) if (this.onFloorOf(h, x, z)) return h;
+    return undefined;
+  }
+
+  /** Puts the walker just outside a building's (first) door, facing it. */
+  private stepOutside(h: House) {
+    const d = h.doors[0].spec;
+    const [cx, cz] = toWorld(d.cx, d.cz, h.x, h.z, h.rot);
+    const [ox, oz] = toWorld(d.cx + d.nx * 2.6, d.cz + d.nz * 2.6, h.x, h.z, h.rot);
+    this.x = ox;
+    this.z = oz;
+    this.yaw = Math.atan2(-(cx - ox), -(cz - oz));
+    this.camY = this.groundAt(ox, oz) + EYE;
+  }
+
+  /** The door the walker is close to and looking at (or standing in), if any. */
+  private targetDoor(): { h: House; d: HouseDoor; dist: number } | null {
+    let best: { h: House; d: HouseDoor; dist: number } | null = null;
+    const fx = -Math.sin(this.yaw);
+    const fz = -Math.cos(this.yaw);
+    for (const list of [this.homes, this.mills])
+      for (const h of list) {
+        if (Math.abs(this.x - h.x) > 9 || Math.abs(this.z - h.z) > 9) continue;
+        for (const d of h.doors) {
+          if (!d.node) continue;
+          const [cx, cz] = toWorld(d.spec.cx, d.spec.cz, h.x, h.z, h.rot);
+          const dist = Math.hypot(cx - this.x, cz - this.z);
+          if (dist > 2.4) continue;
+          const facing = ((cx - this.x) * fx + (cz - this.z) * fz) / Math.max(dist, 1e-3);
+          if (dist > 1.0 && facing < 0.45) continue;
+          if (!best || dist < best.dist) best = { h, d, dist };
+        }
+      }
+    return best;
+  }
+
+  /** E: opens or closes the door in front of the walker. Returns false if there is none. */
+  interact(): boolean {
+    const t = this.targetDoor();
+    if (!t) return false;
+    const { d } = t;
+    if (d.target > 0.5 && t.dist < 0.75) {
+      // Closing it now would shut the leaf on the walker.
+      this.opts.onNotice?.('Step out of the doorway to close it.');
+      return true;
+    }
+    d.target = d.target > 0.5 ? 0 : 1;
+    this.doorOpen.set(`${t.h.key}:${t.h.doors.indexOf(d)}`, d.target);
+    if (this.opts.reduceMotion) d.t = d.target;
+    return true;
+  }
+
+  /** Door leaves as colliders at their current angle (only near the walker). */
+  private doorColliders(out: Collider[]) {
+    for (const list of [this.homes, this.mills])
+      for (const h of list) {
+        if (Math.abs(this.x - h.x) > 8 || Math.abs(this.z - h.z) > 8) continue;
+        for (const d of h.doors) {
+          const s = d.spec;
+          const ang = s.sign * s.open * ease(d.t);
+          const c = Math.cos(ang);
+          const sn = Math.sin(ang);
+          // The leaf's direction turned about +Y, as its node turns.
+          const lx = s.ax * c + s.az * sn;
+          const lz = -s.ax * sn + s.az * c;
+          const [ax, az] = toWorld(s.hx + lx * 0.12, s.hz + lz * 0.12, h.x, h.z, h.rot);
+          const [bx, bz] = toWorld(s.hx + lx * s.len, s.hz + lz * s.len, h.x, h.z, h.rot);
+          out.push({ ax, az, bx, bz, r: 0.08 });
+        }
+      }
+  }
+
+  /** Doors swing towards their target; far interiors are hidden; the hint follows the target. */
+  private updateHouses(dt: number) {
+    const swing = this.opts.reduceMotion ? 1 : dt / 0.45;
+    for (const list of [this.homes, this.mills])
+      for (const h of list) {
+        for (const d of h.doors) {
+          if (d.t === d.target) continue;
+          d.t = d.target > d.t ? Math.min(d.target, d.t + swing) : Math.max(d.target, d.t - swing);
+          if (d.node) d.node.rotation.y = d.base + d.spec.sign * d.spec.open * ease(d.t);
+        }
+        if (h.interior) h.interior.visible = Math.hypot(this.x - h.x, this.z - h.z) < 34;
+      }
+    const t = this.targetDoor();
+    const hint = t ? (t.d.target > 0.5 ? 'Close door' : 'Open door') : null;
+    if (hint !== this.hint) {
+      this.hint = hint;
+      this.opts.onHint?.(hint);
+    }
   }
 
   /**
    * Nearly everything on the island stands still, yet three recomputes every object's matrices
    * each frame. So once built, the static parts get their matrices once and are skipped from
    * then on (setPieces and the LOD switches only change visibility, never a frozen object's
-   * transform). Only what moves keeps updating: sheep, the robber, the pieces, windmill sails,
-   * boats, the sky (it follows the camera) and the sun, plus the groups that hold them.
+   * transform). Only what moves keeps updating: sheep, the robber, the pieces, windmill sails
+   * and doors, boats, the sky (it follows the camera) and the sun, plus the groups that hold them.
    */
   private freezeStatic() {
     const moving = new Set<THREE.Object3D>([
@@ -426,6 +704,7 @@ export class World {
       ...this.sheep.map((s) => s.rig.root),
       ...this.spinners,
       ...this.boats.map((b) => b.obj),
+      ...this.mills.flatMap((m) => m.doors.map((d) => d.node).filter((n): n is THREE.Object3D => !!n)),
     ]);
     if (this.robber) moving.add(this.robber);
     const holders = new Set<THREE.Object3D>();
@@ -669,6 +948,8 @@ export class World {
 
   /** Ground height at a world point (0 off the land). */
   private groundAt(x: number, z: number): number {
+    const house = this.houseAt(x, z);
+    if (house) return house.y + house.shape.floor;
     for (const h of this.landHexes)
       if (inHex(x, z, h.x, h.z, R)) return tileHeight(this.tiles.get(h.id)!, x - h.x, z - h.z);
     return 0;
@@ -933,6 +1214,8 @@ export class World {
 
       // Seat every prop on the finished ground (big props sit on their own level patch).
       for (const c of g.children) c.position.y += tileHeight(tile, c.position.x, c.position.z);
+      // The tile's windmill stands on the same ground its model was just seated on.
+      for (const m of this.mills) if (Math.hypot(m.x - cx, m.z - cz) < R) m.y = tileHeight(tile, m.x - cx, m.z - cz);
       const ground = mesh(kit.own(buildGround(tile, lite ? 14 : 22)), groundMat(hex.terrain), cx, 0, cz, false);
       ground.receiveShadow = true;
       this.scene.add(ground);
@@ -975,9 +1258,10 @@ export class World {
       this.scene.add(horizon);
     }
 
-    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z), (x, z) => this.chunkOf(x, z));
+    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z), (x, z) => this.chunkOf(x, z), this.clear);
+    this.grid = new ColliderGrid(this.colliders);
     this.fields = [wheat, this.grass, this.flowers].filter((f): f is Field => !!f);
-    for (const f of this.fields) f.build(this.scene);
+    for (const f of this.fields) f.build(this.scene, this.clear);
   }
 
   /**
@@ -1413,14 +1697,22 @@ export class World {
     mill.root.rotation.y = a + Math.PI;
     ctx.g.add(this.place(mill.root));
     this.spinners.push(mill.blades);
-    this.addCircle(ctx.cx + mx, ctx.cz + mz, SLOTS['prop.windmill'].footprint);
-    this.flat(ctx, mx, mz, 2.6);
+    if (millModel) {
+      // Enterable: walls, door and floor from the plan; its height is settled with the tile's.
+      const house = this.makeHouse(`mill${ctx.tile.seed}`, 'mill', mill.root, ctx.cx + mx, ctx.cz + mz, 0, a + Math.PI);
+      this.mills.push(house);
+      this.colliders.push(...this.houseColliders(house));
+      this.flat(ctx, mx, mz, 3.2);
+    } else {
+      this.addCircle(ctx.cx + mx, ctx.cz + mz, SLOTS['prop.windmill'].footprint);
+      this.flat(ctx, mx, mz, 2.6);
+    }
 
     // Freshly rolled bales beside the mill.
     for (const k of [-1, 1]) {
       const hb = this.prop('prop.haybale', () => makeHayBale(this.kit));
-      hb.position.x = mx + d.x * 2.6 + d.z * 1.5 * k;
-      hb.position.z = mz + d.z * 2.6 - d.x * 1.5 * k;
+      hb.position.x = mx + d.x * 3.7 + d.z * 1.6 * k;
+      hb.position.z = mz + d.z * 3.7 - d.x * 1.6 * k;
       hb.rotation.y = a;
       ctx.g.add(hb);
       this.addCircle(ctx.cx + hb.position.x, ctx.cz + hb.position.z, 0.8);
@@ -1482,9 +1774,11 @@ export class World {
           if (Math.hypot(x, z) < 2.2 || Math.hypot(x - mill.x, z - mill.z) < 4.6) continue;
           if (onPath(tile, x, z, 0.15)) continue;
           if (tile.flats.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 0.4)) continue;
-          // Ripeness drifts across the field in patches.
+          // Each plot has its own ripeness (deep gold, honey, pale straw, a greener gold) and
+          // drifts across it in patches, so the field reads as tended strips from any height.
           const patch = fbm(x / 5, z / 5, tile.seed + 41, 2);
-          tint.setRGB(1, 0.96 + patch * 0.06, 0.9 + patch * 0.12);
+          const [rr, rg, rb] = PLOT_RIPENESS[(k + (tile.seed & 3)) % 4];
+          tint.setRGB(rr, rg * (0.96 + patch * 0.06), rb * (0.9 + patch * 0.12));
           const sc = 0.92 + rnd() * 0.18 + patch * 0.06;
           v.set(ctx.cx + x, 0, ctx.cz + z);
           v.y = tileHeight(tile, x, z);
@@ -1763,6 +2057,7 @@ export class World {
       if (this.robber?.userData.hover) this.robber.position.y = (this.robber.userData.y ?? 0) + 0.1 + Math.sin(t * 2) * 0.08;
     }
     this.maybeBleat(dt);
+    this.updateHouses(dt);
     for (const f of this.fields) f.update(this.x, this.z);
 
     // The sun never moves and most casters are static, so the shadow map is redrawn only when
@@ -1817,17 +2112,31 @@ export class World {
     const dx = (-sy * fwd + cy * str) * speed * dt;
     const dz = (-cy * fwd - sy * str) * speed * dt;
     if (Math.abs(dx) + Math.abs(dz) > 1e-5) {
-      // Try the full step, then slide along each axis.
-      if (!this.tryMove(this.x + dx, this.z + dz) && !this.tryMove(this.x + dx, this.z))
-        this.tryMove(this.x, this.z + dz);
+      // In steps of at most 15 cm, so a slow frame can't carry the walker through a wall.
+      const n = Math.ceil(Math.hypot(dx, dz) / 0.15);
+      const sx = dx / n;
+      const sz = dz / n;
+      for (let i = 0; i < n; i++) {
+        // Try the full step, then slide along each axis.
+        if (!this.tryMove(this.x + sx, this.z + sz) && !this.tryMove(this.x + sx, this.z)) this.tryMove(this.x, this.z + sz);
+      }
     }
   }
 
   private tryMove(nx: number, nz: number): boolean {
     let x = nx;
     let z = nz;
-    for (const c of this.colliders) [x, z] = pushOut(x, z, c, PLAYER_R);
-    for (const c of this.pieceColliders) [x, z] = pushOut(x, z, c, PLAYER_R);
+    const near = this.near;
+    near.length = 0;
+    if (this.grid) this.grid.near(nx, nz, PLAYER_R + 0.5, near);
+    else near.push(...this.colliders);
+    this.pieceGrid.near(nx, nz, PLAYER_R + 0.5, near);
+    this.doorColliders(near);
+    for (const c of near) {
+      // A tree or rock hidden by a building's clearing doesn't block either.
+      if (c.ax === c.bx && c.az === c.bz && this.cleared(c.ax, c.az)) continue;
+      [x, z] = pushOut(x, z, c, PLAYER_R);
+    }
     for (const s of this.sheep)
       [x, z] = pushOut(x, z, { ax: s.x, az: s.z, bx: s.x, bz: s.z, r: 0.5 }, PLAYER_R);
     if (!this.isWalkable(x, z)) return false;
@@ -1836,9 +2145,15 @@ export class World {
     return true;
   }
 
+  private cleared(x: number, z: number): boolean {
+    for (const c of this.clearings) if ((x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return true;
+    return false;
+  }
+
   private isWalkable(x: number, z: number): boolean {
     return (
       this.landHexes.some((h) => inHex(x, z, h.x, h.z, R * 1.1)) ||
+      !!this.houseAt(x, z) ||
       this.walkable.some((w) => segDist(x, z, w) < w.r)
     );
   }
@@ -1950,6 +2265,9 @@ export class World {
     if (this.sheep.some((s) => Math.hypot(s.x - this.x, s.z - this.z) < 14)) this.opts.onBleat();
   }
 }
+
+/** Door swing: eases in and out. */
+const ease = (t: number) => t * t * (3 - 2 * t);
 
 /** Stress preset: a settlement or city on every corner and a road on every edge (drawing only). */
 function fullBoard(state: GameState): GameState {
@@ -2293,11 +2611,13 @@ class Instancer {
   }
 
   private add(scene: THREE.Scene, geometry: THREE.BufferGeometry, material: THREE.Material, list: Placed[], shadow: boolean,
-    groundAt: (x: number, z: number) => number, receive = true, depth?: THREE.Material) {
+    groundAt: (x: number, z: number) => number, receive = true, depth?: THREE.Material, clearings?: Clearings) {
     const im = new THREE.InstancedMesh(geometry, material, list.length);
     list.forEach((p, i) => {
-      im.setMatrixAt(i, this.matrix(p, groundAt(p.x, p.z)));
+      const m = this.matrix(p, groundAt(p.x, p.z));
+      im.setMatrixAt(i, m);
       im.setColorAt(i, p.color);
+      if (!(p as Root).far) clearings?.add(im, i, m);
     });
     im.castShadow = shadow && !this.lite;
     im.receiveShadow = receive;
@@ -2313,7 +2633,7 @@ class Instancer {
     }
   }
 
-  flush(scene: THREE.Scene, groundAt: (x: number, z: number) => number, chunkOf: (x: number, z: number) => string) {
+  flush(scene: THREE.Scene, groundAt: (x: number, z: number) => number, chunkOf: (x: number, z: number) => string, clearings?: Clearings) {
     const kit = this.kit;
     const geos: Record<string, () => THREE.BufferGeometry> = {
       trunk: () => new THREE.CylinderGeometry(0.15, 0.24, 2.6, 7).translate(0, 1.3, 0),
@@ -2349,7 +2669,7 @@ class Instancer {
       const spec = specs[part];
       const mat = spec.mat();
       if (spec.sway && !this.lite) addSway(mat, this.uTime, spec.sway);
-      for (const c of chunks(list)) this.add(scene, kit.geo(`inst-${part}`, geos[part]), mat, c, spec.shadow, groundAt);
+      for (const c of chunks(list)) this.add(scene, kit.geo(`inst-${part}`, geos[part]), mat, c, spec.shadow, groundAt, true, undefined, clearings);
     }
     // Model-drawn slots: one instanced mesh per variant part and chunk.
     for (const [slot, list] of this.roots) {
@@ -2360,13 +2680,20 @@ class Instancer {
           if (!mine.length) continue;
           const parts = this.partsFor(slot, asset);
           for (const c of chunks(mine))
-            for (const part of parts) this.add(scene, part.geometry, part.material, c, SLOTS[slot].castShadow && !far, groundAt, !far, part.depth);
+            for (const part of parts) this.add(scene, part.geometry, part.material, c, SLOTS[slot].castShadow && !far, groundAt, !far, part.depth, clearings);
         }
       });
     }
   }
 }
 
+/** Wheat tint per plot: deep gold, honey, pale straw, greener gold (multiplied into the model's colours). */
+const PLOT_RIPENESS: [number, number, number][] = [
+  [1.04, 0.97, 0.84],
+  [1.0, 0.9, 0.74],
+  [1.03, 1.03, 0.98],
+  [0.92, 1.0, 0.78],
+];
 const BARK = ['#6e4a2c', '#5f3f25', '#7a5434'];
 /** Fresh spring greens to deep summer greens; shade comes from the light, not the swatch. */
 const LEAF = ['#4f9a3c', '#3f8a38', '#5aa646', '#367c3a', '#6aaf4a'];

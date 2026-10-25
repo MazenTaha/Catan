@@ -1,0 +1,356 @@
+{
+  "_doc": "Enterable buildings: one plan shared by the Blender builders (assets/blender/homes.py) and the game (world/buildings.ts). Metres, in the model's own frame as the game loads it: y up, the front (the door wall) towards +z, origin at the centre of the room at ground level (Blender: x, -y). 'inner' is the clear room; walls stand outside it, 'wall' thick. 'floor' is the floor's top, 'ceiling' the clear height above it. Doors and windows sit on a wall, 'front' (+z), 'back' (-z), 'left' (-x) or 'right' (+x), or for the round mill 'sideN' (the Nth of 'sides' faces counted from the front); 'at' is the offset along the wall (x on front/back, z on left/right). A door's hinge is at its 'a' end (lower 'at') or 'b' end; leaves open inwards by 'open' degrees. Furniture boxes are both the collision proxies and where the builder puts each piece: centre (x, z), size w (x) by d (z), height h, and the 'kind' it draws. Changing a number here needs a model rebuild (blender -b -P assets/blender/build.py -- village).",
+  "cottage": {
+    "node": "Cottage",
+    "inner": [
+      4.2,
+      3.8
+    ],
+    "wall": 0.26,
+    "floor": 0.3,
+    "ceiling": 2.6,
+    "doors": [
+      {
+        "wall": "front",
+        "at": -0.85,
+        "w": 1.1,
+        "h": 2.15,
+        "hinge": "a",
+        "open": 92
+      }
+    ],
+    "windows": [
+      {
+        "wall": "front",
+        "at": 1.05,
+        "w": 0.8,
+        "sill": 0.95,
+        "h": 0.9
+      },
+      {
+        "wall": "right",
+        "at": 0.55,
+        "w": 0.7,
+        "sill": 0.95,
+        "h": 0.9
+      },
+      {
+        "wall": "left",
+        "at": -0.95,
+        "w": 0.7,
+        "sill": 1.05,
+        "h": 0.8
+      },
+      {
+        "wall": "back",
+        "at": -0.55,
+        "w": 0.7,
+        "sill": 1.05,
+        "h": 0.8
+      }
+    ],
+    "furniture": [
+      {
+        "kind": "bed",
+        "x": -1.62,
+        "z": -0.98,
+        "w": 0.96,
+        "d": 1.94,
+        "h": 0.55
+      },
+      {
+        "kind": "hearth",
+        "x": 0.95,
+        "z": -1.62,
+        "w": 1.3,
+        "d": 0.56,
+        "h": 1.15
+      },
+      {
+        "kind": "table",
+        "x": 0.62,
+        "z": 0.25,
+        "w": 1.25,
+        "d": 0.72,
+        "h": 0.76
+      },
+      {
+        "kind": "bench",
+        "x": 0.62,
+        "z": 0.92,
+        "w": 1.15,
+        "d": 0.32,
+        "h": 0.45
+      },
+      {
+        "kind": "stool",
+        "x": 1.62,
+        "z": 0.25,
+        "w": 0.4,
+        "d": 0.4,
+        "h": 0.46
+      },
+      {
+        "kind": "dresser",
+        "x": 1.86,
+        "z": -0.62,
+        "w": 0.48,
+        "d": 1.0,
+        "h": 1.5
+      },
+      {
+        "kind": "chest",
+        "x": 1.7,
+        "z": 1.52,
+        "w": 0.8,
+        "d": 0.5,
+        "h": 0.55
+      },
+      {
+        "kind": "rug",
+        "x": -0.35,
+        "z": 0.1,
+        "w": 1.5,
+        "d": 1.0,
+        "h": 0.0
+      }
+    ]
+  },
+  "hall": {
+    "node": "Hall",
+    "inner": [
+      7.0,
+      5.0
+    ],
+    "wall": 0.42,
+    "floor": 0.36,
+    "ceiling": 3.6,
+    "doors": [
+      {
+        "wall": "front",
+        "at": -0.37,
+        "w": 0.74,
+        "h": 2.5,
+        "hinge": "a",
+        "open": 95
+      },
+      {
+        "wall": "front",
+        "at": 0.37,
+        "w": 0.74,
+        "h": 2.5,
+        "hinge": "b",
+        "open": 95
+      }
+    ],
+    "windows": [
+      {
+        "wall": "front",
+        "at": -2.3,
+        "w": 0.8,
+        "sill": 1.1,
+        "h": 1.5
+      },
+      {
+        "wall": "front",
+        "at": 2.3,
+        "w": 0.8,
+        "sill": 1.1,
+        "h": 1.5
+      },
+      {
+        "wall": "left",
+        "at": -1.1,
+        "w": 0.8,
+        "sill": 1.1,
+        "h": 1.5
+      },
+      {
+        "wall": "left",
+        "at": 1.2,
+        "w": 0.8,
+        "sill": 1.1,
+        "h": 1.5
+      },
+      {
+        "wall": "right",
+        "at": 1.25,
+        "w": 0.8,
+        "sill": 1.1,
+        "h": 1.5
+      }
+    ],
+    "furniture": [
+      {
+        "kind": "longtable",
+        "x": 0.0,
+        "z": -0.35,
+        "w": 3.6,
+        "d": 0.95,
+        "h": 0.78
+      },
+      {
+        "kind": "bench",
+        "x": 0.0,
+        "z": 0.37,
+        "w": 3.3,
+        "d": 0.34,
+        "h": 0.46
+      },
+      {
+        "kind": "bench",
+        "x": 0.0,
+        "z": -1.07,
+        "w": 3.3,
+        "d": 0.34,
+        "h": 0.46
+      },
+      {
+        "kind": "chair",
+        "x": -2.25,
+        "z": -0.35,
+        "w": 0.6,
+        "d": 0.6,
+        "h": 1.25
+      },
+      {
+        "kind": "hearth",
+        "x": 3.2,
+        "z": -0.9,
+        "w": 0.6,
+        "d": 1.8,
+        "h": 1.6
+      },
+      {
+        "kind": "chest",
+        "x": -2.6,
+        "z": -2.15,
+        "w": 1.0,
+        "d": 0.6,
+        "h": 0.62
+      },
+      {
+        "kind": "chest",
+        "x": 2.0,
+        "z": -2.15,
+        "w": 1.0,
+        "d": 0.6,
+        "h": 0.62
+      },
+      {
+        "kind": "barrels",
+        "x": -3.05,
+        "z": 1.7,
+        "w": 0.8,
+        "d": 1.4,
+        "h": 1.0
+      },
+      {
+        "kind": "shelf",
+        "x": -0.4,
+        "z": -2.27,
+        "w": 1.6,
+        "d": 0.42,
+        "h": 1.9
+      },
+      {
+        "kind": "rug",
+        "x": 0.0,
+        "z": 1.35,
+        "w": 2.2,
+        "d": 1.1,
+        "h": 0.0
+      }
+    ],
+    "banners": [
+      {
+        "wall": "back",
+        "at": -2.75
+      },
+      {
+        "wall": "back",
+        "at": 1.35
+      },
+      {
+        "wall": "back",
+        "at": 3.05
+      },
+      {
+        "wall": "left",
+        "at": 0.05
+      },
+      {
+        "wall": "right",
+        "at": -0.9
+      }
+    ]
+  },
+  "mill": {
+    "node": "Mill",
+    "radius": 1.95,
+    "sides": 8,
+    "wall": 0.34,
+    "floor": 0.24,
+    "ceiling": 2.75,
+    "doors": [
+      {
+        "wall": "front",
+        "at": 0.0,
+        "w": 1.05,
+        "h": 2.1,
+        "hinge": "a",
+        "open": 88
+      }
+    ],
+    "windows": [
+      {
+        "wall": "side3",
+        "at": 0.0,
+        "w": 0.5,
+        "sill": 1.2,
+        "h": 0.65
+      },
+      {
+        "wall": "side6",
+        "at": 0.0,
+        "w": 0.5,
+        "sill": 1.2,
+        "h": 0.65
+      }
+    ],
+    "furniture": [
+      {
+        "kind": "millstone",
+        "x": 0.0,
+        "z": -0.75,
+        "w": 1.3,
+        "d": 1.3,
+        "h": 0.75
+      },
+      {
+        "kind": "sacks",
+        "x": -1.15,
+        "z": 0.25,
+        "w": 0.7,
+        "d": 1.0,
+        "h": 0.8
+      },
+      {
+        "kind": "ladder",
+        "x": 1.3,
+        "z": -0.15,
+        "w": 0.5,
+        "d": 0.36,
+        "h": 2.75
+      },
+      {
+        "kind": "bin",
+        "x": 1.05,
+        "z": 0.95,
+        "w": 0.6,
+        "d": 0.6,
+        "h": 0.85
+      }
+    ]
+  }
+}

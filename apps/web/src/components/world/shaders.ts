@@ -297,7 +297,10 @@ export function makeSky(sunDir: THREE.Vector3, uTime: { value: number }, c: SkyC
     fog: false,
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 16), mat);
-  sky.renderOrder = -2;
+  sky.name = 'sky';
+  // Drawn after everything opaque: the depth test then skips every pixel the land and sea
+  // already cover, so the cloud shader only runs where sky actually shows.
+  sky.renderOrder = 2;
   sky.frustumCulled = false;
   return sky;
 }

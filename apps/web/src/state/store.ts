@@ -21,6 +21,7 @@ import { audio, type SfxName } from '../audio/engine';
 import { onGame, useNet } from './net';
 import { RESOURCE_NAME, TERRAIN_NAME } from '../lexicon';
 import { describeEvent, lineText, type LogItem } from './log';
+import { PERF_HOOKS } from '../perfHooks';
 import {
   clearAutosave,
   loadSettings,
@@ -556,8 +557,8 @@ useNet.subscribe((n, prev) => {
   }
 });
 
-// Debug/test handle (dev and e2e only).
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+// Debug/test handle (dev, e2e and the benchmark build).
+if (PERF_HOOKS && typeof window !== 'undefined') {
   const w = window as unknown as { __hexfall: typeof useStore; __hexfallAI: typeof decideAction };
   w.__hexfall = useStore;
   w.__hexfallAI = decideAction;

@@ -5,6 +5,8 @@ const SERVER_PORT = 4320;
 
 export default defineConfig({
   testDir: './e2e',
+  // The browser benchmark has its own config (playwright.perf.config.ts).
+  testIgnore: ['perf/**'],
   timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

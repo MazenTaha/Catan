@@ -4,11 +4,18 @@ const WINDOW_MS = 2000;
 const SLOW_FPS = 42;
 const SLOW_WINDOWS = 2;
 
+/** While this says so (the 3D walk can still lower its resolution), slow frames don't count. */
+let deferLite: () => boolean = () => false;
+export function setLiteDeferral(fn: (() => boolean) | null): void {
+  deferLite = fn ?? (() => false);
+}
+
 /**
  * Graphics "Auto": samples the frame rate while full effects run and, if it stays below
  * ~42 fps for two consecutive 2-second windows (typically a browser without GPU
  * acceleration), switches to lite effects. Stops once lite is on or Auto is not selected,
- * and restarts if the player picks Auto again.
+ * and restarts if the player picks Auto again. In the 3D walk it waits until the walk's own
+ * adaptive resolution has reached its lowest step.
  */
 export function startFrameWatch(): void {
   if (typeof window === 'undefined' || typeof requestAnimationFrame === 'undefined') return;
@@ -29,8 +36,9 @@ export function startFrameWatch(): void {
       return;
     }
     raf = requestAnimationFrame(tick);
-    // Hidden tabs and long stalls (loading, a modal mounting) say nothing about steady frame cost.
-    if (document.hidden || now - last > 400) {
+    // Hidden tabs and long stalls (loading, a modal mounting) say nothing about steady frame cost,
+    // and the 3D walk tries a lower resolution before anything is switched off.
+    if (document.hidden || now - last > 400 || deferLite()) {
       last = now;
       windowStart = now;
       frames = 0;

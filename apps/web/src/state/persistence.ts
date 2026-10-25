@@ -4,6 +4,7 @@ import { makeRecord } from '@hexfall/engine';
 export type BotSpeed = 'slow' | 'normal' | 'fast' | 'instant';
 export type HandPrivacy = 'curtain' | 'off';
 export type Effects = 'auto' | 'full' | 'lite';
+export type RenderScale = 1 | 0.75 | 0.5;
 
 export interface Settings {
   master: number;
@@ -24,6 +25,8 @@ export interface Settings {
   effects: Effects;
   /** Set by the frame watchdog when 'auto' found this device too slow for full effects. */
   autoLite: boolean;
+  /** The 3D walk's render resolution, as a share of the display's (the UI is always sharp). */
+  renderScale: RenderScale;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -43,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'hexfall',
   effects: 'auto',
   autoLite: false,
+  renderScale: 1,
 };
 
 const SETTINGS_KEY = 'hexfall.settings';

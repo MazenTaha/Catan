@@ -8,9 +8,10 @@ import { hostWithBots } from './helpers';
  * screenshots, LOOK_EFFECTS=lite|full, LOOK_SWIFTSHADER=1 for software rendering). Places the
  * camera at fixed viewpoints (wheat, forest edge and clearing, mountains, hills, pasture, desert,
  * a settlement and a city, a dock, an elevated view), takes a screenshot of each and logs frame
- * rate, GPU time per frame (back-to-back renders, so vsync and throttling matter less), draw
- * calls and triangles. The same seed and viewpoints are used every run, so results compare
- * before and after.
+ * rate, a synthetic GPU time per frame (back-to-back renders each forced to finish: throughput,
+ * not frame pacing), draw calls and triangles. The same seed and viewpoints are used every run,
+ * so results compare before and after. For real frame pacing, GPU timer queries and a production
+ * build, use `pnpm bench` (e2e/perf).
  */
 test.skip(!process.env.LOOK, 'set LOOK=1 to capture');
 test.use({

@@ -35,6 +35,8 @@ Then open http://localhost:5173. `pnpm dev` starts both the web app and the game
 
 Opt-in diagnostics: `SHOTS=1 pnpm e2e shots` saves desktop/tablet/phone screenshots to `apps/web/test-results/shots`; `LAG=1 pnpm e2e lag` measures frame pacing and long tasks on the menu, new-game screen and board (idle, hovering, bots playing). Options: `LAG_GPU=1` hardware rendering, `LAG_CPU=4` CPU throttling, `LAG_DPR=2` hi-DPI, `LAG_EFFECTS=full|lite`, `LAG_URL=http://localhost:4173` to test a production preview, `LAG_PROFILE=1` to print hot functions. `LAG=1 pnpm e2e dispatch-cost` reports the store/render cost of each game action.
 
+Browser benchmark (`pnpm bench`, see `docs/BROWSER_PERFORMANCE_REPORT.md`): builds a production bundle with inspection hooks (`VITE_PERF=1`, into `apps/web/dist-perf`), serves it, and measures the 3D walk from saved games in `apps/web/e2e/perf/fixtures`: time to the first frame, a scripted walk through wheat, forest, a city, the mountains and the coast, eleven fixed viewpoints, a late-game board, and twenty enter/leave cycles. It reports frame intervals, main-thread time per frame, GPU time per frame from timer queries (shadow pass and camera pass apart), draw calls and long tasks into `apps/web/perf-results/<label>`. Options: `PERF_GPU=intel|nvidia`, `PERF_SCENARIOS=entry,route,views,late,cycle,2d,soak,attrib,ab`, `PERF_EFFECTS=full|lite`, `PERF_RENDER_SCALE=0.75`, `PERF_W`/`PERF_H`/`PERF_DPR`, `PERF_CPU=4`, `PERF_HEADED=1`, `PERF_STRESS=density:2,distance:2,sheep:4,scale:1.5,pieces:all`.
+
 Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright install chromium` once if its browser is not installed yet.
 
 ## How to play

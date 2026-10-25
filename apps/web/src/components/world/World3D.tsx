@@ -3,7 +3,10 @@ import { TERRAIN_RESOURCE, getTopology, type GameState } from '@hexfall/engine';
 import { audio } from '../../audio/engine';
 import { COLOR_HEX, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
 import { liteEffects, prefersReducedMotion, useStore } from '../../state/store';
+import { setLiteDeferral } from '../../state/frameWatch';
+import { PERF_HOOKS } from '../../perfHooks';
 import { preloadWorldAssets } from './assets';
+import { NO_STRESS, parseStress } from './stress';
 import { World } from './world';
 
 const topo = getTopology();
@@ -45,6 +48,12 @@ interface Props {
 export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   const lite = useStore((s) => liteEffects(s.settings));
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
+  const renderScale = useStore((s) => s.settings.renderScale);
+  const renderScaleRef = useRef(renderScale);
+  renderScaleRef.current = renderScale;
+  const adaptive = useStore((s) => s.settings.effects === 'auto');
+  const adaptiveRef = useRef(adaptive);
+  adaptiveRef.current = adaptive;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<World | null>(null);
@@ -87,11 +96,14 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
           {
             lite,
             reduceMotion: reduce,
+            renderScale: renderScaleRef.current,
+            adaptive: adaptiveRef.current,
             onHexChange: (h) => {
               setHex(h);
               setReady(true);
             },
             onBleat: () => audio.play('bleat'),
+            stress: PERF_HOOKS ? parseStress(new URLSearchParams(location.search).get('stress')) : NO_STRESS,
           },
           assets,
         );
@@ -101,8 +113,8 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       }
       world = w;
       worldRef.current = w;
-      // Dev builds only: lets inspection scripts place the camera and read the board.
-      if (import.meta.env.DEV) dev.__world3d = { world: w, state: () => stateRef.current };
+      // Dev and benchmark builds: lets inspection scripts place the camera and read the board.
+      if (PERF_HOOKS) dev.__world3d = { world: w, state: () => stateRef.current };
       w.setPieces(stateRef.current);
       landIdx.current = 0;
       w.goTo(landsRef.current[0] ?? 0);
@@ -121,6 +133,17 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       worldRef.current = null;
     };
   }, [boardSeed, lite, reduce]);
+
+  useEffect(() => {
+    worldRef.current?.setRenderScale(renderScale);
+  }, [renderScale]);
+  useEffect(() => {
+    worldRef.current?.setAdaptive(adaptive);
+  }, [adaptive]);
+  useEffect(() => {
+    setLiteDeferral(() => !!worldRef.current?.adapting);
+    return () => setLiteDeferral(null);
+  }, []);
 
   const piecesKey = useMemo(
     () => JSON.stringify([state.buildings, state.causeways, state.wraithHex]),

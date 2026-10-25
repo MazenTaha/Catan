@@ -1,7 +1,7 @@
 # AGENTS.md — Catan Night (repo codename "Hexfall")
 
 Orientation for AI coding agents. Read this first, then `README.md` (player/run guide) and
-`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-10-23.
+`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-10-25.
 
 ## 1. What this is
 
@@ -44,6 +44,7 @@ Requires Node 20+ and pnpm 9 (`packageManager: pnpm@9.15.9`). Monorepo via `pnpm
 | `pnpm test` | Vitest: engine (≈104 tests incl. 200-game bot simulation), net (lobby), server (rooms) |
 | `pnpm e2e` | Playwright (own dev server on 4319, game server on 4320) |
 | `LOOK=1 pnpm e2e look3d` | 3D walk screenshots at fixed viewpoints + fps, GPU ms, draw calls, triangles (`LOOK_OUT`, `LOOK_EFFECTS`) |
+| `pnpm bench` | Browser benchmark on a production build (`VITE_PERF=1` → `apps/web/dist-perf`): entry, scripted walk, viewpoints, late game, enter/leave cycles, soak, 2D; frame intervals, main-thread and GPU timer-query ms, draws. Options `PERF_*`, results in `apps/web/perf-results/`; see `docs/BROWSER_PERFORMANCE_REPORT.md` |
 | `blender -b -P assets/blender/build.py` | Rebuild every 3D model, atlas and ground texture from the scripts (~20 s) |
 | `pnpm format` | Prettier (single quotes, semicolons, width 100, trailing commas) |
 
@@ -65,7 +66,7 @@ apps/server       @hexfall/server  Node game server: rooms, codes, authoritative
 apps/web          @hexfall/web     React 18 + Vite 5 + Zustand 5 + Framer Motion + Tailwind 3 + three.js
 assets/blender    Blender build scripts + editable .blend sources + atlases for the 3D walk's models
 docs/             PLAN.md (architecture/milestones), DECISIONS.md (numbered log), RULES.md, CREDITS.md,
-                  BLENDER_ASSET_PIPELINE.md
+                  BLENDER_ASSET_PIPELINE.md, BROWSER_PERFORMANCE_REPORT.md
 design/           untracked local visual references (not in git)
 .claude/          launch.json for the Claude desktop preview
 ```
@@ -176,7 +177,7 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 | `components/hud/` | Top bar, turn banner/players row, dice and dice-roll animation, toasts |
 | `components/panels/` | Left rail (claims, recent log), right rail (hand, Build / Cards / Trade tabs, End turn) |
 | `components/modals/` | Discard, steal, trade, dev cards, curtain, victory, settings, credits, import, rulebook |
-| `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat); lazy chunk around 720 kB |
+| `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat), `adaptive.ts` (Auto's adaptive resolution), `stress.ts` (dev-only stress presets); lazy chunk around 720 kB |
 | `components/ui/primitives.tsx` | Shared building blocks: ResourceCard, Tooltip, IconButton, segmented tabs, steppers, Modal |
 | `art/` | Procedural terrain (`terrain/TerrainArt.tsx`), pieces/tokens/harbors/robber (`pieces/Pieces.tsx`), sigils, icons, dev-card art; `art/manifest.ts` can swap in image files |
 | `audio/` | `engine.ts` (SFX bus, optional Howler files via `manifest.json`), `synth.ts` (WebAudio SFX recipes). **SFX only.** |
@@ -185,7 +186,8 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 
 **Settings** (`Settings` in `persistence.ts`): master/sfx volume, mute, reduce motion,
 colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, theme
-(`hexfall` default / `frostbound` alternate), graphics `effects: auto|full|lite`.
+(`hexfall` default / `frostbound` alternate), graphics `effects: auto|full|lite`, 3D resolution
+`renderScale: 1|0.75|0.5` (Auto also adapts the walk's resolution, `world/adaptive.ts`).
 
 ## 8. Styling and design system
 
@@ -236,6 +238,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 
 ## 11. Recent history (newest first)
 
+- Browser performance pass (DECISIONS #32, `docs/BROWSER_PERFORMANCE_REPORT.md`): `pnpm bench`; sky/sea draw order, shore-distance texture, per-tile instancing, frozen static matrices, instanced sheep, parallel PMREM compile, robber precompile, WebGL context released on exit; *3D resolution* setting and adaptive resolution in Auto; dev-only stress presets (`?stress=`).
 - Blender visual upgrade of the 3D walk (DECISIONS #31): scripted Blender models for wheat (3 near
   variants + mid + far), grass, wildflowers, broadleaf and conifer trees, saplings, shrubs,
   boulders, mountain massifs, clay banks, settlement, city, road, robber, windmill, dock, boat,
@@ -266,7 +269,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Add or change a sound effect | `audio/synth.ts` (recipe + `SfxName`), `audio/manifest.json`, `SOUND_FOR` in `state/store.ts` |
 | Change colors or theme | `styles/tokens.css`, then grep for hard-coded hex values in `components/` |
 | Change board visuals | `components/board/*`, `art/terrain/TerrainArt.tsx`, `art/pieces/Pieces.tsx` |
-| Change the 3D walk | `components/world/world.ts`, `field.ts`, `shaders.ts`, `terrain.ts`; measure with `LOOK=1 pnpm e2e look3d` (compare GPU ms, not just fps) |
+| Change the 3D walk | `components/world/world.ts`, `field.ts`, `shaders.ts`, `terrain.ts`; measure with `pnpm bench` (GPU and main-thread ms, missed frames; not just fps). Run old and new builds alternately and pause other GPU users (Wallpaper Engine on this PC) |
 | Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py`; register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |
 | Change the online protocol | `packages/net/src/index.ts` (types + lobby rules), then `apps/server/src/hub.ts` and `apps/web/src/state/net.ts` |
 | Add a setting | `Settings` and `DEFAULT_SETTINGS` in `state/persistence.ts`, UI in `components/modals/InfoModals.tsx`; apply it in `store.ts` |

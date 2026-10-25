@@ -135,7 +135,9 @@ export function SettingsModal() {
         options={[{ v: 'auto', l: s.effects === 'auto' && s.autoLite ? 'Auto (lite)' : 'Auto' }, { v: 'full', l: 'Full' }, { v: 'lite', l: 'Lite' }]}
         onChange={(v) => up({ effects: v, autoLite: false })}
       />
-      <p className="mb-1 text-[14px] text-muted">Lite turns off embers and looping animations. Auto switches to it when your browser can’t keep up.</p>
+      <p className="mb-1 text-[14px] text-muted">Lite turns off embers, looping animations and 3D shadows. Auto lowers the 3D walk’s resolution while frames run late, and switches to Lite when your browser can’t keep up.</p>
+      <Choice label="3D resolution" value={s.renderScale} options={[{ v: 1, l: '100%' }, { v: 0.75, l: '75%' }, { v: 0.5, l: '50%' }]} onChange={set('renderScale')} />
+      <p className="mb-1 text-[14px] text-muted">Draws the 3D walk at fewer pixels on slower graphics; menus and text stay sharp.</p>
       <Choice label="Theme" value={s.theme} options={[{ v: 'hexfall', l: 'Ember' }, { v: 'frostbound', l: 'Frostbound' }]} onChange={set('theme')} />
       <Choice label="UI scale" value={s.uiScale} options={[{ v: 0.9, l: '90%' }, { v: 1, l: '100%' }, { v: 1.1, l: '110%' }, { v: 1.25, l: '125%' }]} onChange={set('uiScale')} />
       <h3 className="panel-title mb-2 mt-5">Play</h3>

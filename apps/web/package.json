@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "bench": "playwright test -c playwright.perf.config.ts"
   },
   "dependencies": {
     "@fontsource/cinzel": "^5.1.0",

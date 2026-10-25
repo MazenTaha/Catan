@@ -58,6 +58,8 @@ import {
   type TileGround,
 } from './terrain';
 import { foliage, foliageDepth, groundDetail, makeSky, noiseTexture } from './shaders';
+import { AdaptiveScale } from './adaptive';
+import { NO_STRESS, type Stress } from './stress';
 import { wheatClumpGeometry } from './wheat';
 
 export { R };
@@ -110,6 +112,17 @@ interface Sheep {
   pen: { cx: number; cz: number; r: number; avoid: { x: number; z: number; r: number }[] };
 }
 
+/**
+ * A pasture's model sheep. Each sheep keeps its own rig (legs, head and tail turn on it) but
+ * the rigs aren't in the scene: their parts are drawn as one instanced mesh per part for the
+ * whole flock, about 7 draws per pasture instead of 7 per sheep, in both the camera and the
+ * shadow pass. The pen bounds the flock, so each pasture still culls as a whole.
+ */
+interface Flock {
+  rigs: SheepRig[];
+  parts: { mesh: THREE.InstancedMesh; src: THREE.Mesh[] }[];
+}
+
 interface Spawn {
   x: number;
   z: number;
@@ -121,6 +134,12 @@ export interface WorldOptions {
   reduceMotion: boolean;
   onHexChange(hex: number | null): void;
   onBleat(): void;
+  /** Share of the display's resolution the scene is drawn at (the setting; default 1). */
+  renderScale?: number;
+  /** Graphics "Auto": lower the resolution further while frames keep running late. */
+  adaptive?: boolean;
+  /** Development and benchmark builds only: scaled-up decorative detail (see stress.ts). */
+  stress?: Stress;
 }
 
 const SAIL: Record<HarborKind, string> = {
@@ -188,6 +207,15 @@ export class World {
   private kit = new Kit();
   private sun!: THREE.DirectionalLight;
   private envRT: THREE.WebGLRenderTarget | null = null;
+  /** The environment's prefilter, waiting for its shaders to link (see buildEnvironment). */
+  private envPending: {
+    env: THREE.Scene;
+    sky: THREE.Mesh;
+    pmrem: THREE.PMREMGenerator;
+    standIn: THREE.WebGLRenderTarget;
+    shaders: THREE.Group;
+    flat: THREE.OrthographicCamera;
+  } | null = null;
   private uTime = { value: 0 };
   private last = performance.now();
   private disposed = false;
@@ -202,6 +230,8 @@ export class World {
   private tiles = new Map<number, TileGround>();
   private spawns = new Map<number, Spawn>();
   private sheep: Sheep[] = [];
+  /** Model sheep, drawn per pasture as one instanced mesh per body part. */
+  private flocks: Flock[] = [];
   private spinners: THREE.Object3D[] = [];
   private boats: { obj: THREE.Object3D; phase: number; y: number }[] = [];
   private pieces = new THREE.Group();
@@ -233,6 +263,12 @@ export class World {
   private camY = EYE;
   private hex: number | null = -2;
   private nextBleat = 3;
+  private stress: Stress;
+  private renderScale: number;
+  private adaptive: AdaptiveScale | null = null;
+  /** Grass and flower fade distances (scaled by the stress preset). */
+  private grassFade: [number, number];
+  private flowerFade: [number, number];
 
   readonly keys = new Set<string>();
   readonly joy = { x: 0, y: 0 };
@@ -243,12 +279,18 @@ export class World {
     private opts: WorldOptions,
     private assets: WorldAssets = { models: new Map(), ground: new Map() },
   ) {
+    this.stress = opts.stress ?? NO_STRESS;
+    const far = this.stress.distance;
+    this.grassFade = [GRASS_FADE[0] * far, GRASS_FADE[1] * far];
+    this.flowerFade = [FLOWER_FADE[0] * far, FLOWER_FADE[1] * far];
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: !opts.lite,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.lite ? 1 : 1.5));
+    this.renderScale = opts.renderScale ?? 1;
+    if (opts.adaptive) this.adaptive = new AdaptiveScale();
+    this.renderer.setPixelRatio(this.pixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     // Neutral keeps authored colours (greens, gold, clay) saturated and only rolls off highlights.
     this.renderer.toneMapping = THREE.NeutralToneMapping;
@@ -265,6 +307,8 @@ export class World {
     this.buildLights();
     this.buildIsland(board);
     this.scene.add(this.pieces);
+    this.addRobber();
+    this.freezeStatic();
 
     this.startWhenCompiled();
   }
@@ -276,6 +320,33 @@ export class World {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  /** Changes the render resolution without rebuilding anything. */
+  setRenderScale(k: number): void {
+    this.renderScale = k;
+    this.renderer.setPixelRatio(this.pixelRatio());
+  }
+
+  /** Auto's adaptive resolution can still go lower (until then, Auto doesn't fall back to Lite). */
+  get adapting(): boolean {
+    return !!this.adaptive?.canDrop;
+  }
+
+  /** Turns Auto's adaptive resolution on or off (off returns to the full setting). */
+  setAdaptive(on: boolean): void {
+    if (on === !!this.adaptive) return;
+    this.adaptive = on ? new AdaptiveScale() : null;
+    this.renderer.setPixelRatio(this.pixelRatio());
+  }
+
+  /**
+   * Device pixels per CSS pixel: the display's, capped (1 in Lite, 1.5 in Full), times the
+   * setting and, in Auto, the adaptive step.
+   */
+  private pixelRatio(): number {
+    const cap = Math.min(window.devicePixelRatio || 1, this.opts.lite ? 1 : 1.5);
+    return cap * this.renderScale * (this.adaptive?.scale ?? 1) * this.stress.scale;
   }
 
   look(dx: number, dy: number): void {
@@ -297,6 +368,7 @@ export class World {
 
   /** Rebuilds settlements, cities, roads and the robber from the game state. */
   setPieces(state: GameState): void {
+    if (this.stress.pieces) state = fullBoard(state);
     this.shadowDirty = true;
     for (const c of [...this.pieces.children]) this.pieces.remove(c);
     this.pieceColliders = [];
@@ -325,24 +397,62 @@ export class World {
       this.pieceColliders.push({ ax: p.x, az: p.z, bx: p.x, bz: p.z, r });
     }
 
-    if (!this.robber) {
-      const model = this.model('piece.robber')?.[0];
-      this.robber = model ? cloneAsset(model, SLOTS['piece.robber']) : makeRobber(this.kit);
-      // The built-in pawn floats and bobs; the model stands on its own stone base.
-      this.robber.userData.hover = !model;
-      if (!model) this.robber.scale.setScalar(1.1);
-      this.scene.add(this.robber);
-    }
+    const robber = this.addRobber();
     if (this.robberHex !== state.wraithHex) {
       this.robberHex = state.wraithHex;
       const h = topo.hexPos[state.wraithHex];
       const rx = h.x * R + 2.3;
       const rz = h.y * R + 1.4;
-      this.robber.position.set(rx, this.groundAt(rx, rz), rz);
-      this.robber.userData.y = this.robber.position.y;
+      robber.position.set(rx, this.groundAt(rx, rz), rz);
+      robber.userData.y = robber.position.y;
     }
-    const rb = this.robber.position;
+    const rb = robber.position;
     this.pieceColliders.push({ ax: rb.x, az: rb.z, bx: rb.x, bz: rb.z, r: 0.9 });
+  }
+
+  /**
+   * Nearly everything on the island stands still, yet three recomputes every object's matrices
+   * each frame. So once built, the static parts get their matrices once and are skipped from
+   * then on (setPieces and the LOD switches only change visibility, never a frozen object's
+   * transform). Only what moves keeps updating: sheep, the robber, the pieces, windmill sails,
+   * boats, the sky (it follows the camera) and the sun, plus the groups that hold them.
+   */
+  private freezeStatic() {
+    const moving = new Set<THREE.Object3D>([
+      this.pieces,
+      this.sky,
+      this.sun,
+      this.sun.target,
+      ...this.sheep.map((s) => s.rig.root),
+      ...this.spinners,
+      ...this.boats.map((b) => b.obj),
+    ]);
+    if (this.robber) moving.add(this.robber);
+    const holders = new Set<THREE.Object3D>();
+    for (const o of moving) for (let p = o.parent; p; p = p.parent) holders.add(p);
+    this.scene.updateMatrixWorld(true);
+    const visit = (o: THREE.Object3D) => {
+      for (const c of o.children) {
+        if (moving.has(c)) continue;
+        if (holders.has(c)) visit(c);
+        else c.traverse((x) => (x.matrixAutoUpdate = x.matrixWorldAutoUpdate = false));
+      }
+    };
+    visit(this.scene);
+  }
+
+  /** The robber exists from the start (off the island until placed), so its shaders compile with the rest. */
+  private addRobber(): THREE.Object3D {
+    if (this.robber) return this.robber;
+    const model = this.model('piece.robber')?.[0];
+    const robber = model ? cloneAsset(model, SLOTS['piece.robber']) : makeRobber(this.kit);
+    // The built-in pawn floats and bobs; the model stands on its own stone base.
+    robber.userData.hover = !model;
+    if (!model) robber.scale.setScalar(1.1);
+    robber.position.set(0, -50, 0);
+    this.scene.add(robber);
+    this.robber = robber;
+    return robber;
   }
 
   dispose(): void {
@@ -371,8 +481,12 @@ export class World {
     });
     noiseTexture().dispose();
     this.kit.dispose();
+    if (this.envPending) this.disposeEnvHelpers(this.envPending);
     this.envRT?.dispose();
     this.renderer.dispose();
+    // dispose() leaves the WebGL context alive; Chrome keeps 16 and warns past that, so every
+    // visit to the walk would hold one until the page closes. Give it back now.
+    this.renderer.forceContextLoss();
   }
 
   /**
@@ -380,7 +494,27 @@ export class World {
    * begins drawing when they're done, instead of stalling the first frame on each in turn.
    */
   private startWhenCompiled() {
+    // One of each piece joins the compile, so the first city or road built later doesn't stall
+    // a frame on a new shader. They sit below the sea and are removed before drawing starts.
+    const templates = new THREE.Group();
+    templates.position.y = -50;
+    templates.add(this.piece('building.settlement', '#ffffff'), this.piece('building.city', '#ffffff'));
+    const road = this.model('piece.road')?.[0];
+    templates.add(road ? cloneAsset(road, SLOTS['piece.road'], (m) => this.tinted(m, '#ffffff')) : makeRoad(this.kit, R, '#ffffff'));
+    this.scene.add(templates);
     this.renderer.compile(this.scene, this.camera);
+    templates.removeFromParent();
+    const env = this.envPending;
+    if (env) {
+      // Compiled as PMREM will draw them, into a half-float target (the target picks the
+      // tone mapping and colour space a program is built for).
+      this.renderer.debug.checkShaderErrors = false;
+      this.renderer.setRenderTarget(env.standIn);
+      this.renderer.compile(env.shaders, env.flat);
+      this.renderer.compile(env.env, env.flat);
+      this.renderer.setRenderTarget(null);
+      this.renderer.debug.checkShaderErrors = true;
+    }
     const gl = this.renderer.getContext();
     const ext = gl.getExtension('KHR_parallel_shader_compile') as { COMPLETION_STATUS_KHR: number } | null;
     const done = () =>
@@ -394,8 +528,9 @@ export class World {
         return;
       }
       this.compiling = false;
-      if (this.disposed) this.release();
-      else this.renderer.setAnimationLoop(() => this.frame());
+      if (this.disposed) return this.release();
+      this.finishEnvironment();
+      this.renderer.setAnimationLoop(() => this.frame());
     };
     this.compiling = true;
     wait();
@@ -460,9 +595,9 @@ export class World {
         // The near clumps fill the screen in layers: shade only the front-most stalk.
         if (slot === 'wheat.clump') this.depthMats.set(c, this.kit.ownMat(foliageDepth(c, o)));
       } else if (slot === 'grass.clump') {
-        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.35, height: 0.45 }, fade: GRASS_FADE, translucency: 0.7 });
+        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.35, height: 0.45 }, fade: this.grassFade, translucency: 0.7 });
       } else {
-        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.3, height: 0.4 }, fade: FLOWER_FADE, translucency: 0.5 });
+        foliage(c, { uTime: this.uTime, wind: { amount: still ? 0 : 0.3, height: 0.4 }, fade: this.flowerFade, translucency: 0.5 });
       }
       own = this.kit.ownMat(c);
       this.plantMats.set(key, own);
@@ -485,6 +620,28 @@ export class World {
     return model ? cloneAsset(model, SLOTS[slot]) : fallback();
   }
 
+  private makeFlock(rigs: SheepRig[], cx: number, cz: number, r: number): Flock {
+    const meshesOf = (rig: SheepRig) => {
+      const list: THREE.Mesh[] = [];
+      rig.root.traverse((o) => (o as THREE.Mesh).isMesh && list.push(o as THREE.Mesh));
+      return list;
+    };
+    const all = rigs.map(meshesOf);
+    const bounds = new THREE.Sphere(new THREE.Vector3(cx, 0.6, cz), r + 1.5);
+    const parts = all[0].map((m, k) => {
+      const mesh = new THREE.InstancedMesh(m.geometry, m.material, rigs.length);
+      mesh.name = 'flock';
+      mesh.castShadow = SLOTS.sheep.castShadow && !this.opts.lite;
+      mesh.receiveShadow = true;
+      mesh.boundingSphere = bounds;
+      this.scene.add(mesh);
+      return { mesh, src: all.map((list) => list[k]) };
+    });
+    const f = { rigs, parts };
+    syncFlock(f);
+    return f;
+  }
+
   /** Keeps a moving or model-drawn object out of the static bake. */
   private place(obj: THREE.Object3D): THREE.Object3D {
     obj.userData.dynamic = true;
@@ -492,6 +649,23 @@ export class World {
   }
 
   // ---------------------------------------------------------------- building
+
+  /**
+   * Which instancing chunk a placement belongs to: its land tile, or a 250 m square out on the
+   * horizon. Each chunk is its own draw, so the camera and the shadow map skip what they can't see.
+   */
+  private chunkOf(x: number, z: number): string {
+    let best = -1;
+    let bd = R * 1.3;
+    for (const h of this.landHexes) {
+      const d = Math.hypot(x - h.x, z - h.z);
+      if (d < bd) {
+        bd = d;
+        best = h.id;
+      }
+    }
+    return best >= 0 ? `t${best}` : `f${Math.floor(x / 250)},${Math.floor(z / 250)}`;
+  }
 
   /** Ground height at a world point (0 off the land). */
   private groundAt(x: number, z: number): number {
@@ -512,6 +686,12 @@ export class World {
   /**
    * Image-based fill light from a small sky: cool blue from above, warm green bounce from
    * below. It gives shaded faces colour and lets metal and water reflect the sky.
+   *
+   * Prefiltering it (PMREM) needs three's GGX filter shader, whose Direct3D compile takes about
+   * 0.4 s. So this only prepares: the filter materials join the parallel compile in
+   * `startWhenCompiled`, the scene compiles against a stand-in of the same size and layout
+   * (so no material needs recompiling later), and `finishEnvironment` renders the real one
+   * once every program is linked. Uses PMREMGenerator internals; three is pinned (0.186.1).
    */
   private buildEnvironment() {
     const env = new THREE.Scene();
@@ -528,18 +708,50 @@ export class World {
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
     const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide });
-    env.add(new THREE.Mesh(geo, mat));
+    const sky = new THREE.Mesh(geo, mat);
+    env.add(sky);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    // Direct3D's shader compiler notes a harmless constant-folding precision issue in three's
-    // own PMREM shaders; skip the log check for these two one-off programs only.
-    this.renderer.debug.checkShaderErrors = false;
-    this.envRT = pmrem.fromScene(env, 0.04);
-    this.renderer.debug.checkShaderErrors = true;
-    pmrem.dispose();
-    geo.dispose();
-    mat.dispose();
-    this.scene.environment = this.envRT.texture;
+    const internals = pmrem as unknown as {
+      _setSize(size: number): void;
+      _allocateTargets(): THREE.WebGLRenderTarget;
+      _blurMaterial: THREE.Material;
+      _ggxMaterial: THREE.Material;
+      _lodMeshes: THREE.Mesh[];
+    };
+    internals._setSize(256); // fromScene's default size
+    const standIn = internals._allocateTargets();
+    const flat = new THREE.OrthographicCamera();
+    const shaders = new THREE.Group();
+    for (const m of [internals._blurMaterial, internals._ggxMaterial]) {
+      // PMREM's own plane: the program depends on which attributes the geometry has.
+      const q = new THREE.Mesh(internals._lodMeshes[0].geometry, m);
+      q.frustumCulled = false;
+      shaders.add(q);
+    }
+    this.envPending = { env, sky, pmrem, standIn, shaders, flat };
+    this.scene.environment = standIn.texture;
     this.scene.environmentIntensity = 0.85;
+  }
+
+  /** Renders the prefiltered environment (its shaders are linked by now) and frees the helpers. */
+  private finishEnvironment() {
+    const p = this.envPending;
+    if (!p) return;
+    this.envPending = null;
+    // Direct3D's shader compiler notes a harmless constant-folding precision issue in three's
+    // own PMREM shaders; skip the log check for these one-off programs only.
+    this.renderer.debug.checkShaderErrors = false;
+    this.envRT = p.pmrem.fromScene(p.env, 0.04);
+    this.renderer.debug.checkShaderErrors = true;
+    this.scene.environment = this.envRT.texture;
+    this.disposeEnvHelpers(p);
+  }
+
+  private disposeEnvHelpers(p: NonNullable<World['envPending']>) {
+    p.pmrem.dispose();
+    p.standIn.dispose();
+    p.sky.geometry.dispose();
+    (p.sky.material as THREE.Material).dispose();
   }
 
   private buildLights() {
@@ -625,18 +837,20 @@ export class World {
     const wheatMid = this.model('wheat.clump.mid')?.[0];
     const wheatFar = this.model('wheat.clump.far')?.[0];
     // Full detail only in the cells round the walker, a lighter clump to ~22 m, cards beyond.
+    const far = this.stress.distance;
     const wheat = new Field(
       'wheat',
       wheatNear ? wheatNear.map((a) => ({ parts: this.partsFor('wheat.clump', a) })) : [fallbackWheat('near')],
       wheatFar ? { parts: this.partsFor('wheat.clump.far', wheatFar) } : fallbackWheat('far'),
       7,
-      wheatMid ? 7 : 16,
+      (wheatMid ? 7 : 16) * far,
       Infinity,
-      wheatMid ? { visual: { parts: this.partsFor('wheat.clump.mid', wheatMid) }, dist: 22 } : null,
+      wheatMid ? { visual: { parts: this.partsFor('wheat.clump.mid', wheatMid) }, dist: 22 * far } : null,
     );
     const grass = this.model('grass.clump');
+    const grassTo = this.grassFade[1] + 9;
     this.grass = grass
-      ? new Field('grass', grass.map((a) => ({ parts: this.partsFor('grass.clump', a) })), null, 12, GRASS_FADE[1] + 9, GRASS_FADE[1] + 9)
+      ? new Field('grass', grass.map((a) => ({ parts: this.partsFor('grass.clump', a) })), null, 12, grassTo, grassTo)
       : null;
     const flowerKinds = FLOWER_SLOTS.filter((s) => this.model(s));
     this.flowers =
@@ -646,8 +860,8 @@ export class World {
             flowerKinds.map((s) => ({ parts: this.partsFor(s, this.model(s)![0]) })),
             null,
             16,
-            FLOWER_FADE[1] + 11,
-            FLOWER_FADE[1] + 11,
+            this.flowerFade[1] + 11,
+            this.flowerFade[1] + 11,
           )
         : null;
 
@@ -761,7 +975,7 @@ export class World {
       this.scene.add(horizon);
     }
 
-    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z));
+    this.inst.flush(this.scene, (x, z) => this.groundAt(x, z), (x, z) => this.chunkOf(x, z));
     this.fields = [wheat, this.grass, this.flowers].filter((f): f is Field => !!f);
     for (const f of this.fields) f.build(this.scene);
   }
@@ -773,13 +987,14 @@ export class World {
    * a lapping fringe plus swell lines rolling in.
    */
   private buildSea() {
-    const land = topo.hexPos.map((p) => new THREE.Vector2(p.x * R, p.y * R));
+    const shore = shoreDistance();
     const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1 });
     const calm = this.opts.reduceMotion ? 0 : 1;
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.uTime;
       sh.uniforms.uCalm = { value: calm };
-      sh.uniforms.uLand = { value: land };
+      sh.uniforms.uShore = { value: shore.texture };
+      sh.uniforms.uShoreMap = { value: shore.map };
       sh.uniforms.uNoise = { value: noiseTexture() };
       sh.uniforms.uDeep = { value: new THREE.Color('#0d4a78') };
       sh.uniforms.uShelf = { value: new THREE.Color('#1784a6') };
@@ -798,7 +1013,8 @@ export class World {
           `#include <common>
           uniform float uTime;
           uniform sampler2D uNoise;
-          uniform vec2 uLand[${land.length}];
+          uniform sampler2D uShore;
+          uniform vec4 uShoreMap;
           uniform vec3 uDeep;
           uniform vec3 uShelf;
           uniform vec3 uLagoon;
@@ -807,11 +1023,7 @@ export class World {
         .replace(
           '#include <color_fragment>',
           `#include <color_fragment>
-          float seaD = 1e5;
-          for (int i = 0; i < ${land.length}; i++) {
-            vec2 q = abs(vSea - uLand[i]);
-            seaD = min(seaD, max(q.x, q.x * 0.5 + q.y * 0.8660254) - ${((R * Math.sqrt(3)) / 2).toFixed(3)});
-          }
+          float seaD = texture2D(uShore, (vSea - uShoreMap.xy) * uShoreMap.zw).r;
           float seaN = texture2D(uNoise, vSea * 0.03 + uTime * 0.004).r;
           vec3 seaC = mix(uDeep, uShelf, 1.0 - smoothstep(3.0, 22.0 + seaN * 8.0, seaD));
           seaC = mix(seaC, uLagoon, 1.0 - smoothstep(1.5, 6.5 + seaN * 2.0, seaD));
@@ -845,17 +1057,22 @@ export class World {
         );
     };
     mat.customProgramCacheKey = () => 'sea';
+    // The distance map is the material's own: dispose it with the material.
+    mat.addEventListener('dispose', () => shore.texture.dispose());
     const sea = new THREE.Mesh(this.kit.own(new THREE.PlaneGeometry(1800, 1800, 180, 180)), this.kit.ownMat(mat));
+    sea.name = 'sea';
     sea.rotation.x = -Math.PI / 2;
     sea.position.y = -0.6;
     sea.receiveShadow = true;
+    // After the land (but before the sky), so the depth test skips the sea under the island.
+    sea.renderOrder = 1;
     this.scene.add(sea);
   }
 
   /** Grass tufts and wild flowers in patches, kept off paths, props and the centre sign. */
   private scatterGround(ctx: HexCtx, blockers: Collider[]) {
     const spec = GRASS[ctx.tile.terrain];
-    const n = Math.round(spec.n * (this.opts.lite ? 0.35 : 1));
+    const n = Math.round(spec.n * (this.opts.lite ? 0.35 : 1) * this.stress.density);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -886,7 +1103,7 @@ export class World {
       this.grass.add(variant, m.clone(), new THREE.Color(color));
     }
     // Flowers grow in drifts of one kind each.
-    const drifts = this.opts.lite ? Math.ceil(spec.drifts / 2) : spec.drifts;
+    const drifts = Math.round((this.opts.lite ? Math.ceil(spec.drifts / 2) : spec.drifts) * this.stress.density);
     for (let d = 0; d < drifts; d++) {
       const pick = ctx.rnd();
       const kind = this.flowers ? weighted(FLOWER_WEIGHTS, pick) : Math.floor(pick * FLOWERS.length);
@@ -1032,8 +1249,9 @@ export class World {
     for (const p of posts) if (p.open) this.addCircle(cx + p.x, cz + p.z, 0.2);
 
     // The flock.
-    const flock = 7 + Math.floor(rnd() * 3);
+    const flock = Math.round((7 + Math.floor(rnd() * 3)) * this.stress.sheep);
     const sheepModel = this.model('sheep')?.[0];
+    const rigs: SheepRig[] = [];
     for (let i = 0; i < flock; i++) {
       const rig = sheepModel ? rigFromAsset(cloneAsset(sheepModel, SLOTS.sheep)) : makeSheep(kit, rnd);
       if (sheepModel) rig.root.scale.setScalar(0.92 + rnd() * 0.16);
@@ -1061,9 +1279,11 @@ export class World {
         pen: { cx, cz, r: F - 1.2, avoid },
       };
       rig.root.position.set(x, 0, z);
-      this.scene.add(rig.root);
+      if (sheepModel) rigs.push(rig);
+      else this.scene.add(rig.root);
       this.sheep.push(sh);
     }
+    if (rigs.length) this.flocks.push(this.makeFlock(rigs, cx, cz, F));
 
     // A few trees outside the fence.
     const taken: { x: number; z: number; r: number }[] = [];
@@ -1151,8 +1371,9 @@ export class World {
     }
     // Trees in groves: mostly broadleaf, conifers gathering on one side, heights varied.
     const pineSide = ctx.rnd() * Math.PI * 2;
-    for (let i = 0; i < 34; i++) {
-      const p = this.scatter(ctx, taken, 1.45, 0.86);
+    const dense = this.stress.density;
+    for (let i = 0; i < 34 * dense; i++) {
+      const p = this.scatter(ctx, taken, 1.45 / Math.sqrt(dense), 0.86);
       if (!p) continue;
       const toward = Math.cos(Math.atan2(p.x, p.z) - pineSide);
       const slot: AssetSlot = ctx.rnd() < 0.25 + toward * 0.3 ? 'tree.conifer' : 'tree.broadleaf';
@@ -1161,13 +1382,13 @@ export class World {
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.55);
     }
     // Undergrowth between the trunks, and young trees where light reaches the ground.
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 26 * dense; i++) {
       const p = this.scatter(ctx, taken, 0.5, 0.86);
       if (!p) continue;
       this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.5 + ctx.rnd() * 0.5);
     }
     if (this.model('tree.sapling'))
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 6 * dense; i++) {
         const p = this.scatter(ctx, taken, 0.6, 0.7);
         if (!p) continue;
         this.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 'tree.sapling', 0.8 + ctx.rnd() * 0.5);
@@ -1238,8 +1459,9 @@ export class World {
     tile.plot = plot;
     tile.plotTone = [0, 1, 2, 3].map((k) => (k === harvested ? '#c9ab64' : k % 2 ? '#8f6a2c' : '#9c7631'));
 
-    const rowGap = this.opts.lite ? 0.62 : 0.42;
-    const step = this.opts.lite ? 0.48 : 0.31;
+    const thin = Math.sqrt(this.stress.density);
+    const rowGap = (this.opts.lite ? 0.62 : 0.42) / thin;
+    const step = (this.opts.lite ? 0.48 : 0.31) / thin;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -1523,6 +1745,7 @@ export class World {
   private frame() {
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.1);
+    if (this.adaptive?.sample(now, now - this.last)) this.renderer.setPixelRatio(this.pixelRatio());
     this.last = now;
     const animate = !this.opts.reduceMotion;
     if (animate) this.uTime.value += dt;
@@ -1531,6 +1754,7 @@ export class World {
     this.movePlayer(dt);
     if (animate) {
       for (const s of this.sheep) this.updateSheep(s, dt);
+      for (const f of this.flocks) syncFlock(f);
       for (const sp of this.spinners) sp.rotation.z -= dt * 0.7;
       for (const b of this.boats) {
         b.obj.position.y = b.y + Math.sin(t * 1.4 + b.phase) * 0.1;
@@ -1543,7 +1767,8 @@ export class World {
 
     // The sun never moves and most casters are static, so the shadow map is redrawn only when
     // its box moves (in steps of 100 whole texels, ~3.9 m, so edges never crawl), when pieces
-    // change, and every third frame for swaying trees, walking sheep and turning sails.
+    // change, and every third frame for walking sheep, turning sails and bobbing boats (swaying
+    // crowns don't need it: shadows use the plain depth shader).
     const step = (80 / 2048) * 100;
     const fx = Math.round(this.x / step) * step;
     const fz = Math.round(this.z / step) * step;
@@ -1726,6 +1951,16 @@ export class World {
   }
 }
 
+/** Stress preset: a settlement or city on every corner and a road on every edge (drawing only). */
+function fullBoard(state: GameState): GameState {
+  const n = state.players.length;
+  const buildings: GameState['buildings'] = {};
+  Object.keys(topo.vertexPos).forEach((v, i) => (buildings[v] = { owner: i % n, kind: i % 2 ? 'citadel' : 'outpost' }));
+  const causeways: GameState['causeways'] = {};
+  Object.keys(topo.edgeVertices).forEach((e, i) => (causeways[e] = i % n));
+  return { ...state, buildings, causeways };
+}
+
 interface HexCtx {
   g: THREE.Group;
   cx: number;
@@ -1733,6 +1968,43 @@ interface HexCtx {
   rnd: () => number;
   spawnAngle: number;
   tile: TileGround;
+}
+
+/**
+ * Distance from each point of the sea to the nearest land tile's edge (metres, negative under
+ * the land), precomputed once into a half-float texture over the island plus a 40 m margin.
+ * The sea shader used to work this out per pixel over all 19 tiles; the field is piecewise
+ * linear, so bilinear filtering reproduces it except within a texel of the tile corners.
+ * Beyond the margin the clamped edge value (40 m+) is already the deep-water colour.
+ */
+function shoreDistance(): { texture: THREE.DataTexture; map: THREE.Vector4 } {
+  const land = topo.hexPos.map((p) => ({ x: p.x * R, z: p.y * R }));
+  const apothem = (R * Math.sqrt(3)) / 2;
+  const pad = R + 40;
+  const x0 = Math.min(...land.map((h) => h.x)) - pad;
+  const z0 = Math.min(...land.map((h) => h.z)) - pad;
+  const size = Math.max(Math.max(...land.map((h) => h.x)) + pad - x0, Math.max(...land.map((h) => h.z)) + pad - z0);
+  const N = 256;
+  const data = new Uint16Array(N * N);
+  for (let j = 0; j < N; j++)
+    for (let i = 0; i < N; i++) {
+      // Texel centres, as the GPU samples them.
+      const x = x0 + ((i + 0.5) / N) * size;
+      const z = z0 + ((j + 0.5) / N) * size;
+      let d = 1e5;
+      for (const h of land) {
+        const qx = Math.abs(x - h.x);
+        const qz = Math.abs(z - h.z);
+        d = Math.min(d, Math.max(qx, qx * 0.5 + qz * 0.8660254) - apothem);
+      }
+      data[j * N + i] = THREE.DataUtils.toHalfFloat(d);
+    }
+  const texture = new THREE.DataTexture(data, N, N, THREE.RedFormat, THREE.HalfFloatType);
+  texture.magFilter = texture.minFilter = THREE.LinearFilter;
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.needsUpdate = true;
+  return { texture, map: new THREE.Vector4(x0, z0, 1 / size, 1 / size) };
 }
 
 function segDist(x: number, z: number, c: Collider): number {
@@ -1780,6 +2052,15 @@ function beachRing(): THREE.BufferGeometry {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.computeVertexNormals();
   return g;
+}
+
+/** Copies each sheep's posed parts into its flock's instanced meshes. */
+function syncFlock(f: Flock) {
+  f.rigs.forEach((rig, i) => {
+    rig.root.updateMatrixWorld(true);
+    for (const p of f.parts) p.mesh.setMatrixAt(i, p.src[i].matrixWorld);
+  });
+  for (const p of f.parts) p.mesh.instanceMatrix.needsUpdate = true;
 }
 
 /** Builds a sheep rig from a loaded model, finding its moving parts by name. */
@@ -2032,7 +2313,7 @@ class Instancer {
     }
   }
 
-  flush(scene: THREE.Scene, groundAt: (x: number, z: number) => number) {
+  flush(scene: THREE.Scene, groundAt: (x: number, z: number) => number, chunkOf: (x: number, z: number) => string) {
     const kit = this.kit;
     const geos: Record<string, () => THREE.BufferGeometry> = {
       trunk: () => new THREE.CylinderGeometry(0.15, 0.24, 2.6, 7).translate(0, 1.3, 0),
@@ -2052,23 +2333,34 @@ class Instancer {
       flower: { sway: 0, shadow: false, mat: () => kit.ownMat(new THREE.MeshStandardMaterial({ roughness: 0.7, vertexColors: true })) },
       stook: { sway: 0, shadow: true, mat: () => kit.ownMat(new THREE.MeshStandardMaterial({ roughness: 0.92, vertexColors: true, flatShading: true })) },
     };
+    const chunks = <T extends Placed>(list: T[]) => {
+      const by = new Map<string, T[]>();
+      for (const p of list) {
+        const k = chunkOf(p.x, p.z);
+        let l = by.get(k);
+        if (!l) by.set(k, (l = []));
+        l.push(p);
+      }
+      return [...by.values()];
+    };
     for (const [key, list] of this.lists) {
       if (!list.length) continue;
       const part = key.includes('|') ? key.split('|')[1] : key;
       const spec = specs[part];
       const mat = spec.mat();
       if (spec.sway && !this.lite) addSway(mat, this.uTime, spec.sway);
-      this.add(scene, kit.geo(`inst-${part}`, geos[part]), mat, list, spec.shadow, groundAt);
+      for (const c of chunks(list)) this.add(scene, kit.geo(`inst-${part}`, geos[part]), mat, c, spec.shadow, groundAt);
     }
-    // Model-drawn slots: one instanced mesh per variant part.
+    // Model-drawn slots: one instanced mesh per variant part and chunk.
     for (const [slot, list] of this.roots) {
       const variants = this.model(slot)!;
       variants.forEach((asset, v) => {
         for (const far of [false, true]) {
           const mine = list.filter((p) => p.variant === v && !!p.far === far);
           if (!mine.length) continue;
-          for (const part of this.partsFor(slot, asset))
-            this.add(scene, part.geometry, part.material, mine, SLOTS[slot].castShadow && !far, groundAt, !far, part.depth);
+          const parts = this.partsFor(slot, asset);
+          for (const c of chunks(mine))
+            for (const part of parts) this.add(scene, part.geometry, part.material, c, SLOTS[slot].castShadow && !far, groundAt, !far, part.depth);
         }
       });
     }

@@ -167,21 +167,55 @@ type P = { x: number; y: number };
 /** The point `u` along the coast and `v` out to sea from `o`. */
 const at = (o: P, t: P, n: P, u: number, v: number): P => ({ x: o.x + t.x * u + n.x * v, y: o.y + t.y * u + n.y * v });
 
-/** Landing stage: half its length along the coast, and how far out its inner and outer edges lie. */
-const STAGE = { half: 30, v0: 22, v1: 40 };
-const RAMP_W = 9;
+/**
+ * Deck sizes in board units (a tile side is 100): the stage's half length along the coast and
+ * how far out its inner and outer edges lie, the ramps' width, where they start inland (under
+ * the beach), and how far out the badge stands, clear of the timber.
+ */
+const STAGE = { half: 28, v0: 22, v1: 35 };
+const RAMP_W = 10;
+const SHORE_V = -5;
+const BADGE_V = 68;
 
-/** A walkway of width `w` from `a` to `b`, as a quad. */
-function strip(a: P, b: P, w: number): P[] {
-  const l = Math.hypot(b.x - a.x, b.y - a.y);
-  const px = (-(b.y - a.y) / l) * (w / 2);
-  const py = ((b.x - a.x) / l) * (w / 2);
-  return [
-    { x: a.x + px, y: a.y + py },
-    { x: b.x + px, y: b.y + py },
-    { x: b.x - px, y: b.y - py },
-    { x: a.x - px, y: a.y - py },
-  ];
+/** Clips the segment a→b to v0 ≤ v ≤ v1 (local coordinates); null when nothing is left. */
+function clipV(a: P, b: P, v0: number, v1: number): [P, P] | null {
+  let t0 = 0;
+  let t1 = 1;
+  const dv = b.y - a.y;
+  for (const [lim, sign] of [
+    [v0, 1],
+    [v1, -1],
+  ] as const) {
+    // keep sign * (v - lim) >= 0
+    const f0 = sign * (a.y - lim);
+    const df = sign * dv;
+    if (df === 0) {
+      if (f0 < 0) return null;
+    } else {
+      const t = -f0 / df;
+      if (df > 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+    }
+  }
+  if (t1 - t0 < 0.05) return null;
+  const pt = (t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + dv * t });
+  return [pt(t0), pt(t1)];
+}
+
+/** Whether `q` lies inside polygon `poly` or within `pad` of its edge. */
+function nearPolygon(q: P, poly: P[], pad: number): boolean {
+  let inside = false;
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const c = poly[j];
+    if (a.y > q.y !== c.y > q.y && q.x < ((c.x - a.x) * (q.y - a.y)) / (c.y - a.y) + a.x) inside = !inside;
+    const dx = c.x - a.x;
+    const dy = c.y - a.y;
+    const k = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / (dx * dx + dy * dy)));
+    best = Math.min(best, Math.hypot(q.x - a.x - dx * k, q.y - a.y - dy * k));
+  }
+  return inside || best < pad;
 }
 
 /** Boat outline samples (bow right, waterline at 0), mirrored, for clearance tests. */
@@ -199,10 +233,11 @@ const BOAT_SAMPLES: P[] = [
 ]);
 
 export interface DockLayout {
-  ramps: P[][];
-  stage: P[];
-  posts: P[];
+  /** The whole walkable deck, stage and both ramps, as one outline. */
+  deck: P[];
   planks: string;
+  seams: string;
+  posts: P[];
   badge: P;
   cargo: P;
   boat: P & { flip: boolean; kind: number };
@@ -210,10 +245,13 @@ export interface DockLayout {
 }
 
 /**
- * Where a harbor's timber stands: two short ramps from the edge's two coastal corners (the
- * vertices the harbor serves) converge on one landing stage parallel to the shore, the badge
- * at its seaward edge. The boat takes the free berth beside an end of the stage that keeps it
- * clear of the beach, the badge, the timber and the board's edge. Pure geometry from the edge.
+ * One timber dock per harbor, built from the edge's two coastal corners (the vertices the
+ * harbor serves) and the coast's outward direction. Local coordinates: u along the coast from
+ * the edge's midpoint, v out to sea. Two ramps run from just inside those corners out to a
+ * stage parallel to the shore; each ramp's outer side ends exactly at a stage corner, so the
+ * deck is a single outline (a Π with angled legs) with no overlapping boards. The badge
+ * stands offshore, apart from the timber. The boat takes the nearest free berth beside an end
+ * of the stage that clears the beach, badge, deck and board edge.
  */
 export function dockLayout(hb: Harbor): DockLayout {
   const g = harborGeometry(hb);
@@ -221,50 +259,80 @@ export function dockLayout(hb: Harbor): DockLayout {
   const t = { x: (g.b.x - g.a.x) / L, y: (g.b.y - g.a.y) / L };
   const n = { x: g.nx, y: g.ny };
   const m = g.mid;
+  const W = (u: number, v: number) => at(m, t, n, u, v);
   const { half: H, v0, v1 } = STAGE;
-  const stage = [at(m, t, n, -H, v0), at(m, t, n, H, v0), at(m, t, n, H, v1), at(m, t, n, -H, v1)];
-  const ends = [-1, 1].map((s) => ({ from: at(m, t, n, (s * L) / 2, -5), to: at(m, t, n, s * (H - RAMP_W / 2 - 1), v0 + 1.5) }));
-  const ramps = ends.map((e) => strip(e.from, e.to, RAMP_W));
 
-  const planks: string[] = [];
-  for (const e of ends) {
-    const l = Math.hypot(e.to.x - e.from.x, e.to.y - e.from.y);
-    const dx = (e.to.x - e.from.x) / l;
-    const dy = (e.to.y - e.from.y) / l;
-    for (let k = 3; k < l - 1; k += 3) {
-      const cx = e.from.x + dx * k;
-      const cy = e.from.y + dy * k;
-      planks.push(`M${r1(cx + dy * 4.2)} ${r1(cy - dx * 4.2)}L${r1(cx - dy * 4.2)} ${r1(cy + dx * 4.2)}`);
-    }
-  }
-  for (let u = -H + 3.4; u < H - 1; u += 3.4) {
-    const p = at(m, t, n, u, v0 + 0.8);
-    const q = at(m, t, n, u, v1 - 0.8);
-    planks.push(`M${r1(p.x)} ${r1(p.y)}L${r1(q.x)} ${r1(q.y)}`);
-  }
-
-  const posts = [
-    at(m, t, n, -H - 1.2, v0 - 1),
-    at(m, t, n, H + 1.2, v0 - 1),
-    at(m, t, n, -H - 1.2, v1 + 1),
-    at(m, t, n, H + 1.2, v1 + 1),
-    ...ends.flatMap((e) => {
-      const mid = { x: e.from.x * 0.4 + e.to.x * 0.6, y: e.from.y * 0.4 + e.to.y * 0.6 };
-      const [a, , , d] = strip(mid, e.to, RAMP_W + 2.4);
-      return [a, d];
-    }),
+  // Each ramp leaves the shore 2 units inside its corner and meets the stage at its corner.
+  // Its sides are parallel; measured along u they lie `du` either side of the centre line.
+  const shoreU = L / 2 - 2;
+  const rise = v0 - SHORE_V;
+  const du = (RAMP_W / 2) * (Math.hypot(shoreU - H, rise) / rise);
+  const outerShore = shoreU;
+  const innerShore = shoreU - 2 * du;
+  const innerJoin = H - 2 * du;
+  const local: [number, number][] = [
+    [-H, v1],
+    [H, v1],
+    [H, v0],
+    [outerShore, SHORE_V],
+    [innerShore, SHORE_V],
+    [innerJoin, v0],
+    [-innerJoin, v0],
+    [-innerShore, SHORE_V],
+    [-outerShore, SHORE_V],
+    [-H, v0],
   ];
+  const deck = local.map(([u, v]) => W(u, v));
+
+  // Stage boards run out to sea; ramp boards run across each ramp, square to its direction,
+  // and stop at the seam where the ramp meets the stage.
+  const planks: string[] = [];
+  const seg = (p: [P, P]) => {
+    const [a, c] = p.map((q) => W(q.x, q.y));
+    planks.push(`M${r1(a.x)} ${r1(a.y)}L${r1(c.x)} ${r1(c.y)}`);
+  };
+  for (let u = -H + 3.4; u < H - 1; u += 3.4) seg([{ x: u, y: v0 + 0.8 }, { x: u, y: v1 - 0.8 }]);
+  const seams: string[] = [];
+  for (const sd of [-1, 1]) {
+    const from = { x: sd * (shoreU - du), y: SHORE_V };
+    const to = { x: sd * (H - du), y: v0 };
+    const len = Math.hypot(to.x - from.x, to.y - from.y);
+    const dx = (to.x - from.x) / len;
+    const dy = (to.y - from.y) / len;
+    // square to the ramp, long enough to reach both sides, then clipped to the ramp's ends
+    const half = RAMP_W / 2 - 0.7;
+    for (let k = 1.5 - RAMP_W; k < len + RAMP_W; k += 3.2) {
+      const cx = from.x + dx * k;
+      const cy = from.y + dy * k;
+      const c = clipV({ x: cx + dy * half, y: cy - dx * half }, { x: cx - dy * half, y: cy + dx * half }, SHORE_V + 0.6, v0 - 0.4);
+      if (c) seg(c);
+    }
+    const a = W(sd * H, v0);
+    const c = W(sd * innerJoin, v0);
+    seams.push(`M${r1(a.x)} ${r1(a.y)}L${r1(c.x)} ${r1(c.y)}`);
+  }
+
+  // Posts at the stage's exposed corners and edges only: never in a ramp's opening.
+  const posts = (
+    [
+      [-H - 1.3, v1 + 1.1],
+      [H + 1.3, v1 + 1.1],
+      [-H - 1.3, v0 - 0.2],
+      [H + 1.3, v0 - 0.2],
+      [0, v1 + 1.3],
+      [0, v0 - 1.3],
+    ] as [number, number][]
+  ).map(([u, v]) => W(u, v));
 
   // The berth: the first spot (by distance from the stage end) where the whole boat is clear.
+  const badge = W(0, BADGE_V);
   const prefer = hb.id % 2 ? 1 : -1;
   const ok = (c: P) =>
-    BOAT_SAMPLES.every((s) => {
-      const q = { x: c.x + s.x, y: c.y + s.y };
+    BOAT_SAMPLES.every((sm) => {
+      const q = { x: c.x + sm.x, y: c.y + sm.y };
       if (onIsland(q) || coastDistance(q) < 19) return false;
-      if (Math.hypot(q.x - g.badge.x, q.y - g.badge.y) < 30) return false;
-      const du = (q.x - m.x) * t.x + (q.y - m.y) * t.y;
-      const dv = (q.x - m.x) * n.x + (q.y - m.y) * n.y;
-      if (Math.abs(du) < H + 4 && dv > v0 - 4 && dv < v1 + 4) return false;
+      if (Math.hypot(q.x - badge.x, q.y - badge.y) < 30) return false;
+      if (nearPolygon(q, deck, 4)) return false;
       return q.x > VIEWBOX.x + 6 && q.x < VIEWBOX.x + VIEWBOX.w - 6 && q.y > VIEWBOX.y + 6 && q.y < VIEWBOX.y + VIEWBOX.h - 6;
     });
   let berth: { c: P; side: number } | null = null;
@@ -272,7 +340,7 @@ export function dockLayout(hb: Harbor): DockLayout {
   for (const side of [prefer, -prefer])
     for (const u of [H + 24, H + 32, H + 40, H + 50, H + 60])
       for (const v of [30, 22, 40, 50, 60, 72]) {
-        const c = at(m, t, n, side * u, v);
+        const c = W(side * u, v);
         const score = u - H + Math.abs(v - 30) * 0.8 + (side === prefer ? 0 : 12);
         if (score < best && ok(c)) {
           best = score;
@@ -280,16 +348,16 @@ export function dockLayout(hb: Harbor): DockLayout {
         }
       }
   const side = berth?.side ?? prefer;
-  const c = berth?.c ?? at(m, t, n, side * (H + 30), 70);
-  const tie = at(m, t, n, side * (H + 1.2), v1 + 1);
+  const c = berth?.c ?? W(side * (H + 30), 70);
+  const tie = W(side * (H + 1.3), v1 + 1.1);
   const flip = c.x < tie.x;
   return {
-    ramps,
-    stage,
-    posts,
+    deck,
     planks: planks.join(''),
-    badge: g.badge,
-    cargo: at(m, t, n, -side * (H - 8), (v0 + v1) / 2 - 1),
+    seams: seams.join(''),
+    posts,
+    badge,
+    cargo: W(-side * (H - 7), (v0 + v1) / 2),
     // the bow points away from the stage; the line runs from the end post to the stern
     boat: { ...c, flip, kind: hb.id % 3 },
     line: [tie, { x: c.x + (flip ? 21 : -21), y: c.y - 7 }],
@@ -298,52 +366,39 @@ export function dockLayout(hb: Harbor): DockLayout {
 
 const LIGHT = { x: -0.6, y: -0.8 };
 
-/** Edges of a timber polygon: all of them as the dark frame, the sunlit ones as a highlight. */
+/** The deck's outline as one edge beam, plus the stretches facing the sun as a highlight. */
 function frame(poly: P[]) {
-  const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
-  const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
-  let all = '';
+  // signed area gives the winding, so every edge's outward side is known (the deck is concave)
+  let area = 0;
+  poly.forEach((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    area += a.x * b.y - b.x * a.y;
+  });
+  const out = area > 0 ? 1 : -1;
   let lit = '';
   poly.forEach((a, i) => {
     const b = poly[(i + 1) % poly.length];
-    const seg = `M${r1(a.x)} ${r1(a.y)}L${r1(b.x)} ${r1(b.y)}`;
-    all += seg;
-    let nx = -(b.y - a.y);
-    let ny = b.x - a.x;
-    if (nx * ((a.x + b.x) / 2 - cx) + ny * ((a.y + b.y) / 2 - cy) < 0) {
-      nx = -nx;
-      ny = -ny;
-    }
-    if ((nx * LIGHT.x + ny * LIGHT.y) / Math.hypot(nx, ny) > 0.25) lit += seg;
+    const nx = (b.y - a.y) * out;
+    const ny = -(b.x - a.x) * out;
+    if ((nx * LIGHT.x + ny * LIGHT.y) / Math.hypot(nx, ny) > 0.25) lit += `M${r1(a.x)} ${r1(a.y)}L${r1(b.x)} ${r1(b.y)}`;
   });
-  return { all, lit };
+  return { all: `M${poly.map((p) => `${r1(p.x)} ${r1(p.y)}`).join('L')}Z`, lit };
 }
 
 const poly = (p: P[]) => p.map((q) => `${r1(q.x)},${r1(q.y)}`).join(' ');
 
-/** Weathered timber: ramps and stage over a soft contact shadow, planked, framed and posted. */
+/** Weathered timber: one deck over one soft contact shadow, planked by section, posted at its corners. */
 function Dock({ d }: { d: DockLayout }) {
-  const parts = [...d.ramps, d.stage];
+  const f = frame(d.deck);
   return (
     <g strokeLinecap="round" strokeLinejoin="round">
-      <g transform="translate(2 3.2)" fill="#05202c" opacity={0.36}>
-        {parts.map((p, i) => (
-          <polygon key={i} points={poly(p)} />
-        ))}
-      </g>
-      {parts.map((p, i) => (
-        <polygon key={i} points={poly(p)} fill={i < 2 ? '#957149' : '#a17b51'} />
-      ))}
-      <path d={d.planks} stroke="#5d4229" strokeOpacity={0.55} strokeWidth={0.7} />
-      {parts.map((p, i) => {
-        const f = frame(p);
-        return (
-          <g key={i}>
-            <path d={f.all} stroke="#45301d" strokeWidth={1.6} />
-            <path d={f.lit} stroke="#d9b583" strokeOpacity={0.75} strokeWidth={0.8} />
-          </g>
-        );
-      })}
+      <polygon points={poly(d.deck)} transform="translate(2 3.2)" fill="#05202c" opacity={0.36} />
+      <polygon points={poly(d.deck)} fill="#9c774d" />
+      <path d={d.planks} stroke="#5d4229" strokeOpacity={0.5} strokeWidth={0.7} />
+      {/* where each ramp meets the stage: a faint joist line, not an outline */}
+      <path d={d.seams} stroke="#5d4229" strokeOpacity={0.35} strokeWidth={0.9} />
+      <path d={f.all} stroke="#45301d" strokeWidth={1.6} fill="none" />
+      <path d={f.lit} stroke="#d9b583" strokeOpacity={0.75} strokeWidth={0.8} />
       {d.posts.map((p, i) => (
         <g key={i} transform={`translate(${r1(p.x)} ${r1(p.y)})`}>
           <circle r={2.3} fill="#3a281a" />

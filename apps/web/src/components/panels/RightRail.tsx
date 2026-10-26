@@ -70,9 +70,7 @@ export function HandPanel({ state, seat }: { state: GameState; seat: number }) {
       <div className="mb-2.5 flex items-center gap-2 px-0.5">
         <PlayerDisc color={p.color} sigil={p.sigil} size={24} />
         <h2 className="panel-title flex-1">
-          <span>
-            <span style={{ color: NAME_COLOR[p.color] }}>{p.name}</span>&rsquo;s hand
-          </span>
+          <span>Your hand</span>
         </h2>
         <Tooltip
           align="end"

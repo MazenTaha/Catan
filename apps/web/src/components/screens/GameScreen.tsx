@@ -7,7 +7,7 @@ import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
 import { ZoomPan } from '../board/ZoomPan';
 import { FlyingGains } from '../fx/FlyingGains';
-import { FloatingToast, RollOverlay, TopBar, instruction } from '../hud/Hud';
+import { FloatingToast, RollOverlay, TitleBlock, Toolbar, TopBar, instruction } from '../hud/Hud';
 import { VIEWBOX } from '../board/geometry';
 import {
   ConfirmNewModal,
@@ -168,9 +168,12 @@ export function GameScreen() {
     </div>
   );
 
+  // Wide screens give the board the whole centre column: the title and turn sit on the left
+  // rail, the menu on top of the hand. Narrower ones stack them above the board.
   const center = (
     <div className="flex min-h-0 flex-col gap-2">
-      <PlayersPanel state={state} seat={seat} />
+      {layout !== 'wide' && <TopBar state={state} tools={layout === 'narrow'} />}
+      {layout !== 'wide' && <PlayersPanel state={state} seat={seat} row />}
       <p className="sr-only" aria-live="polite">
         {instruction(state, seat)}
       </p>
@@ -180,18 +183,18 @@ export function GameScreen() {
 
   return (
     <div className="flex min-h-screen flex-col p-2 sm:p-3">
-      {/* The top bar spans only the columns left of the hand, which runs up to the top of the window. */}
       <div
-        className={`grid flex-1 grid-rows-[auto_1fr] gap-x-3 gap-y-2 ${
+        className={`grid flex-1 gap-3 ${
           layout === 'wide' ? 'grid-cols-[minmax(240px,17vw)_minmax(0,1fr)_minmax(350px,24vw)]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
         }`}
       >
-        <div className={layout === 'wide' ? 'col-span-2' : undefined}>
-          <TopBar state={state} />
-        </div>
         {layout === 'wide' && (
           <aside className="flex min-h-0 flex-col gap-3" aria-label="Claims and events">
+            <header className="panel px-3.5 py-2.5">
+              <TitleBlock state={state} />
+            </header>
             <BonusPanel state={state} />
+            <PlayersPanel state={state} seat={seat} />
             <RecentLog state={state} seat={seat} />
           </aside>
         )}
@@ -205,7 +208,8 @@ export function GameScreen() {
           )}
         </main>
         {layout !== 'narrow' && (
-          <aside className={`row-span-2 row-start-1 flex min-h-0 flex-col gap-3 ${layout === 'wide' ? 'col-start-3' : 'col-start-2'}`} aria-label="Your hand and actions">
+          <aside className="flex min-h-0 flex-col gap-3" aria-label="Your hand and actions">
+            <Toolbar className="justify-between px-2" />
             <HandPanel state={state} seat={seat} />
             <ActionsPanel state={state} seat={seat} />
           </aside>

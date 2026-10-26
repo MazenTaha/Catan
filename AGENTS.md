@@ -174,8 +174,8 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 | `App.tsx` | Screen switch, global modals, ember canvas, audio unlock on first gesture |
 | `components/screens/` | `TitleScreen` (Play, plus Continue / Rejoin when a save or online seat exists, How to play, Settings), `NewGameScreen` (profile, host/join lobby, seats), `GameScreen`, dev-only `ArtBoard` (`#artboard`) |
 | `components/board/` | SVG board: `Board.tsx` (stacked layers + hit/target layer), `Scenery.tsx` (sea, shore, harbors, ambient motion), `BoardDefs.tsx` (gradients/filters), `ZoomPan`, `HexTooltip`, `geometry.ts` |
-| `components/hud/` | Top bar, turn banner/players row, dice and dice-roll animation, toasts |
-| `components/panels/` | Left rail (claims, recent log), right rail (hand, Build / Cards / Trade tabs, End turn) |
+| `components/hud/` | Title block, toolbar (combined `TopBar` on narrow screens), dice and dice-roll animation, toasts |
+| `components/panels/` | Left rail (title block, claims, turn: playing and next up, recent log), right rail (toolbar, hand, Build / Cards / Trade tabs, End turn); the board has the whole centre column |
 | `components/modals/` | Discard, steal, trade, dev cards, curtain, victory, settings, credits, import, rulebook |
 | `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat), `adaptive.ts` (Auto's adaptive resolution), `stress.ts` (dev-only stress presets), `buildings.json` + `buildings.ts` (enterable cottage/hall/mill: room plans shared with Blender, collision capsules, floors, doors); lazy chunk around 730 kB |
 | `components/ui/primitives.tsx` | Shared building blocks: ResourceCard, Tooltip, IconButton, segmented tabs, steppers, Modal |

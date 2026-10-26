@@ -31,15 +31,17 @@ function piecesOf(state: GameState, player: number) {
 }
 
 /** Everyone at the table in one row: name and points, then cards, settlements, cities and roads. */
-export function PlayersPanel({ state, seat }: { state: GameState; seat: number }) {
+/** Whose turn it is and who plays next (the others are a hover away on the board). */
+export function PlayersPanel({ state, seat, row = false }: { state: GameState; seat: number; row?: boolean }) {
   const setHover = useStore((s) => s.setHoverPlayer);
   const actor = activeActor(state);
   const n = state.players.length;
-  const order = Array.from({ length: n }, (_, k) => (state.firstPlayer + k) % n);
+  const order = [state.currentPlayer, (state.currentPlayer + 1) % n];
   return (
-    <section aria-label="Players">
-      <ul className={`grid grid-cols-2 gap-2 ${n === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'}`}>
-        {order.map((i) => {
+    <section className="panel flex flex-col gap-2 px-3.5 py-3" aria-label="Players">
+      <h2 className="panel-title px-0.5">Turn</h2>
+      <ul className={`grid gap-2 ${row ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {order.map((i, k) => {
           const p = state.players[i];
           const vp = victoryPoints(state, i, false);
           const hidden = i === seat ? relicCount(p) : 0;
@@ -55,6 +57,9 @@ export function PlayersPanel({ state, seat }: { state: GameState; seat: number }
               onMouseLeave={() => setHover(null)}
               aria-label={`${p.name}, ${vp} of ${state.config.targetVp} points, ${handTotal(p)} cards, ${pieces.outposts} settlements, ${pieces.citadels} cities, ${pieces.roads} roads${playing ? ', playing' : ''}`}
             >
+              <div className="mb-1 font-display text-[10px] uppercase tracking-[0.16em] text-muted">
+                {k === 0 ? (state.phase.kind === 'ended' ? 'Last turn' : 'Playing') : 'Next up'}
+              </div>
               <div className="flex items-center gap-2">
                 <PlayerDisc color={p.color} sigil={p.sigil} size={24} active={playing} />
                 <span

@@ -9,27 +9,23 @@ import { IconButton, Tooltip } from '../ui/primitives';
 
 // ------------------------------------------------------------------ top bar
 
-export function TopBar({ state }: { state: GameState }) {
-  const openModal = useStore((s) => s.openModal);
-  const muted = useStore((s) => s.settings.muted);
-  const updateSettings = useStore((s) => s.updateSettings);
-  const undoable = useStore((s) => (s.session?.undo.length ?? 0) > 0);
-  const undo = useStore((s) => s.undo);
+/** Logo, room code, round and the race to the target: the game's title block. */
+export function TitleBlock({ state, className = '' }: { state: GameState; className?: string }) {
   const online = useStore((s) => s.session?.online);
   const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
   return (
-    <header className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5 sm:px-4">
+    <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-1.5 ${className}`}>
       <div className="flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
-          <svg width="20" height="20" viewBox="0 0 64 64" aria-hidden>
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
+          <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden>
             <path d="M32 6 54 19v26L32 58 10 45V19z" fill="#2a1406" opacity="0.25" />
             <path d="M32 6 54 19v26L32 58 10 45V19z" fill="none" stroke="#2a1406" strokeWidth="4" />
             <path d="M32 18 43 40H21z" fill="#2a1406" />
           </svg>
         </span>
-        <h1 className="font-logo text-[19px] leading-none tracking-[0.06em] text-gold">Catan Night</h1>
+        <h1 className="font-logo text-[17px] leading-none tracking-[0.05em] text-gold">Catan Night</h1>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {online && (
           <Tooltip label="Online game — share this code only with your table" side="bottom">
             <span className="chip num border-frost/50 bg-frost/10 text-frost" tabIndex={0}>
@@ -47,25 +43,49 @@ export function TopBar({ state }: { state: GameState }) {
           <span className="chip text-muted" tabIndex={0}>
             <Icon name="crown" size={12} className="text-gold" />
             First to <b className="num text-gold">{state.config.targetVp}</b>
-            <span className="meter ml-1 w-14" aria-hidden>
+            <span className="meter ml-1 w-10" aria-hidden>
               <span style={{ width: `${(leader / state.config.targetVp) * 100}%` }} />
             </span>
           </span>
         </Tooltip>
       </div>
-      <div className="ml-auto flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5">
-        <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" onClick={undo} disabled={!undoable} />
-        <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
-        <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
-        <IconButton
-          icon={muted ? 'mute' : 'sound'}
-          label={muted ? 'Unmute' : 'Mute'}
-          pressed={muted}
-          onClick={() => updateSettings({ muted: !muted })}
-        />
-        <IconButton icon="settings" label="Settings" onClick={() => openModal('settings')} />
-        <IconButton icon="leave" label="Leave game" align="end" onClick={() => openModal('confirm-new')} />
-      </div>
+    </div>
+  );
+}
+
+/** Undo, log, rules, sound, settings and leave. */
+export function Toolbar({ className = '' }: { className?: string }) {
+  const openModal = useStore((s) => s.openModal);
+  const muted = useStore((s) => s.settings.muted);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const undoable = useStore((s) => (s.session?.undo.length ?? 0) > 0);
+  const undo = useStore((s) => s.undo);
+  return (
+    <nav
+      className={`flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5 ${className}`}
+      aria-label="Game menu"
+    >
+      <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" align="start" onClick={undo} disabled={!undoable} />
+      <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
+      <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
+      <IconButton
+        icon={muted ? 'mute' : 'sound'}
+        label={muted ? 'Unmute' : 'Mute'}
+        pressed={muted}
+        onClick={() => updateSettings({ muted: !muted })}
+      />
+      <IconButton icon="settings" label="Settings" onClick={() => openModal('settings')} />
+      <IconButton icon="leave" label="Leave game" align="end" onClick={() => openModal('confirm-new')} />
+    </nav>
+  );
+}
+
+/** Title block and toolbar in one bar, for screens too narrow for the side rails. */
+export function TopBar({ state, tools = true }: { state: GameState; tools?: boolean }) {
+  return (
+    <header className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5 sm:px-4">
+      <TitleBlock state={state} />
+      {tools && <Toolbar className="ml-auto" />}
     </header>
   );
 }

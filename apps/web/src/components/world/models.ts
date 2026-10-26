@@ -152,6 +152,14 @@ export class Kit {
     return g;
   }
 
+  private shareds = new Map<string, unknown>();
+
+  /** Builds something once per world (materials sharing a texture) and hands out the same one. */
+  shared<T>(key: string, make: () => T): T {
+    if (!this.shareds.has(key)) this.shareds.set(key, make());
+    return this.shareds.get(key) as T;
+  }
+
   /** Registers a one-off geometry so it is disposed with the world. */
   own<T extends THREE.BufferGeometry>(g: T): T {
     this.geos.set(`own${this.geos.size}:${g.uuid}`, g);
@@ -190,6 +198,7 @@ export class Kit {
     this.mats.clear();
     this.geos.clear();
     this.templates.clear();
+    this.shareds.clear();
   }
 }
 
@@ -1732,45 +1741,287 @@ export function makeCloud(kit: Kit, rnd: () => number): THREE.Group {
 }
 
 /** A round wooden plaque showing a number token and its pips. */
-export function makeTokenSprite(n: number): THREE.Sprite {
-  const size = 256;
+/** A small seeded generator for texture detail, so every build paints the same grain. */
+function grainRnd(seed: number): () => number {
+  let s = (seed % 2147483646) + 1;
+  return () => (s = (s * 16807) % 2147483647) / 2147483647;
+}
+
+/** The number plaque's face: aged ivory in a nailed walnut bezel, number and pips engraved. */
+function tokenFace(n: number): THREE.CanvasTexture {
+  const S = 512;
+  const m = S / 2;
   const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d')!;
-  const mid = size / 2;
-  const wood = ctx.createRadialGradient(mid, mid, 60, mid, mid, mid);
-  wood.addColorStop(0, '#9a6a3d');
-  wood.addColorStop(1, '#6b4426');
-  ctx.fillStyle = wood;
-  ctx.beginPath();
-  ctx.arc(mid, mid, mid - 4, 0, Math.PI * 2);
-  ctx.fill();
-  const face = ctx.createRadialGradient(mid - 20, mid - 30, 10, mid, mid, mid - 22);
-  face.addColorStop(0, '#fff6dc');
-  face.addColorStop(1, '#ead6a6');
-  ctx.fillStyle = face;
-  ctx.beginPath();
-  ctx.arc(mid, mid, mid - 22, 0, Math.PI * 2);
-  ctx.fill();
-  const hot = n === 6 || n === 8;
-  ctx.fillStyle = hot ? '#b4231c' : '#2a1d14';
-  ctx.font = 'bold 116px Georgia, serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(String(n), mid, mid - 12);
+  c.width = c.height = S;
+  const x = c.getContext('2d')!;
+  const ring = (r: number) => {
+    x.beginPath();
+    x.arc(m, m, r, 0, Math.PI * 2);
+  };
+  // Walnut bezel, lit from the upper left like the board.
+  const bez = x.createRadialGradient(m * 0.7, m * 0.6, m * 0.2, m, m, m);
+  bez.addColorStop(0, '#9a6638');
+  bez.addColorStop(1, '#4a2c17');
+  x.fillStyle = bez;
+  ring(m);
+  x.fill();
+  x.strokeStyle = 'rgba(28,14,4,0.28)';
+  x.lineWidth = 2;
+  for (const r of [m - 7, m - 16, m - 27]) {
+    ring(r);
+    x.stroke();
+  }
+  // Iron nail heads round the bezel.
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    const px = m + Math.cos(a) * (m - 21);
+    const py = m + Math.sin(a) * (m - 21);
+    x.fillStyle = '#2e2c2a';
+    x.beginPath();
+    x.arc(px, py, 7, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = 'rgba(200,196,186,0.7)';
+    x.beginPath();
+    x.arc(px - 2, py - 2, 2.5, 0, Math.PI * 2);
+    x.fill();
+  }
+  // Aged ivory face with a shadowed lip and an engraved ring.
+  const R = m - 40;
+  const face = x.createRadialGradient(m - R * 0.35, m - R * 0.45, R * 0.1, m, m, R);
+  face.addColorStop(0, '#fbf2da');
+  face.addColorStop(0.65, '#f0deb2');
+  face.addColorStop(1, '#d8bd85');
+  x.fillStyle = face;
+  ring(R);
+  x.fill();
+  x.strokeStyle = 'rgba(58,32,12,0.55)';
+  x.lineWidth = 7;
+  ring(R - 3);
+  x.stroke();
+  x.strokeStyle = 'rgba(150,108,50,0.75)';
+  x.lineWidth = 3;
+  ring(R - 20);
+  x.stroke();
+  const rnd = grainRnd(n * 7919);
+  for (let i = 0; i < 600; i++) {
+    const a = rnd() * Math.PI * 2;
+    const d = Math.sqrt(rnd()) * (R - 10);
+    x.fillStyle = `rgba(120,82,38,${0.05 + rnd() * 0.07})`;
+    x.beginPath();
+    x.arc(m + Math.cos(a) * d, m + Math.sin(a) * d, 0.6 + rnd() * 1.6, 0, Math.PI * 2);
+    x.fill();
+  }
+  // Engraved: a light catch below-right of the cut, then the ink.
+  const ink = n === 6 || n === 8 ? '#a3241b' : '#2b1c11';
+  const cut = (draw: (dx: number, dy: number) => void) => {
+    x.fillStyle = 'rgba(255,250,234,0.85)';
+    draw(3, 4);
+    x.fillStyle = ink;
+    draw(0, 0);
+  };
+  x.font = '700 232px Cinzel, Georgia, serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  cut((dx, dy) => x.fillText(String(n), m + dx, m - 30 + dy));
   const pips = 6 - Math.abs(7 - n);
-  for (let i = 0; i < pips; i++) {
-    ctx.beginPath();
-    ctx.arc(mid + (i - (pips - 1) / 2) * 22, mid + 64, 8, 0, Math.PI * 2);
-    ctx.fill();
+  cut((dx, dy) => {
+    for (let i = 0; i < pips; i++) {
+      x.beginPath();
+      x.arc(m + (i - (pips - 1) / 2) * 38 + dx, m + 112 + dy, 13, 0, Math.PI * 2);
+      x.fill();
+    }
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/**
+ * A tile's number on a signpost: a round plaque with the face on both sides, bound in two iron
+ * hoops, on a squared post set in a stone footing. It faces the tile's way in.
+ */
+export function makeTokenSign(kit: Kit, n: number): THREE.Object3D {
+  return kit.template(`tokenSign${n}`, () => {
+    const g = new THREE.Group();
+    const wood = kit.mat('#5a3a22', WOOD);
+    const iron = kit.mat('#3b3a37', METAL);
+    const stone = kit.mat('#7c766b', STONE);
+    // Footing and a few loose stones.
+    g.add(mesh(kit.geo('signFoot', () => new THREE.CylinderGeometry(0.36, 0.48, 0.32, 7)), stone, 0, 0.16, 0));
+    const pebble = kit.geo('signStone', () => new THREE.DodecahedronGeometry(0.16, 0));
+    const stones: [number, number, number, string][] = [
+      [0.5, 0.18, 1, '#8a857a'],
+      [-0.44, 0.3, 0.8, '#6c6860'],
+      [0.1, -0.52, 0.9, '#78746a'],
+    ];
+    for (const [px, pz, k, col] of stones) {
+      const p = mesh(pebble, kit.mat(col, STONE), px, 0.07, pz);
+      p.scale.set(k, k * 0.7, k);
+      p.rotation.set(0.4, px * 3, 0.2);
+      g.add(p);
+    }
+    // Squared post, thinner than the plaque so it hides between the faces.
+    g.add(mesh(kit.rbox(0.2, 2.5, 0.13, 0.03), wood, 0, 1.45, 0));
+    g.add(mesh(kit.rbox(0.27, 0.11, 0.17, 0.02), iron, 0, 2.3, 0));
+    // The plaque.
+    const PR = 0.7;
+    const T = 0.14;
+    const y = 3.0;
+    const rim = kit.geo('signRim', () => new THREE.CylinderGeometry(PR, PR, T, 32, 1, true).rotateX(Math.PI / 2));
+    g.add(mesh(rim, kit.mat('#4a2c17', WOOD), 0, y, 0));
+    const hoop = kit.geo('signHoop', () => new THREE.TorusGeometry(PR + 0.004, 0.026, 5, 32));
+    g.add(mesh(hoop, iron, 0, y, T / 2 - 0.025));
+    g.add(mesh(hoop, iron, 0, y, -T / 2 + 0.025));
+    const faceMat = kit.ownMat(new THREE.MeshStandardMaterial({ map: tokenFace(n), roughness: 0.78 }));
+    const disc = kit.geo('signFace', () => new THREE.CircleGeometry(PR, 32));
+    g.add(mesh(disc, faceMat, 0, y, T / 2 + 0.001));
+    const back = mesh(disc, faceMat, 0, y, -T / 2 - 0.001);
+    back.rotation.y = Math.PI;
+    g.add(back);
+    return g;
+  });
+}
+
+/** Bark for logs: dark furrows running along the trunk, a few lichen flecks. */
+function barkTexture(): THREE.CanvasTexture {
+  const W = 128;
+  const H = 256;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#6e4a2d';
+  x.fillRect(0, 0, W, H);
+  const rnd = grainRnd(4211);
+  // Furrows run along the log, which is the texture's v (canvas y) direction.
+  for (let i = 0; i < 90; i++) {
+    const px = rnd() * W;
+    const w = 0.6 + rnd() * 1.8;
+    x.fillStyle = rnd() < 0.6 ? `rgba(40,24,12,${0.35 + rnd() * 0.35})` : `rgba(168,124,82,${0.25 + rnd() * 0.25})`;
+    x.fillRect(px, rnd() * H * 0.3, w, H * (0.5 + rnd() * 0.5));
+  }
+  for (let i = 0; i < 14; i++) {
+    x.fillStyle = `rgba(132,146,92,${0.12 + rnd() * 0.14})`;
+    x.beginPath();
+    x.ellipse(rnd() * W, rnd() * H, 1 + rnd() * 2.5, 2 + rnd() * 4, 0, 0, Math.PI * 2);
+    x.fill();
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  // Tinted down so the plaques sit in the dusk light instead of glowing white.
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: '#f4ead8' }));
-  s.scale.setScalar(1.7);
-  return s;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/** A sawn end: pale heartwood, growth rings, a check crack and a dark bark lip. */
+function endGrainTexture(): THREE.CanvasTexture {
+  const S = 128;
+  const m = S / 2;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(m, m, 2, m, m, m);
+  g.addColorStop(0, '#c98f55');
+  g.addColorStop(0.25, '#e2b57c');
+  g.addColorStop(0.85, '#d9a86c');
+  g.addColorStop(0.9, '#5a3a20');
+  g.addColorStop(1, '#3e2716');
+  x.fillStyle = g;
+  x.fillRect(0, 0, S, S);
+  const rnd = grainRnd(977);
+  for (let r = 5; r < m * 0.86; r += 3 + rnd() * 3) {
+    x.strokeStyle = `rgba(128,78,36,${0.25 + rnd() * 0.3})`;
+    x.lineWidth = 0.8 + rnd();
+    x.beginPath();
+    x.ellipse(m + (rnd() - 0.5) * 1.5, m + (rnd() - 0.5) * 1.5, r, r * (0.94 + rnd() * 0.06), rnd(), 0, Math.PI * 2);
+    x.stroke();
+  }
+  x.strokeStyle = 'rgba(60,34,14,0.55)';
+  x.lineWidth = 1.1;
+  x.beginPath();
+  x.moveTo(m + 4, m);
+  x.lineTo(m + m * 0.4, m - m * 0.12);
+  x.stroke();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+interface WoodMats {
+  bark: THREE.MeshStandardMaterial;
+  barkDark: THREE.MeshStandardMaterial;
+  grain: THREE.MeshStandardMaterial;
+}
+
+/** Shared bark and end-grain materials (one texture each for the whole island). */
+export function woodMats(kit: Kit): WoodMats {
+  return kit.shared('woodMats', () => {
+    const bark = barkTexture();
+    return {
+      bark: kit.ownMat(new THREE.MeshStandardMaterial({ map: bark, roughness: 0.92 })),
+      barkDark: kit.ownMat(new THREE.MeshStandardMaterial({ map: bark, color: '#cbb8a4', roughness: 0.92 })),
+      grain: kit.ownMat(new THREE.MeshStandardMaterial({ map: endGrainTexture(), roughness: 0.8 })),
+    };
+  });
+}
+
+/**
+ * A woodcutter's stack: six logs of mixed girth in a 3-2-1 pyramid with staggered ends, held by
+ * four stakes, with chips scattered round it. About 2.5 m long and 1.6 m high.
+ */
+export function makeLogPile(kit: Kit): THREE.Object3D {
+  return kit.template('logPile', () => {
+    const g = new THREE.Group();
+    const { bark, barkDark, grain } = woodMats(kit);
+    const tube = kit.geo('logTube', () => new THREE.CylinderGeometry(1, 1, 1, 12, 1, true).rotateX(Math.PI / 2));
+    const end = kit.geo('logEnd', () => new THREE.CircleGeometry(1, 12));
+    const rnd = grainRnd(2203);
+    const logs = [
+      [-0.62, 0.3, 0.3],
+      [0, 0.31, 0.31],
+      [0.62, 0.29, 0.29],
+      [-0.31, 0.83, 0.28],
+      [0.31, 0.84, 0.29],
+      [0, 1.33, 0.26],
+    ];
+    logs.forEach(([lx, ly, r], i) => {
+      const L = 2.3 + rnd() * 0.5;
+      const log = new THREE.Group();
+      log.position.set(lx, ly, (rnd() - 0.5) * 0.3);
+      log.rotation.set((rnd() - 0.5) * 0.03, (rnd() - 0.5) * 0.06, 0);
+      const t = mesh(tube, i % 3 === 1 ? barkDark : bark);
+      t.scale.set(r, r, L);
+      t.rotation.z = rnd() * Math.PI;
+      log.add(t);
+      for (const s of [1, -1]) {
+        const e = mesh(end, grain, 0, 0, (s * L) / 2);
+        e.scale.setScalar(r);
+        e.rotation.set(0, s < 0 ? Math.PI : 0, rnd() * Math.PI);
+        log.add(e);
+      }
+      g.add(log);
+    });
+    // Stakes keep the bottom row from rolling.
+    const stake = kit.rbox(0.1, 1.2, 0.1, 0.02);
+    const stakeMat = kit.mat('#6b4a2e', WOOD);
+    for (const sx of [-1, 1])
+      for (const sz of [-0.75, 0.75]) {
+        const p = mesh(stake, stakeMat, sx * 1.0, 0.55, sz);
+        p.rotation.z = sx * 0.08;
+        g.add(p);
+      }
+    // Chips and offcuts on the ground.
+    const chip = kit.rbox(0.16, 0.03, 0.08, 0.01);
+    const chipMat = kit.mat('#d7ab72', WOOD);
+    for (let i = 0; i < 12; i++) {
+      const a = rnd() * Math.PI * 2;
+      const d = 1.2 + rnd() * 0.9;
+      const p = mesh(chip, chipMat, Math.cos(a) * d, 0.02, Math.sin(a) * d * 0.9, false);
+      p.rotation.set((rnd() - 0.5) * 0.4, rnd() * Math.PI, (rnd() - 0.5) * 0.4);
+      g.add(p);
+    }
+    return g;
+  });
 }
 
 /** A soft radial glow for the sun. */

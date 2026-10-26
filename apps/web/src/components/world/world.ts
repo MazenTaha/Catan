@@ -40,7 +40,9 @@ import {
   makeRobber,
   makeSettlement,
   makeSheep,
-  makeTokenSprite,
+  makeLogPile,
+  makeTokenSign,
+  woodMats,
   makeTrough,
   makeWindmill,
   mesh,
@@ -1174,19 +1176,12 @@ export class World {
       const firstCollider = this.colliders.length;
 
       if (hex.token !== null) {
-        g.add(
-          mesh(
-            kit.geo('signPost', () => new THREE.CylinderGeometry(0.12, 0.14, 2.6, 6)),
-            kit.mat('#6e4a2c', WOOD),
-            0,
-            1.3,
-            0,
-          ),
-        );
-        const sign = makeTokenSprite(hex.token);
-        sign.position.set(0, 3.1, 0);
+        // The plaque faces the footpath in; a slight lean, fixed per tile, keeps the row of signs
+        // from looking stamped out.
+        const sign = makeTokenSign(kit, hex.token);
+        sign.rotation.set(0, s, (((i * 37) % 7) - 3) * 0.006);
         g.add(sign);
-        this.addCircle(cx, cz, 0.35);
+        this.addCircle(cx, cz, 0.5);
         tile.flats.push({ x: 0, z: 0, r: 0.8 });
       }
 
@@ -1591,18 +1586,8 @@ export class World {
     this.entryPath(ctx, 1.4);
     const taken: { x: number; z: number; r: number }[] = [];
     // A clearing with a woodcutter's log pile and a stump.
-    const logs = new THREE.Group();
-    const logGeo = this.kit.geo('log', () => new THREE.CylinderGeometry(0.35, 0.35, 3, 8));
+    const logs = makeLogPile(this.kit);
     const bark = this.kit.mat('#6e4a2c', WOOD);
-    [
-      [-0.38, 0.35],
-      [0.38, 0.35],
-      [0, 0.95],
-    ].forEach(([x, y]) => {
-      const l = mesh(logGeo, bark, x, y, 0);
-      l.rotation.x = Math.PI / 2;
-      logs.add(l);
-    });
     const lp = this.scatter(ctx, taken, 3.2, 0.55);
     if (lp) {
       logs.position.set(lp.x, 0, lp.z);
@@ -1618,7 +1603,7 @@ export class World {
       stump.add(
         mesh(
           this.kit.geo('stumpTop', () => new THREE.CylinderGeometry(0.42, 0.42, 0.04, 10)),
-          this.kit.mat('#d9b07a', WOOD),
+          woodMats(this.kit).grain,
           0,
           0.61,
           0,

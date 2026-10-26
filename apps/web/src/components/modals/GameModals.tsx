@@ -371,7 +371,7 @@ export function ConfirmNewModal() {
   const leaveOnline = useStore((s) => s.leaveOnline);
   if (online) {
     return (
-      <Modal title="Leave this game?" icon="refresh" onClose={close}>
+      <Modal title="Leave this game?" icon="leave" onClose={close}>
         <p className="text-[15px]">
           The others keep playing and the computer takes over your seat. You can’t come back to this game once you leave.
         </p>
@@ -387,17 +387,17 @@ export function ConfirmNewModal() {
     );
   }
   return (
-    <Modal title="Abandon this game?" icon="refresh" onClose={close}>
-      <p className="text-[15px]">Start over? The current game stays saved until a new one begins.</p>
+    <Modal title="Leave this game?" icon="leave" onClose={close}>
+      <p className="text-[15px]">The game stays saved until a new one begins; Continue on the main menu picks it up.</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="btn btn-primary" onClick={() => go('setup')}>
+        <button className="btn btn-primary" onClick={() => go('title')}>
+          Main menu
+        </button>
+        <button className="btn" onClick={() => go('setup')}>
           New game…
         </button>
         <button className="btn" onClick={() => { close(); rematch(); }}>
           Restart same seed
-        </button>
-        <button className="btn" onClick={() => go('title')}>
-          Main menu
         </button>
         <button className="btn btn-ghost ml-auto" onClick={close}>
           Cancel

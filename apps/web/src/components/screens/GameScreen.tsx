@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { sceneOpensWalk } from '../../devScenario';
 import { activeActor, type Action } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
@@ -44,6 +44,29 @@ function useLayout(): Layout {
   return layout;
 }
 
+/**
+ * Height left for the board between its top edge and the bottom of the window, so the board
+ * (and the 3D walk) can take all of it. Re-measured when the window or the rows above it change.
+ */
+function useBoardHeight(on: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!on || !el) return setHeight(null);
+    const measure = () => setHeight(Math.max(320, Math.floor(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - 12)));
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (el.parentElement) ro.observe(el.parentElement);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [on]);
+  return [ref, height] as const;
+}
+
 /** Online games: shows when the link to the server drops and while it reconnects. */
 function ConnectionBanner() {
   const status = useNet((n) => n.status);
@@ -80,6 +103,7 @@ export function GameScreen() {
   const placing = useStore((s) => s.mode !== null);
   const state = session?.state;
   const seat = state ? displaySeat(state) : 0;
+  const [boardRef, boardH] = useBoardHeight(layout !== 'narrow' && !!state);
 
   useBotDriver(state);
   useGameKeys(state, seat);
@@ -94,15 +118,17 @@ export function GameScreen() {
   const humanSeat = state.players[seat].kind === 'human';
   const needsBoard = canAct && humanSeat && (ph.kind === 'setup' || ph.kind === 'move-wraith' || placing);
 
-  // The board takes all the height left under the top bar and the players row.
+  // The board takes all the height left under the top bar and the players row; the 3D walk
+  // fills the whole width as well, since its camera adapts to any shape.
   const board = (
     <div
+      ref={boardRef}
       data-board
       className="relative mx-auto w-full"
-      style={{ maxWidth: layout === 'narrow' ? undefined : `min(100%, calc((100vh - 150px) * ${(VIEWBOX.w / VIEWBOX.h).toFixed(3)}))` }}
+      style={{ maxWidth: boardH === null || view3d ? undefined : `min(100%, ${Math.round(boardH * (VIEWBOX.w / VIEWBOX.h))}px)` }}
     >
       {view3d ? (
-        <div className="w-full" style={{ aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` }}>
+        <div className="w-full" style={boardH === null ? { aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` } : { height: boardH }}>
           <Suspense fallback={<div className="grid h-full place-items-center rounded-lg bg-surface-1 font-display text-gold">Building the island…</div>}>
             <World3D state={state} seat={seat} needsBoard={needsBoard} onExit={() => setView3d(false)} />
           </Suspense>
@@ -153,13 +179,16 @@ export function GameScreen() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col gap-2 p-2 sm:p-3">
-      <TopBar state={state} />
+    <div className="flex min-h-screen flex-col p-2 sm:p-3">
+      {/* The top bar spans only the columns left of the hand, which runs up to the top of the window. */}
       <div
-        className={`grid flex-1 gap-3 ${
+        className={`grid flex-1 grid-rows-[auto_1fr] gap-x-3 gap-y-2 ${
           layout === 'wide' ? 'grid-cols-[minmax(240px,17vw)_minmax(0,1fr)_minmax(350px,24vw)]' : layout === 'mid' ? 'grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1 pb-[52vh]'
         }`}
       >
+        <div className={layout === 'wide' ? 'col-span-2' : undefined}>
+          <TopBar state={state} />
+        </div>
         {layout === 'wide' && (
           <aside className="flex min-h-0 flex-col gap-3" aria-label="Claims and events">
             <BonusPanel state={state} />
@@ -176,7 +205,7 @@ export function GameScreen() {
           )}
         </main>
         {layout !== 'narrow' && (
-          <aside className="flex min-h-0 flex-col gap-3" aria-label="Your hand and actions">
+          <aside className={`row-span-2 row-start-1 flex min-h-0 flex-col gap-3 ${layout === 'wide' ? 'col-start-3' : 'col-start-2'}`} aria-label="Your hand and actions">
             <HandPanel state={state} seat={seat} />
             <ActionsPanel state={state} seat={seat} />
           </aside>

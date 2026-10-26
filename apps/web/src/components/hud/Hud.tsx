@@ -53,8 +53,7 @@ export function TopBar({ state }: { state: GameState }) {
           </span>
         </Tooltip>
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
-        <div className="flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5">
+      <div className="ml-auto flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5">
         <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" onClick={undo} disabled={!undoable} />
         <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
         <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
@@ -64,16 +63,8 @@ export function TopBar({ state }: { state: GameState }) {
           pressed={muted}
           onClick={() => updateSettings({ muted: !muted })}
         />
-        <IconButton icon="settings" label="Settings" align="end" onClick={() => openModal('settings')} />
-        </div>
-        <button
-          className="btn"
-          onClick={() => openModal('confirm-new')}
-          aria-label={online ? 'Leave game' : 'New game'}
-        >
-          <Icon name={online ? 'arrow' : 'refresh'} size={14} />{' '}
-          <span className="hidden sm:inline">{online ? 'Leave game' : 'New game'}</span>
-        </button>
+        <IconButton icon="settings" label="Settings" onClick={() => openModal('settings')} />
+        <IconButton icon="leave" label="Leave game" align="end" onClick={() => openModal('confirm-new')} />
       </div>
     </header>
   );

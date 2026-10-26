@@ -20,7 +20,7 @@ Measured 2026-10-25 against `main` at `e23202c`.
   the owner's colour. The mill has a millstone with its shaft, sacks, a grain bin and a ladder.
 - **The game carries on:** the HUD, toasts, dice and dialogs (a discard on a 7, trade offers)
   stay visible around and over the walk. **Space** still rolls and ends the turn, **Esc** or
-  **Board** returns to the 2D board at once. Doors are local and decorative; nothing goes over
+  the **2D board** switch returns to the board at once. Doors are local and decorative; nothing goes over
   the network.
 
 ## Scale and composition (one convention)

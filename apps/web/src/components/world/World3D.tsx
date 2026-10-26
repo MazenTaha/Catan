@@ -352,27 +352,14 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
             )}
           </div>
 
-          <div className="absolute right-2 top-2 flex flex-col items-end gap-1.5">
-            <button className="btn !px-3 !py-1 text-[12px]" onClick={onExit} title="Back to the 2D board (Esc)">
-              Board <kbd className="ml-1 rounded border border-iron/80 px-1 text-[10px] text-muted">Esc</kbd>
-            </button>
+          {/* Esc and the 2D/3D switch lead back to the board; the controls help shows on entry. */}
+          <div className="absolute right-2 top-2">
             <button
               className="btn !px-3 !py-1 text-[12px]"
               onClick={nextLand}
               title="Jump to the next of your lands"
             >
               Next land
-            </button>
-            <button
-              className="btn !px-3 !py-1 text-[12px]"
-              onClick={() => {
-                setShowHelp((v) => !v);
-                wrapRef.current?.focus({ preventScroll: true });
-              }}
-              aria-pressed={showHelp}
-              title="Show how to move"
-            >
-              Controls
             </button>
           </div>
 

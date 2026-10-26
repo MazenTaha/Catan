@@ -421,12 +421,6 @@
 .anim-firefly-0 { animation: firefly 3.4s ease-in-out infinite; }
 .anim-firefly-1 { animation: firefly 4.6s ease-in-out -1.5s infinite; }
 .anim-firefly-2 { animation: firefly 5.8s ease-in-out -3s infinite; }
-@keyframes shimmer {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 1; }
-}
-.anim-shimmer-a { animation: shimmer 2.2s ease-in-out infinite; }
-.anim-shimmer-b { animation: shimmer 2.2s ease-in-out -1.1s infinite; }
 @keyframes clouds {
   from { transform: translate3d(-14%, -2%, 0); }
   to { transform: translate3d(14%, 3%, 0); }
@@ -451,9 +445,7 @@
 .fx-lite .anim-flicker,
 .fx-lite .anim-rim,
 .fx-lite .anim-spin,
-.fx-lite .anim-clouds,
-.fx-lite .anim-shimmer-a,
-.fx-lite .anim-shimmer-b {
+.fx-lite .anim-clouds {
   animation: none !important;
 }
 .fx-lite .smoke-puff,

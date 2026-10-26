@@ -5,7 +5,8 @@ export const S = 100;
 
 const topo = getTopology();
 
-export const VIEWBOX = { x: -545, y: -490, w: 1090, h: 980 };
+// A little sea round the harbors so badges and boats never touch the edge.
+export const VIEWBOX = { x: -560, y: -505, w: 1120, h: 1010 };
 export const VIEWBOX_STR = `${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`;
 
 export function hexCenter(hex: number): { x: number; y: number } {
@@ -41,8 +42,8 @@ export const HEX_PATH = (() => {
   return `M0 ${-S}L${k} ${-S / 2}L${k} ${S / 2}L0 ${S}L${-k} ${S / 2}L${-k} ${-S / 2}Z`;
 })();
 
-/** The island outline (coastal vertices in clockwise order) as an SVG path. */
-export const ISLAND_PATH = (() => {
+/** The island outline: coastal vertices in clockwise order. */
+export const ISLAND_POINTS: { x: number; y: number }[] = (() => {
   const ring = topo.coastalEdges.map((e) => topo.edgeVertices[e]);
   const verts: VertexId[] = [];
   for (let i = 0; i < ring.length; i++) {
@@ -53,15 +54,40 @@ export const ISLAND_PATH = (() => {
     if (verts.length === 0) verts.push(other);
     verts.push(shared);
   }
-  return (
-    verts
-      .map((v, i) => {
-        const p = vertexXY(v);
-        return `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-      })
-      .join('') + 'Z'
-  );
+  if (verts[0] === verts[verts.length - 1]) verts.pop();
+  return verts.map(vertexXY);
 })();
+
+/** The island outline as an SVG path. */
+export const ISLAND_PATH =
+  ISLAND_POINTS.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('') + 'Z';
+
+/** Whether a point lies on the island (inside the coastline). */
+export function onIsland(p: { x: number; y: number }): boolean {
+  let inside = false;
+  const pts = ISLAND_POINTS;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i];
+    const b = pts[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/** Distance from a point to the coastline. */
+export function coastDistance(p: { x: number; y: number }): number {
+  let best = Infinity;
+  const pts = ISLAND_POINTS;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+    best = Math.min(best, Math.hypot(p.x - a.x - dx * k, p.y - a.y - dy * k));
+  }
+  return best;
+}
 
 export function harborGeometry(h: Harbor) {
   const e = edgeXY(h.edge);

@@ -35,12 +35,13 @@ import {
   vertexXY,
 } from './geometry';
 import { HexTooltip } from './HexTooltip';
-import { Ambient, Harbors, Sea, Shore, SunGlint, Sunlight } from './Scenery';
+import { Ambient, Harbors, Sea, Shore, Sunlight, SwellCrests } from './Scenery';
 
 /** Fades the square sea into the page so the board floats in the dark. */
+// The sea melts into the page only in the far corners; the water round the island stays clear.
 const SEA_MASK = {
-  maskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
-  WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at 50% 50%, #000 70%, transparent 100%)',
+  maskImage: 'radial-gradient(ellipse 72% 72% at 50% 50%, #000 80%, transparent 100%)',
+  WebkitMaskImage: 'radial-gradient(ellipse 72% 72% at 50% 50%, #000 80%, transparent 100%)',
 };
 
 /** Promote each board layer so the browser caches it independently. */
@@ -87,36 +88,6 @@ export function useTargets(state: GameState | undefined, canAct: boolean): Targe
 }
 
 // ------------------------------------------------------------------ static layers
-
-/** Swell lines (and, on the first set, fog banks). The wrapper drifts them with a compositor-only transform. */
-const Swell = memo(function Swell({ rows, fog }: { rows: number[]; fog?: boolean }) {
-  return (
-    <svg viewBox={VIEWBOX_STR} className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
-      {rows.map((i) => {
-        const y = -480 + i * 120;
-        return (
-          <path
-            key={i}
-            d={`M-760 ${y}q40 -10 80 0${'t80 0'.repeat(18)}`}
-            stroke="#4f8890"
-            strokeOpacity={0.18}
-            strokeWidth={1.4}
-            fill="none"
-            strokeDasharray="60 60"
-            strokeDashoffset={i * 37}
-          />
-        );
-      })}
-      {fog && (
-        <>
-          <ellipse cx={-380} cy={-430} rx={300} ry={80} fill="url(#g-fog)" opacity={0.7} />
-          <ellipse cx={360} cy={460} rx={340} ry={90} fill="url(#g-fog)" opacity={0.7} />
-          <ellipse cx={480} cy={-120} rx={120} ry={230} fill="url(#g-fog)" opacity={0.45} />
-        </>
-      )}
-    </svg>
-  );
-});
 
 /** The board is a pure function of (seed, mode); state clones must not re-render it. */
 const sameBoard = (a: { board: BoardT }, b: { board: BoardT }) =>
@@ -234,18 +205,17 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       <div className="pointer-events-none absolute inset-0" style={{ ...layer(Z.sea), ...(decorative ? null : SEA_MASK) }}>
         <svg viewBox={VIEWBOX_STR} className="absolute inset-0 h-full w-full" style={LAYER} aria-hidden>
           <BoardDefs />
-          <Sea />
+          <Sea board={state.board} />
         </svg>
       </div>
       {!decorative && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ ...layer(Z.swell), ...SEA_MASK }}>
           <div className="anim-swell absolute inset-0">
-            <Swell rows={[0, 2, 4, 6, 8]} fog />
+            <SwellCrests board={state.board} set={0} />
           </div>
           <div className="anim-swell-slow absolute inset-0">
-            <Swell rows={[1, 3, 5, 7]} />
+            <SwellCrests board={state.board} set={1} />
           </div>
-          <SunGlint />
         </div>
       )}
       <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={{ ...LAYER, ...layer(Z.land) }} aria-hidden>

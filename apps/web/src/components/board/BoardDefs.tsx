@@ -103,23 +103,17 @@ export const BoardDefs = memo(function BoardDefs() {
       </linearGradient>
 
       {/* the sea: clear blue, deepening away from the island, warmed where the sun lies on it */}
-      <radialGradient id="g-sea" cx="50%" cy="48%" r="70%">
-        <stop offset="0%" stopColor="#1f6f8c" />
-        <stop offset="45%" stopColor="#165a7a" />
-        <stop offset="80%" stopColor="#0f4062" />
-        <stop offset="100%" stopColor="#0a2b46" />
+      <radialGradient id="g-sea" cx="50%" cy="48%" r="72%">
+        <stop offset="0%" stopColor="#2386b3" />
+        <stop offset="50%" stopColor="#1b75a6" />
+        <stop offset="85%" stopColor="#156395" />
+        <stop offset="100%" stopColor="#125684" />
       </radialGradient>
-      <radialGradient id="g-sunglow" cx="10%" cy="-4%" r="62%">
-        <stop offset="0%" stopColor="#ffe6b0" stopOpacity="0.24" />
-        <stop offset="40%" stopColor="#f2d39a" stopOpacity="0.08" />
-        <stop offset="100%" stopColor="#f2d39a" stopOpacity="0" />
+      <radialGradient id="g-sunglow" cx="10%" cy="-4%" r="55%">
+        <stop offset="0%" stopColor="#fff0c8" stopOpacity="0.14" />
+        <stop offset="45%" stopColor="#fff0c8" stopOpacity="0.04" />
+        <stop offset="100%" stopColor="#fff0c8" stopOpacity="0" />
       </radialGradient>
-      <filter id="f-water" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="2" />
-      </filter>
-      <filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="12" />
-      </filter>
       <radialGradient id="g-mote">
         <stop offset="0%" stopColor="#fff6d8" stopOpacity="0.85" />
         <stop offset="45%" stopColor="#fff0c0" stopOpacity="0.25" />

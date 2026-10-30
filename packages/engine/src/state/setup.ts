@@ -1,6 +1,9 @@
 import { generateBoard } from '../board/generator';
 import {
   BANK_START,
+  BULLETS,
+  MANUP_CARDS,
+  MAX_HEALTH,
   OMEN_DECK_COUNTS,
   OMEN_TYPES,
   PLAYER_COLORS,
@@ -34,9 +37,10 @@ export function validateConfig(config: GameConfig): string | null {
   return null;
 }
 
-export function buildOmenDeck(rng: Rng): OmenType[] {
+export function buildOmenDeck(rng: Rng, pvp = false): OmenType[] {
   const deck: OmenType[] = [];
   for (const t of OMEN_TYPES) for (let i = 0; i < OMEN_DECK_COUNTS[t]; i++) deck.push(t);
+  if (pvp) for (let i = 0; i < MANUP_CARDS; i++) deck.push('manup');
   return rng.shuffle(deck);
 }
 
@@ -89,7 +93,7 @@ export function createGame(config: GameConfig): GameState {
 
   const forward = Array.from({ length: n }, (_, k) => (firstPlayer + k) % n);
   const setupOrder = [...forward, ...forward.slice().reverse()];
-  const omenDeck = buildOmenDeck(rng);
+  const omenDeck = buildOmenDeck(rng, !!config.pvp);
   const wraithHex = board.hexes.findIndex((h) => h.terrain === 'waste');
 
   const state: GameState = {
@@ -131,6 +135,17 @@ export function createGame(config: GameConfig): GameState {
     },
     actionCount: 0,
   };
+  if (config.arms) {
+    state.arms = {
+      chest: players.map(() => null),
+      starts: players.map(() => []),
+      armed: players.map(() => false),
+      bullets: players.map(() => BULLETS),
+      health: players.map(() => MAX_HEALTH),
+      owed: players.map(() => players.map(() => 0)),
+      kills: players.map(() => 0),
+    };
+  }
 
   if (privacyEnabled(state)) {
     const actor = activeActor(state);

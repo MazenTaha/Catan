@@ -4,10 +4,13 @@ import {
   applyAction,
   createGame,
   decideAction,
+  type Action,
   type GameEvent,
   type GameState,
 } from '@hexfall/engine';
 import {
+  REACH,
+  cleanPose,
   cleanProfile,
   clampSettings,
   createLobby,
@@ -15,6 +18,7 @@ import {
   lobbyToConfig,
   makeRoomCode,
   normalizeCode,
+  parries,
   redactEvents,
   redactFor,
   removeClient,
@@ -25,6 +29,7 @@ import {
   startProblem,
   type ClientMsg,
   type Lobby,
+  type Pose,
   type ServerMsg,
 } from '@hexfall/net';
 
@@ -39,6 +44,10 @@ export interface HubOptions {
   idleRoomTtl: number;
   random: () => number;
   now: () => number;
+  /** How often everyone's 3D-walk positions go out (ms). */
+  poseEvery: number;
+  /** How long a duellist may stay out of the 3D walk before yielding (ms). */
+  duelAbsence: number;
 }
 
 export const DEFAULT_OPTIONS: HubOptions = {
@@ -47,7 +56,16 @@ export const DEFAULT_OPTIONS: HubOptions = {
   idleRoomTtl: 15 * 60_000,
   random: Math.random,
   now: Date.now,
+  poseEvery: 100,
+  duelAbsence: 90_000,
 };
+
+/** A position counts as current for this long (ms); hits need both fighters current. */
+const POSE_FRESH = 1500;
+/** Latency slack on top of a weapon's reach (m). */
+const REACH_SLACK = 1.5;
+/** Fastest repeat of any blow (ms): the sword's swing is 580 ms. */
+const STRIKE_GAP = 300;
 
 const id = (bytes = 9) => randomBytes(bytes).toString('base64url');
 
@@ -60,6 +78,14 @@ class Room {
   readonly conns = new Map<string, Send>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   emptySince: number | null = null;
+  /** Each seat's avatar in the 3D walk, with when it was last heard. */
+  readonly poses: ({ pose: Pose; at: number } | null)[] = [];
+  private poseTimer: ReturnType<typeof setInterval> | null = null;
+  private lastStrike: number[] = [];
+  /** When each seat last fired, so a revolver hit needs a shot just before it. */
+  private shotAt: number[] = [];
+  /** Duel watchdog: how long each duellist has been away from the 3D walk (ms). */
+  private away: number[] = [];
 
   constructor(
     readonly code: string,
@@ -111,6 +137,73 @@ class Room {
     this.pump();
   }
 
+  /** A seat's avatar moved (or left the 3D walk); positions go out on a short timer. */
+  setPose(seat: number, pose: Pose | null) {
+    this.poses[seat] = pose ? { pose, at: this.opts.now() } : null;
+    if (!this.poseTimer && this.poses.some(Boolean)) {
+      this.poseTimer = setInterval(() => this.sendPoses(), this.opts.poseEvery);
+    }
+  }
+
+  private sendPoses() {
+    const now = this.opts.now();
+    const poses = this.lobby.seats.map((_, i) => {
+      const p = this.poses[i];
+      return p && now - p.at < POSE_FRESH * 4 ? p.pose : null;
+    });
+    if (!poses.some(Boolean) && this.poseTimer && this.state?.phase.kind !== 'duel') {
+      clearInterval(this.poseTimer);
+      this.poseTimer = null;
+    }
+    for (const client of this.conns.keys()) this.send(client, { t: 'poses', poses });
+    this.watchDuel(now);
+  }
+
+  /**
+   * Hits are found in the attacker's browser; the server checks they are possible: both
+   * fighters are in the 3D walk, within reach, not striking too fast, and a revolver hit
+   * follows a shot. It decides parries itself, from the defender's guard and facing.
+   */
+  checkStrike(a: Extract<Action, { type: 'Strike' }>): string | Action {
+    const now = this.opts.now();
+    // Each shot can land once, whether or not this hit is accepted.
+    const shot = this.shotAt[a.player] ?? -Infinity;
+    if (a.weapon === 'revolver') this.shotAt[a.player] = -Infinity;
+    const me = this.poses[a.player];
+    const them = this.poses[a.victim];
+    if (!me || !them || now - me.at > POSE_FRESH || now - them.at > POSE_FRESH)
+      return 'Both fighters must be in the 3D walk';
+    const d = Math.hypot(me.pose.x - them.pose.x, me.pose.z - them.pose.z);
+    if (d > (REACH[a.weapon] ?? 0) + REACH_SLACK) return 'Out of reach';
+    if (now - (this.lastStrike[a.player] ?? -Infinity) < STRIKE_GAP) return 'Too fast';
+    if (a.weapon === 'revolver' && now - shot > 1500) return 'No shot was fired';
+    this.lastStrike[a.player] = now;
+    return { ...a, parried: parries(them.pose, me.pose) };
+  }
+
+  noteShot(seat: number) {
+    this.shotAt[seat] = this.opts.now();
+  }
+
+  /** A duellist who stays out of the 3D walk (or offline) too long yields the duel. */
+  private watchDuel(now: number) {
+    const s = this.state;
+    if (!s || s.phase.kind !== 'duel') {
+      this.away = [];
+      return;
+    }
+    for (const seat of [s.phase.challenger, s.phase.target]) {
+      const p = this.poses[seat];
+      const here = !!p && now - p.at < POSE_FRESH;
+      this.away[seat] = here ? 0 : (this.away[seat] ?? 0) + this.opts.poseEvery;
+      if (this.away[seat] >= this.opts.duelAbsence) {
+        this.away = [];
+        this.act({ type: 'YieldDuel', player: seat });
+        return;
+      }
+    }
+  }
+
   /** Applies one move, tells everyone, and lines up the next computer move if any. */
   act(action: Parameters<typeof applyAction>[1]): string | null {
     if (!this.state) return 'The game has not started';
@@ -128,6 +221,11 @@ class Room {
     this.timer = null;
     const s = this.state;
     if (!s || s.phase.kind === 'ended') return;
+    // A duel pauses the board; the watchdog (driven by the position timer) ends a stalled one.
+    if (s.phase.kind === 'duel') {
+      if (!this.poseTimer) this.poseTimer = setInterval(() => this.sendPoses(), this.opts.poseEvery);
+      return;
+    }
     const seat = this.lobby.seats[activeActor(s)];
     let delay: number | null = null;
     if (seat.kind === 'bot') delay = this.opts.botDelay();
@@ -159,6 +257,7 @@ class Room {
 
   disconnected(client: string) {
     this.conns.delete(client);
+    for (const seat of seatsOf(this.lobby, client)) this.poses[seat] = null;
     this.lobby = setConnected(this.lobby, client, false);
     if (this.conns.size === 0) this.emptySince = this.opts.now();
     if (this.started) {
@@ -169,6 +268,8 @@ class Room {
 
   close(reason: string) {
     if (this.timer) clearTimeout(this.timer);
+    if (this.poseTimer) clearInterval(this.poseTimer);
+    this.poseTimer = null;
     for (const client of this.conns.keys()) this.send(client, { t: 'closed', reason });
     this.conns.clear();
   }
@@ -282,8 +383,22 @@ export class Hub {
         case 'action': {
           if (!r.started) return fail('The game has not started');
           if (!seatsOf(r.lobby, c).includes(msg.action.player)) return fail('It is not your move');
-          const err = r.act(msg.action);
+          let action: Action = msg.action;
+          if (action.type === 'Strike') {
+            const checked = r.checkStrike(action);
+            // A blow that can't have landed is dropped quietly: it was a near miss.
+            if (typeof checked === 'string') return;
+            action = checked;
+          }
+          const err = r.act(action);
           if (err) fail(err);
+          else if (action.type === 'Fire') r.noteShot(action.player);
+          return;
+        }
+        case 'pose': {
+          if (!r.started) return;
+          const seat = seatsOf(r.lobby, c)[0];
+          if (seat !== undefined) r.setPose(seat, cleanPose(msg.pose));
           return;
         }
         case 'leave':

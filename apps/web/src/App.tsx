@@ -1,6 +1,7 @@
 import { AnimatePresence } from 'framer-motion';
 import { Suspense, lazy, useEffect } from 'react';
 import { audio } from './audio/engine';
+import { music } from './audio/music';
 import { Embers } from './components/fx/Embers';
 import { startScene } from './devScenario';
 import { SettingsModal } from './components/modals/InfoModals';
@@ -11,6 +12,8 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { liteEffects, prefersReducedMotion, useStore } from './state/store';
 
 const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
+const CharacterModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.CharacterModal })));
+const KingdomModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.KingdomModal })));
 const ArtBoard = lazy(() => import('./components/screens/ArtBoard'));
 
 export function App() {
@@ -24,6 +27,14 @@ export function App() {
   useEffect(() => {
     void startScene();
   }, []);
+
+  // Classical music on the menus and the 2D board; it pauses while the 3D walk is open.
+  const musicOn = useStore(
+    (s) => s.settings.music > 0 && !s.settings.muted && !(s.screen === 'game' && s.view3d),
+  );
+  useEffect(() => {
+    music.setWanted(musicOn);
+  }, [musicOn]);
 
   // Audio may only start after a user gesture (autoplay policy).
   useEffect(() => {
@@ -62,6 +73,9 @@ export function App() {
         <Suspense fallback={null}>
           <RulebookModal />
         </Suspense>
+      )}
+      {(modal === 'character' || modal === 'kingdom') && (
+        <Suspense fallback={null}>{modal === 'character' ? <CharacterModal /> : <KingdomModal />}</Suspense>
       )}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announce}

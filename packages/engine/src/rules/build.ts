@@ -6,6 +6,7 @@ import {
   topo,
   touchesOwnCauseway,
 } from '../state/selectors';
+import { hideChest } from './arms';
 import type { Ctx } from './context';
 import { grant, payCost, requireCurrent, requirePhase } from './context';
 import { check } from './errors';
@@ -45,6 +46,7 @@ export function placeSetupOutpost(ctx: Ctx, player: number, v: VertexId): void {
     }
     grant(ctx, player, gains);
     ctx.ev.push({ type: 'SetupResourcesGranted', player, gains });
+    hideChest(ctx, player);
   }
   s.phase = { ...s.phase, step: 'causeway', lastOutpost: v };
   updateLongestCauseway(s, ctx.ev);

@@ -35,7 +35,8 @@ import { PlayerDisc, SigilGlyph } from '../../art/pieces/Sigil';
 import { audio } from '../../audio/engine';
 import { BOT_BLURB, BOT_NAME, COLOR_HEX, COLOR_NAME, LAYOUT_NAME, SIGIL_NAME } from '../../lexicon';
 import { useNet } from '../../state/net';
-import { loadProfile, saveProfile, type PlayerProfile } from '../../state/persistence';
+import { loadProfile, type PlayerProfile } from '../../state/persistence';
+import { updateProfile } from '../../state/profile';
 import { useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
 import { NAME_COLOR } from '../panels/LogLineView';
@@ -51,7 +52,7 @@ export function NewGameScreen() {
   const [view, setView] = useState<View>('choose');
   const setProfile = (p: PlayerProfile) => {
     setProfileState(p);
-    saveProfile(p);
+    updateProfile(p);
   };
   const back = () => {
     if (view === 'choose') go('title');
@@ -136,7 +137,7 @@ function Choose({
           }}
           data-testid="host"
         >
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#ffc978] to-[#e07a3e] text-[#2a1406] shadow-[0_10px_24px_-10px_rgb(255_140_60/0.9)]">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl cream-fill">
             <Icon name="flag" size={26} />
           </span>
           <span className="min-w-0 flex-1">

@@ -1,3 +1,4 @@
+import { daylight, hourOf, stageName } from '../world/daytime';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { RESOURCES, activeActor, victoryPoints, type GameState } from '@hexfall/engine';
@@ -39,6 +40,10 @@ export function TitleBlock({ state, className = '' }: { state: GameState; classN
             Round {state.round}
           </span>
         )}
+        <span className="chip text-muted" data-testid="time-of-day" aria-label={`Time of day: ${stageName(hourOf(state))}`}>
+          <Icon name={daylight(hourOf(state)) < 0.35 ? 'moon' : 'sun'} size={12} className="text-gold" />
+          {stageName(hourOf(state))}
+        </span>
         <Tooltip label={`Leader has ${leader} of ${state.config.targetVp} points`} side="bottom">
           <span className="chip text-muted" tabIndex={0}>
             <Icon name="crown" size={12} className="text-gold" />
@@ -126,6 +131,14 @@ export function instruction(state: GameState, seat: number): string {
         : `Waiting for ${a.name} to answer the offer`;
     case 'main':
       return 'Build & trade, then end your turn (Space)';
+    case 'duel': {
+      const [a2, b2] = [state.players[ph.challenger], state.players[ph.target]];
+      return seat === ph.target
+        ? `${a2.name} challenges you to a duel. Enter the 3D walk!`
+        : seat === ph.challenger
+          ? `Duel ${b2.name} in the 3D walk. The game waits.`
+          : `${a2.name} and ${b2.name} are duelling. The game waits.`;
+    }
     case 'ended':
       return `${state.players[ph.winner].name} wins!`;
   }

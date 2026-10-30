@@ -6,6 +6,7 @@ import type {
   Resource,
   ResourceCounts,
   Sigil,
+  Weapon,
 } from '../lexicon-keys';
 
 export type SeatKind = 'human' | 'bot';
@@ -33,6 +34,29 @@ export interface GameConfig {
    * Defaults to on when there are two or more human seats.
    */
   privacy?: boolean;
+  /**
+   * Weapon chests, health, bullets and kill rewards for the 3D walk (DECISIONS #40). Off for
+   * games created before it existed, so their saves and records replay unchanged.
+   */
+  arms?: boolean;
+  /** Live fights between human players and the Man up cards (online games with 2+ humans). */
+  pvp?: boolean;
+}
+
+export interface ArmsState {
+  /** Each seat's weapon chest: one of its two starting settlements (null until placed). */
+  chest: (VertexId | null)[];
+  /** Each seat's two starting settlements: the chest is in one, the other holds nothing. */
+  starts: VertexId[][];
+  /** Has opened its chest: carries a sword and a revolver. */
+  armed: boolean[];
+  /** Revolver rounds left for the whole game. */
+  bullets: number[];
+  /** Kept between visits to the 3D walk; back to full after a death. */
+  health: number[];
+  /** owed[victim][killer]: resource cards still owed for deaths with an empty hand. */
+  owed: number[][];
+  kills: number[];
 }
 
 export interface OwnedOmen {
@@ -93,6 +117,8 @@ export type Phase =
   | { kind: 'main' }
   | { kind: 'decree'; remaining: number; resume: ResumePhase }
   | { kind: 'trade'; offer: TradeOffer }
+  /** Man up: the board waits until one of the two dies in the 3D walk (or yields). */
+  | { kind: 'duel'; challenger: number; target: number; resume: ResumePhase }
   | { kind: 'ended'; winner: number };
 
 export type PhaseKind = Phase['kind'];
@@ -147,6 +173,8 @@ export interface GameState {
   nextTradeId: number;
   stats: GameStats;
   actionCount: number;
+  /** Present when `config.arms` is on. */
+  arms?: ArmsState;
 }
 
 // ---------------------------------------------------------------- Actions
@@ -184,7 +212,13 @@ export type Action =
   | A<'CancelTrade'>
   | A<'BankTrade', { give: Resource; receive: Resource; count?: number }>
   | A<'EndTurn'>
-  | A<'AckPassDevice'>;
+  | A<'AckPassDevice'>
+  | A<'PlayManUp', { target: number }>
+  | A<'OpenChest'>
+  | A<'Fire'>
+  /** A landed hit in the 3D walk (online: checked and completed by the server). */
+  | A<'Strike', { victim: number; weapon: Weapon; parried?: boolean }>
+  | A<'YieldDuel'>;
 
 export type ActionType = Action['type'];
 
@@ -261,7 +295,23 @@ export type GameEvent =
   | { type: 'GreatestHostChanged'; holder: number | null; previous: number | null; count: number }
   | { type: 'TurnEnded'; player: number }
   | { type: 'TurnStarted'; player: number; turn: number; round: number }
-  | { type: 'GameWon'; player: number; vp: number; breakdown: VpBreakdown[] };
+  | { type: 'GameWon'; player: number; vp: number; breakdown: VpBreakdown[] }
+  | { type: 'ChestOpened'; player: number }
+  | { type: 'ShotFired'; player: number; left: number }
+  | {
+      type: 'Struck';
+      attacker: number;
+      victim: number;
+      weapon: Weapon;
+      damage: number;
+      health: number;
+      parried: boolean;
+    }
+  /** `resource` null: the victim had no cards and now owes one. */
+  | { type: 'Slain'; killer: number; victim: number; resource: Resource | null }
+  | { type: 'DebtPaid'; from: number; to: number; resource: Resource }
+  | { type: 'DuelStarted'; challenger: number; target: number }
+  | { type: 'DuelEnded'; winner: number; loser: number; yielded: boolean };
 
 export type GameEventType = GameEvent['type'];
 

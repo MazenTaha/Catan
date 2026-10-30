@@ -29,7 +29,7 @@ export const TERRAIN_COUNTS: Record<Terrain, number> = {
 
 export const NUMBER_TOKENS = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12] as const;
 
-export const OMEN_TYPES = ['warden', 'relic', 'decree', 'harvest', 'tithe'] as const;
+export const OMEN_TYPES = ['warden', 'relic', 'decree', 'harvest', 'tithe', 'manup'] as const;
 export type OmenType = (typeof OMEN_TYPES)[number];
 
 export const OMEN_DECK_COUNTS: Record<OmenType, number> = {
@@ -38,7 +38,18 @@ export const OMEN_DECK_COUNTS: Record<OmenType, number> = {
   decree: 2,
   harvest: 2,
   tithe: 2,
+  /** Man up: only in live-combat games, which add MANUP_CARDS of them (see buildOmenDeck). */
+  manup: 0,
 };
+
+export const MANUP_CARDS = 6;
+
+/** Live combat in the 3D walk (DECISIONS #40). */
+export const MAX_HEALTH = 100;
+export const BULLETS = 5;
+export const WEAPONS = ['fist', 'sword', 'revolver'] as const;
+export type Weapon = (typeof WEAPONS)[number];
+export const DAMAGE: Record<Weapon, number> = { fist: 10, sword: 25, revolver: 50 };
 
 export const PLAYER_COLORS = ['crimson', 'frost', 'bone', 'violet'] as const;
 export type PlayerColor = (typeof PLAYER_COLORS)[number];

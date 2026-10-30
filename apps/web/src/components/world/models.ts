@@ -1559,6 +1559,144 @@ export function makeRoad(kit: Kit, len: number, color: string): THREE.Object3D {
   });
 }
 
+/** Rise of a bridge's deck at its middle (m); the deck arcs from 0 at either end. */
+export const BRIDGE_RISE = 0.85;
+/** Clear width of a bridge's deck between its railings (m). */
+export const BRIDGE_WIDTH = 2.3;
+
+/** Deck height at `x` along a bridge `len` long, centred on 0. */
+export function bridgeDeck(x: number, len: number): number {
+  const u = Math.min(1, Math.abs((2 * x) / len));
+  return BRIDGE_RISE * (1 - u * u);
+}
+
+/**
+ * A road as a humpbacked timber bridge over a little brook (along x, `len` metres vertex to
+ * vertex): plank deck on two arched stringers and a rib, stone abutments, railings with posts
+ * painted in the owner's colour, and tall corner posts flying the owner's pennants, so every
+ * road reads from across the island.
+ */
+export function makeBridge(kit: Kit, len: number, color: string): THREE.Object3D {
+  return kit.template(`bridge${color}${len.toFixed(2)}`, () => {
+    const g = new THREE.Group();
+    const rnd = mulberry(47);
+    const half = BRIDGE_WIDTH / 2;
+    const deckAt = (x: number) => bridgeDeck(x, len);
+    // The brook: a soft-edged stream crossing under the middle, with pebbled banks and reeds.
+    const water = kit.mat('#3d8fb0', { roughness: 0.12, metalness: 0.15, smooth: true });
+    const bank = kit.mat('#7d7158', STONE);
+    const brook = new THREE.Shape();
+    brook.absellipse(0, 0, len * 0.16, 3.4, 0, Math.PI * 2, false, 0);
+    const bed = mesh(kit.geo(`brook${len.toFixed(2)}`, () => new THREE.ShapeGeometry(brook, 24).rotateX(-Math.PI / 2)), bank, 0, 0.03, 0, false);
+    bed.receiveShadow = true;
+    g.add(bed);
+    const flow = new THREE.Shape();
+    flow.absellipse(0, 0, len * 0.12, 3.0, 0, Math.PI * 2, false, 0);
+    const surf = mesh(kit.geo(`flow${len.toFixed(2)}`, () => new THREE.ShapeGeometry(flow, 24).rotateX(-Math.PI / 2)), water, 0, 0.06, 0, false);
+    surf.receiveShadow = true;
+    g.add(surf);
+    const pebble = kit.rbox(0.22, 0.12, 0.18, 0.06);
+    const pebbleTones = ['#9c9282', '#857b6b', '#b1a794'].map((c) => kit.mat(c, STONE));
+    for (let i = 0; i < 26; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = 0.95 + rnd() * 0.12;
+      const p = mesh(pebble, pebbleTones[i % 3], Math.cos(a) * len * 0.15 * r, 0.07, Math.sin(a) * 3.2 * r, false);
+      p.rotation.y = rnd() * 3;
+      p.scale.setScalar(0.7 + rnd() * 0.8);
+      g.add(p);
+    }
+    const reed = kit.mat('#6f8f3c', { roughness: 0.9 });
+    for (let i = 0; i < 10; i++) {
+      const z = (i < 5 ? -1 : 1) * (2.1 + rnd() * 1.1);
+      const r = mesh(kit.box(0.04, 0.7, 0.04), reed, (rnd() - 0.5) * len * 0.18, 0.4, z, false);
+      r.rotation.z = (rnd() - 0.5) * 0.4;
+      g.add(r);
+    }
+    // Stone abutments where the arch meets each bank.
+    const stone = ['#a39783', '#8f8472', '#b5aa95'].map((c) => kit.mat(c, STONE));
+    const block = kit.rbox(0.55, 0.32, 0.5, 0.06);
+    for (const sx of [-1, 1])
+      for (let row = 0; row < 2; row++)
+        for (let k = 0; k < 5; k++) {
+          const b = mesh(block, stone[(k + row) % 3], sx * len * 0.17 + (row ? 0.05 : 0), 0.16 + row * 0.3, -1.1 + k * 0.55 + (row ? 0.25 : 0));
+          b.rotation.y = (rnd() - 0.5) * 0.1;
+          if (row === 0 || k < 4) g.add(b);
+        }
+    // Deck: planks across, each tilted to the arch; two stringers and a central rib beneath.
+    const timber = ['#8a6239', '#7b5532', '#966b40'].map((c) => kit.mat(c, WOOD));
+    const plank = kit.rbox(0.3, 0.08, BRIDGE_WIDTH + 0.3, 0.025);
+    for (let x = -len / 2 + 0.16; x < len / 2 - 0.1; x += 0.33) {
+      const slope = Math.atan2(deckAt(x + 0.05) - deckAt(x - 0.05), 0.1);
+      const p = mesh(plank, timber[Math.floor(rnd() * 3)], x, deckAt(x) + 0.05, (rnd() - 0.5) * 0.04);
+      p.rotation.z = slope;
+      g.add(p);
+    }
+    const beam = kit.mat('#5b3d22', WOOD);
+    const seg = 0.7;
+    for (let x = -len / 2 + seg / 2; x < len / 2; x += seg) {
+      const slope = Math.atan2(deckAt(x + 0.05) - deckAt(x - 0.05), 0.1);
+      for (const z of [-half + 0.15, half - 0.15]) {
+        const b = mesh(kit.rbox(seg + 0.04, 0.2, 0.18, 0.04), beam, x, deckAt(x) - 0.1, z);
+        b.rotation.z = slope;
+        g.add(b);
+      }
+      if (Math.abs(x) < len * 0.2) {
+        const rib = mesh(kit.rbox(seg + 0.04, 0.14, 0.16, 0.04), beam, x, deckAt(x) * 0.62 - 0.05, 0);
+        rib.rotation.z = Math.atan2(deckAt(x + 0.05) - deckAt(x - 0.05), 0.1) * 0.62;
+        g.add(rib);
+      }
+    }
+    // Railings: posts with painted caps and a painted top rail following the arch.
+    const paint = kit.mat(color, WOOD);
+    const dark = kit.mat(shade(color, -0.14), WOOD);
+    const posts: number[] = [];
+    const span = len * 0.84;
+    for (let i = 0; i <= 6; i++) posts.push(-span / 2 + (span * i) / 6);
+    for (const z of [-half, half]) {
+      for (const x of posts) {
+        g.add(mesh(kit.rbox(0.16, 1.05, 0.16, 0.04), beam, x, deckAt(x) + 0.55, z));
+        g.add(mesh(kit.rbox(0.22, 0.08, 0.22, 0.03), paint, x, deckAt(x) + 1.1, z, false));
+      }
+      for (let i = 0; i < posts.length - 1; i++) {
+        const a = posts[i];
+        const b = posts[i + 1];
+        const ya = deckAt(a);
+        const yb = deckAt(b);
+        const l = Math.hypot(b - a, yb - ya);
+        const ang = Math.atan2(yb - ya, b - a);
+        const top = mesh(kit.rbox(l, 0.1, 0.12, 0.03), paint, (a + b) / 2, (ya + yb) / 2 + 1.0, z);
+        top.rotation.z = ang;
+        g.add(top);
+        const mid = mesh(kit.rbox(l, 0.07, 0.08, 0.02), dark, (a + b) / 2, (ya + yb) / 2 + 0.55, z);
+        mid.rotation.z = ang;
+        g.add(mid);
+      }
+    }
+    // Tall corner posts flying the owner's pennants: the bridge's signal from far away.
+    const pole = kit.mat('#4e3520', WOOD);
+    const flag = kit.mat(color, { roughness: 0.9, side: THREE.DoubleSide });
+    const pennant = kit.geo('pennant', () => {
+      const s = new THREE.Shape();
+      s.moveTo(0, 0);
+      s.lineTo(0.95, -0.22);
+      s.lineTo(0, -0.5);
+      s.lineTo(0, 0);
+      return new THREE.ShapeGeometry(s);
+    });
+    for (const sx of [-1, 1])
+      for (const z of [-half, half]) {
+        const x = (sx * span) / 2;
+        const y0 = deckAt(x);
+        g.add(mesh(kit.rbox(0.2, 2.6, 0.2, 0.05), pole, x, y0 + 1.3, z));
+        g.add(mesh(kit.rbox(0.28, 0.14, 0.28, 0.04), paint, x, y0 + 2.62, z, false));
+        const f = mesh(pennant, flag, x, y0 + 2.5, z, false);
+        f.rotation.y = sx > 0 ? Math.PI : 0;
+        g.add(f);
+      }
+    return g;
+  });
+}
+
 export function makeRobber(kit: Kit): THREE.Group {
   const g = new THREE.Group();
   const cloak = kit.mat('#4a4e53', CLOTH);

@@ -138,15 +138,23 @@
     cursor: not-allowed;
     filter: saturate(0.6);
   }
-  .btn-primary {
-    color: #2a1406;
-    border-color: rgb(255 200 130 / 0.7);
-    background: linear-gradient(180deg, #ffc978 0%, rgb(var(--gold)) 45%, #e07a3e 100%);
-    text-shadow: 0 1px 0 rgb(255 240 210 / 0.45);
+  /* Main buttons and selected toggles: warm cream, so the gold and coral stay accents. */
+  .btn-primary,
+  .cream-fill {
+    color: #2b1d0c;
+    font-weight: 700;
+    border-color: rgb(255 246 226 / 0.85);
+    background: linear-gradient(180deg, #fffaf0 0%, #f3e6cb 48%, #dcc59a 100%);
+    text-shadow: 0 1px 0 rgb(255 255 255 / 0.5);
     box-shadow:
-      inset 0 1px 0 rgb(255 245 220 / 0.7),
-      0 2px 0 #8a4318,
-      0 10px 24px -10px rgb(255 140 60 / 0.75);
+      inset 0 1px 0 rgb(255 255 255 / 0.85),
+      0 2px 0 #8f7a52,
+      0 10px 24px -10px rgb(240 214 168 / 0.55);
+  }
+  .cream-fill {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.85),
+      0 6px 16px -8px rgb(240 214 168 / 0.6);
   }
   /* A soft sheen sweeps across the main buttons on hover. */
   .btn-primary::after {
@@ -163,12 +171,41 @@
     animation: sheen 700ms ease-out;
   }
   .btn-primary:hover:not(:disabled) {
-    color: #1a0b02;
-    filter: brightness(1.07) saturate(1.05);
+    color: #1a1006;
+    filter: brightness(1.04);
     box-shadow:
-      inset 0 1px 0 rgb(255 245 220 / 0.8),
-      0 3px 0 #8a4318,
-      0 14px 30px -10px rgb(255 140 60 / 0.9);
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      0 3px 0 #8f7a52,
+      0 14px 30px -10px rgb(240 214 168 / 0.75);
+  }
+  /* Man up: the challenged player's 3D switch pulses red until they answer the call. */
+  .duel-call {
+    position: relative;
+    background: linear-gradient(180deg, #d24a4a, #8e1f2c);
+    box-shadow: 0 0 0 1px rgb(255 120 110 / 0.8);
+  }
+  .duel-call::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 10px;
+    border: 2px solid rgb(255 90 80 / 0.9);
+    animation: duel-pulse 1s ease-out infinite;
+    pointer-events: none;
+  }
+  .reduce-motion .duel-call::after {
+    animation: none;
+  }
+  /* A player walking the 3D island, marked on the board: one small ring, scaled and faded. */
+  .walk-ripple {
+    border-width: 2px;
+    border-style: solid;
+    animation: walk-ripple 1.8s ease-out infinite;
+  }
+  .reduce-motion .walk-ripple,
+  .fx-lite .walk-ripple {
+    animation: none;
+    opacity: 0;
   }
   .btn-danger {
     border-color: rgb(var(--blood));
@@ -465,4 +502,26 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+@keyframes duel-pulse {
+  from {
+    transform: scale(0.92);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes walk-ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
 }

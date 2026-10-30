@@ -223,6 +223,39 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
       return { icon: 'bell', parts: [`Round ${e.round} — `, P(e.player), "'s turn"], players: [e.player], tone: 'muted' };
     case 'GameWon':
       return { icon: 'crown', parts: [P(e.player), ` wins with ${e.vp} points!`], players: [e.player], tone: 'gold' };
+    case 'ChestOpened':
+      return { icon: 'chest', parts: [P(e.player), ' found a sword and a revolver'], players: [e.player], tone: 'gold' };
+    case 'Slain':
+      return {
+        icon: 'sword',
+        parts: [
+          P(e.killer),
+          ' slew ',
+          P(e.victim),
+          ...(e.resource === null
+            ? [' — who now owes a card']
+            : [' and took ', ...(see(e.killer, e.victim) ? [{ res: e.resource, n: 1 } as LogPart] : ['a card'])]),
+        ],
+        players: [e.killer, e.victim],
+        tone: 'bad',
+      };
+    case 'DebtPaid':
+      return {
+        icon: 'steal',
+        parts: [P(e.from), ' paid ', ...(see(e.from, e.to) ? [{ res: e.resource, n: 1 } as LogPart] : ['a card']), ' owed to ', P(e.to)],
+        players: [e.from, e.to],
+      };
+    case 'DuelStarted':
+      return { icon: 'duel', parts: [P(e.challenger), ' calls ', P(e.target), ' out — the game waits for the duel'], players: [e.challenger, e.target], tone: 'bad' };
+    case 'DuelEnded':
+      return {
+        icon: 'duel',
+        parts: [P(e.winner), e.yielded ? ' wins the duel — ' : ' wins the duel against ', P(e.loser), ...(e.yielded ? [' yielded'] : [])],
+        players: [e.winner, e.loser],
+        tone: 'gold',
+      };
+    case 'Struck':
+    case 'ShotFired':
     case 'TurnEnded':
     case 'DevicePassed':
       return null;

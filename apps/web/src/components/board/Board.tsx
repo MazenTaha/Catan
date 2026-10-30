@@ -34,6 +34,7 @@ import {
   topo,
   vertexXY,
 } from './geometry';
+import { DaylightTint, WalkPresence } from './WalkLayer';
 import { HexTooltip } from './HexTooltip';
 import { Ambient, Harbors, Sea, Shore, Sunlight, SwellCrests } from './Scenery';
 
@@ -227,9 +228,11 @@ export const BoardView = memo(function BoardView({ state, canAct, decorative = f
       <div className="pointer-events-none absolute inset-0" style={layer(Z.ambient)}>
         <Ambient board={state.board} still={decorative} />
       </div>
+      {!decorative && <DaylightTint state={state} />}
       {production && <ProductionGlow board={state.board} production={production} />}
       <PiecesLayer state={state} decorative={decorative} />
       <WraithLayer hex={state.wraithHex} />
+      {!decorative && <WalkPresence state={state} />}
       {production && (
         <svg viewBox={VIEWBOX_STR} className="pointer-events-none absolute inset-0 h-full w-full" style={layer(Z.chips)} aria-hidden>
           <GainChips key={production.seq} state={state} hexes={production.hexes} />

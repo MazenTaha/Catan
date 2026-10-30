@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ClientMsg, Lobby, LobbySettings, Profile, ServerMsg } from '@hexfall/net';
+import { usePresence } from './presence';
 
 /**
  * The connection to the game server. Hosting and joining go through here; once a game
@@ -115,6 +116,9 @@ export const useNet = create<NetState>((set, get) => {
         saveSeat(null);
         set({ closed: msg.reason, lobby: null });
         shutdown('idle');
+        return;
+      case 'poses':
+        usePresence.setState({ poses: msg.poses });
         return;
       case 'pong':
         return;
@@ -233,7 +237,8 @@ export const useNet = create<NetState>((set, get) => {
     },
     send(msg) {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-      else set({ error: 'Not connected to the game server' });
+      // Positions are sent ten times a second; a dropped one isn't worth a message.
+      else if (msg.t !== 'pose') set({ error: 'Not connected to the game server' });
     },
     leave() {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'leave' }));

@@ -2,6 +2,7 @@ import { deepClone } from '../clone';
 import { Rng } from '../rng';
 import { activeActor, privacyEnabled } from '../state/selectors';
 import type { Action, ActionOutcome, GameError, GameState, Result } from '../state/types';
+import { fire, openChest, playManUp, settleDebts, strike, yieldDuel } from './arms';
 import { buildCauseway, buildCitadel, buildOutpost, placeSetupCauseway, placeSetupOutpost } from './build';
 import type { Ctx } from './context';
 import { requireCurrent, requirePhase } from './context';
@@ -96,6 +97,16 @@ function dispatch(ctx: Ctx, a: Action): void {
       return endTurn(ctx, a.player);
     case 'AckPassDevice':
       return ackPassDevice(ctx, a.player);
+    case 'PlayManUp':
+      return playManUp(ctx, a.player, a.target);
+    case 'OpenChest':
+      return openChest(ctx, a.player);
+    case 'Fire':
+      return fire(ctx, a.player);
+    case 'Strike':
+      return strike(ctx, a.player, a.victim, a.weapon, !!a.parried);
+    case 'YieldDuel':
+      return yieldDuel(ctx, a.player);
     default:
       fail('INVALID', `Unknown action ${(a as { type?: string }).type}`);
   }
@@ -141,6 +152,7 @@ export function applyAction(state: GameState, action: Action): Result<ActionOutc
     const s = cloneState(state);
     const ctx: Ctx = { s, ev: [], rng: new Rng(s.rng) };
     dispatch(ctx, action);
+    settleDebts(ctx);
     s.rng = ctx.rng.state;
     s.actionCount++;
     if (action.type !== 'AckPassDevice') {

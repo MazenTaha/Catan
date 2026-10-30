@@ -313,6 +313,8 @@ export function warlordAction(s: GameState, rng: Rng, persona: Persona): Action 
       return respond(s, p, persona);
     case 'main':
       return mainTurn(s, p, rng, persona);
+    case 'duel':
+      throw new Error('No moves during a duel');
     case 'ended':
       throw new Error('Game over');
   }

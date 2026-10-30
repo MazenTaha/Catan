@@ -1,5 +1,6 @@
 import type { Action, GameConfig, GameState, PlayerColor, Sigil } from '@hexfall/engine';
 import { makeRecord } from '@hexfall/engine';
+import { DEFAULT_DECOR, DEFAULT_LOOK, cleanDecor, cleanLook, type CharacterLook, type KingdomDecor } from '@hexfall/net';
 
 export type BotSpeed = 'slow' | 'normal' | 'fast' | 'instant';
 export type HandPrivacy = 'curtain' | 'off';
@@ -9,6 +10,8 @@ export type RenderScale = 1 | 0.75 | 0.5;
 export interface Settings {
   master: number;
   sfx: number;
+  /** Classical music on the menus and the 2D board (0 = off). */
+  music: number;
   muted: boolean;
   reduceMotion: boolean;
   colorblind: boolean;
@@ -27,11 +30,14 @@ export interface Settings {
   autoLite: boolean;
   /** The 3D walk's render resolution, as a share of the display's (the UI is always sharp). */
   renderScale: RenderScale;
+  /** Mouse look speed in the 3D walk (Dive in and dragging), 0.3 to 3. */
+  mouseSensitivity: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   master: 0.8,
   sfx: 0.8,
+  music: 0.45,
   muted: false,
   reduceMotion: false,
   colorblind: false,
@@ -47,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
   effects: 'auto',
   autoLite: false,
   renderScale: 1,
+  mouseSensitivity: 1,
 };
 
 const SETTINGS_KEY = 'hexfall.settings';
@@ -56,15 +63,26 @@ export interface PlayerProfile {
   name: string;
   color: PlayerColor;
   sigil: Sigil;
+  /** The 3D walk character (Character screen). */
+  look: CharacterLook;
+  /** Furnishings inside the player's settlements and cities (My kingdom screen). */
+  decor: KingdomDecor;
 }
 
-export const DEFAULT_PROFILE: PlayerProfile = { name: 'Ashwyn', color: 'crimson', sigil: 'skull' };
+export const DEFAULT_PROFILE: PlayerProfile = {
+  name: 'Ashwyn',
+  color: 'crimson',
+  sigil: 'skull',
+  look: DEFAULT_LOOK,
+  decor: DEFAULT_DECOR,
+};
 
 /** The player's own name and look, used whenever they host or join. */
 export function loadProfile(): PlayerProfile {
   try {
     const raw = storage()?.getItem(PROFILE_KEY);
-    return raw ? { ...DEFAULT_PROFILE, ...(JSON.parse(raw) as Partial<PlayerProfile>) } : { ...DEFAULT_PROFILE };
+    const p = raw ? { ...DEFAULT_PROFILE, ...(JSON.parse(raw) as Partial<PlayerProfile>) } : { ...DEFAULT_PROFILE };
+    return { ...p, look: cleanLook(p.look), decor: cleanDecor(p.decor) };
   } catch {
     return { ...DEFAULT_PROFILE };
   }

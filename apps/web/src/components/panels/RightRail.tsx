@@ -22,6 +22,7 @@ import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/I
 import { PlayerDisc } from '../../art/pieces/Sigil';
 import { TurnTimerBadge } from '../hud/Hud';
 import { OmenCardFront } from '../../art/cards/OmenCard';
+import { COLOR_HEX } from '../../lexicon';
 import { audio } from '../../audio/engine';
 import {
   OMEN_FLAVOR,
@@ -291,6 +292,10 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
   const openModal = useStore((s) => s.openModal);
   const p = state.players[seat];
   const [details, setDetails] = useState<OmenType | null>(null);
+  /** Man up: choosing whom to call out. */
+  const [challenging, setChallenging] = useState(false);
+  // Only other people can be called out (bots never fight), online with live combat.
+  const foes = state.config.pvp ? state.players.filter((o) => o.id !== seat && o.kind === 'human') : [];
   const groups = useMemo(() => {
     const m = new Map<OmenType, { total: number; fresh: number }>();
     for (const o of p.omens) {
@@ -307,6 +312,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
     else if (t === 'decree') dispatch({ type: 'PlayDecree', player: seat });
     else if (t === 'harvest') openModal('harvest');
     else if (t === 'tithe') openModal('tithe');
+    else if (t === 'manup') setChallenging(true);
   };
   if (!groups.length) {
     return (
@@ -334,6 +340,7 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
         else if (state.omenPlayedThisTurn) status = 'One per turn';
         else if (playable === 0) status = 'Bought this turn';
         else if (!phaseOk) status = 'Not now';
+        else if (type === 'manup' && !foes.length) status = 'No one to duel';
         else enabled = true;
         return (
           <div
@@ -374,6 +381,29 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
           </div>
         );
       })}
+      {challenging && (
+        <Modal title="Man up: choose your opponent" icon="duel" onClose={() => setChallenging(false)}>
+          <p className="mb-3 text-[15px] text-muted">
+            The board pauses while you two fight in the 3D walk. The winner takes a random resource card.
+          </p>
+          <div className="flex flex-col gap-2" role="group" aria-label="Opponents">
+            {foes.map((o) => (
+              <button
+                key={o.id}
+                className="btn justify-start"
+                onClick={() => {
+                  setChallenging(false);
+                  dispatch({ type: 'PlayManUp', player: seat, target: o.id });
+                  useStore.getState().setView3d(true);
+                }}
+              >
+                <span className="inline-block h-3 w-3 rounded-full" style={{ background: COLOR_HEX[o.color] }} />
+                {o.name}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {details && (
         <Modal title={OMEN_NAME[details]} icon="omen" onClose={() => setDetails(null)}>
           <div className="flex flex-col items-center gap-3 text-center">

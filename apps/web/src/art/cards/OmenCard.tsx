@@ -41,6 +41,14 @@ const ART: Record<OmenType, JSX.Element> = {
       <path d="M10 52h40" stroke="#8a6d2f" strokeWidth={1.4} />
     </g>
   ),
+  manup: (
+    <g stroke="#e6dfcf" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 10 40 38M48 10 20 38" />
+      <path d="M12 10h5l23 23M48 10h-5L20 33" stroke="#c9a24b" />
+      <path d="M36 36l8 8M24 36l-8 8M42 46l4-4M18 46l-4-4" />
+      <circle cx={30} cy={48} r={5} fill="#5a1520" stroke="#c4302b" />
+    </g>
+  ),
 };
 
 export const OmenCardFront = memo(function OmenCardFront({ type, width = 64 }: { type: OmenType; width?: number }) {

@@ -51,14 +51,18 @@ export const OMEN_NAME: Record<OmenType, string> = {
   decree: 'Road Building',
   harvest: 'Year of Plenty',
   tithe: 'Monopoly',
+  manup: 'Man up',
 };
 
 export const OMEN_TEXT: Record<OmenType, string> = {
-  warden: 'Move the robber and steal 1 resource from a player with a building on its new hex. Counts toward Largest Army.',
+  warden:
+    'Move the robber and steal 1 resource from a player with a building on its new hex. Counts toward Largest Army.',
   relic: 'Worth 1 victory point. Kept hidden until it wins you the game.',
   decree: 'Place 2 roads for free.',
   harvest: 'Take any 2 resources from the bank.',
   tithe: 'Name a resource. Every other player gives you all of theirs.',
+  manup:
+    'Challenge another player to a duel in the 3D walk. The board waits until one of you falls; the winner takes a random resource card.',
 };
 
 export const OMEN_FLAVOR: Record<OmenType, string> = {
@@ -67,6 +71,7 @@ export const OMEN_FLAVOR: Record<OmenType, string> = {
   decree: 'Two roads, laid by lantern light.',
   harvest: 'A bountiful year fills the storehouses.',
   tithe: 'Corner the market before dawn.',
+  manup: 'Steel at dawn. Only one walks home.',
 };
 
 export const WRAITH = 'the robber';
@@ -125,6 +130,22 @@ export const BOT_BLURB: Record<BotLevel, string> = {
 };
 
 export const DEFAULT_NAMES = ['Ashwyn', 'Morrow', 'Isolde', 'Vex'];
+
+export const COMBAT_TEXT = {
+  practice: 'Training dummy',
+  attack: 'Strike',
+  fire: 'Fire',
+  weapon: 'Weapon',
+  sword: 'Sword',
+  revolver: 'Revolver',
+  fist: 'Fists',
+  target: 'Training dummy',
+  reset: 'Recovering…',
+  help: 'W A S D to move · Shift to run · drag to look, or Dive in · F or click to strike · hold right click to guard · 1 2 3 weapons · E for chests, horses and doors · Esc back to the board',
+  label:
+    'Third-person island. W A S D to move, drag to look or Dive in for mouse look, F or click to attack, right button to guard, 1 2 3 for weapons, E for chests, horses and doors.',
+  hit: 'Hit',
+} as const;
 
 export const LAYOUT_NAME = {
   balanced: 'Balanced',

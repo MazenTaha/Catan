@@ -98,7 +98,11 @@ export function GameScreen() {
   const layout = useLayout();
   const [sheetOpen, setSheetOpen] = useState(true);
   // The 3D walk is desktop-only: phones and tablets keep the 2D board.
-  const [walk, setView3d] = useState(sceneOpensWalk);
+  const walk = useStore((s) => s.view3d);
+  const setView3d = useStore((s) => s.setView3d);
+  useEffect(() => {
+    if (sceneOpensWalk()) setView3d(true);
+  }, [setView3d]);
   const view3d = walk && !isTouchDevice;
   const placing = useStore((s) => s.mode !== null);
   const state = session?.state;
@@ -142,12 +146,14 @@ export function GameScreen() {
         <div className="absolute bottom-3 right-3 z-20 flex gap-0.5 rounded-xl border border-iron/80 bg-[#141617]/90 p-0.5 shadow-panel" role="group" aria-label="Board view">
           {(['2D', '3D'] as const).map((v) => {
             const on = (v === '3D') === view3d;
+            const called = v === '3D' && !view3d && ph.kind === 'duel' && (ph.target === seat || ph.challenger === seat);
             return (
               <button
                 key={v}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'bg-gradient-to-b from-[#ffc978] via-gold to-[#e07a3e] text-[#2a1406] shadow-[0_6px_16px_-8px_rgb(255_140_60/0.9)]' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.1em] transition-all ${on ? 'cream-fill' : called ? 'duel-call text-bone' : 'text-muted hover:bg-surface-2 hover:text-bone'}`}
+                data-testid={v === '3D' ? 'walk-3d' : undefined}
                 aria-pressed={on}
-                title={v === '3D' ? 'Walk around your lands in first person' : 'Back to the board'}
+                title={v === '3D' ? 'Explore your lands in third person' : 'Back to the board'}
                 onClick={() => setView3d(v === '3D')}
               >
                 {v === '3D' ? '3D walk' : '2D board'}

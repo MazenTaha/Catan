@@ -42,7 +42,7 @@ test('3D walk: toggle from the board, walk, jump between lands and back', async 
   const world = page.locator('[data-world3d]');
   await expect(world.locator('canvas')).toBeVisible({ timeout: 20_000 });
   const where = page.getByTestId('world-location');
-  // We start on one of our own lands, so we're listed as an owner there.
+  // We spawn at one of our own settlements, so we're listed as an owner there.
   await expect(where).toContainText('You');
 
   await world.focus();
@@ -50,9 +50,7 @@ test('3D walk: toggle from the board, walk, jump between lands and back', async 
   await page.waitForTimeout(600);
   await page.keyboard.up('KeyW');
 
-  const before = await where.innerText();
-  await page.getByRole('button', { name: 'Next land' }).click();
-  await expect(where).not.toHaveText(before);
+  await expect(page.getByRole('button', { name: 'Next land' })).toHaveCount(0);
 
   // The game keeps working while walking: Space still rolls.
   await page.keyboard.press('Space');

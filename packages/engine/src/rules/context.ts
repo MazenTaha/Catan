@@ -37,6 +37,8 @@ function phaseHint(k: PhaseKind): string {
       return 'Place your free causeways first';
     case 'trade':
       return 'Resolve the open trade first';
+    case 'duel':
+      return 'The game is paused for a duel';
     case 'main':
       return 'Not now';
     case 'ended':

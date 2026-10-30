@@ -41,6 +41,8 @@ export type ModalKind =
   | 'harvest'
   | 'tithe'
   | 'confirm-new'
+  | 'character'
+  | 'kingdom'
   | null;
 
 export interface Session {
@@ -90,8 +92,11 @@ interface StoreState {
   announce: string;
   showRollOff: boolean;
   timerDeadline: number | null;
+  /** The game shows the 3D walk instead of the 2D board (music pauses there). */
+  view3d: boolean;
 
   go(screen: Screen): void;
+  setView3d(on: boolean): void;
   setTimerDeadline(t: number | null): void;
   startGame(config: GameConfig): void;
   continueGame(): boolean;
@@ -133,6 +138,9 @@ const SOUND_FOR: Partial<Record<GameEvent['type'], SfxName>> = {
   TurnStarted: 'turn',
   GameWon: 'victory',
   TradeProposed: 'card',
+  Slain: 'impact',
+  DuelStarted: 'duel',
+  DuelEnded: 'victory',
 };
 
 function soundsFor(events: GameEvent[]): SfxName[] {
@@ -185,6 +193,24 @@ function toastFor(events: GameEvent[], state: GameState): Toast | null {
       text = `${name(e.player)} plays Monopoly and takes ${e.total} ${RESOURCE_NAME[e.resource]}.`;
       tone = 'bad';
     }
+    if (e.type === 'DuelStarted') {
+      text = `Man up! ${name(e.challenger)} challenges ${name(e.target)} to a duel. The game waits.`;
+      tone = 'bad';
+    }
+    if (e.type === 'DuelEnded') {
+      text = e.yielded
+        ? `${name(e.loser)} yields. ${name(e.winner)} wins the duel.`
+        : `${name(e.winner)} wins the duel against ${name(e.loser)}.`;
+      tone = 'gold';
+    }
+    if (e.type === 'Slain' && !events.some((x) => x.type === 'DuelEnded')) {
+      text = `${name(e.killer)} slew ${name(e.victim)}${e.resource ? ' and took a card' : '; a card is owed'}.`;
+      tone = 'bad';
+    }
+    if (e.type === 'ChestOpened') {
+      text = `${name(e.player)} found a sword and a revolver.`;
+      tone = 'gold';
+    }
   }
   return text ? { id: ++toastId, text, tone } : null;
 }
@@ -199,7 +225,14 @@ function makeLog(events: GameEvent[], state: GameState, startSeq: number): LogIt
 }
 
 function applyVolumes(s: Settings) {
-  audio.setVolumes({ master: s.master, sfx: s.sfx, muted: s.muted });
+  audio.setVolumes({ master: s.master, sfx: s.sfx, music: s.music, muted: s.muted });
+}
+
+/** Listeners for every batch of game events (the 3D walk's hit flashes, deaths, chests). */
+const eventListeners = new Set<(events: GameEvent[], state: GameState) => void>();
+export function onGameEvents(fn: (events: GameEvent[], state: GameState) => void): () => void {
+  eventListeners.add(fn);
+  return () => eventListeners.delete(fn);
 }
 
 function applyDocumentSettings(s: Settings) {
@@ -294,6 +327,7 @@ function advance(
   if (spoken.length) announce = spoken.join('. ');
 
   for (const s of soundsFor(events)) audio.play(s);
+  for (const fn of eventListeners) fn(events, state);
 
   const toast = toastFor(events, state) ?? cur.toast;
   const log = [...session.log, ...makeLog(events, state, session.seq)];
@@ -325,18 +359,26 @@ export const useStore = create<StoreState>((set, get) => ({
   announce: '',
   showRollOff: false,
   timerDeadline: null,
+  view3d: false,
+
+  setView3d(view3d) {
+    set({ view3d });
+  },
 
   setTimerDeadline(timerDeadline) {
     set({ timerDeadline });
   },
 
   go(screen) {
-    set({ screen, mode: null, modal: null });
+    set({ screen, mode: null, modal: null, view3d: screen === 'game' ? get().view3d : false });
   },
 
   startGame(config) {
     const cfg: GameConfig = {
       ...config,
+      // Every new game has weapon chests; live fights need players on their own devices.
+      arms: config.arms ?? true,
+      pvp: false,
       privacy:
         get().settings.handPrivacy === 'curtain'
           ? config.seats.filter((s) => s.kind === 'human').length >= 2

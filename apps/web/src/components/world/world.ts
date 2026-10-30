@@ -36,7 +36,9 @@ import {
   makeMine,
   makeMist,
   makeOreRock,
-  makeRoad,
+  makeBridge,
+  bridgeDeck,
+  BRIDGE_WIDTH,
   makeRobber,
   makeSettlement,
   makeSheep,
@@ -64,6 +66,37 @@ import { AdaptiveScale } from './adaptive';
 import { buildingShape, toLocal, toWorld, type BuildingKind, type BuildingShape, type DoorSpec } from './buildings';
 import { NO_STRESS, type Stress } from './stress';
 import { wheatClumpGeometry } from './wheat';
+import { Combat, type Weapon, type WeaponState, type CombatSound } from './combat';
+import { RemoteFighter } from './remote';
+import { Horse } from './horse';
+import { Chest, type ChestSound } from './chest';
+import { DecorBuilder } from './decor';
+import { lightAt } from './daylight';
+import { DEFAULT_LOOK, type CharacterLook, type KingdomDecor, type Pose } from '@hexfall/net';
+
+/** Riding speeds (m/s): a walk and, with Shift, a gallop. */
+const HORSE_WALK = 7;
+const HORSE_RUN = 17;
+/** Where the weapon chest stands in each room (plan frame: front wall towards +z). */
+const CHEST_SPOT = { cottage: { x: -1.62, z: 0.5 }, hall: { x: -3.05, z: 0.4 } } as const;
+
+/** Another player for the 3D walk: who they are and where the server last saw them. */
+export interface RemoteInfo {
+  seat: number;
+  name: string;
+  color: string;
+  look: CharacterLook;
+  pose: Pose | null;
+}
+
+/** What the minimap draws each refresh, besides the board itself. */
+export interface MapState {
+  x: number;
+  z: number;
+  yaw: number;
+  horses: { x: number; z: number }[];
+  others: { seat: number; x: number; z: number }[];
+}
 
 export { R };
 /** Eye height above the ground, metres. */
@@ -98,6 +131,8 @@ interface Collider {
   bx: number;
   bz: number;
   r: number;
+  /** Waist-high (fences, railings): the camera passes over it. */
+  low?: boolean;
   /** Query stamp, so a collider listed in several grid cells is tested once. */
   q?: number;
 }
@@ -197,6 +232,25 @@ interface Spawn {
 }
 
 export interface WorldOptions {
+  thirdPerson?: boolean;
+  playerColor?: string;
+  /** The player's character (Character screen). */
+  look?: CharacterLook;
+  /** A blow landed on another player (online live combat; the server checks it). */
+  onStrike?(seat: number, weapon: Weapon): void;
+  /** The revolver fired: spends one of the game's bullets. */
+  onFire?(): void;
+  /** A weapon chest's lid snapped open; `full` when it held the weapons. */
+  onChestOpened?(full: boolean): void;
+  onChestSound?(sound: ChestSound): void;
+  /** Mounted or dismounted a horse. */
+  onRide?(riding: boolean): void;
+  /** Hours since midnight to light the island for (default 13). */
+  hour?: number;
+  onCombatSound?(event: CombatSound): void;
+  onCombatHealth?(health: number, hit: boolean): void;
+  onWeaponChange?(state: WeaponState): void;
+
   lite: boolean;
   reduceMotion: boolean;
   onHexChange(hex: number | null): void;
@@ -272,6 +326,41 @@ function inHex(x: number, z: number, cx: number, cz: number, r: number): boolean
 const dir = (a: number) => ({ x: Math.sin(a), z: Math.cos(a) });
 
 export class World {
+  private combat: Combat | null = null;
+  private cameraNear: Collider[] = [];
+  private cameraFocus = new THREE.Vector3();
+  private cameraOffset = new THREE.Vector3();
+  private cameraDistance = 4;
+  private clearForCombat = (x: number, z: number) =>
+    this.isWalkable(x, z) && !this.blockedAt(x, z, 0.4);
+  /** Other players walking the island (online). */
+  private remotes = new Map<number, RemoteFighter>();
+  /** Saddled horses: one per pasture and one waiting at the settlement the walker starts at. */
+  private horses: { horse: Horse; x: number; z: number; yaw: number }[] = [];
+  /** Index of the horse being ridden, or -1. */
+  private mount = -1;
+  private chests = new Map<string, { chest: Chest; x: number; z: number; rot: number }>();
+  private chestInfo: { real: string | null; decoy: string | null; opened: boolean } = { real: null, decoy: null, opened: false };
+  private chestGroup = new THREE.Group();
+  private decorBuilder = new DecorBuilder();
+  /** Furnishings by owner seat (My kingdom); the owner's buildings show them inside. */
+  private decor = new Map<number, KingdomDecor>();
+  /** Bridges (the roads): centre, direction along, half length, for standing on the deck. */
+  private bridges: { x: number; z: number; ux: number; uz: number; half: number }[] = [];
+  private stars: THREE.Points | null = null;
+  private skyColours = {
+    zenith: SKY.zenith.clone(),
+    upper: SKY.upper.clone(),
+    horizon: SKY.horizon.clone(),
+    glow: SKY.glow.clone(),
+    sun: SKY.sun.clone(),
+    cloudLit: SKY.cloudLit.clone(),
+    cloudShade: SKY.cloudShade.clone(),
+  };
+  hour = 13;
+  /** Live fights with the other players (online games with two or more people). */
+  pvp = false;
+
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -344,6 +433,8 @@ export class World {
   private x = 0;
   private z = 0;
   private yaw = 0;
+  /** Walking speed this frame (m/s). */
+  private speed = 0;
   private pitch = -0.08;
   private camY = EYE;
   private hex: number | null = -2;
@@ -395,6 +486,24 @@ export class World {
     this.addRobber();
     this.freezeStatic();
 
+    if (opts.thirdPerson) {
+      this.combat = new Combat(
+        opts.reduceMotion,
+        (hit) => opts.onCombatSound?.(hit),
+        (health, hit) => opts.onCombatHealth?.(health, hit),
+        (state) => opts.onWeaponChange?.(state),
+        (seat, weapon) => opts.onStrike?.(seat, weapon),
+        () => opts.onFire?.(),
+        opts.look ?? DEFAULT_LOOK,
+      );
+      this.combat.setColor(opts.playerColor ?? '#3f7fd4');
+      this.scene.add(this.combat.root);
+      this.addHorses(board);
+    }
+    this.scene.add(this.chestGroup);
+    this.buildStars();
+    this.setHour(opts.hour ?? 13);
+
     this.startWhenCompiled();
   }
 
@@ -439,6 +548,381 @@ export class World {
     this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.004, -1.2, 1.1);
   }
 
+  attack(): boolean {
+    return this.combat?.attack(this.yaw) ?? false;
+  }
+
+  selectWeapon(weapon: Weapon): boolean { return this.combat?.selectWeapon(weapon) ?? false; }
+
+  setPlayerColor(color: string): void {
+    this.combat?.setColor(color);
+    if (this.mount >= 0) this.horses[this.mount].horse.setColor(color);
+  }
+
+  setLook(look: CharacterLook): void {
+    this.combat?.setLook(look);
+  }
+
+  /** From the game: has the weapon chest been opened, and how many bullets are left. */
+  setArms(armed: boolean, ammo: number): void {
+    this.combat?.setArms(armed, ammo);
+  }
+
+  /** Right mouse button: hold a guard (a sword parries from the front). */
+  setBlock(on: boolean): void {
+    this.combat?.setBlock(on);
+  }
+
+  /** Our own guard turned a blow aside. */
+  parried(): void {
+    this.combat?.parried();
+  }
+
+  /** We were struck: a red flash and a jolt of the camera. */
+  hurt(): void {
+    this.combat?.me.hurt();
+  }
+
+  hurtRemote(seat: number): void {
+    this.remotes.get(seat)?.hurt();
+  }
+
+  get riding(): boolean {
+    return this.mount >= 0;
+  }
+
+  /** Where we are, for the server to relay to the other players. */
+  pose(): Pose {
+    const c = this.combat;
+    return {
+      x: this.x,
+      y: this.groundAt(this.x, this.z),
+      z: this.z,
+      yaw: this.yaw,
+      speed: this.speed,
+      weapon: c?.weapon ?? 'fist',
+      attacks: c?.attackCount ?? 0,
+      block: !!c?.blocking,
+      riding: this.mount >= 0,
+    };
+  }
+
+  /** The other players in the walk (online), each with their last relayed position. */
+  setRemotes(list: RemoteInfo[]): void {
+    const seen = new Set<number>();
+    for (const r of list) {
+      seen.add(r.seat);
+      let f = this.remotes.get(r.seat);
+      if (!f) {
+        f = new RemoteFighter(r.seat, r.name, r.color, r.look, this.opts.reduceMotion, (x, z) => {
+          if (Math.hypot(x - this.x, z - this.z) < 45) this.opts.onCombatSound?.('shot');
+        });
+        this.remotes.set(r.seat, f);
+        this.scene.add(f.root);
+      }
+      f.setPose(r.pose);
+    }
+    for (const [seat, f] of this.remotes)
+      if (!seen.has(seat)) {
+        f.dispose();
+        this.remotes.delete(seat);
+      }
+  }
+
+  /** For the minimap: us, the horses and the other players. */
+  mapState(): MapState {
+    return {
+      x: this.x,
+      z: this.z,
+      yaw: this.yaw,
+      horses: this.horses.filter((_, i) => i !== this.mount).map((h) => ({ x: h.x, z: h.z })),
+      others: [...this.remotes.values()].filter((f) => f.present).map((f) => ({ seat: f.seat, ...f.position })),
+    };
+  }
+
+  /** Furnishings for each owner's buildings (My kingdom). Takes effect on the next setPieces. */
+  setDecor(byOwner: Map<number, KingdomDecor>): void {
+    this.decor = byOwner;
+  }
+
+  /**
+   * The walker's own weapon chest (in `real`) and the empty one in their other starting
+   * settlement (`decoy`); `opened` once the game says the weapons were taken.
+   */
+  setChests(real: string | null, decoy: string | null, opened: boolean): void {
+    const same = real === this.chestInfo.real && decoy === this.chestInfo.decoy;
+    this.chestInfo = { real, decoy, opened };
+    if (!same) {
+      for (const c of this.chests.values()) c.chest.dispose();
+      this.chests.clear();
+    }
+    this.placeChests();
+  }
+
+  private placeChests() {
+    const { real, decoy, opened } = this.chestInfo;
+    for (const [v, full] of [
+      [real, true],
+      [decoy, false],
+    ] as const) {
+      if (!v) continue;
+      let c = this.chests.get(v);
+      if (!c) {
+        const chest = new Chest(full, this.opts.reduceMotion, (sn) => this.opts.onChestSound?.(sn));
+        if (full && opened) chest.showOpen();
+        c = { chest, x: 0, z: 0, rot: 0 };
+        this.chests.set(v, c);
+        this.chestGroup.add(chest.root);
+      } else if (full && opened && !c.chest.opened) c.chest.showOpen();
+      const h = this.homes.find((x) => x.key === v);
+      const spot = this.spots.find((x) => x.vertex === v);
+      if (h) {
+        const at = CHEST_SPOT[h.kind === 'hall' ? 'hall' : 'cottage'];
+        const [x, z] = toWorld(at.x, at.z, h.x, h.z, h.rot);
+        c.x = x;
+        c.z = z;
+        c.rot = h.rot;
+        c.chest.root.position.set(x, h.y + h.shape.floor, z);
+      } else if (spot) {
+        const out = Math.atan2(-spot.x, -spot.z);
+        c.x = spot.x + Math.sin(out) * 2.6;
+        c.z = spot.z + Math.cos(out) * 2.6;
+        c.rot = out;
+        c.chest.root.position.set(c.x, this.groundAt(c.x, c.z), c.z);
+      } else {
+        c.chest.root.visible = false;
+        continue;
+      }
+      c.chest.root.visible = true;
+      c.chest.root.rotation.y = c.rot;
+    }
+  }
+
+  /** Lights the island for an hour of the day: sun or moon, sky, fog, fill and stars. */
+  setHour(hour: number): void {
+    this.hour = hour;
+    const l = lightAt(hour);
+    this.sunDir.copy(l.dir);
+    this.sun.color.copy(l.sunColor);
+    this.sun.intensity = l.intensity;
+    const c = this.skyColours;
+    c.zenith.copy(l.zenith);
+    c.upper.copy(l.upper);
+    c.horizon.copy(l.horizon);
+    c.glow.copy(l.glow);
+    c.sun.copy(l.day > 0.3 ? l.sunColor : new THREE.Color('#e9eefc'));
+    c.cloudLit.copy(l.cloudLit);
+    c.cloudShade.copy(l.cloudShade);
+    (this.scene.background as THREE.Color).copy(l.horizon);
+    this.scene.fog?.color.copy(l.horizon);
+    this.scene.environmentIntensity = l.env;
+    this.renderer.toneMappingExposure = l.exposure;
+    if (this.stars) (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - l.day * 1.6);
+    if (this.stars) this.stars.visible = l.day < 0.6;
+    // Move the shadow camera to the new light at once.
+    this.shadowAt = { x: NaN, z: NaN };
+    this.shadowDirty = true;
+  }
+
+  private buildStars() {
+    const rnd = mulberry(77);
+    const pos: number[] = [];
+    for (let i = 0; i < 900; i++) {
+      const y = 0.08 + rnd() * 0.92;
+      const a = rnd() * Math.PI * 2;
+      const r = Math.sqrt(1 - y * y);
+      pos.push(Math.cos(a) * r * 900, y * 900, Math.sin(a) * r * 900);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: '#eef2ff', size: 1.6, sizeAttenuation: false, transparent: true, depthWrite: false, fog: false });
+    this.stars = new THREE.Points(geo, mat);
+    this.stars.frustumCulled = false;
+    this.stars.renderOrder = 1;
+    this.scene.add(this.stars);
+  }
+
+  /** A saddled horse grazing in each pasture, plus one kept for the walker's start. */
+  private addHorses(board: Board) {
+    let n = 0;
+    board.hexes.forEach((hex, i) => {
+      if (hex.terrain !== 'moors') return;
+      const s = this.spawns.get(i);
+      if (!s) return;
+      const side = s.yaw + Math.PI / 2;
+      const x = s.x + Math.sin(side) * 2.4 - Math.sin(s.yaw) * 2;
+      const z = s.z + Math.cos(side) * 2.4 - Math.cos(s.yaw) * 2;
+      this.addHorse(x, z, s.yaw + 1.2, n++);
+    });
+    this.addHorse(0, -400, 0, n);
+  }
+
+  private addHorse(x: number, z: number, yaw: number, coat: number) {
+    const horse = new Horse(this.opts.playerColor ?? '#b0364a', this.opts.reduceMotion, coat);
+    horse.grazing = true;
+    horse.root.position.set(x, this.groundAt(x, z), z);
+    horse.root.rotation.y = yaw;
+    this.scene.add(horse.root);
+    this.horses.push({ horse, x, z, yaw });
+  }
+
+  /** The nearest free horse within reach, if any. */
+  private horseInReach(): number {
+    let best = -1;
+    let bestD = 2.6;
+    this.horses.forEach((h, i) => {
+      const d = Math.hypot(h.x - this.x, h.z - this.z);
+      if (i !== this.mount && d < bestD) {
+        best = i;
+        bestD = d;
+      }
+    });
+    return best;
+  }
+
+  /** The chest in front of us, within reach. */
+  private chestInReach(): Chest | null {
+    const fx = -Math.sin(this.yaw);
+    const fz = -Math.cos(this.yaw);
+    for (const c of this.chests.values()) {
+      const d = Math.hypot(c.x - this.x, c.z - this.z);
+      if (!c.chest.root.visible || d > 1.7) continue;
+      if (d > 0.6 && ((c.x - this.x) * fx + (c.z - this.z) * fz) / d < 0.3) continue;
+      return c.chest;
+    }
+    return null;
+  }
+
+  private mountHorse(i: number) {
+    const h = this.horses[i];
+    this.mount = i;
+    this.x = h.x;
+    this.z = h.z;
+    this.yaw = h.yaw;
+    h.horse.grazing = false;
+    h.horse.setColor(this.opts.playerColor ?? '#b0364a');
+    if (this.combat) this.combat.riding = true;
+    this.combat?.setBlock(false);
+    this.opts.onRide?.(true);
+  }
+
+  private dismount() {
+    const h = this.horses[this.mount];
+    h.x = this.x;
+    h.z = this.z;
+    h.yaw = this.yaw;
+    h.horse.grazing = true;
+    this.mount = -1;
+    if (this.combat) this.combat.riding = false;
+    // Step off to the left, or the right, wherever there's room.
+    for (const side of [1, -1, 0]) {
+      const a = this.yaw + (side * Math.PI) / 2;
+      const nx = h.x - Math.sin(a) * (side ? 1.3 : 0);
+      const nz = h.z - Math.cos(a) * (side ? 1.3 : 0);
+      if (side === 0 || (this.isWalkable(nx, nz) && !this.blockedAt(nx, nz, 0.4))) {
+        this.x = nx;
+        this.z = nz;
+        break;
+      }
+    }
+    this.opts.onRide?.(false);
+  }
+
+  /** Place one reusable practice dummy in clear reachable ground, never inside a building. */
+  practice(): boolean {
+    if (!this.combat) return false;
+    for (const distance of [2, 2.5, 3, 3.5]) {
+      const x = this.x - Math.sin(this.yaw) * distance;
+      const z = this.z - Math.cos(this.yaw) * distance;
+      if (!this.clearForCombat(x, z) || this.houseAt(x, z)) continue;
+      let clear = true;
+      for (let t = 0.2; t < 1; t += 0.2)
+        if (!this.clearForCombat(this.x + (x - this.x) * t, this.z + (z - this.z) * t))
+          clear = false;
+      if (!clear) continue;
+      this.combat.practice(x, this.groundAt(x, z), z);
+      return true;
+    }
+    this.opts.onNotice?.('Find open ground in front of you to place the training dummy.');
+    return false;
+  }
+
+  private nearbySolids(x: number, z: number, radius: number): Collider[] {
+    const list = this.cameraNear;
+    list.length = 0;
+    this.grid?.near(x, z, radius, list);
+    this.pieceGrid.near(x, z, radius, list);
+    this.doorColliders(list);
+    return list;
+  }
+
+  private blockedAt(x: number, z: number, radius: number): boolean {
+    return this.touchesSolid(this.nearbySolids(x, z, radius), x, z, radius);
+  }
+
+  /** `overLow`: the point is high enough to pass over fences and railings. */
+  private touchesSolid(list: Collider[], x: number, z: number, radius: number, overLow = false): boolean {
+    for (const c of list) {
+      if (overLow && c.low) continue;
+      if (c.ax === c.bx && c.az === c.bz && this.cleared(c.ax, c.az)) continue;
+      if (segDist(x, z, c) < c.r + radius) return true;
+    }
+    return false;
+  }
+
+  private thirdPersonCamera(dt: number): void {
+    const pitch = THREE.MathUtils.clamp(this.pitch - 0.2, -0.85, 0.35);
+    const ground = this.groundAt(this.x, this.z);
+    // Over the right shoulder, like a third-person shooter: the character stands left of centre.
+    const riding = this.mount >= 0;
+    const shoulder = riding ? 0.75 : 0.62;
+    const rx = Math.cos(this.yaw) * shoulder;
+    const rz = -Math.sin(this.yaw) * shoulder;
+    let fx = this.x + rx;
+    let fz = this.z + rz;
+    if (this.touchesSolid(this.nearbySolids(fx, fz, 0.6), fx, fz, 0.2)) {
+      fx = this.x;
+      fz = this.z;
+    }
+    this.cameraFocus.set(fx, ground + (riding ? 2.45 : 1.55), fz);
+    this.cameraOffset.set(
+      Math.sin(this.yaw) * Math.cos(pitch),
+      -Math.sin(pitch),
+      Math.cos(this.yaw) * Math.cos(pitch),
+    );
+    const far = riding ? 4.6 : 3.4;
+    let distance = far;
+    const obstacles = this.nearbySolids(fx, fz, far + 0.3);
+    // A small swept proxy, rather than raycasting thousands of foliage triangles.
+    for (let d = 0.2; d <= far; d += 0.15) {
+      const x = fx + this.cameraOffset.x * d,
+        z = fz + this.cameraOffset.z * d;
+      const y = this.cameraFocus.y + this.cameraOffset.y * d;
+      const house = this.houseAt(x, z);
+      const below = this.groundAt(x, z);
+      if (
+        this.touchesSolid(obstacles, x, z, 0.18, y - below > 1.3) ||
+        y < below + 0.2 ||
+        (house && y > house.y + house.shape.ceiling - 0.2)
+      ) {
+        distance = Math.max(0.15, d - 0.2);
+        break;
+      }
+    }
+    // Retract immediately; ease back out. Never interpolate through an obstruction.
+    this.cameraDistance = Math.min(distance, this.cameraDistance + dt * 5);
+    this.camera.position
+      .copy(this.cameraFocus)
+      .addScaledVector(this.cameraOffset, this.cameraDistance);
+    this.camera.lookAt(this.cameraFocus);
+    if (this.combat) {
+      this.combat.player.visible = this.cameraDistance > 0.8;
+      let shake = this.combat.shake;
+      for (const c of this.chests.values()) shake = Math.max(shake, c.chest.shake * 0.03);
+      this.camera.rotation.z += Math.sin(this.last * 0.09) * shake;
+    }
+  }
+
   /** Teleports to a land hex's viewpoint, facing its centre, nudged clear of anything solid. */
   goTo(hex: number): void {
     const s = this.spawns.get(hex);
@@ -451,6 +935,46 @@ export class World {
     const inside = this.houseAt(this.x, this.z);
     if (inside) this.stepOutside(inside);
     this.camY = this.groundAt(this.x, this.z) + EYE;
+  }
+
+  /**
+   * Spawns the walker at a building on corner `v`: outside its door when it is enterable,
+   * otherwise a few metres out towards the tile it faces.
+   */
+  spawnAt(v: string): boolean {
+    if (this.mount >= 0) this.dismount();
+    if (this.goToBuilding(v)) {
+      this.tetherHorse();
+      return true;
+    }
+    const spot = this.spots.find((s) => s.vertex === v);
+    if (!spot) return false;
+    const toward = Math.atan2(-spot.x, -spot.z);
+    this.x = spot.x + Math.sin(toward) * 3.2;
+    this.z = spot.z + Math.cos(toward) * 3.2;
+    this.tryMove(this.x, this.z);
+    this.yaw = Math.atan2(-(spot.x - this.x), -(spot.z - this.z));
+    this.pitch = -0.08;
+    this.camY = this.groundAt(this.x, this.z) + EYE;
+    this.tetherHorse();
+    return true;
+  }
+
+  /** Brings the spare horse to stand beside the walker, saddled and waiting. */
+  private tetherHorse() {
+    const h = this.horses[this.horses.length - 1];
+    if (!h) return;
+    for (const side of [1, -1]) {
+      const a = this.yaw + (side * Math.PI) / 2;
+      const x = this.x - Math.sin(a) * 3.2 + Math.sin(this.yaw) * 1.5;
+      const z = this.z - Math.cos(a) * 3.2 + Math.cos(this.yaw) * 1.5;
+      if (this.isWalkable(x, z) && !this.blockedAt(x, z, 1.0) && !this.houseAt(x, z)) {
+        h.x = x;
+        h.z = z;
+        h.yaw = this.yaw + Math.PI / 2;
+        return;
+      }
+    }
   }
 
   /** Teleports to just outside a building's door, facing it (development scenario, tests). */
@@ -468,6 +992,7 @@ export class World {
     this.shadowDirty = true;
     for (const c of [...this.pieces.children]) this.pieces.remove(c);
     this.pieceColliders = [];
+    this.bridges = [];
     const before = new Map(this.homes.map((h) => [h.key, h.kind]));
     this.homes = [];
     this.spots = [];
@@ -478,18 +1003,31 @@ export class World {
       const pa = center(a);
       const pb = center(b);
       const color = COLOR_HEX[state.players[owner].color];
-      const model = this.model('piece.road')?.[0];
-      const road = model ? cloneAsset(model, SLOTS['piece.road'], (m) => this.tinted(m, color)) : makeRoad(this.kit, R, color);
+      // Every road is a bridge over a brook (DECISIONS #40): unmistakable from anywhere.
+      const road = makeBridge(this.kit, R, color);
       // A road stops at the walls of an enterable building at either end instead of running
       // through its doorway and across the floor.
       const ta = this.roadTrim(state, a);
       const tb = this.roadTrim(state, b);
       const k = (R - ta - tb) / R;
       const m = (ta + (R - ta - tb) / 2) / R;
-      road.position.set(pa.x + (pb.x - pa.x) * m, model ? -0.02 : -0.04, pa.z + (pb.z - pa.z) * m);
+      const cx = pa.x + (pb.x - pa.x) * m;
+      const cz = pa.z + (pb.z - pa.z) * m;
+      road.position.set(cx, -0.04, cz);
       road.rotation.y = Math.atan2(-(pb.z - pa.z), pb.x - pa.x);
       road.scale.x = k;
       this.pieces.add(road);
+      // Stand on the arched deck; the railings fence its middle, the ends stay open.
+      const ux = (pb.x - pa.x) / R;
+      const uz = (pb.z - pa.z) / R;
+      const half = (R * k) / 2;
+      this.bridges.push({ x: cx, z: cz, ux, uz, half });
+      const rail = half * 0.84;
+      for (const side of [-1, 1]) {
+        const ox = -uz * side * (BRIDGE_WIDTH / 2 + 0.05);
+        const oz = ux * side * (BRIDGE_WIDTH / 2 + 0.05);
+        this.pieceColliders.push({ ax: cx - ux * rail + ox, az: cz - uz * rail + oz, bx: cx + ux * rail + ox, bz: cz + uz * rail + oz, r: 0.12, low: true });
+      }
     }
     for (const [v, b] of Object.entries(state.buildings)) {
       const p = center(v);
@@ -505,6 +1043,19 @@ export class World {
         const house = this.makeHouse(v, b.kind === 'citadel' ? 'hall' : 'cottage', obj, p.x, p.z, 0, rot);
         this.homes.push(house);
         this.pieceColliders.push(...this.houseColliders(house));
+        // The owner's own furnishings (My kingdom), in the room's frame.
+        const decor = this.decor.get(b.owner);
+        const room = b.kind === 'citadel' ? 'hall' : 'cottage';
+        if (decor && decor[room].length) {
+          const { group, solids } = this.decorBuilder.room(room, decor[room], decor.tint, house.shape.floor);
+          group.position.set(p.x, 0, p.z);
+          group.rotation.y = rot;
+          this.pieces.add(group);
+          for (const sd of solids) {
+            const [sx, sz] = toWorld(sd.x, sd.z, p.x, p.z, rot);
+            this.pieceColliders.push({ ax: sx, az: sz, bx: sx, bz: sz, r: sd.r });
+          }
+        }
       } else {
         this.pieceColliders.push({ ax: p.x, az: p.z, bx: p.x, bz: p.z, r: SLOTS[slot].footprint });
       }
@@ -521,6 +1072,13 @@ export class World {
     }
     const rb = robber.position;
     this.pieceColliders.push({ ax: rb.x, az: rb.z, bx: rb.x, bz: rb.z, r: 0.9 });
+    this.placeChests();
+    for (const c of this.chests.values()) {
+      if (!c.chest.root.visible) continue;
+      const ax = Math.cos(c.rot) * 0.32;
+      const az = -Math.sin(c.rot) * 0.32;
+      this.pieceColliders.push({ ax: c.x - ax, az: c.z - az, bx: c.x + ax, bz: c.z + az, r: 0.3 });
+    }
     this.pieceGrid = new ColliderGrid(this.pieceColliders);
     // Wheat, grass, flowers, trees and rocks give way where a building stands.
     this.clearings = [
@@ -636,6 +1194,21 @@ export class World {
 
   /** E: opens or closes the door in front of the walker. Returns false if there is none. */
   interact(): boolean {
+    const chest = this.mount < 0 ? this.chestInReach() : null;
+    if (chest) {
+      if (chest.opened) this.opts.onNotice?.(chest.full ? 'The chest is empty now: you carry its weapons.' : 'Nothing in here.');
+      else chest.open(() => this.opts.onChestOpened?.(chest.full));
+      return true;
+    }
+    if (this.mount >= 0) {
+      this.dismount();
+      return true;
+    }
+    const horse = this.horseInReach();
+    if (horse >= 0) {
+      this.mountHorse(horse);
+      return true;
+    }
     const t = this.targetDoor();
     if (!t) return false;
     const { d } = t;
@@ -683,7 +1256,21 @@ export class World {
         if (h.interior) h.interior.visible = Math.hypot(this.x - h.x, this.z - h.z) < 34;
       }
     const t = this.targetDoor();
-    const hint = t ? (t.d.target > 0.5 ? 'Close door' : 'Open door') : null;
+    const chest = this.mount < 0 ? this.chestInReach() : null;
+    const horse = this.mount < 0 ? this.horseInReach() : -1;
+    const hint = chest
+      ? chest.opened
+        ? null
+        : 'Open chest'
+      : this.mount >= 0
+        ? 'Dismount'
+        : horse >= 0
+          ? 'Ride horse'
+          : t
+            ? t.d.target > 0.5
+              ? 'Close door'
+              : 'Open door'
+            : null;
     if (hint !== this.hint) {
       this.hint = hint;
       this.opts.onHint?.(hint);
@@ -780,8 +1367,7 @@ export class World {
     const templates = new THREE.Group();
     templates.position.y = -50;
     templates.add(this.piece('building.settlement', '#ffffff'), this.piece('building.city', '#ffffff'));
-    const road = this.model('piece.road')?.[0];
-    templates.add(road ? cloneAsset(road, SLOTS['piece.road'], (m) => this.tinted(m, '#ffffff')) : makeRoad(this.kit, R, '#ffffff'));
+    templates.add(makeBridge(this.kit, R, '#ffffff'));
     this.scene.add(templates);
     this.renderer.compile(this.scene, this.camera);
     templates.removeFromParent();
@@ -952,13 +1538,27 @@ export class World {
   private groundAt(x: number, z: number): number {
     const house = this.houseAt(x, z);
     if (house) return house.y + house.shape.floor;
+    const deck = this.deckAt(x, z);
+    if (deck !== null) return deck;
     for (const h of this.landHexes)
       if (inHex(x, z, h.x, h.z, R)) return tileHeight(this.tiles.get(h.id)!, x - h.x, z - h.z);
     return 0;
   }
 
+  /** Height of a bridge deck under (x, z), if there is one. */
+  private deckAt(x: number, z: number): number | null {
+    for (const b of this.bridges) {
+      const dx = x - b.x;
+      const dz = z - b.z;
+      const along = dx * b.ux + dz * b.uz;
+      if (Math.abs(along) > b.half || Math.abs(-dx * b.uz + dz * b.ux) > BRIDGE_WIDTH / 2 + 0.1) continue;
+      return bridgeDeck(along, b.half * 2) + 0.06;
+    }
+    return null;
+  }
+
   private buildSky() {
-    this.sky = makeSky(this.sunDir, this.uTime, SKY, true);
+    this.sky = makeSky(this.sunDir, this.uTime, this.skyColours, true);
     this.scene.add(this.sky);
     this.scene.background = SKY.horizon.clone();
     // Restrained atmospheric depth: the island stays crisp, the far ranges and sea turn hazy.
@@ -1523,7 +2123,7 @@ export class World {
       rail.position.set((p.x + q.x) / 2, 0, (p.z + q.z) / 2);
       rail.rotation.y = Math.atan2(-(q.z - p.z), q.x - p.x);
       g.add(rail);
-      this.colliders.push({ ax: cx + p.x, az: cz + p.z, bx: cx + q.x, bz: cz + q.z, r: 0.2 });
+      this.colliders.push({ ax: cx + p.x, az: cz + p.z, bx: cx + q.x, bz: cz + q.z, r: 0.2, low: true });
     });
     for (const p of posts) if (p.open) this.addCircle(cx + p.x, cz + p.z, 0.2);
 
@@ -2030,7 +2630,31 @@ export class World {
     if (animate) this.uTime.value += dt;
     const t = this.uTime.value;
 
+    const oldX = this.x,
+      oldZ = this.z;
     this.movePlayer(dt);
+    this.speed = Math.hypot(this.x - oldX, this.z - oldZ) / Math.max(dt, 0.001);
+    const ground = this.groundAt(this.x, this.z);
+    // Horses: the ridden one carries the walker, the others graze where they were left.
+    this.horses.forEach((h, i) => {
+      if (i === this.mount) {
+        h.x = this.x;
+        h.z = this.z;
+        h.yaw = this.yaw;
+      }
+      h.horse.root.position.set(h.x, i === this.mount ? ground : this.groundAt(h.x, h.z), h.z);
+      h.horse.root.rotation.y = h.yaw;
+      h.horse.update(dt, i === this.mount ? this.speed : 0);
+    });
+    if (this.combat) {
+      const targets = this.combat.targets;
+      targets.length = 0;
+      if (this.pvp) for (const f of this.remotes.values()) if (f.present) targets.push({ seat: f.seat, ...f.position });
+    }
+    const seat = this.mount >= 0 ? this.horses[this.mount].horse.saddleHeight - 0.78 : 0;
+    this.combat?.update(dt, this.x, ground + seat, this.z, this.yaw, this.speed, this.clearForCombat);
+    for (const f of this.remotes.values()) f.update(dt, (x, z) => this.groundAt(x, z));
+    for (const c of this.chests.values()) c.chest.update(dt);
     if (animate) {
       for (const s of this.sheep) this.updateSheep(s, dt);
       for (const f of this.flocks) syncFlock(f);
@@ -2064,8 +2688,10 @@ export class World {
 
     this.camY += (this.groundAt(this.x, this.z) + EYE - this.camY) * Math.min(1, dt * 10);
     this.camera.position.set(this.x, this.camY, this.z);
-    this.sky.position.copy(this.camera.position);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
+    if (this.combat) this.thirdPersonCamera(dt);
+    this.sky.position.copy(this.camera.position);
+    this.stars?.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);
 
     const hex = this.landHexes.find((h) => inHex(this.x, this.z, h.x, h.z, R))?.id ?? null;
@@ -2091,7 +2717,8 @@ export class World {
     }
     const running =
       k.has('ShiftLeft') || k.has('ShiftRight') || Math.hypot(this.joy.x, this.joy.y) > 0.92;
-    const speed = running ? RUN : WALK;
+    const riding = this.mount >= 0;
+    const speed = this.combat?.blocking ? 2.2 : riding ? (running ? HORSE_RUN : HORSE_WALK) : running ? RUN : WALK;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const dx = (-sy * fwd + cy * str) * speed * dt;
@@ -2124,6 +2751,22 @@ export class World {
     }
     for (const s of this.sheep)
       [x, z] = pushOut(x, z, { ax: s.x, az: s.z, bx: s.x, bz: s.z, r: 0.5 }, PLAYER_R);
+    // Horses are solid along their length; other players are solid too.
+    this.horses.forEach((h, i) => {
+      if (i === this.mount) return;
+      const ax = Math.sin(h.yaw) * 0.7;
+      const az = Math.cos(h.yaw) * 0.7;
+      [x, z] = pushOut(x, z, { ax: h.x - ax, az: h.z - az, bx: h.x + ax, bz: h.z + az, r: 0.45 }, PLAYER_R);
+    });
+    for (const f of this.remotes.values()) {
+      if (!f.present) continue;
+      const p = f.position;
+      [x, z] = pushOut(x, z, { ax: p.x, az: p.z, bx: p.x, bz: p.z, r: 0.35 }, PLAYER_R);
+    }
+    if (this.combat?.active) {
+      const p = this.combat.dummy.position;
+      [x, z] = pushOut(x, z, { ax: p.x, az: p.z, bx: p.x, bz: p.z, r: 0.4 }, PLAYER_R);
+    }
     if (!this.isWalkable(x, z)) return false;
     this.x = x;
     this.z = z;

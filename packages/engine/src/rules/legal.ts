@@ -94,6 +94,9 @@ export function legalActions(s: GameState, rng?: Rng): Action[] {
       }
       return out;
     }
+    case 'duel':
+      // The board waits for the fight in the 3D walk; bots never take part.
+      return [];
     case 'main': {
       const out: Action[] = [{ type: 'EndTurn', player: p }];
       if (canAfford(me.hand, 'causeway') && me.supply.causeways > 0) {

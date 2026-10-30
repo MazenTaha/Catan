@@ -16,6 +16,8 @@ import {
   type LayoutMode,
   type PlayerColor,
   type Sigil,
+  type Weapon,
+  WEAPONS,
 } from '@hexfall/engine';
 
 // ------------------------------------------------------------------ lobby model
@@ -24,6 +26,93 @@ export interface Profile {
   name: string;
   color: PlayerColor;
   sigil: Sigil;
+  /** How the player's character looks in the 3D walk (Character screen). */
+  look?: CharacterLook;
+  /** What stands inside the player's settlements and cities (My kingdom screen). */
+  decor?: KingdomDecor;
+}
+
+// ------------------------------------------------------------------ character and kingdom
+
+/** Each field picks one option by index; LOOK_OPTIONS says how many each has. */
+export interface CharacterLook {
+  skin: number;
+  hair: number;
+  hairColor: number;
+  beard: number;
+  /** Tunic colour; the seat colour still shows on the shoulders and the sash. */
+  outfit: number;
+  hat: number;
+  cape: number;
+}
+
+export const LOOK_OPTIONS: Record<keyof CharacterLook, number> = {
+  skin: 6,
+  hair: 6,
+  hairColor: 7,
+  beard: 4,
+  outfit: 8,
+  hat: 5,
+  cape: 3,
+};
+
+export const DEFAULT_LOOK: CharacterLook = {
+  skin: 1,
+  hair: 1,
+  hairColor: 1,
+  beard: 0,
+  outfit: 0,
+  hat: 0,
+  cape: 1,
+};
+
+/** Furnishings for the player's own buildings in the 3D walk. */
+export const DECOR_ITEMS = [
+  'rug',
+  'banner',
+  'tapestry',
+  'antlers',
+  'chandelier',
+  'bookshelf',
+  'plants',
+  'armor',
+  'candles',
+  'shield',
+] as const;
+export type DecorItem = (typeof DECOR_ITEMS)[number];
+
+export interface KingdomDecor {
+  cottage: DecorItem[];
+  hall: DecorItem[];
+  /** Banner and rug colour (index into the kingdom palette). */
+  tint: number;
+}
+
+export const DECOR_TINTS = 6;
+export const DEFAULT_DECOR: KingdomDecor = {
+  cottage: ['rug', 'candles', 'plants'],
+  hall: ['rug', 'banner', 'chandelier', 'shield'],
+  tint: 0,
+};
+
+export function cleanLook(l: Partial<CharacterLook> | undefined): CharacterLook {
+  const out = { ...DEFAULT_LOOK };
+  for (const k of Object.keys(LOOK_OPTIONS) as (keyof CharacterLook)[]) {
+    const v = Math.round(Number(l?.[k]));
+    if (Number.isFinite(v) && v >= 0 && v < LOOK_OPTIONS[k]) out[k] = v;
+  }
+  return out;
+}
+
+export function cleanDecor(d: Partial<KingdomDecor> | undefined): KingdomDecor {
+  const pick = (list: unknown, fallback: DecorItem[]): DecorItem[] =>
+    Array.isArray(list) ? DECOR_ITEMS.filter((x) => list.includes(x)) : [...fallback];
+  const tint = Math.round(Number(d?.tint));
+  return {
+    cottage: pick(d?.cottage, DEFAULT_DECOR.cottage),
+    hall: pick(d?.hall, DEFAULT_DECOR.hall),
+    tint: Number.isFinite(tint) && tint >= 0 && tint < DECOR_TINTS ? tint : 0,
+  };
 }
 
 /**
@@ -112,6 +201,8 @@ export function cleanProfile(p: Profile): Profile {
         .slice(0, 16) || 'Player',
     color: PLAYER_COLORS.includes(p?.color) ? p.color : 'crimson',
     sigil: SIGILS.includes(p?.sigil) ? p.sigil : 'skull',
+    look: cleanLook(p?.look),
+    decor: cleanDecor(p?.decor),
   };
 }
 
@@ -232,6 +323,8 @@ export function lobbyToConfig(lobby: Lobby): GameConfig {
       ...(s.kind === 'bot' ? { bot: s.bot } : {}),
     };
   });
+  // Players on their own devices can fight each other in the 3D walk (DECISIONS #40).
+  const people = activeSeats(l).filter((s) => s.kind === 'host' || s.kind === 'remote').length;
   return {
     seed: l.settings.seed.trim() || 'hexfall',
     seats,
@@ -240,6 +333,8 @@ export function lobbyToConfig(lobby: Lobby): GameConfig {
     firstPlayer: l.settings.rollOff ? 'rolloff' : 0,
     // Online, each person has their own screen: no pass-the-device curtains.
     privacy: false,
+    arms: true,
+    pvp: people >= 2,
   };
 }
 
@@ -296,7 +391,19 @@ export function redactFor(state: GameState, mine: number[]): GameState {
       omens: p.omens.map((o) => ({ ...o, type: 'warden' as const })),
     };
   });
-  return { ...state, players, omenDeck: state.omenDeck.map(() => 'warden' as const), rng: 0 };
+  // Where the others' weapon chests are hidden stays their secret.
+  const arms = state.arms && {
+    ...state.arms,
+    chest: state.arms.chest.map((v, i) => (mine.includes(i) ? v : null)),
+    starts: state.arms.starts.map((v, i) => (mine.includes(i) ? v : [])),
+  };
+  return {
+    ...state,
+    players,
+    omenDeck: state.omenDeck.map(() => 'warden' as const),
+    rng: 0,
+    ...(arms ? { arms } : {}),
+  };
 }
 
 /** Events carry the same secrets: who got which card is only shown to the people involved. */
@@ -307,8 +414,64 @@ export function redactEvents(events: GameEvent[], mine: number[], ended: boolean
       return { ...e, resource: 'wood' as const };
     if (e.type === 'OmenBought' && !mine.includes(e.player))
       return { ...e, omen: 'warden' as const };
+    if (e.type === 'Slain' && e.resource && !mine.includes(e.killer) && !mine.includes(e.victim))
+      return { ...e, resource: 'wood' as const };
+    if (e.type === 'DebtPaid' && !mine.includes(e.from) && !mine.includes(e.to))
+      return { ...e, resource: 'wood' as const };
     return e;
   });
+}
+
+// ------------------------------------------------------------------ the 3D walk, live
+
+/** A player's avatar in the 3D walk, sent about ten times a second while they are in it. */
+export interface Pose {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  /** Walking speed (m/s), for the gait. */
+  speed: number;
+  weapon: Weapon;
+  /** Counts attacks, so others replay each swing or shot once. */
+  attacks: number;
+  /** Holding the right mouse button: a sword parries blows and bullets from the front. */
+  block: boolean;
+  riding: boolean;
+}
+
+/** Reach of each weapon (m), used by the browser to aim and by the server to check hits. */
+export const REACH: Record<Weapon, number> = { fist: 1.9, sword: 2.6, revolver: 26 };
+
+export function cleanPose(p: Partial<Pose> | null | undefined): Pose | null {
+  if (!p || typeof p !== 'object') return null;
+  const n = (v: unknown, lim: number) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? Math.max(-lim, Math.min(lim, x)) : 0;
+  };
+  return {
+    x: n(p.x, 500),
+    y: n(p.y, 100),
+    z: n(p.z, 500),
+    yaw: n(p.yaw, 1e4),
+    speed: n(p.speed, 40),
+    weapon: WEAPONS.includes(p.weapon as Weapon) ? (p.weapon as Weapon) : 'fist',
+    attacks: Math.max(0, Math.floor(n(p.attacks, 1e9))),
+    block: !!p.block,
+    riding: !!p.riding,
+  };
+}
+
+/**
+ * Whether a blow from `from` is parried by `to`: the defender holds up a sword (right mouse
+ * button) and faces the attacker, within 75 degrees either side.
+ */
+export function parries(to: Pose, from: Pose): boolean {
+  if (!to.block || to.weapon !== 'sword' || to.riding) return false;
+  const dx = from.x - to.x;
+  const dz = from.z - to.z;
+  const d = Math.hypot(dx, dz) || 1;
+  return (-Math.sin(to.yaw) * dx - Math.cos(to.yaw) * dz) / d > Math.cos((75 * Math.PI) / 180);
 }
 
 // ------------------------------------------------------------------ messages
@@ -324,6 +487,8 @@ export type ClientMsg =
   | { t: 'start' }
   | { t: 'action'; action: Action }
   | { t: 'leave' }
+  /** Where the player is in the 3D walk; null when they go back to the board. */
+  | { t: 'pose'; pose: Pose | null }
   | { t: 'ping' };
 
 export type ServerMsg =
@@ -339,4 +504,6 @@ export type ServerMsg =
     }
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'closed'; reason: string }
+  /** Everyone's avatar by seat (null: not in the 3D walk), about ten times a second. */
+  | { t: 'poses'; poses: (Pose | null)[] }
   | { t: 'pong' };

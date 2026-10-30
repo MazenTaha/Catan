@@ -25,6 +25,8 @@ describe('hub', () => {
       idleRoomTtl: 5000,
       random: Math.random,
       now: () => Date.now(),
+      poseEvery: 100,
+      duelAbsence: 2000,
     });
   });
   afterEach(() => vi.useRealTimers());
@@ -134,6 +136,85 @@ describe('hub', () => {
     back.send({ t: 'resume', code, token });
     expect(back.last('game')?.full).toBe(true);
     expect(back.last('game')?.seats).toEqual([1]);
+  });
+
+  /** Two people and a bot, past setup, with the room's own (unredacted) state. */
+  function armedTable() {
+    const h = client(hub);
+    h.send({ t: 'host', profile: me, settings: { ...defaultSettings('s6'), players: 3, rollOff: false } });
+    const code = h.last('welcome')!.code;
+    const f = client(hub);
+    f.send({ t: 'join', code, profile: friend });
+    h.send({ t: 'fill-bots' });
+    h.send({ t: 'start' });
+    const room = hub.rooms.get(code)!;
+    let guard = 0;
+    while (guard++ < 400 && room.state!.phase.kind === 'setup') {
+      const actor = activeActor(room.state!);
+      if (actor === 2) vi.advanceTimersByTime(20);
+      else (actor === 0 ? h : f).send({ t: 'action', action: decideAction(room.state!) });
+    }
+    const pose = { y: 0, speed: 0, weapon: 'revolver', attacks: 0, block: false, riding: false };
+    return { h, f, room, pose };
+  }
+
+  it('relays 3D-walk positions and checks every hit', () => {
+    const { h, f, room, pose } = armedTable();
+    expect(room.state!.config.pvp).toBe(true);
+    h.send({ t: 'action', action: { type: 'OpenChest', player: 0 } });
+    expect(room.state!.arms!.armed[0]).toBe(true);
+    const strike = { type: 'Strike', player: 0, victim: 1, weapon: 'revolver' };
+
+    // Not in the 3D walk: the blow is dropped.
+    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
+    h.send({ t: 'action', action: strike });
+    expect(room.state!.arms!.health[1]).toBe(100);
+
+    h.send({ t: 'pose', pose: { ...pose, x: 0, z: 0, yaw: 0 } });
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -40, yaw: 0 } });
+    vi.advanceTimersByTime(120);
+    expect(f.last('poses')!.poses[0]).toMatchObject({ x: 0, z: 0 });
+    // Too far, then no shot fired, then a real hit.
+    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
+    h.send({ t: 'action', action: strike });
+    expect(room.state!.arms!.health[1]).toBe(100);
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -10, yaw: 0 } });
+    vi.advanceTimersByTime(400);
+    h.send({ t: 'action', action: strike });
+    expect(room.state!.arms!.health[1]).toBe(100);
+    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
+    h.send({ t: 'action', action: strike });
+    expect(room.state!.arms!.health[1]).toBe(50);
+    expect(room.state!.arms!.bullets[0]).toBe(2);
+
+    // A raised sword facing the shooter parries; the server decides, not the shooter.
+    f.send({ t: 'action', action: { type: 'OpenChest', player: 1 } });
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -10, yaw: Math.PI, weapon: 'sword', block: true } });
+    vi.advanceTimersByTime(400);
+    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
+    h.send({ t: 'action', action: { ...strike, parried: false } });
+    expect(room.state!.arms!.health[1]).toBe(50);
+    // The bot can't be fought.
+    h.send({ t: 'action', action: { ...strike, victim: 2, weapon: 'fist' } });
+    expect(room.state!.arms!.health[2]).toBe(100);
+  });
+
+  it('pauses the board for a Man up duel and ends it if a duellist stays away', () => {
+    const { room } = armedTable();
+    const s = room.state!;
+    room.state = {
+      ...s,
+      players: s.players.map((p, i) => (i === s.currentPlayer ? { ...p, omens: [{ type: 'manup', boughtTurn: 0 }] } : p)),
+    };
+    const me = room.state.currentPlayer;
+    // The current player may be the bot; then the host has nothing to play.
+    if (me === 2) return;
+    const other = me === 0 ? 1 : 0;
+    room.act({ type: 'PlayManUp', player: me, target: other });
+    expect(room.state.phase.kind).toBe('duel');
+    vi.advanceTimersByTime(2500);
+    expect(room.state.phase.kind).not.toBe('duel');
+    expect(room.state.arms!.kills[me] + room.state.arms!.kills[other]).toBe(1);
   });
 
   it('closes a lobby when the host leaves and forgets empty rooms', () => {

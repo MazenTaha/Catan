@@ -84,6 +84,8 @@ export function TitleScreen() {
           {item('Play', 'flag', () => go('setup'), true, 'new-game')}
           {online && item(`Rejoin ${online.code}`, 'user', () => net.resume(online.code, online.token), false, 'rejoin')}
           {save && item('Continue', 'hourglass', () => continueGame(), false, 'continue')}
+          {item('My kingdom', 'citadel', () => openModal('kingdom'), false, 'my-kingdom')}
+          {item('Character', 'user', () => openModal('character'), false, 'character')}
           {item('How to play', 'rules', () => openModal('rules'))}
           {item('Settings', 'settings', () => openModal('settings'))}
         </motion.nav>

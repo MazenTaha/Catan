@@ -360,12 +360,7 @@ export function SegmentedTabs<T extends string>({
                 transition={
                   reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }
                 }
-                className="absolute inset-0 -z-10 rounded-xl"
-                style={{
-                  background: 'linear-gradient(180deg, #ffc978, rgb(var(--gold)) 50%, #e07a3e)',
-                  boxShadow:
-                    '0 6px 16px -8px rgb(255 140 60 / 0.8), inset 0 1px 0 rgb(255 245 220 / 0.7)',
-                }}
+                className="cream-fill absolute inset-0 -z-10 rounded-xl"
               />
             )}
             {t.icon && <Icon name={t.icon} size={15} />}

@@ -124,6 +124,7 @@ export function SettingsModal() {
       <div className="flex flex-col gap-2">
         <Slider label="Master" value={s.master} onChange={set('master')} />
         <Slider label="Effects" value={s.sfx} onChange={set('sfx')} />
+        <Slider label="Music" value={s.music} onChange={set('music')} />
         <Toggle label="Mute all" checked={s.muted} onChange={set('muted')} />
       </div>
       <h3 className="panel-title mb-2 mt-5">Display</h3>
@@ -138,6 +139,20 @@ export function SettingsModal() {
       <p className="mb-1 text-[14px] text-muted">Lite turns off embers, looping animations and 3D shadows. Auto lowers the 3D walk’s resolution while frames run late, and switches to Lite when your browser can’t keep up.</p>
       <Choice label="3D resolution" value={s.renderScale} options={[{ v: 1, l: '100%' }, { v: 0.75, l: '75%' }, { v: 0.5, l: '50%' }]} onChange={set('renderScale')} />
       <p className="mb-1 text-[14px] text-muted">Draws the 3D walk at fewer pixels on slower graphics; menus and text stay sharp.</p>
+      <label className="flex items-center gap-3 py-1">
+        <span className="w-28 text-[15px]">Mouse look</span>
+        <input
+          type="range"
+          min={0.3}
+          max={3}
+          step={0.1}
+          value={s.mouseSensitivity}
+          onChange={(e) => up({ mouseSensitivity: Number(e.target.value) })}
+          className="flex-1 accent-[#f2ac52]"
+          aria-label="Mouse look sensitivity"
+        />
+        <span className="num w-10 text-right text-[14px] text-muted">{s.mouseSensitivity.toFixed(1)}×</span>
+      </label>
       <Choice label="Theme" value={s.theme} options={[{ v: 'hexfall', l: 'Ember' }, { v: 'frostbound', l: 'Frostbound' }]} onChange={set('theme')} />
       <Choice label="UI scale" value={s.uiScale} options={[{ v: 0.9, l: '90%' }, { v: 1, l: '100%' }, { v: 1.1, l: '110%' }, { v: 1.25, l: '125%' }]} onChange={set('uiScale')} />
       <h3 className="panel-title mb-2 mt-5">Play</h3>

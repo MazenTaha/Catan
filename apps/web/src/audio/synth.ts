@@ -21,7 +21,18 @@ export type SfxName =
   | 'error'
   | 'click'
   | 'discard'
-  | 'bleat';
+  | 'bleat'
+  | 'swing'
+  | 'impact'
+  | 'shot'
+  | 'reload'
+  | 'empty'
+  | 'clang'
+  | 'punch'
+  | 'chest-wind'
+  | 'chest-open'
+  | 'chest-empty'
+  | 'duel';
 
 let noiseBuf: AudioBuffer | null = null;
 function noise(ctx: AudioContext): AudioBuffer {
@@ -143,6 +154,56 @@ function bleat(ctx: AudioContext, out: Out, t: number) {
 export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
   const t = ctx.currentTime + 0.01;
   switch (name) {
+    case 'shot':
+      burst(ctx, out, t, 0.13, 0.36, 'lowpass', 4200, 650);
+      tone(ctx, out, t, 130, 0.14, 0.28, 'sine', 0.002, 45);
+      break;
+    case 'reload':
+      burst(ctx, out, t, 0.045, 0.12, 'bandpass', 1800);
+      burst(ctx, out, t + 0.65, 0.06, 0.14, 'highpass', 1600);
+      break;
+    case 'empty':
+      burst(ctx, out, t, 0.025, 0.1, 'bandpass', 2400);
+      break;
+    case 'clang':
+      // Steel on steel: two bright inharmonic rings over a short scrape.
+      tone(ctx, out, t, 1870, 0.35, 0.16, 'triangle', 0.001);
+      tone(ctx, out, t, 2630, 0.25, 0.1, 'sine', 0.001);
+      burst(ctx, out, t, 0.06, 0.18, 'highpass', 3000);
+      break;
+    case 'punch':
+      tone(ctx, out, t, 110, 0.09, 0.4, 'sine', 0.002, 50);
+      burst(ctx, out, t, 0.05, 0.22, 'lowpass', 900);
+      break;
+    case 'chest-wind':
+      // The lid straining: a rattle of the lock building up.
+      for (let i = 0; i < 6; i++) knock(ctx, out, t + i * 0.075, 520 + i * 40, 0.06 + i * 0.03);
+      break;
+    case 'chest-open': {
+      // The lid's thump, then a bright rising chime for the reveal.
+      tone(ctx, out, t, 90, 0.25, 0.5, 'sine', 0.002, 45);
+      burst(ctx, out, t, 0.12, 0.3, 'lowpass', 1400, 400);
+      [784, 988, 1175, 1568].forEach((f, i) => tone(ctx, out, t + 0.12 + i * 0.07, f, 0.6, 0.12, 'triangle', 0.004));
+      tone(ctx, out, t + 0.4, 2093, 0.9, 0.06, 'sine', 0.01);
+      break;
+    }
+    case 'chest-empty':
+      tone(ctx, out, t, 95, 0.2, 0.35, 'sine', 0.002, 50);
+      burst(ctx, out, t, 0.5, 0.12, 'lowpass', 700, 200);
+      break;
+    case 'duel':
+      // A war horn: low brass swell.
+      tone(ctx, out, t, 146.8, 1.4, 0.16, 'sawtooth', 0.25);
+      tone(ctx, out, t, 147.6, 1.4, 0.12, 'sawtooth', 0.25);
+      tone(ctx, out, t + 0.6, 220, 1.0, 0.12, 'sawtooth', 0.15);
+      break;
+    case 'swing':
+      burst(ctx, out, t, 0.12, 0.16, 'bandpass', 1200, 350);
+      break;
+    case 'impact':
+      tone(ctx, out, t, 150, 0.1, 0.5, 'sine', 0.002, 55);
+      burst(ctx, out, t, 0.075, 0.28, 'lowpass', 2200, 500);
+      break;
     case 'dice': {
       let at = t;
       for (let i = 0; i < 7; i++) {
@@ -163,7 +224,15 @@ export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
       break;
     case 'causeway': {
       // Road: three hammer blows on a wooden plank, the last one firmest.
-      [0, 0.13, 0.25].forEach((dt, i) => knock(ctx, out, t + dt + Math.random() * 0.015, 380 + Math.random() * 60, i === 2 ? 0.42 : 0.3));
+      [0, 0.13, 0.25].forEach((dt, i) =>
+        knock(
+          ctx,
+          out,
+          t + dt + Math.random() * 0.015,
+          380 + Math.random() * 60,
+          i === 2 ? 0.42 : 0.3,
+        ),
+      );
       burst(ctx, out, t + 0.32, 0.12, 0.05, 'bandpass', 2400, 1200, 2);
       break;
     }

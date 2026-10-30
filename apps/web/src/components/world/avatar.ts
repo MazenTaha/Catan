@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Weapon } from '@hexfall/engine';
 import { DEFAULT_LOOK, type CharacterLook } from '@hexfall/net';
 import { HAIR_COLOR, OUTFIT, SKIN } from './looks';
+import { RigBaker } from './rig';
 
 export interface AvatarPose {
   /** Walking speed (m/s). */
@@ -25,7 +26,8 @@ const tube = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
 /**
  * A player's character in the 3D walk, built from simple shapes in their chosen look: skin,
  * hair, beard, tunic, hat and cape, with the seat colour on the shoulders, sash and cape so
- * everyone can tell who is who. Arms and legs are pivots, posed each frame by `update`.
+ * everyone can tell who is who. Arms and legs are pivots, posed each frame by `update`; the
+ * parts of each are merged into a few meshes (`RigBaker`).
  */
 export class Avatar {
   readonly root = new THREE.Group();
@@ -48,6 +50,7 @@ export class Avatar {
   private seat: THREE.MeshStandardMaterial;
   private hair: THREE.MeshStandardMaterial;
   private flash = 0;
+  private rig = new RigBaker();
 
   constructor(
     look: CharacterLook = DEFAULT_LOOK,
@@ -135,9 +138,6 @@ export class Avatar {
     this.part(this.shield, steel, -0.04, 0, 0, 0.06, 0.1, 0.1, ball);
     this.shield.rotation.y = -0.2;
 
-    this.root.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true;
-    });
     this.setLook(look);
     this.setWeapon('fist');
   }
@@ -169,6 +169,11 @@ export class Avatar {
 
   setSeatColor(color: string) {
     this.seat.color.set(color);
+    this.bake();
+  }
+
+  private bake() {
+    this.rig.bake(this.root, [this.body, this.arm, this.offArm, ...this.legs, this.cape, this.sword, this.revolver, this.shield]);
   }
 
   setLook(look: CharacterLook) {
@@ -230,6 +235,7 @@ export class Avatar {
     this.root.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true;
     });
+    this.bake();
   }
 
   setWeapon(w: Weapon) {
@@ -304,13 +310,13 @@ export class Avatar {
     this.cape.rotation.x = this.reduce ? 0 : Math.min(p.speed / 14, 0.6) + Math.sin(this.gait * 0.5) * walk * 0.05;
     if (this.flash > 0) {
       this.flash = Math.max(0, this.flash - dt * 4);
-      this.cloth.emissive.setRGB(this.flash * 0.5, 0, 0);
-      this.skin.emissive.setRGB(this.flash * 0.4, 0, 0);
+      this.rig.matte.emissive.setRGB(this.flash * 0.5, 0, 0);
     }
   }
 
   dispose() {
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
+    this.rig.dispose();
   }
 }

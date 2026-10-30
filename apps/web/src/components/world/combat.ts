@@ -86,6 +86,8 @@ export class Combat {
     const glow = new THREE.MeshBasicMaterial({ color: '#ffd993' });
     this.flashMesh = part(this.me.muzzle, glow, 0, 0, -0.05, 0.1, 0.1, 0.18, true);
     this.flashMesh.castShadow = this.flashMesh.receiveShadow = false;
+    // Blinks on its own, so the avatar's re-bakes leave it out.
+    this.flashMesh.userData.loose = true;
     const line = part(this.tracer, glow, 0, 0, -0.5, 0.008, 0.008, 1);
     line.castShadow = line.receiveShadow = false;
     this.tracer.visible = this.flashMesh.visible = false;

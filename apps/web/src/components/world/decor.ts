@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { DecorItem } from '@hexfall/net';
 import { DECOR_TINT } from './looks';
+import { RigBaker } from './rig';
 
 type Room = 'cottage' | 'hall';
 
@@ -74,6 +75,9 @@ const tube = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
 export class DecorBuilder {
   private mats = new Map<string, THREE.Material>();
   private textures: THREE.Texture[] = [];
+  private rig = new RigBaker(0.85);
+  /** Each furnished room merged once (a few meshes), then cloned for every home that has it. */
+  private rooms = new Map<string, { group: THREE.Group; solids: { x: number; z: number; r: number }[] }>();
 
   private mat(color: string, roughness = 0.85, metalness = 0, emissive?: string) {
     const key = `${color}|${roughness}|${metalness}|${emissive ?? ''}`;
@@ -258,6 +262,13 @@ export class DecorBuilder {
 
   /** Every chosen furnishing for a room, in the building plan's frame (floor at `floor`). */
   room(room: Room, items: DecorItem[], tint: number, floor: number): { group: THREE.Group; solids: { x: number; z: number; r: number }[] } {
+    const key = `${room}|${items.join(',')}|${tint}|${floor}`;
+    let made = this.rooms.get(key);
+    if (!made) this.rooms.set(key, (made = this.build(room, items, tint, floor)));
+    return { group: made.group.clone(), solids: made.solids };
+  }
+
+  private build(room: Room, items: DecorItem[], tint: number, floor: number) {
     const group = new THREE.Group();
     const solids: { x: number; z: number; r: number }[] = [];
     const colour = DECOR_TINT[tint] ?? DECOR_TINT[0];
@@ -272,10 +283,13 @@ export class DecorBuilder {
         if (r && s.y === 0) solids.push({ x: s.x, z: s.z, r: r * (s.scale ?? 1) });
       }
     }
+    this.rig.bake(group, [], false);
     return { group, solids };
   }
 
   dispose() {
+    this.rig.dispose();
+    this.rooms.clear();
     this.mats.forEach((m) => m.dispose());
     this.textures.forEach((t) => t.dispose());
     this.mats.clear();

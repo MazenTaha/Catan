@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RigBaker } from './rig';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const ball = new THREE.SphereGeometry(1, 14, 10);
@@ -9,7 +10,8 @@ const COATS = ['#6b4429', '#3b2a20', '#a8784a', '#d8cfc0', '#2a2522', '#8a5a34']
 /**
  * A saddled horse, built from simple shapes: barrel, neck, head with ears and mane, four
  * jointed legs and a swishing tail. Its gait follows its speed: a walk, then a gallop.
- * Faces -z like the walker; the saddle blanket shows the rider's seat colour.
+ * Faces -z like the walker; the saddle blanket shows the rider's seat colour. Each joint's
+ * parts are merged into one or two meshes (`RigBaker`).
  */
 export class Horse {
   readonly root = new THREE.Group();
@@ -19,6 +21,7 @@ export class Horse {
   private legs: { hip: THREE.Group; knee: THREE.Group; phase: number }[] = [];
   private mats: THREE.Material[] = [];
   private blanket: THREE.MeshStandardMaterial;
+  private rig = new RigBaker(0.85);
   private t = Math.random() * 10;
   /** Height of the saddle's seat above the ground (m). */
   readonly saddleHeight = 1.62;
@@ -95,6 +98,11 @@ export class Horse {
     this.root.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true;
     });
+    this.bake();
+  }
+
+  private bake() {
+    this.rig.bake(this.root, [this.body, this.neck, this.tail, ...this.legs.flatMap((l) => [l.hip, l.knee])]);
   }
 
   private mat(color: string, roughness: number, metalness = 0) {
@@ -113,6 +121,7 @@ export class Horse {
 
   setColor(color: string) {
     this.blanket.color.set(color);
+    this.bake();
   }
 
   /** Poses the legs, neck and tail for a speed (m/s): standing, walking or galloping. */
@@ -140,5 +149,6 @@ export class Horse {
   dispose() {
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
+    this.rig.dispose();
   }
 }

@@ -42,8 +42,9 @@ test('3D walk: toggle from the board, walk, jump between lands and back', async 
   const world = page.locator('[data-world3d]');
   await expect(world.locator('canvas')).toBeVisible({ timeout: 20_000 });
   const where = page.getByTestId('world-location');
-  // We spawn at one of our own settlements, so we're listed as an owner there.
-  await expect(where).toContainText('You');
+  // We spawn at one of our own settlements, so we're listed as an owner there. Building the
+  // island takes over 10 s in the software-rendered test browser after other 3D tests.
+  await expect(where).toContainText('You', { timeout: 30_000 });
 
   await world.focus();
   await page.keyboard.down('KeyW');

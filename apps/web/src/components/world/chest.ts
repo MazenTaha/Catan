@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RigBaker } from './rig';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const coinGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.012, 12);
@@ -37,6 +38,7 @@ export class Chest {
   private gun = new THREE.Group();
   private bits: Bit[] = [];
   private mats: THREE.Material[] = [];
+  private rig = new RigBaker(0.85);
   private t = -1;
   private burst = false;
   private done = false;
@@ -155,6 +157,8 @@ export class Chest {
       const m = new THREE.Mesh(coin ? coinGeo : box, coin ? gold : spark);
       if (!coin) m.scale.setScalar(full ? 0.03 : 0.06);
       m.visible = false;
+      // Each flies on its own: never merged.
+      m.userData.loose = true;
       this.root.add(m);
       this.bits.push({ mesh: m, v: new THREE.Vector3(), spin: 0, life: 0 });
     }
@@ -162,6 +166,8 @@ export class Chest {
       const m = o as THREE.Mesh;
       if (m.isMesh && !(m.material as THREE.MeshBasicMaterial).isMeshBasicMaterial) m.castShadow = m.receiveShadow = true;
     });
+    // About sixty boards, bands, rivets and coins as a few meshes per moving part.
+    this.rig.bake(this.root, [this.body, this.lid, this.sword, this.gun], false);
   }
 
   private mat(color: string, roughness: number, metalness = 0) {
@@ -316,5 +322,6 @@ export class Chest {
   dispose() {
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
+    this.rig.dispose();
   }
 }

@@ -122,9 +122,9 @@ export function CharacterModal() {
           <Swatches label="Hair colour" colors={HAIR_COLOR} value={look.hairColor} onChange={(hairColor) => set({ hairColor })} />
           <Choices label="Beard" names={BEARD_NAMES} value={look.beard} onChange={(beard) => set({ beard })} />
           <Swatches label="Tunic" colors={OUTFIT} value={look.outfit} onChange={(outfit) => set({ outfit })} />
-          <Choices label="Headwear" names={HAT_NAMES} value={look.hat} onChange={(hat) => set({ hat })} />
+          <Choices label="Helm" names={HAT_NAMES} value={look.hat} onChange={(hat) => set({ hat })} />
           <Choices label="Cape" names={CAPE_NAMES} value={look.cape} onChange={(cape) => set({ cape })} />
-          <p className="text-[13px] text-muted">Your sash, shoulders, shield and cape always wear your seat’s colour, so friends can tell you apart.</p>
+          <p className="text-[13px] text-muted">Your plume, cape and shield always wear your seat’s colour, so friends can tell you apart. The tunic shows below the armour; skin, hair and beard show under an open helm.</p>
         </div>
       </div>
       <div className="mt-4 flex justify-end gap-2">

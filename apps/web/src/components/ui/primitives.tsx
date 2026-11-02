@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useEffect, useId, useRef, type ReactNode } from 'react';
 import { RESOURCES, type Resource, type ResourceCounts } from '@hexfall/engine';
 import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/Icon';
+import { cardArt } from '../../art/cards/cardArt';
 import { RESOURCE_NAME } from '../../lexicon';
 import { prefersReducedMotion, useStore } from '../../state/store';
 
@@ -50,24 +51,19 @@ export const ResourceCard = memo(function ResourceCard({
       aria-label={`${RESOURCE_NAME[res]}: ${hidden ? 'hidden' : count}`}
       role="img"
     >
+      {/* the resource's illustration (concept sheet 22) on a parchment window */}
       <span
-        className="grid place-items-center rounded-full transition-transform duration-200 group-hover:scale-110"
+        className="block overflow-hidden rounded-md bg-[#efe2c4] transition-transform duration-200 group-hover:scale-110"
         style={{
-          color: c,
-          width: compact ? 30 : 34,
+          width: compact ? 40 : 46,
           height: compact ? 30 : 34,
-          background: `${c}1f`,
-          boxShadow: `inset 0 0 0 1px ${c}40`,
+          boxShadow: `0 0 0 1px ${c}66`,
         }}
       >
-        <ResourceGlyph res={res} size={compact ? 18 : 21} />
+        <img src={cardArt(res)} alt="" draggable={false} className="h-full w-full object-cover" />
       </span>
-      <span className={`num ${compact ? 'text-[19px]' : 'text-[23px]'} leading-none text-bone`}>
-        {hidden ? '?' : count}
-      </span>
-      <span className="w-full truncate text-center font-body text-[11.5px] leading-none text-bone/75">
-        {RESOURCE_NAME[res]}
-      </span>
+      <span className={`num ${compact ? 'text-[19px]' : 'text-[23px]'} leading-none text-bone`}>{hidden ? '?' : count}</span>
+      <span className="w-full truncate text-center font-body text-[11.5px] leading-none text-bone/75">{RESOURCE_NAME[res]}</span>
       <AnimatePresence>
         {gained > 0 && !hidden && (
           <motion.span
@@ -86,13 +82,7 @@ export const ResourceCard = memo(function ResourceCard({
 });
 
 /** Inline resource counts, e.g. "2 ◆ 1 ◆". */
-export function CountsInline({
-  counts,
-  size = 14,
-}: {
-  counts: Partial<ResourceCounts>;
-  size?: number;
-}) {
+export function CountsInline({ counts, size = 14 }: { counts: Partial<ResourceCounts>; size?: number }) {
   const has = RESOURCES.filter((r) => (counts[r] ?? 0) > 0);
   if (!has.length) return <span className="text-muted">nothing</span>;
   return (
@@ -139,10 +129,7 @@ export function CostPips({ cost, hand }: { cost: Partial<ResourceCounts>; hand: 
 }
 
 /** How many of a cost's cards the hand already covers. */
-export function costProgress(
-  cost: Partial<ResourceCounts>,
-  hand: ResourceCounts,
-): { have: number; need: number } {
+export function costProgress(cost: Partial<ResourceCounts>, hand: ResourceCounts): { have: number; need: number } {
   let have = 0;
   let need = 0;
   for (const r of RESOURCES) {
@@ -167,11 +154,7 @@ export function Stepper({
   label: string;
 }) {
   return (
-    <div
-      className="inline-flex items-center rounded-xl border border-iron/80 bg-surface-1/80 p-0.5"
-      role="group"
-      aria-label={label}
-    >
+    <div className="inline-flex items-center rounded-xl border border-iron/80 bg-surface-1/80 p-0.5" role="group" aria-label={label}>
       <button
         type="button"
         className="icon-btn !h-7 !w-7 !rounded-lg"
@@ -181,10 +164,7 @@ export function Stepper({
       >
         <Icon name="minus" size={14} />
       </button>
-      <span
-        className={`num w-6 text-center text-[17px] ${value > 0 ? 'text-gold' : 'text-muted'}`}
-        aria-live="polite"
-      >
+      <span className={`num w-6 text-center text-[17px] ${value > 0 ? 'text-gold' : 'text-muted'}`} aria-live="polite">
         {value}
       </span>
       <button
@@ -217,8 +197,7 @@ export function Tooltip({
   align?: 'center' | 'start' | 'end';
   className?: string;
 }) {
-  const x =
-    align === 'center' ? 'left-1/2 -translate-x-1/2' : align === 'start' ? 'left-0' : 'right-0';
+  const x = align === 'center' ? 'left-1/2 -translate-x-1/2' : align === 'start' ? 'left-0' : 'right-0';
   return (
     <span className={`group/tip relative inline-flex ${className}`}>
       {children}
@@ -256,13 +235,7 @@ export function IconButton({
 }) {
   return (
     <Tooltip label={hint ?? label} side={side} align={align}>
-      <button
-        className="icon-btn"
-        onClick={onClick}
-        disabled={disabled}
-        aria-label={label}
-        aria-pressed={pressed}
-      >
+      <button className="icon-btn" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={pressed}>
         <Icon name={icon} size={17} />
       </button>
     </Tooltip>
@@ -287,19 +260,9 @@ export function ProgressRing({
   const c = 2 * Math.PI * r;
   const v = Math.max(0, Math.min(1, value));
   return (
-    <span
-      className="relative inline-grid shrink-0 place-items-center"
-      style={{ width: size, height: size }}
-    >
+    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="rgb(0 0 0 / 0.35)"
-          strokeWidth={stroke}
-        />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(0 0 0 / 0.35)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -336,11 +299,7 @@ export function SegmentedTabs<T extends string>({
   const uid = useId();
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   return (
-    <div
-      role="tablist"
-      aria-label={label}
-      className="relative flex rounded-2xl border border-iron/70 bg-black/25 p-1"
-    >
+    <div role="tablist" aria-label={label} className="relative flex rounded-2xl border border-iron/70 bg-black/25 p-1">
       {items.map((t) => {
         const on = t.id === value;
         return (
@@ -357,9 +316,7 @@ export function SegmentedTabs<T extends string>({
             {on && (
               <motion.span
                 layoutId={`seg-${uid}`}
-                transition={
-                  reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }
-                }
+                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }}
                 className="cream-fill absolute inset-0 -z-10 rounded-xl"
               />
             )}
@@ -469,9 +426,7 @@ export function Modal({
           )}
           <span className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-tarnish/70 to-transparent" />
         </header>
-        <div className="scroll-thin max-h-[calc(90vh-84px)] overflow-y-auto px-6 py-5">
-          {children}
-        </div>
+        <div className="scroll-thin max-h-[calc(90vh-84px)] overflow-y-auto px-6 py-5">{children}</div>
       </motion.div>
     </motion.div>
   );
@@ -488,11 +443,7 @@ export function RookieTip({ id, children }: { id: string; children: ReactNode })
         <Icon name="torch" size={15} />
       </span>
       <div className="flex-1">{children}</div>
-      <button
-        className="icon-btn !h-6 !w-6 !rounded-md"
-        onClick={() => dismiss(id)}
-        aria-label="Dismiss tip"
-      >
+      <button className="icon-btn !h-6 !w-6 !rounded-md" onClick={() => dismiss(id)} aria-label="Dismiss tip">
         <Icon name="close" size={13} />
       </button>
     </div>

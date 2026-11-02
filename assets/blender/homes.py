@@ -30,7 +30,7 @@ from mathutils import Vector
 
 from common import MeshBuilder, lerp, mul, rng, srgb, tube
 from textures import VILLAGE as V
-from village import (IRON, M_IRON, M_ROOF, M_TRIM, M_VILLAGE, PLANK, PLASTER, STONE, STONE_DK, THATCH, TIMBER, TIMBER_LT,
+from village import (IRON, M_IRON, M_TRIM, M_VILLAGE, PLANK, PLASTER, STONE, STONE_DK, THATCH, TIMBER, TIMBER_LT,
                      UP, WHITE, X, Y, aquad, beam, box, chimney, gable_roof, sub, tower)
 
 M_INTERIOR = 6
@@ -562,6 +562,37 @@ def timber_frame(b, plan, H, floor, stone_top):
                 beam(b, o + u * (a + 0.08) + UP * (stone_top + 0.2), o + u * (c - 0.08) + UP * (H - 0.25), 0.12, 0.07, TIMBER, normal=n)
 
 
+TERRACOTTA = C('#c4643f')
+
+
+def owner_ridge(b, W: float, z: float, thick: float):
+    """A ridge cap in the owner's colour, readable from across the island."""
+    beam(b, Vector((-W / 2 - 0.35, 0, z + thick * 0.7 + 0.1)), Vector((W / 2 + 0.35, 0, z + thick * 0.7 + 0.1)),
+         0.3, 0.14, (0.92, 0.92, 0.92), M_TRIM, normal=UP)
+
+
+def owner_banner(b, at: Vector, out: Vector):
+    """An owner's banner on an iron bracket out from the wall at `at` (the wall's outer face),
+    hanging edge-on to the wall: a swallowtailed cloth with a dark border (so a white one reads)."""
+    tip = at + out * 0.95
+    beam(b, at, tip, 0.05, 0.05, C('#3a3330'), M_IRON, normal=UP)
+    beam(b, at + out * 0.25 - UP * 0.35, at + out * 0.6, 0.035, 0.035, C('#3a3330'), M_IRON, normal=X)
+    a = at + out * 0.2 - UP * 0.04
+    c = at + out * 0.9 - UP * 0.04
+    L = 0.9
+    side = X
+    for k, (inset, col, mat) in enumerate(((0.0, C('#2a2220'), M_VILLAGE), (0.045, (0.92, 0.92, 0.92), M_TRIM))):
+        pa = a + out * inset - UP * inset
+        pc = c - out * inset - UP * inset
+        notch = (pa + pc) / 2 - UP * (L - 0.28 - inset)
+        pts = [pa, pc, pc - UP * (L - inset * 2), notch, pa - UP * (L - inset * 2)]
+        off = side * (0.006 * (k + 1))
+        u0, v0, u1, v1 = V['white']
+        uv = [(u0, v1), (u1, v1), (u1, v0), ((u0 + u1) / 2, v0 + (v1 - v0) * 0.3), (u0, v0)]
+        b.poly([p + off for p in pts], col, uv, mat=mat, smooth=False)
+        b.poly([p - off for p in reversed(pts)], col, list(reversed(uv)), mat=mat, smooth=False)
+
+
 def build_cottage(mats, plan):
     r = rng(611)
     b = MeshBuilder()
@@ -572,8 +603,13 @@ def build_cottage(mats, plan):
     H = room_shell(b, r, plan, cottage_style(floor), knee, {'shutters': True, 'box_flowers': True})
     timber_frame(b, plan, H, floor, floor + 0.55)
     W, D = w + 2 * t, d + 2 * t
-    # Steep owner-tiled roof, ridge along X; gables of plaster with a timber king post.
-    gable_roof(b, Vector((0, 0, 0)), W, D, H, H + 2.55, 0.5, M_ROOF, V['tiles'], WHITE, thick=0.16, r=r)
+    # Steep terracotta roof (07-settlement-cottages A), ridge along X, the ridge cap in the
+    # owner's colour; gables of plaster with a timber king post.
+    gable_roof(b, Vector((0, 0, 0)), W, D, H, H + 2.55, 0.5, M_VILLAGE, V['tiles'], TERRACOTTA, thick=0.16, r=r)
+    owner_ridge(b, W, H + 2.55, 0.16)
+    dr0 = plan['doors'][0]
+    side = 1 if dr0['at'] < 0 else -1
+    owner_banner(b, P(dr0['at'] + side * (dr0['w'] / 2 + 0.5), d / 2 + t, H + 0.05), -Y)
     for s in (-1, 1):
         x = s * (W / 2 + 0.04)
         beam(b, Vector((x, 0, H)), Vector((x, 0, H + 2.4)), 0.14, 0.08, TIMBER, normal=Vector((s, 0, 0)))
@@ -671,7 +707,8 @@ def build_hall(mats, plan):
             beam(b, p, p + UP * (up_h - 0.16), 0.13, 0.08, TIMBER, normal=out)
             if k < n_posts and k % 2 == 0:
                 beam(b, p + UP * 0.1, oo + ux * (ww * (k + 1) / n_posts) + UP * (up_h - 0.12), 0.1, 0.07, TIMBER, normal=out)
-    gable_roof(b, Vector((0, 0, 0)), W, D, z2 + up_h, z2 + up_h + 3.0, 0.55, M_ROOF, V['tiles'], WHITE, thick=0.18, r=r)
+    gable_roof(b, Vector((0, 0, 0)), W, D, z2 + up_h, z2 + up_h + 3.0, 0.55, M_VILLAGE, V['tiles'], TERRACOTTA, thick=0.18, r=r)
+    owner_ridge(b, W, z2 + up_h + 3.0, 0.18)
     # Corner tower at the back left with a banner; a chimney above the hearth.
     tower(b, r, P(-W / 2 - 0.9, -D / 2 - 0.7, 0), 1.35, H + up_h + 1.6, 2.8, sides=10)
     hf = next(f for f in plan['furniture'] if f['kind'] == 'hearth')
@@ -684,7 +721,7 @@ def build_hall(mats, plan):
         beam(b, P(s * 1.25, dz + 1.25, top - 0.15), P(s * 1.25, dz, top + 0.25), 0.12, 0.12, TIMBER)
     ldir = (P(0, -1.45, 0.55)).normalized()
     llen = math.hypot(1.45, 0.55)
-    aquad(b, P(-1.65, dz + 1.45, top - 0.2), X, ldir, 3.3, llen, V['tiles'], (1.2, 1.2), WHITE, M_ROOF)
+    aquad(b, P(-1.65, dz + 1.45, top - 0.2), X, ldir, 3.3, llen, V['tiles'], (1.2, 1.2), TERRACOTTA, M_VILLAGE)
     aquad(b, P(1.65, dz + 1.45, top - 0.2), -X, ldir, 3.3, llen, V['planks'], (1.2, 1.2), TIMBER_LT, M_VILLAGE)
     box(b, P(0, dz + 0.65, 0), (3.0, 1.3, floor - 0.04), V['stone'], (1.4, 0.7), STONE_DK)
     # Owner banners on the façade either side of the porch.

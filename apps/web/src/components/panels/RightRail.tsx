@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   COSTS,
   RESOURCES,
@@ -321,10 +322,11 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
           <Icon name="omen" size={24} />
         </span>
         No development cards yet. Buy one from the Build tab.
-        <div className="mt-2 text-[14px]">
-          Played:{' '}
-          {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
-        </div>
+        {p.playedOmens.length > 0 && (
+          <div className="mx-auto mt-4 w-fit text-left">
+            <PlayedCards played={p.playedOmens} />
+          </div>
+        )}
       </div>
     );
   }
@@ -413,10 +415,58 @@ function CardsTab({ state, seat, active }: { state: GameState; seat: number; act
           </div>
         </Modal>
       )}
-      <div className="text-[14px] text-muted">
-        Victory Points: {relicCount(p)} · Played:{' '}
-        {p.playedOmens.length ? p.playedOmens.map((o) => OMEN_NAME[o]).join(', ') : 'none'}
+      {relicCount(p) > 0 && <div className="text-[14px] text-muted">Victory Points: {relicCount(p)}</div>}
+      <PlayedCards played={p.playedOmens} />
+    </div>
+  );
+}
+
+/**
+ * The cards this player has played, face up in the order played: each new one is dealt onto
+ * the right end of a fanned row, overlapping more as the row grows so it always fits.
+ */
+function PlayedCards({ played }: { played: OmenType[] }) {
+  const reduce = useStore((s) => s.settings.reduceMotion);
+  const [details, setDetails] = useState<OmenType | null>(null);
+  if (!played.length) return null;
+  const w = 40;
+  const n = played.length;
+  // Fit up to ~11 cards in the rail: overlap a quarter of a card, up to two thirds.
+  const overlap = Math.min(w * 0.68, Math.max(w * 0.22, w - 230 / Math.max(1, n - 1)));
+  return (
+    <div className="rounded-2xl border border-iron/70 bg-black/20 px-3 pb-3 pt-2">
+      <div className="mb-2 flex items-center justify-between font-display text-[11px] uppercase tracking-[0.14em] text-muted">
+        <span>Played</span>
+        <span className="num text-gold/80">{n}</span>
       </div>
+      <div className="flex h-[64px] items-end pl-1" role="list" aria-label="Played development cards">
+        {played.map((t, i) => (
+          <motion.button
+            key={i}
+            role="listitem"
+            title={OMEN_NAME[t]}
+            aria-label={`${OMEN_NAME[t]}, played`}
+            onClick={() => setDetails(t)}
+            initial={reduce ? false : { y: -26, opacity: 0, rotate: -14, scale: 1.15 }}
+            animate={{ y: 0, opacity: 1, rotate: (i - (n - 1) / 2) * Math.min(4, 18 / n), scale: 1 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+            whileHover={reduce ? undefined : { y: -8, zIndex: 50 }}
+            style={{ marginLeft: i ? -overlap : 0, zIndex: i, transformOrigin: '50% 100%' }}
+            className="relative rounded-md shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
+          >
+            <OmenCardFront type={t} width={w} />
+          </motion.button>
+        ))}
+      </div>
+      {details && (
+        <Modal title={OMEN_NAME[details]} icon="omen" onClose={() => setDetails(null)}>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <OmenCardFront type={details} width={150} />
+            <p className="text-[16px]">{OMEN_TEXT[details]}</p>
+            <p className="italic text-muted">“{OMEN_FLAVOR[details]}”</p>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { cloneGear } from './gear';
 import type { Weapon } from '@hexfall/engine';
 import { DEFAULT_LOOK, REACH, type CharacterLook } from '@hexfall/net';
 import { ATTACK_TIME, Avatar } from './avatar';
@@ -41,6 +42,8 @@ export class Combat {
   ammo = 0;
   armed = false;
   blocking = false;
+  /** The world's footfall count, so the character's feet land with the footstep sounds. */
+  stride: number | undefined = undefined;
   riding = false;
   private shotFlash = 0;
   health = 100;
@@ -56,6 +59,7 @@ export class Combat {
   private push = 0;
   private aim = 0;
   private straw = new THREE.MeshStandardMaterial({ color: '#c39343', roughness: 1 });
+  private dummyMats: THREE.MeshStandardMaterial[] = [];
   /** Other players this frame (online live combat). */
   targets: Target[] = [];
 
@@ -75,7 +79,17 @@ export class Combat {
     const wood = new THREE.MeshStandardMaterial({ color: '#765039', roughness: 1 });
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     const ballGeo = new THREE.SphereGeometry(1, 10, 8);
-    const part = (parent: THREE.Object3D, mat: THREE.Material, x: number, y: number, z: number, sx: number, sy: number, sz: number, round = false) => {
+    const part = (
+      parent: THREE.Object3D,
+      mat: THREE.Material,
+      x: number,
+      y: number,
+      z: number,
+      sx: number,
+      sy: number,
+      sz: number,
+      round = false,
+    ) => {
       const m = new THREE.Mesh(round ? ballGeo : boxGeo, mat);
       m.position.set(x, y, z);
       m.scale.set(sx, sy, sz);
@@ -91,12 +105,21 @@ export class Combat {
     const line = part(this.tracer, glow, 0, 0, -0.5, 0.008, 0.008, 1);
     line.castShadow = line.receiveShadow = false;
     this.tracer.visible = this.flashMesh.visible = false;
-    part(this.dummy, wood, 0, 0.8, 0, 0.14, 1.6, 0.14);
-    part(this.dummy, wood, 0, 0.08, 0, 1, 0.16, 0.8);
-    part(this.dummy, this.straw, 0, 1.1, 0, 0.35, 0.43, 0.24, true);
-    part(this.dummy, this.straw, 0, 1.7, 0, 0.23, 0.25, 0.23, true);
-    part(this.dummy, wood, 0, 1.32, 0, 1.15, 0.13, 0.13);
-    for (const y of [0.86, 1.12, 1.4]) part(this.dummy, leather, 0, y, 0, 0.68, 0.04, 0.49);
+    // The straw dummy from props.glb (its materials copied, so a hit can flash them), or shapes.
+    const dummyModel = cloneGear('DummyA', (m) => {
+      const c = (m as THREE.MeshStandardMaterial).clone();
+      this.dummyMats.push(c);
+      return c;
+    });
+    if (dummyModel) this.dummy.add(dummyModel);
+    else {
+      part(this.dummy, wood, 0, 0.8, 0, 0.14, 1.6, 0.14);
+      part(this.dummy, wood, 0, 0.08, 0, 1, 0.16, 0.8);
+      part(this.dummy, this.straw, 0, 1.1, 0, 0.35, 0.43, 0.24, true);
+      part(this.dummy, this.straw, 0, 1.7, 0, 0.23, 0.25, 0.23, true);
+      part(this.dummy, wood, 0, 1.32, 0, 1.15, 0.13, 0.13);
+      for (const y of [0.86, 1.12, 1.4]) part(this.dummy, leather, 0, y, 0, 0.68, 0.04, 0.49);
+    }
     const sparkMat = new THREE.MeshBasicMaterial({ color: '#f2ac52' });
     for (let i = 0; i < 8; i++) {
       const p = part(this.sparks, sparkMat, 0, 0, 0, 0.025, 0.08, 0.025);
@@ -186,7 +209,12 @@ export class Combat {
   }
 
   private publishWeapon() {
-    this.weaponChanged?.({ weapon: this.weapon, ammo: this.ammo, armed: this.armed, blocking: this.blocking });
+    this.weaponChanged?.({
+      weapon: this.weapon,
+      ammo: this.ammo,
+      armed: this.armed,
+      blocking: this.blocking,
+    });
   }
 
   get shake() {
@@ -240,6 +268,7 @@ export class Combat {
       side: this.side,
       block: this.blocking,
       riding: this.riding,
+      stride: this.stride,
     });
     // The moment of contact: a sword at 210 ms into its swing, a fist at 120 ms, a shot at once.
     const contact = gun ? 0 : this.weapon === 'sword' ? 0.21 : 0.12;
@@ -298,6 +327,7 @@ export class Combat {
     this.push *= Math.exp(-dt * 8);
     this.dummy.rotation.z = this.reduce ? 0 : this.flash * 0.14 * this.side;
     this.straw.emissive.setRGB(this.flash * 0.28, this.flash * 0.12, 0);
+    for (const m of this.dummyMats) m.emissive.setRGB(this.flash * 0.28, this.flash * 0.12, 0);
     this.sparks.visible = this.flash > 0 && !this.reduce;
     this.sparks.children.forEach((p, i) => {
       const a = (i * Math.PI) / 4,

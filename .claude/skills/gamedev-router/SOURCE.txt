@@ -1,0 +1,1 @@
+Source: https://github.com/gamedev-skills/awesome-gamedev-agent-skills @ 19d93f9 (2026-10-28), Apache-2.0. Subset copied for the three.js walk; agents/openai.yaml left out; router renamed gamedev-router.

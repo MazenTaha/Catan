@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { DecorItem } from '@hexfall/net';
 import { DECOR_TINT } from './looks';
+import { cloneGear } from './gear';
 import { RigBaker } from './rig';
 
 type Room = 'cottage' | 'hall';
@@ -66,7 +67,24 @@ const SPOTS: Record<Room, Partial<Record<DecorItem, Spot[]>>> = {
 };
 
 /** Floor pieces that block walking (radius, m). */
-export const DECOR_SOLID: Partial<Record<DecorItem, number>> = { bookshelf: 0.4, armor: 0.32, plants: 0.22 };
+export const DECOR_SOLID: Partial<Record<DecorItem, number>> = {
+  bookshelf: 0.4,
+  armor: 0.32,
+  plants: 0.22,
+};
+
+/** Blender furnishings (props.glb) by item; `small` is a plant on a table. y: lift in the spot's frame. */
+const MODEL: Partial<Record<DecorItem, { node: string; small?: string; y?: number }>> = {
+  antlers: { node: 'Antlers' },
+  chandelier: { node: 'CandleWheel' },
+  plants: { node: 'FloorPlant', small: 'TablePlant' },
+  armor: { node: 'ArmorStand' },
+  candles: { node: 'Candles' },
+  shield: { node: 'CrossedShields' },
+  tapestry: { node: 'Tapestry', y: 0.48 },
+  banner: { node: 'Banner' },
+  bookshelf: { node: 'Bookshelf' },
+};
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const ball = new THREE.SphereGeometry(1, 12, 8);
@@ -83,13 +101,29 @@ export class DecorBuilder {
     const key = `${color}|${roughness}|${metalness}|${emissive ?? ''}`;
     let m = this.mats.get(key);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive: emissive ?? '#000000', emissiveIntensity: emissive ? 1.4 : 1 });
+      m = new THREE.MeshStandardMaterial({
+        color,
+        roughness,
+        metalness,
+        emissive: emissive ?? '#000000',
+        emissiveIntensity: emissive ? 1.4 : 1,
+      });
       this.mats.set(key, m);
     }
     return m;
   }
 
-  private part(p: THREE.Object3D, m: THREE.Material, x: number, y: number, z: number, sx: number, sy: number, sz: number, g: THREE.BufferGeometry = box) {
+  private part(
+    p: THREE.Object3D,
+    m: THREE.Material,
+    x: number,
+    y: number,
+    z: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    g: THREE.BufferGeometry = box,
+  ) {
     const mesh = new THREE.Mesh(g, m);
     mesh.position.set(x, y, z);
     mesh.scale.set(sx, sy, sz);
@@ -134,8 +168,18 @@ export class DecorBuilder {
     return m;
   }
 
-  private item(kind: DecorItem, tint: string): THREE.Object3D {
+  private item(kind: DecorItem, tint: string, small = false): THREE.Object3D {
     const g = new THREE.Group();
+    const ref = MODEL[kind];
+    const model =
+      ref && cloneGear(small && ref.small ? ref.small : ref.node, (m) => (/^tint/i.test(m.name) ? this.mat(tint, 0.95) : undefined));
+    if (model) {
+      model.position.y = ref.y ?? 0;
+      // A table spot is scaled for the old pot; the table plant is drawn at its own size.
+      if (small) model.scale.setScalar(1.6);
+      g.add(model);
+      return g;
+    }
     const wood = this.mat('#6b4a2e');
     const dark = this.mat('#3e2a1a');
     const iron = this.mat('#4b5257', 0.5, 0.7);
@@ -274,7 +318,7 @@ export class DecorBuilder {
     const colour = DECOR_TINT[tint] ?? DECOR_TINT[0];
     for (const kind of items) {
       for (const s of SPOTS[room][kind] ?? []) {
-        const o = this.item(kind, colour);
+        const o = this.item(kind, colour, s.y > 0 && kind === 'plants');
         o.position.set(s.x, floor + s.y, s.z);
         o.rotation.y = s.ry;
         o.scale.setScalar(s.scale ?? 1);
@@ -285,6 +329,11 @@ export class DecorBuilder {
     }
     this.rig.bake(group, [], false);
     return { group, solids };
+  }
+
+  /** Drops the furnished rooms made so far (the models they used have changed). */
+  forget() {
+    this.rooms.clear();
   }
 
   dispose() {

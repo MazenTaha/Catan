@@ -438,7 +438,7 @@ async function runViews(page: Page, prefix: string) {
       if (process.env.PERF_VIEW_EVAL && rep === 0) log(`  ${v.name} eval ${JSON.stringify(await page.evaluate(process.env.PERF_VIEW_EVAL))}`);
       if (process.env.PERF_DUMP) fs.writeFileSync(path.join(OUT, `rec-${prefix}${v.name}-${rep}.json`), JSON.stringify(rec));
       log(row(`${prefix}${v.name}${REPEAT > 1 ? `#${rep + 1}` : ''}`, stats));
-      if (process.env.PERF_SHOTS && rep === 0) await page.locator('[data-world3d] canvas').screenshot({ path: path.join(OUT, `${prefix}${v.name}.png`) });
+      if (process.env.PERF_SHOTS && rep === 0) await page.locator('[data-world3d] canvas[data-engine]').screenshot({ path: path.join(OUT, `${prefix}${v.name}.png`) });
       if (process.env.PERF_SYNTH && rep === 0) {
         // Synthetic comparison only (not frame pacing): back-to-back renders, each forced to finish.
         const ms = await page.evaluate(() => {
@@ -1069,7 +1069,7 @@ test('3D walk: the village prototype (cottage, hall, windmill)', async ({ page }
     const { stats } = await sample(page);
     out[name] = stats;
     log(row(name, stats));
-    if (process.env.PERF_SHOTS) await page.locator('[data-world3d] canvas').screenshot({ path: path.join(OUT, `village-${name}.png`) });
+    if (process.env.PERF_SHOTS) await page.locator('[data-world3d] canvas[data-engine]').screenshot({ path: path.join(OUT, `village-${name}.png`) });
   };
   const walk = async (name: string, key: string, pts: number[][]) => {
     const secs = await page.evaluate(([key, pts]) => (window as unknown as { __walk(k: string, p: number[][]): number }).__walk(key, pts), [key, pts] as const);

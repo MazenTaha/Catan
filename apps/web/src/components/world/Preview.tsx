@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { CharacterLook, KingdomDecor } from '@hexfall/net';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { loadGear, loadSlot } from './assets';
 import { Avatar } from './avatar';
+import { knightModel, setKnightModel } from './knight';
 import { DecorBuilder } from './decor';
 import PLANS from './buildings.json';
 
@@ -14,7 +17,10 @@ interface Props {
   reduce?: boolean;
 }
 
-const ROOM = { cottage: { w: 4.2, d: 3.8, h: 2.6, floor: 0.3 }, hall: { w: 7, d: 5, h: 3.6, floor: 0.36 } };
+const ROOM = {
+  cottage: { w: 4.2, d: 3.8, h: 2.6, floor: 0.3 },
+  hall: { w: 7, d: 5, h: 3.6, floor: 0.36 },
+};
 
 /**
  * A small live 3D view for the Character and My kingdom screens. It shares the walk's models
@@ -34,6 +40,11 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
     renderer.shadowMap.enabled = true;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
+    // Something for the knight's plate to reflect.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = 0.6;
     const camera = new THREE.PerspectiveCamera(kind === 'character' ? 30 : 55, 1, 0.05, 100);
     const sun = new THREE.DirectionalLight('#ffe7c4', 2.6);
     sun.position.set(-3, 6, 4);
@@ -47,7 +58,10 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
     scene.add(spin);
     let avatar: Avatar | undefined;
     let room: THREE.Group | undefined;
+    let decorGroup: THREE.Group | null = null;
+    let latest: Props | null = null;
 
+    let make: (() => void) | undefined;
     if (kind === 'character') {
       const plinth = new THREE.Mesh(
         new THREE.CylinderGeometry(0.75, 0.85, 0.16, 32),
@@ -56,16 +70,35 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
       plinth.position.y = -0.08;
       plinth.receiveShadow = true;
       spin.add(plinth);
-      avatar = new Avatar(look, color, reduce);
-      avatar.setWeapon('sword');
-      spin.add(avatar.root);
+      // The knight once its model is loaded (shapes until then, or if it can't be).
+      make = () => {
+        if (avatar) {
+          avatar.dispose();
+          avatar.root.removeFromParent();
+        }
+        avatar = new Avatar(look, color, reduce);
+        avatar.setWeapon('sword');
+        spin.add(avatar.root);
+        if (latest) set(latest);
+      };
+      make();
+      if (!knightModel())
+        void loadSlot('character.knight').then((v) => {
+          if (!v || !live.current) return;
+          setKnightModel(v[0]);
+          make?.();
+        });
       camera.position.set(0, 1.35, 4.6);
       camera.lookAt(0, 0.95, 0);
     } else {
       const r = ROOM[kind];
       room = new THREE.Group();
       const plank = new THREE.MeshStandardMaterial({ color: '#7a5a3c', roughness: 0.9 });
-      const plaster = new THREE.MeshStandardMaterial({ color: kind === 'hall' ? '#a8a092' : '#d8ccb4', roughness: 1, side: THREE.BackSide });
+      const plaster = new THREE.MeshStandardMaterial({
+        color: kind === 'hall' ? '#a8a092' : '#d8ccb4',
+        roughness: 1,
+        side: THREE.BackSide,
+      });
       const floor = new THREE.Mesh(new THREE.BoxGeometry(r.w, r.floor, r.d), plank);
       floor.position.y = r.floor / 2;
       floor.receiveShadow = true;
@@ -93,8 +126,8 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
       fill.position.set(0, r.floor + r.h - 0.4, 0);
       scene.add(fill);
     }
-    let decorGroup: THREE.Group | null = null;
-    const set = (p: Props) => {
+    function set(p: Props) {
+      latest = p;
       avatar?.setLook(p.look);
       avatar?.setSeatColor(p.color);
       if (room && p.decor && p.kind !== 'character') {
@@ -102,9 +135,18 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
         decorGroup = builder.room(p.kind, p.decor[p.kind], p.decor.tint, ROOM[p.kind].floor).group;
         room.add(decorGroup);
       }
-    };
+    }
     live.current = { avatar, room, set };
     set({ kind, look, color, decor, reduce });
+    // The Blender sword, shield and furnishings arrive with props.glb: redraw once they do.
+    void loadGear().then(() => {
+      if (!live.current) return;
+      if (kind === 'character') make?.();
+      else {
+        builder.forget();
+        if (latest) set(latest);
+      }
+    });
 
     const resize = () => {
       const w = el.clientWidth || 300;
@@ -135,7 +177,14 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
         camera.position.set(Math.sin(a) * far, r.floor + r.h * 2.1, Math.cos(a) * far);
         camera.lookAt(0, r.floor + 0.5, 0);
       }
-      avatar?.update(dt, { speed: 0, weapon: 'sword', attackAge: 9, side: 1, block: false, riding: false });
+      avatar?.update(dt, {
+        speed: 0,
+        weapon: 'sword',
+        attackAge: 9,
+        side: 1,
+        block: false,
+        riding: false,
+      });
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
@@ -145,6 +194,8 @@ export default function Preview({ kind, look, color, decor, reduce = false }: Pr
       ro.disconnect();
       avatar?.dispose();
       builder.dispose();
+      env.dispose();
+      pmrem.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();

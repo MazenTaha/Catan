@@ -9,7 +9,8 @@ export const HAIR_COLOR = ['#1f1a17', '#4a2f1f', '#7b4a26', '#b07a3c', '#d9b46c'
 export const OUTFIT = ['#3f5f8a', '#5c7a3c', '#7a3434', '#6b5136', '#4d4f58', '#8a6a2c', '#2f6b6b', '#e6dcc6'];
 export const HAIR_NAMES = ['Bald', 'Short', 'Long', 'Braid', 'Top knot', 'Curls'];
 export const BEARD_NAMES = ['None', 'Stubble', 'Full', 'Braided'];
-export const HAT_NAMES = ['None', 'Hood', 'Leather cap', 'Iron helm', 'Circlet'];
+/** The knight's helm (look.hat): the shape-built fallback reads the same index as hood, cap and so on. */
+export const HAT_NAMES = ['Great helm', 'Armet', 'Bascinet', 'Bare head', 'Crowned helm'];
 export const CAPE_NAMES = ['None', 'Short', 'Long'];
 
 /** Banner and rug colours of the My kingdom screen (index = KingdomDecor.tint). */

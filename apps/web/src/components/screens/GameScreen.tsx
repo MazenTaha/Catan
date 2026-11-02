@@ -104,7 +104,6 @@ export function GameScreen() {
     if (sceneOpensWalk()) setView3d(true);
   }, [setView3d]);
   const view3d = walk && !isTouchDevice;
-  const placing = useStore((s) => s.mode !== null);
   const state = session?.state;
   const seat = state ? displaySeat(state) : 0;
   const [boardRef, boardH] = useBoardHeight(layout !== 'narrow' && !!state);
@@ -120,7 +119,6 @@ export function GameScreen() {
   const canAct = canSeatAct(state, seat);
   const ph = state.phase;
   const humanSeat = state.players[seat].kind === 'human';
-  const needsBoard = canAct && humanSeat && (ph.kind === 'setup' || ph.kind === 'move-wraith' || placing);
 
   // The board takes all the height left under the top bar and the players row; the 3D walk
   // fills the whole width as well, since its camera adapts to any shape.
@@ -134,7 +132,7 @@ export function GameScreen() {
       {view3d ? (
         <div className="w-full" style={boardH === null ? { aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}` } : { height: boardH }}>
           <Suspense fallback={<div className="grid h-full place-items-center rounded-lg bg-surface-1 font-display text-gold">Building the island…</div>}>
-            <World3D state={state} seat={seat} needsBoard={needsBoard} onExit={() => setView3d(false)} />
+            <World3D state={state} seat={seat} onExit={() => setView3d(false)} />
           </Suspense>
         </div>
       ) : (

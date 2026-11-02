@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { Weapon } from '@hexfall/engine';
 import { DEFAULT_LOOK, type CharacterLook } from '@hexfall/net';
 import { HAIR_COLOR, OUTFIT, SKIN } from './looks';
+import { HELM_FACE, HELM_HAIR, KnightRig, knightModel } from './knight';
+import { cloneGear } from './gear';
 import { RigBaker } from './rig';
 
 export interface AvatarPose {
@@ -14,6 +16,8 @@ export interface AvatarPose {
   side: number;
   block: boolean;
   riding: boolean;
+  /** Footfalls so far from the world's stride (the local player), so the feet land on the sound. */
+  stride?: number;
 }
 
 /** How long each attack plays (s). */
@@ -24,10 +28,12 @@ const ball = new THREE.SphereGeometry(1, 14, 10);
 const tube = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
 
 /**
- * A player's character in the 3D walk, built from simple shapes in their chosen look: skin,
- * hair, beard, tunic, hat and cape, with the seat colour on the shoulders, sash and cape so
- * everyone can tell who is who. Arms and legs are pivots, posed each frame by `update`; the
- * parts of each are merged into a few meshes (`RigBaker`).
+ * A player's character in the 3D walk: the Blender knight (`KnightRig`, DECISIONS #43) once its
+ * model has loaded, otherwise built from simple shapes in their chosen look: skin, hair, beard,
+ * tunic, hat and cape, with the seat colour on the shoulders, sash and cape so everyone can
+ * tell who is who. The knight takes the helm (hat), cape, tunic (outfit), skin, hair and beard
+ * from the same look, and the seat colour on its cape and plume. The shapes' arms and legs are
+ * pivots, posed each frame by `update`; the parts of each are merged into a few meshes (`RigBaker`).
  */
 export class Avatar {
   readonly root = new THREE.Group();
@@ -51,6 +57,7 @@ export class Avatar {
   private hair: THREE.MeshStandardMaterial;
   private flash = 0;
   private rig = new RigBaker();
+  private knight: KnightRig | null = null;
 
   constructor(
     look: CharacterLook = DEFAULT_LOOK,
@@ -67,6 +74,74 @@ export class Avatar {
     const wood = this.mat('#765039', 1);
     const dark = this.mat('#1d1715', 0.6);
 
+    const model = knightModel();
+    if (model) {
+      this.knight = new KnightRig(model);
+      this.root.add(this.knight.root);
+      this.skin = this.knight.skin;
+      this.cloth = this.knight.cloth;
+      this.seat = this.knight.owner;
+      this.seat.color.set(seatColor);
+      this.knight.head.add(this.styled);
+    } else this.shapes(leather, boot, dark);
+
+    // Sword: blade, fuller, guard, grip and pommel, held point-forward in the right hand.
+    const hand = new THREE.Group();
+    if (!this.knight) hand.position.set(0, -0.56, -0.02);
+    (this.knight?.hand ?? this.arm).add(hand);
+    hand.add(this.sword, this.revolver);
+    // Blender sword (Sword A), revolver and heater shield when props.glb is loaded; shapes else.
+    const swordModel = cloneGear('Sword');
+    if (swordModel) this.sword.add(swordModel);
+    else {
+      this.part(this.sword, steel, 0, 0, -0.62, 0.075, 0.025, 0.95);
+      this.part(this.sword, this.mat('#7f8a90', 0.4, 0.7), 0, 0.014, -0.62, 0.016, 0.006, 0.85);
+      this.part(this.sword, this.mat('#a78c54', 0.5, 0.6), 0, 0, -0.12, 0.3, 0.05, 0.05);
+      this.part(this.sword, leather, 0, 0, 0.02, 0.05, 0.05, 0.2, tube).rotation.x = Math.PI / 2;
+      this.part(this.sword, this.mat('#a78c54', 0.5, 0.6), 0, 0, 0.14, 0.05, 0.05, 0.05, ball);
+    }
+    const gunModel = cloneGear('Revolver');
+    if (gunModel) {
+      gunModel.scale.setScalar(1.15);
+      this.revolver.add(gunModel);
+      this.muzzle.position.set(0, 0.075, -0.33);
+    } else {
+      // Revolver: blued barrel, cylinder, walnut grip, brass trigger guard.
+      const blued = this.mat('#303c43', 0.5, 0.7);
+      const grip = this.part(this.revolver, wood, 0, -0.05, 0.03, 0.06, 0.16, 0.08);
+      grip.rotation.x = -0.35;
+      this.part(this.revolver, blued, 0, 0.05, -0.16, 0.045, 0.045, 0.3);
+      const cyl = this.part(this.revolver, blued, 0, 0.04, -0.04, 0.09, 0.09, 0.1, tube);
+      cyl.rotation.x = Math.PI / 2;
+      this.part(this.revolver, this.mat('#a78c54', 0.5, 0.6), 0, -0.02, -0.03, 0.03, 0.04, 0.08);
+      this.muzzle.position.set(0, 0.05, -0.33);
+    }
+    this.revolver.add(this.muzzle);
+    // Shield on the left forearm, its face (the seat colour) turned outwards.
+    if (this.knight) this.shield.position.set(-0.075, 0, -0.03);
+    else this.shield.position.set(-0.06, -0.38, -0.06);
+    (this.knight?.forearm ?? this.offArm).add(this.shield);
+    const shieldModel = cloneGear('Shield', (m) => (/^owner/i.test(m.name) ? this.seat : undefined));
+    if (shieldModel) {
+      // The model's face looks along +z; outward on the left arm is -x.
+      shieldModel.rotation.y = -Math.PI / 2;
+      this.shield.add(shieldModel);
+    } else {
+      const face = this.part(this.shield, this.seat, 0, 0, 0, 0.56, 0.05, 0.56, tube);
+      face.rotation.z = Math.PI / 2;
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.025, 6, 20), steel);
+      rim.rotation.y = Math.PI / 2;
+      this.shield.add(rim);
+      this.part(this.shield, steel, -0.04, 0, 0, 0.06, 0.1, 0.1, ball);
+    }
+    this.shield.rotation.y = -0.2;
+
+    this.setLook(look);
+    this.setWeapon('fist');
+  }
+
+  /** The shape-built body (when the knight model isn't available). */
+  private shapes(leather: THREE.Material, boot: THREE.Material, dark: THREE.Material) {
     const b = this.body;
     b.position.y = 0.78;
     this.root.add(b);
@@ -106,40 +181,6 @@ export class Avatar {
       this.part(leg, this.mat('#4b4037', 0.95), 0, -0.24, 0, 0.17, 0.46, 0.17, tube);
       this.part(leg, boot, 0, -0.62, -0.04, 0.17, 0.3, 0.24);
     });
-
-    // Sword: blade, fuller, guard, grip and pommel, held point-forward in the right hand.
-    const hand = new THREE.Group();
-    hand.position.set(0, -0.56, -0.02);
-    this.arm.add(hand);
-    hand.add(this.sword, this.revolver);
-    this.part(this.sword, steel, 0, 0, -0.62, 0.075, 0.025, 0.95);
-    this.part(this.sword, this.mat('#7f8a90', 0.4, 0.7), 0, 0.014, -0.62, 0.016, 0.006, 0.85);
-    this.part(this.sword, this.mat('#a78c54', 0.5, 0.6), 0, 0, -0.12, 0.3, 0.05, 0.05);
-    this.part(this.sword, leather, 0, 0, 0.02, 0.05, 0.05, 0.2, tube).rotation.x = Math.PI / 2;
-    this.part(this.sword, this.mat('#a78c54', 0.5, 0.6), 0, 0, 0.14, 0.05, 0.05, 0.05, ball);
-    // Revolver: blued barrel, cylinder, walnut grip, brass trigger guard.
-    const blued = this.mat('#303c43', 0.5, 0.7);
-    const grip = this.part(this.revolver, wood, 0, -0.05, 0.03, 0.06, 0.16, 0.08);
-    grip.rotation.x = -0.35;
-    this.part(this.revolver, blued, 0, 0.05, -0.16, 0.045, 0.045, 0.3);
-    const cyl = this.part(this.revolver, blued, 0, 0.04, -0.04, 0.09, 0.09, 0.1, tube);
-    cyl.rotation.x = Math.PI / 2;
-    this.part(this.revolver, this.mat('#a78c54', 0.5, 0.6), 0, -0.02, -0.03, 0.03, 0.04, 0.08);
-    this.muzzle.position.set(0, 0.05, -0.33);
-    this.revolver.add(this.muzzle);
-    // Round shield on the left forearm, boss and rim in iron, face in the seat colour.
-    this.shield.position.set(-0.06, -0.38, -0.06);
-    this.offArm.add(this.shield);
-    const face = this.part(this.shield, this.seat, 0, 0, 0, 0.56, 0.05, 0.56, tube);
-    face.rotation.z = Math.PI / 2;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.025, 6, 20), steel);
-    rim.rotation.y = Math.PI / 2;
-    this.shield.add(rim);
-    this.part(this.shield, steel, -0.04, 0, 0, 0.06, 0.1, 0.1, ball);
-    this.shield.rotation.y = -0.2;
-
-    this.setLook(look);
-    this.setWeapon('fist');
   }
 
   private mat(color: string, roughness: number, metalness = 0): THREE.MeshStandardMaterial {
@@ -173,6 +214,10 @@ export class Avatar {
   }
 
   private bake() {
+    if (this.knight) {
+      this.rig.bake(this.root, [this.sword, this.revolver, this.shield, this.styled]);
+      return;
+    }
     this.rig.bake(this.root, [this.body, this.arm, this.offArm, ...this.legs, this.cape, this.sword, this.revolver, this.shield]);
   }
 
@@ -184,23 +229,35 @@ export class Avatar {
     const h = this.styled;
     const hair = this.hair;
     const hat = look.hat;
+    // Under a knight's helm only what the helm leaves open shows.
+    const hairOk = this.knight ? HELM_HAIR[hat] : true;
+    const beardOk = this.knight ? HELM_FACE[hat] : true;
     // Hair (a helm or hood covers the top of it).
-    if (look.hair > 0 && hat !== 3 && hat !== 1) this.part(h, hair, 0, 0.05, 0.015, 0.18, 0.18, 0.18, ball).scale.set(0.182, 0.17, 0.185);
-    if (look.hair === 2) this.part(h, hair, 0, -0.1, 0.1, 0.3, 0.3, 0.1);
-    if (look.hair === 3) {
+    if (hairOk && look.hair > 0 && (this.knight || (hat !== 3 && hat !== 1)))
+      this.part(h, hair, 0, 0.05, 0.015, 0.18, 0.18, 0.18, ball).scale.set(0.182, 0.17, 0.185);
+    if (hairOk && look.hair === 2) this.part(h, hair, 0, -0.1, 0.1, 0.3, 0.3, 0.1);
+    if (hairOk && look.hair === 3) {
       const braid = this.part(h, hair, 0, -0.2, 0.17, 0.06, 0.32, 0.06, tube);
       braid.rotation.x = 0.25;
     }
-    if (look.hair === 4) this.part(h, hair, 0, 0.21, 0.04, 0.07, 0.07, 0.07, ball);
-    if (look.hair === 5)
+    if (hairOk && look.hair === 4) this.part(h, hair, 0, 0.21, 0.04, 0.07, 0.07, 0.07, ball);
+    if (hairOk && look.hair === 5)
       for (let i = 0; i < 9; i++) {
         const a = (i / 9) * Math.PI * 2;
         this.part(h, hair, Math.cos(a) * 0.15, 0.07 + Math.sin(i * 1.7) * 0.03, Math.sin(a) * 0.15 + 0.02, 0.06, 0.06, 0.06, ball);
       }
     // Beard.
-    if (look.beard === 1) this.part(h, hair, 0, -0.1, -0.08, 0.14, 0.08, 0.11, ball).material = this.mat('#5a4a3c', 1);
-    if (look.beard >= 2) this.part(h, hair, 0, -0.12, -0.1, 0.13, 0.13, 0.1, ball);
-    if (look.beard === 3) this.part(h, hair, 0, -0.27, -0.13, 0.04, 0.14, 0.04, tube);
+    if (beardOk && look.beard === 1) this.part(h, hair, 0, -0.1, -0.08, 0.14, 0.08, 0.11, ball).material = this.mat('#5a4a3c', 1);
+    if (beardOk && look.beard >= 2) this.part(h, hair, 0, -0.12, -0.1, 0.13, 0.13, 0.1, ball);
+    if (beardOk && look.beard === 3) this.part(h, hair, 0, -0.27, -0.13, 0.04, 0.14, 0.04, tube);
+    if (this.knight) {
+      this.knight.setLook(hat, look.cape);
+      this.styled.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true;
+      });
+      this.bake();
+      return;
+    }
     // Hats.
     const leather = this.mat('#5d4030', 0.85);
     if (hat === 1) {
@@ -250,6 +307,14 @@ export class Avatar {
 
   update(dt: number, p: AvatarPose) {
     this.setWeapon(p.weapon);
+    if (this.knight) {
+      this.knight.pose(dt, { ...p, attackTime: ATTACK_TIME[p.weapon] }, this.reduce);
+      if (this.flash > 0) {
+        this.flash = Math.max(0, this.flash - dt * 4);
+        this.knight.steel.emissive.setRGB(this.flash * 0.6, 0, 0);
+      }
+      return;
+    }
     this.gait += p.speed * dt * (p.riding ? 0 : 2.3);
     const walk = this.reduce || p.riding ? 0 : Math.min(p.speed / 10, 0.6);
     this.legs.forEach((leg, i) => {
@@ -273,8 +338,7 @@ export class Avatar {
       ax = -0.35;
       // Anticipation, a fast diagonal cut, then recovery.
       if (live && !this.reduce) {
-        const s =
-          t < 0.15 ? -t / 0.15 : t < 0.27 ? -1 + ((t - 0.15) / 0.12) * 2 : Math.max(0, 1 - (t - 0.27) / 0.31);
+        const s = t < 0.15 ? -t / 0.15 : t < 0.27 ? -1 + ((t - 0.15) / 0.12) * 2 : Math.max(0, 1 - (t - 0.27) / 0.31);
         ax = -0.35 - s * 0.9;
         ay = s * 1.2 * p.side;
         twist = -s * 0.35 * p.side;
@@ -287,7 +351,7 @@ export class Avatar {
       if (live && !this.reduce) ax -= Math.max(0, 1 - t / 0.25) * 0.45;
     } else if (live && !this.reduce) {
       // A jab: pull back, punch out, recover.
-      const s = t < 0.12 ? -t / 0.12 : t < 0.22 ? -1 + ((t - 0.12) / 0.1) * 2.4 : Math.max(0, 1.4 - (t - 0.22) / 0.2 * 1.4);
+      const s = t < 0.12 ? -t / 0.12 : t < 0.22 ? -1 + ((t - 0.12) / 0.1) * 2.4 : Math.max(0, 1.4 - ((t - 0.22) / 0.2) * 1.4);
       ax = -0.6 - s * 0.8;
       twist = -s * 0.25;
     }
@@ -318,5 +382,6 @@ export class Avatar {
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
     this.rig.dispose();
+    this.knight?.dispose();
   }
 }

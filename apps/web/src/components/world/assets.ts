@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { setGear } from './gear';
+import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 /**
  * Visual assets for the 3D walk: the reusable objects drawn from Blender-made models, each with
@@ -35,6 +37,8 @@ export type AssetSlot =
   | 'rock.crag'
   | 'rock.clay'
   | 'sheep'
+  | 'animal.horse'
+  | 'character.knight'
   | 'building.settlement'
   | 'building.city'
   | 'piece.road'
@@ -45,7 +49,29 @@ export type AssetSlot =
   | 'prop.barn'
   | 'prop.kiln'
   | 'prop.haybale'
-  | 'prop.mine';
+  | 'prop.mine'
+  | 'prop.stump'
+  | 'prop.axestump'
+  | 'prop.logpile'
+  | 'prop.log'
+  | 'prop.stakes'
+  | 'prop.chips'
+  | 'prop.mushroom'
+  | 'rock.desert'
+  | 'prop.dune'
+  | 'prop.ruin'
+  | 'prop.column'
+  | 'prop.drums'
+  | 'prop.lintel'
+  | 'prop.fencepost'
+  | 'prop.fencerail'
+  | 'prop.gate'
+  | 'prop.trough'
+  | 'prop.bricks'
+  | 'shrub.dry'
+  | 'plant.reeds'
+  | 'rock.ore'
+  | 'rock.ledge';
 
 export interface SlotSpec {
   /** Approximate size at scale 1 (width x, height y, depth z), metres. */
@@ -77,6 +103,10 @@ export const SLOTS: Record<AssetSlot, SlotSpec> = {
   'rock.crag': { size: [10, 12, 9], footprint: 4.5, mode: 'instanced', castShadow: true },
   'rock.clay': { size: [5, 2, 4.5], footprint: 2.4, mode: 'instanced', castShadow: true },
   sheep: { size: [0.8, 1.1, 1.4], footprint: 0.5, mode: 'object', castShadow: true },
+  // Skinned: `horse.ts` clones and poses it (one per pasture, plus riders' mounts).
+  'animal.horse': { size: [0.8, 2.2, 2.6], footprint: 0, mode: 'object', owner: true, castShadow: true },
+  // Skinned: `knight.ts` clones and poses it for every player in the walk and the Character preview.
+  'character.knight': { size: [0.7, 1.9, 0.5], footprint: 0, mode: 'object', owner: true, castShadow: true },
   // Enterable (rooms from buildings.json); 'footprint' is only the procedural fallback's collider.
   'building.settlement': { size: [5.8, 6.8, 5.4], footprint: 2.8, mode: 'object', owner: true, castShadow: true },
   'building.city': { size: [10.5, 11.5, 9], footprint: 4.2, mode: 'object', owner: true, castShadow: true },
@@ -89,6 +119,28 @@ export const SLOTS: Record<AssetSlot, SlotSpec> = {
   'prop.kiln': { size: [3.7, 4.6, 3.9], footprint: 1.8, mode: 'object', castShadow: true },
   'prop.haybale': { size: [1.1, 1.3, 1.3], footprint: 0.8, mode: 'object', castShadow: true },
   'prop.mine': { size: [3.2, 3.2, 4.8], footprint: 0.9, mode: 'object', castShadow: true },
+  'prop.stump': { size: [1.4, 1.2, 1.4], footprint: 0.5, mode: 'object', castShadow: true },
+  'prop.axestump': { size: [1.4, 1.2, 1.4], footprint: 0.5, mode: 'object', castShadow: true },
+  'prop.logpile': { size: [2.1, 1.5, 1.8], footprint: 1.2, mode: 'object', castShadow: true },
+  'prop.log': { size: [1.8, 0.55, 0.6], footprint: 0.6, mode: 'object', castShadow: true },
+  'prop.stakes': { size: [0.5, 1.4, 0.3], footprint: 0.2, mode: 'object', castShadow: true },
+  'prop.chips': { size: [1.1, 0.1, 1.1], footprint: 0, mode: 'object', castShadow: false },
+  'prop.mushroom': { size: [0.4, 0.25, 0.3], footprint: 0, mode: 'object', castShadow: false },
+  'rock.desert': { size: [1.8, 0.8, 1.3], footprint: 0.6, mode: 'object', castShadow: true },
+  'prop.dune': { size: [4.8, 0.95, 2.6], footprint: 0, mode: 'object', castShadow: false },
+  'prop.ruin': { size: [4.4, 3.2, 3.6], footprint: 2.2, mode: 'object', castShadow: true },
+  'prop.column': { size: [1, 2.6, 1], footprint: 0.55, mode: 'object', castShadow: true },
+  'prop.drums': { size: [1.6, 1, 1], footprint: 0.6, mode: 'object', castShadow: true },
+  'prop.lintel': { size: [2.4, 0.9, 0.6], footprint: 0.8, mode: 'object', castShadow: true },
+  'prop.fencepost': { size: [0.25, 1.2, 0.25], footprint: 0, mode: 'object', castShadow: true },
+  'prop.fencerail': { size: [1, 0.95, 0.15], footprint: 0, mode: 'object', castShadow: true },
+  'prop.gate': { size: [2.1, 1.95, 0.25], footprint: 0, mode: 'object', castShadow: true },
+  'prop.trough': { size: [1.7, 0.65, 0.8], footprint: 0, mode: 'object', castShadow: true },
+  'prop.bricks': { size: [1.3, 0.6, 1.0], footprint: 0, mode: 'object', castShadow: true },
+  'shrub.dry': { size: [1.6, 0.8, 1.6], footprint: 0, mode: 'instanced', castShadow: true },
+  'plant.reeds': { size: [0.5, 1.4, 0.5], footprint: 0, mode: 'object', castShadow: false },
+  'rock.ore': { size: [2.6, 2, 2], footprint: 1.2, mode: 'object', castShadow: true },
+  'rock.ledge': { size: [3.6, 2.2, 2.4], footprint: 1.5, mode: 'object', castShadow: true },
 };
 
 /** A slot's model: a GLB under `apps/web/public/` and the variant node names inside it. */
@@ -100,6 +152,9 @@ export interface AssetRef {
 const FLORA = 'models/flora.glb';
 const ROCKS = 'models/rocks.glb';
 const VILLAGE = 'models/village.glb';
+const HORSE = 'models/horse.glb';
+const KNIGHT = 'models/knight.glb';
+const PROPS = 'models/props.glb';
 
 /**
  * Blender-made models for slots (sources in `assets/blender/`). Remove an entry to fall back
@@ -115,7 +170,7 @@ export const ASSET_FILES: Partial<Record<AssetSlot, AssetRef>> = {
   'flower.poppy': { file: FLORA, nodes: ['Poppy'] },
   'flower.buttercup': { file: FLORA, nodes: ['Buttercup'] },
   'flower.lavender': { file: FLORA, nodes: ['Lavender'] },
-  'tree.broadleaf': { file: FLORA, nodes: ['Oak', 'Lime'] },
+  'tree.broadleaf': { file: FLORA, nodes: ['Oak', 'OakB', 'Lime', 'LimeB'] },
   'tree.conifer': { file: FLORA, nodes: ['Spruce', 'Fir'] },
   'tree.sapling': { file: FLORA, nodes: ['Sapling'] },
   shrub: { file: FLORA, nodes: ['ShrubA', 'ShrubB'] },
@@ -128,13 +183,69 @@ export const ASSET_FILES: Partial<Record<AssetSlot, AssetRef>> = {
   'piece.robber': { file: VILLAGE, nodes: ['Robber'] },
   'prop.windmill': { file: VILLAGE, nodes: ['Mill'] },
   'harbor.dock': { file: VILLAGE, nodes: ['Dock'] },
-  'harbor.boat': { file: VILLAGE, nodes: ['Boat'] },
+  'harbor.boat': { file: VILLAGE, nodes: ['Boat', 'BoatSloop', 'BoatStriped'] },
   sheep: { file: VILLAGE, nodes: ['Sheep'] },
+  'animal.horse': { file: HORSE, nodes: ['Horse'] },
+  'character.knight': { file: KNIGHT, nodes: ['Knight'] },
   'prop.barn': { file: VILLAGE, nodes: ['Barn'] },
   'prop.kiln': { file: VILLAGE, nodes: ['Kiln'] },
   'prop.haybale': { file: VILLAGE, nodes: ['HayBale'] },
   'prop.mine': { file: VILLAGE, nodes: ['Mine'] },
+  'prop.stump': { file: PROPS, nodes: ['StumpA', 'StumpB'] },
+  'prop.axestump': { file: PROPS, nodes: ['AxeStump'] },
+  'prop.logpile': { file: PROPS, nodes: ['LogPile'] },
+  'prop.log': { file: PROPS, nodes: ['Log'] },
+  'prop.stakes': { file: PROPS, nodes: ['Stakes'] },
+  'prop.chips': { file: PROPS, nodes: ['Chips'] },
+  'prop.mushroom': { file: PROPS, nodes: ['MushRed', 'MushBrown'] },
+  'rock.desert': { file: PROPS, nodes: ['DesertStones'] },
+  'prop.dune': { file: PROPS, nodes: ['SandRidge'] },
+  'prop.ruin': { file: PROPS, nodes: ['Ruin'] },
+  'prop.column': { file: PROPS, nodes: ['Column'] },
+  'prop.drums': { file: PROPS, nodes: ['Drums'] },
+  'prop.lintel': { file: PROPS, nodes: ['Lintel'] },
+  'prop.fencepost': { file: PROPS, nodes: ['FencePost'] },
+  'prop.fencerail': { file: PROPS, nodes: ['FenceRail'] },
+  'prop.gate': { file: PROPS, nodes: ['Gate'] },
+  'prop.trough': { file: PROPS, nodes: ['TroughA', 'TroughB'] },
+  'prop.bricks': { file: PROPS, nodes: ['BrickStack'] },
+  'shrub.dry': { file: FLORA, nodes: ['DryScrub'] },
+  'plant.reeds': { file: FLORA, nodes: ['Reeds'] },
+  'rock.ore': { file: ROCKS, nodes: ['OreFace'] },
+  'rock.ledge': { file: ROCKS, nodes: ['Ledge'] },
 };
+
+/**
+ * Equipment, the weapon chest and furnishings from props.glb, loaded with the world and
+ * handed to their own builders (avatar, chest, decor) by node name.
+ */
+export const GEAR_NODES = [
+  'WeaponChest',
+  'Sword',
+  'Revolver',
+  'Shield',
+  'DummyA',
+  'Antlers',
+  'CandleWheel',
+  'FloorPlant',
+  'TablePlant',
+  'ArmorStand',
+  'Candles',
+  'CrossedShields',
+  'Tapestry',
+  'Banner',
+  'Bookshelf',
+] as const;
+/** Fetches props.glb's equipment and furnishings (once per page). */
+export function loadGear(): Promise<void> {
+  return loadFile(assetUrl(PROPS)).then((scene) => {
+    if (!scene) return;
+    for (const n of GEAR_NODES) {
+      const v = variant(scene, n);
+      if (v) setGear(n, v);
+    }
+  });
+}
 
 /** Tiling ground detail (sRGB) and normal maps (linear), by kind. */
 export const GROUND_TEXTURES = ['grass', 'soil', 'sand', 'rock'] as const;
@@ -212,7 +323,10 @@ function prepareMaterial(m: THREE.MeshStandardMaterial) {
 function variant(scene: THREE.Object3D, name: string): LoadedAsset | null {
   const node = scene.getObjectByName(name);
   if (!node) return null;
-  const root = node.clone(true);
+  // A skinned model needs its skeleton rebound to the cloned bones.
+  let rigged = false;
+  node.traverse((o) => (rigged ||= (o as THREE.SkinnedMesh).isSkinnedMesh === true));
+  const root = rigged ? cloneRigged(node) : node.clone(true);
   root.position.set(0, 0, 0);
   root.quaternion.identity();
   root.scale.set(1, 1, 1);
@@ -238,8 +352,7 @@ export function loadSlot(slot: AssetSlot): Promise<LoadedAsset[] | null> {
       : loadFile(assetUrl(ref.file)).then((scene) => {
           if (!scene) return null;
           const found = ref.nodes.map((n) => variant(scene, n)).filter((v): v is LoadedAsset => !!v);
-          if (found.length < ref.nodes.length)
-            console.warn(`3D walk: ${ref.file} is missing some of ${ref.nodes.join(', ')}.`);
+          if (found.length < ref.nodes.length) console.warn(`3D walk: ${ref.file} is missing some of ${ref.nodes.join(', ')}.`);
           return found.length ? found : null;
         });
     slots.set(slot, p);
@@ -283,6 +396,7 @@ export async function preloadWorldAssets(timeoutMs = 10_000): Promise<WorldAsset
         if (v) out.models.set(slot, v);
       }),
     );
+  jobs.push(loadGear());
   for (const kind of GROUND_TEXTURES)
     jobs.push(
       Promise.all([
@@ -293,10 +407,7 @@ export async function preloadWorldAssets(timeoutMs = 10_000): Promise<WorldAsset
       }),
     );
   let timer = 0;
-  await Promise.race([
-    Promise.all(jobs),
-    new Promise<void>((resolve) => (timer = window.setTimeout(resolve, timeoutMs))),
-  ]);
+  await Promise.race([Promise.all(jobs), new Promise<void>((resolve) => (timer = window.setTimeout(resolve, timeoutMs)))]);
   window.clearTimeout(timer);
   return out;
 }
@@ -309,11 +420,7 @@ export const isOwnerMaterial = (m: THREE.Material) => /^owner/i.test(m.name);
  * cache, except "Owner" materials, which are swapped for `ownerMat(original)` (owned by the
  * caller's world).
  */
-export function cloneAsset(
-  asset: LoadedAsset,
-  spec: SlotSpec,
-  ownerMat?: (original: THREE.Material) => THREE.Material,
-): THREE.Object3D {
+export function cloneAsset(asset: LoadedAsset, spec: SlotSpec, ownerMat?: (original: THREE.Material) => THREE.Material): THREE.Object3D {
   const obj = asset.root.clone(true);
   obj.traverse((o) => {
     const m = o as THREE.Mesh;

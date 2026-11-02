@@ -18,7 +18,11 @@ export class RigBaker {
 
   constructor(matte = 0.9, metal: [number, number] = [0.42, 0.72]) {
     this.matte = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: matte });
-    this.metal = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: metal[0], metalness: metal[1] });
+    this.metal = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: metal[0],
+      metalness: metal[1],
+    });
   }
 
   /** (Re)builds the merged meshes of `root`; `joints` are its moving parts (root included). */
@@ -50,15 +54,18 @@ export class RigBaker {
       const mat = special ? src : src.metalness > 0.3 ? this.metal : this.matte;
       // Indexed, so the GPU shades each shared vertex once (merging needs all or none indexed).
       const g = m.geometry.clone();
+      // Painted models (Blender) carry their colour per vertex: kept, times the material colour.
+      const vc = src.vertexColors ? m.geometry.getAttribute('color') : undefined;
       if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
       for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
       if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
       g.clearGroups();
       g.applyMatrix4(rel);
-      if (!special) {
+      if (!special || vc) {
         const n = g.attributes.position.count;
         const col = new Float32Array(n * 3);
-        for (let i = 0; i < n; i++) col.set([src.color.r, src.color.g, src.color.b], i * 3);
+        const k = special ? [1, 1, 1] : [src.color.r, src.color.g, src.color.b];
+        for (let i = 0; i < n; i++) col.set(vc ? [k[0] * vc.getX(i), k[1] * vc.getY(i), k[2] * vc.getZ(i)] : k, i * 3);
         g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       }
       const key = `${p.uuid}|${mat.uuid}|${m.castShadow}`;

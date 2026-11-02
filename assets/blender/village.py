@@ -313,9 +313,12 @@ def build_dock(mats):
     return b.build('Dock', mats)
 
 
-def build_boat(mats):
-    """A small clinker-built sailing boat; bow toward -Y, waterline at z = 0."""
-    r = rng(605)
+def build_boat(mats, name='Boat', style='cog', seed=605):
+    """A clinker-built sailing boat; bow toward -Y, waterline at z = 0. Styles (12-harbors-boats
+    v2): 'cog' the trader with an open raised stern deck and rail and a square sail in the
+    harbour colour; 'sloop' a fore-and-aft rig, mainsail and jib; 'striped' a square sail in
+    red and cream stripes."""
+    r = rng(seed)
     b = MeshBuilder()
     L = 5.6
     ribs = 9
@@ -343,7 +346,8 @@ def build_boat(mats):
                      Vector((s * sections[i][k + 1][0], sections[i][k + 1][1], sections[i][k + 1][2]))]
                 if s > 0:
                     p = [p[1], p[0], p[3], p[2]]
-                col = hull_c[k] if k < 3 else C('#a8452f')
+                band = C('#a8452f') if style == 'striped' else C('#3f5f86')
+                col = hull_c[k] if k < 3 else band
                 u0, v0, u1, v1 = V['planks']
                 b.poly(p, col, [(u0, v0 + (v1 - v0) * k / 4), (u1, v0 + (v1 - v0) * k / 4), (u1, v0 + (v1 - v0) * (k + 1) / 4),
                                 (u0, v0 + (v1 - v0) * (k + 1) / 4)], mat=M_VILLAGE, smooth=False)
@@ -366,27 +370,66 @@ def build_boat(mats):
     st = sections[0]
     b.poly(([Vector((-st[k][0], st[k][1], st[k][2])) for k in range(5)][::-1] + [Vector((st[k][0], st[k][1], st[k][2])) for k in range(1, 5)])[::-1],
            TIMBER, mat=M_VILLAGE, smooth=False)
-    # Mast, yard and a square sail in the harbour colour.
+    if style == 'cog':
+        # The open stern deck: a raised platform over the stern, panelled sides, a railing.
+        ys = L / 2 - 0.75
+        box(b, Vector((0, ys, 0.95)), (1.45, 1.35, 0.12), V['planks'], (1.4, 1.3), PLANK)
+        for sx in (-1, 1):
+            box(b, Vector((sx * 0.7, ys, 0.75)), (0.1, 1.35, 0.3), V['planks'], (0.1, 1.3), TIMBER)
+            for yy in (ys - 0.62, ys, ys + 0.62):
+                beam(b, Vector((sx * 0.68, yy, 1.07)), Vector((sx * 0.68, yy, 1.5)), 0.07, 0.07, TIMBER_LT, normal=Y)
+            beam(b, Vector((sx * 0.68, ys - 0.66, 1.5)), Vector((sx * 0.68, ys + 0.66, 1.5)), 0.08, 0.06, TIMBER, normal=UP)
+        beam(b, Vector((-0.68, ys + 0.64, 1.5)), Vector((0.68, ys + 0.64, 1.5)), 0.08, 0.06, TIMBER, normal=UP)
+        beam(b, Vector((0, ys - 0.7, 1.07)), Vector((0, ys - 0.2, 0.35)), 0.3, 0.06, TIMBER_LT, normal=X)
+    # Mast and yard.
     tube(b, [Vector((0, 0.3, 0)), Vector((0, 0.3, 4.6))], [0.09, 0.06], 7, lambda t, s: TIMBER_LT, cap=True)
-    beam(b, Vector((-1.25, 0.25, 4.1)), Vector((1.25, 0.25, 4.1)), 0.08, 0.08, TIMBER, normal=Y)
-    sail_top = 4.05
-    sail_bot = 1.4
-    rows = 4
-    for j in range(rows):
-        z0 = sail_top - (sail_top - sail_bot) * j / rows
-        z1 = sail_top - (sail_top - sail_bot) * (j + 1) / rows
-        bel0 = 0.35 * math.sin(math.pi * j / rows)
-        bel1 = 0.35 * math.sin(math.pi * (j + 1) / rows)
-        w0 = 1.2
-        w1 = 1.2 + 0.1 * (j + 1) / rows
+    if style == 'sloop':
+        # A mainsail aft of the mast on a boom, and a jib to the bow.
+        beam(b, Vector((0, 0.35, 1.25)), Vector((0, 2.5, 1.25)), 0.07, 0.07, TIMBER, normal=X)
         u0, v0, u1, v1 = V['cloth']
-        pts = [Vector((-w0, 0.2 - bel0, z0)), Vector((w0, 0.2 - bel0, z0)), Vector((w1, 0.2 - bel1, z1)), Vector((-w1, 0.2 - bel1, z1))]
-        b.poly(pts, (0.95, 0.95, 0.95), [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], mat=M_SAIL, smooth=False)
-        b.poly(pts[::-1], (0.85, 0.85, 0.85), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], mat=M_SAIL, smooth=False)
+        cream = (0.93, 0.88, 0.76)
+        for tri, bel in (([Vector((0, 0.42, 4.4)), Vector((0, 0.42, 1.32)), Vector((0, 2.45, 1.32))], 0.18),
+                         ([Vector((0, 0.18, 4.2)), Vector((0, -2.55, 0.75)), Vector((0, 0.18, 1.1))], -0.14)):
+            mid = (tri[0] + tri[1] + tri[2]) / 3 + Vector((bel, 0, 0))
+            for a, c in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+                b.poly([a, c, mid], cream, [(u0, v0), (u1, v0), (u1, v1)], mat=M_VILLAGE, smooth=False)
+                b.poly([c, a, mid], mul(cream, 0.9), [(u0, v0), (u1, v0), (u1, v1)], mat=M_VILLAGE, smooth=False)
+        beam(b, Vector((0, 0.3, 4.55)), Vector((0, -2.7, 0.65)), 0.02, 0.02, C('#c9a663'), normal=X)
+    else:
+        beam(b, Vector((-1.25, 0.25, 4.1)), Vector((1.25, 0.25, 4.1)), 0.08, 0.08, TIMBER, normal=Y)
+        sail_top = 4.05
+        sail_bot = 1.4
+        rows = 4
+        cols = 6 if style == 'striped' else 1
+        for j in range(rows):
+            z0 = sail_top - (sail_top - sail_bot) * j / rows
+            z1 = sail_top - (sail_top - sail_bot) * (j + 1) / rows
+            bel0 = 0.35 * math.sin(math.pi * j / rows)
+            bel1 = 0.35 * math.sin(math.pi * (j + 1) / rows)
+            w0 = 1.2 + 0.1 * j / rows
+            w1 = 1.2 + 0.1 * (j + 1) / rows
+            u0, v0, u1, v1 = V['cloth']
+            for c in range(cols):
+                a0, a1 = c / cols, (c + 1) / cols
+                pts = [Vector((-w0 + 2 * w0 * a0, 0.2 - bel0, z0)), Vector((-w0 + 2 * w0 * a1, 0.2 - bel0, z0)),
+                       Vector((-w1 + 2 * w1 * a1, 0.2 - bel1, z1)), Vector((-w1 + 2 * w1 * a0, 0.2 - bel1, z1))]
+                if style == 'striped':
+                    col = C('#b8432f') if c % 2 == 0 else C('#efe2c4')
+                    b.poly(pts, col, [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], mat=M_VILLAGE, smooth=False)
+                    b.poly(pts[::-1], mul(col, 0.9), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], mat=M_VILLAGE, smooth=False)
+                else:
+                    b.poly(pts, (0.95, 0.95, 0.95), [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], mat=M_SAIL, smooth=False)
+                    b.poly(pts[::-1], (0.85, 0.85, 0.85), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], mat=M_SAIL, smooth=False)
+    # A pennant at the masthead.
+    pen = C('#3f5f86') if style == 'sloop' else C('#a8452f')
+    u0, v0, u1, v1 = V['cloth']
+    puv = [(u0, v0), (u1, v0), (u1, v1)]
+    b.poly([Vector((0, 0.3, 4.6)), Vector((0, 0.3, 4.32)), Vector((0, 1.05, 4.5))], pen, puv, mat=M_VILLAGE, smooth=False)
+    b.poly([Vector((0, 0.3, 4.32)), Vector((0, 0.3, 4.6)), Vector((0, 1.05, 4.5))], pen, puv, mat=M_VILLAGE, smooth=False)
     # Cargo.
     for (x, y) in ((0.35, -1.4), (-0.3, -1.9)):
         box(b, Vector((x, y, deck_z)), (0.55, 0.55, 0.5), V['planks'], (0.55, 0.5), C('#b38552'))
-    return b.build('Boat', mats)
+    return b.build(name, mats)
 
 
 def build_road(mats):
@@ -729,7 +772,8 @@ def build(atlas):
     import homes
     importlib.reload(homes)
     buildings = homes.build(mats)
-    objs = [*buildings, build_dock(mats), build_boat(mats), build_road(mats), build_robber(mats), build_sheep(mats),
+    objs = [*buildings, build_dock(mats), build_boat(mats), build_boat(mats, 'BoatSloop', 'sloop', 606),
+            build_boat(mats, 'BoatStriped', 'striped', 607), build_road(mats), build_robber(mats), build_sheep(mats),
             build_barn(mats), build_kiln(mats), build_haybale(mats), build_mine(mats)]
     layout_row(objs, gap=4.0)
     bake = [o for o in objs if o.name not in ('Road', *[b.name for b in buildings])]

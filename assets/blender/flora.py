@@ -645,8 +645,14 @@ def build_trees(mats):
     objs = []
     objs.append(build_broadleaf('Oak', 401, mats, 6.4, 2.3, 2.5, 3.6, 12, 6, (1.55, 2.1), FLORA['leaves'], FLORA['bark'],
                                 C('#2f6a2c'), C('#78b04a'), C('#8a6e52'), 0.24, 5, lean=0.25))
+    # Oak B: a younger oak leaning on a curved trunk, its crown lopsided.
+    objs.append(build_broadleaf('OakB', 408, mats, 5.6, 2.1, 2.1, 3.0, 10, 6, (1.4, 1.9), FLORA['leaves'], FLORA['bark'],
+                                C('#33702e'), C('#86b84e'), C('#86684c'), 0.2, 4, lean=0.75))
+    # Limes: a tall heart-shaped crown on a straight brown trunk (A) and a rounder, broader one (B).
     objs.append(build_broadleaf('Lime', 402, mats, 7.4, 2.9, 1.9, 4.2, 11, 6, (1.3, 1.75), FLORA['leaves2'],
-                                FLORA['bark_birch'], C('#3b782c'), C('#86b84e'), C('#d8d4cc'), 0.12, 4, lean=0.15))
+                                FLORA['bark'], C('#3b782c'), C('#8cc052'), C('#7d6249'), 0.15, 4, lean=0.1))
+    objs.append(build_broadleaf('LimeB', 409, mats, 6.6, 2.4, 2.4, 3.6, 12, 6, (1.35, 1.8), FLORA['leaves2'],
+                                FLORA['bark'], C('#44802f'), C('#9ccb5a'), C('#7d6249'), 0.17, 5, lean=0.12))
     objs.append(build_conifer('Spruce', 403, mats, 7.6, 1.7, 0.16, 11, 6, 0.45, C('#1f4a2e'), C('#5d9a52'), C('#6a5240')))
     objs.append(build_conifer('Fir', 404, mats, 8.2, 1.3, 0.14, 12, 5, 0.25, C('#183f2a'), C('#4f8c4a'), C('#5f4a3a'),
                               first=1.4, upturn=0.08))
@@ -656,7 +662,36 @@ def build_trees(mats):
                                               ('ShrubB', 407, 1.1, 0.8, FLORA['leaves2'], '#3a6e2c', '#86b84e')):
         objs.append(build_broadleaf(name, seed, mats, hh, 0.12, rad, hh * 1.4, 5, 5, (0.85, 1.15), rect, FLORA['bark'],
                                     C(lo), C(hi), C('#6a5240'), 0.03, 3, lean=0.0))
+    # Dry scrub for the desert: a sparse, wiry bush of golden leaves.
+    objs.append(build_broadleaf('DryScrub', 410, mats, 0.7, 0.1, 0.75, 0.8, 4, 4, (0.6, 0.8), FLORA['leaves2'], FLORA['bark'],
+                                C('#8c6a26'), C('#d9ae4a'), C('#6a5038'), 0.03, 5, lean=0.0))
     return objs
+
+
+def build_reeds(mats):
+    """Pond reeds: long green blades and brown cattails, for the coast's wet margins."""
+    r = rng(211)
+    b = MeshBuilder()
+    for i in range(16):
+        a = i / 16 * math.tau + r.random() * 0.5
+        rr = r.random() * 0.16
+        h = 0.7 + r.random() * 0.6
+        blade(b, r, math.cos(a) * rr, math.sin(a) * rr, h, 0.016 + r.random() * 0.006, a + (r.random() - 0.5) * 0.6,
+              h * (0.15 + r.random() * 0.3), r.random(), tipwarm=0.4)
+    green = C('#6f9a3e')
+    b.colors = [[mul(c, green) for c in fc] for fc in b.colors]
+    for k in range(4):
+        a = r.random() * math.tau
+        x, y = math.cos(a) * 0.06, math.sin(a) * 0.06
+        h = 1.05 + r.random() * 0.35
+        top = Vector((x + math.cos(a) * 0.05, y + math.sin(a) * 0.05, h))
+        ph = r.random()
+        tube(b, [Vector((x, y, 0)), Vector((x, y, h * 0.5)), top], [0.007, 0.006, 0.005], 4,
+             lambda t, s: C('#7d8f45'), phase=ph)
+        d = (top - Vector((x, y, h * 0.5))).normalized()
+        tube(b, [top, top + d * 0.1, top + d * 0.2, top + d * 0.26], [0.022, 0.026, 0.022, 0.004], 6,
+             lambda t, s: C('#6e4426') if t < 0.8 else C('#8a7a5a'), phase=ph)
+    return [b.build('Reeds', [mats['Plant']], phase_attr=True)]
 
 
 # ------------------------------------------------------------------ build
@@ -668,7 +703,7 @@ def build(atlas):
         'Leaf': material('Leaf', image=atlas, alpha_clip=0.5, double=True, rough=0.8),
         'Bark': material('Bark', image=atlas, rough=0.92),
     }
-    rows = [build_wheat(mats) + [build_stook(mats)], build_grass(mats), build_flowers(mats), build_trees(mats)]
+    rows = [build_wheat(mats) + [build_stook(mats)], build_grass(mats) + build_reeds(mats), build_flowers(mats), build_trees(mats)]
     for i, row in enumerate(rows):
         layout_row(row, gap=0.6 if i < 3 else 1.5, y=i * 4.0 if i < 3 else 16.0)
     objs = [o for row in rows for o in row]

@@ -32,7 +32,12 @@ export type SfxName =
   | 'chest-wind'
   | 'chest-open'
   | 'chest-empty'
-  | 'duel';
+  | 'duel'
+  | 'step-grass'
+  | 'step-soil'
+  | 'step-sand'
+  | 'step-wood'
+  | 'step-stone';
 
 let noiseBuf: AudioBuffer | null = null;
 function noise(ctx: AudioContext): AudioBuffer {
@@ -151,6 +156,31 @@ function bleat(ctx: AudioContext, out: Out, t: number) {
   lfo.stop(t + dur + 0.12);
 }
 
+/** A footfall in plate: the ground's own sound under a faint clink of armour. */
+function step(ctx: AudioContext, out: Out, t: number, ground: 'grass' | 'soil' | 'sand' | 'wood' | 'stone') {
+  const v = 0.8 + Math.random() * 0.4;
+  if (ground === 'grass') {
+    burst(ctx, out, t, 0.09, 0.14 * v, 'lowpass', 1100, 320);
+    burst(ctx, out, t + 0.01, 0.05, 0.035 * v, 'highpass', 3800);
+    tone(ctx, out, t, 72, 0.06, 0.12 * v, 'sine', 0.002, 50);
+  } else if (ground === 'soil') {
+    tone(ctx, out, t, 84, 0.08, 0.2 * v, 'sine', 0.002, 52);
+    burst(ctx, out, t, 0.07, 0.17 * v, 'lowpass', 750, 260);
+  } else if (ground === 'sand') {
+    burst(ctx, out, t, 0.13, 0.11 * v, 'bandpass', 2600 + Math.random() * 600, 1400, 0.8);
+    burst(ctx, out, t, 0.08, 0.09 * v, 'lowpass', 520);
+  } else if (ground === 'wood') {
+    knock(ctx, out, t, 170 + Math.random() * 40, 0.2 * v);
+    tone(ctx, out, t, 95, 0.1, 0.12 * v, 'sine', 0.002, 60);
+  } else {
+    burst(ctx, out, t, 0.045, 0.2 * v, 'bandpass', 1900 + Math.random() * 500, undefined, 2);
+    tone(ctx, out, t, 140, 0.04, 0.12 * v, 'triangle', 0.001, 90);
+  }
+  const ring = 2300 + Math.random() * 700;
+  tone(ctx, out, t + 0.012, ring, 0.07, 0.022, 'triangle', 0.001);
+  tone(ctx, out, t + 0.03, ring * 1.47, 0.05, 0.012, 'sine', 0.001);
+}
+
 export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
   const t = ctx.currentTime + 0.01;
   switch (name) {
@@ -199,6 +229,13 @@ export function playSynth(ctx: AudioContext, out: Out, name: SfxName): void {
       break;
     case 'swing':
       burst(ctx, out, t, 0.12, 0.16, 'bandpass', 1200, 350);
+      break;
+    case 'step-grass':
+    case 'step-soil':
+    case 'step-sand':
+    case 'step-wood':
+    case 'step-stone':
+      step(ctx, out, t, name.slice(5) as 'grass');
       break;
     case 'impact':
       tone(ctx, out, t, 150, 0.1, 0.5, 'sine', 0.002, 55);

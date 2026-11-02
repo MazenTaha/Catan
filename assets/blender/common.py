@@ -395,10 +395,8 @@ def bake_ao(objs, strength: float = 0.6, distance: float = 1.0, samples: int = 4
     prev_engine = sc.render.engine
     sc.render.engine = 'CYCLES'
     sc.cycles.samples = samples
-    try:
-        sc.cycles.device = 'GPU'
-    except Exception:
-        pass
+    # CPU: the GPU path has crashed this PC's graphics driver; the bake is small either way.
+    sc.cycles.device = 'CPU'
     sc.world = sc.world or bpy.data.worlds.new('BakeWorld')
     sc.world.light_settings.distance = distance
     bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, floor))
@@ -439,9 +437,10 @@ def apply_transforms(objs):
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
 
-def export_glb(objs, filename: str, images: str = 'AUTO') -> str:
+def export_glb(objs, filename: str, images: str = 'AUTO', skins: bool = False) -> str:
     """Exports the given root objects (and their children) to apps/web/public/models/<filename>.
-    Each root keeps its own node name: the game finds variants by name inside one file."""
+    Each root keeps its own node name: the game finds variants by name inside one file.
+    `skins` keeps armatures and their skinned meshes (the horse)."""
     # Selection is per view layer: clear it everywhere so other scenes' objects stay out.
     for sc in bpy.data.scenes:
         for vl in sc.view_layers:
@@ -467,7 +466,7 @@ def export_glb(objs, filename: str, images: str = 'AUTO') -> str:
         export_all_vertex_colors=False,
         export_attributes=True,
         export_animations=False,
-        export_skins=False,
+        export_skins=skins,
         export_morph=False,
         export_cameras=False,
         export_lights=False,

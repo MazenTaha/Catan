@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { cloneGear } from './gear';
 import { RigBaker } from './rig';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -60,70 +61,98 @@ export class Chest {
     const D = 0.54;
     const H = 0.44;
     this.root.add(this.body);
-    // Body: a dark interior, boards with seams, iron bands and corner straps, the lock plate.
-    this.part(this.body, inside, 0, H - 0.04, 0, W - 0.08, 0.02, D - 0.08);
-    for (let i = 0; i < 4; i++) {
-      const y = 0.06 + i * 0.105;
-      this.part(this.body, i % 2 ? oak : oakDark, 0, y, D / 2 - 0.02, W, 0.1, 0.04);
-      this.part(this.body, i % 2 ? oakDark : oak, 0, y, -D / 2 + 0.02, W, 0.1, 0.04);
-      this.part(this.body, oak, W / 2 - 0.02, y, 0, 0.04, 0.1, D);
-      this.part(this.body, oak, -W / 2 + 0.02, y, 0, 0.04, 0.1, D);
+    // The Blender chest (body, and its lid on the rear hinge) when props.glb is loaded.
+    const model = cloneGear('WeaponChest');
+    if (model) {
+      const lid = model.getObjectByName('WeaponChestLid');
+      if (lid) {
+        lid.removeFromParent();
+        lid.position.set(0, 0, 0);
+        this.lid.add(lid);
+      }
+      this.body.add(model);
+      this.lid.position.set(0, H, -D / 2);
+      this.body.add(this.lid);
+    } else {
+      // Body: a dark interior, boards with seams, iron bands and corner straps, the lock plate.
+      this.part(this.body, inside, 0, H - 0.04, 0, W - 0.08, 0.02, D - 0.08);
+      for (let i = 0; i < 4; i++) {
+        const y = 0.06 + i * 0.105;
+        this.part(this.body, i % 2 ? oak : oakDark, 0, y, D / 2 - 0.02, W, 0.1, 0.04);
+        this.part(this.body, i % 2 ? oakDark : oak, 0, y, -D / 2 + 0.02, W, 0.1, 0.04);
+        this.part(this.body, oak, W / 2 - 0.02, y, 0, 0.04, 0.1, D);
+        this.part(this.body, oak, -W / 2 + 0.02, y, 0, 0.04, 0.1, D);
+      }
+      this.part(this.body, oakDark, 0, 0.02, 0, W, 0.04, D);
+      for (const x of [-W / 2 + 0.12, W / 2 - 0.12]) {
+        this.part(this.body, iron, x, H / 2, D / 2 + 0.005, 0.07, H, 0.02);
+        this.part(this.body, iron, x, H / 2, -D / 2 - 0.005, 0.07, H, 0.02);
+        this.part(this.body, iron, x, 0.01, 0, 0.07, 0.02, D + 0.01);
+        for (const y of [0.1, 0.32]) this.part(this.body, brass, x, y, D / 2 + 0.02, 0.025, 0.025, 0.02);
+      }
+      for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) this.part(this.body, iron, x, H / 2, z, 0.05, H + 0.01, 0.05);
+      this.part(this.body, brass, 0, H - 0.1, D / 2 + 0.02, 0.14, 0.16, 0.02);
+      this.part(this.body, inside, 0, H - 0.12, D / 2 + 0.032, 0.025, 0.05, 0.01);
+      // Lid: a half barrel hinged at the back edge, banded like the body.
+      this.lid.position.set(0, H, -D / 2);
+      this.body.add(this.lid);
+      // Double-sided: the open lid shows its inside to anyone at the chest.
+      const lidOak = this.mat('#7a4f2c', 0.85);
+      lidOak.side = THREE.DoubleSide;
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(D / 2, D / 2, W, 16, 1, true, 0, Math.PI), lidOak);
+      // The cylinder's axis turned onto x, its half shell facing up.
+      shell.rotation.z = Math.PI / 2;
+      shell.position.set(0, 0, D / 2);
+      this.lid.add(shell);
+      const capGeo = new THREE.CircleGeometry(D / 2, 16, 0, Math.PI);
+      for (const s of [-1, 1]) {
+        const cap = new THREE.Mesh(capGeo, lidOak);
+        cap.rotation.y = (s * Math.PI) / 2;
+        cap.position.set((s * W) / 2, 0, D / 2);
+        this.lid.add(cap);
+      }
+      for (const x of [-W / 2 + 0.12, W / 2 - 0.12, 0]) {
+        const band = new THREE.Mesh(new THREE.TorusGeometry(D / 2 + 0.008, 0.012, 4, 16, Math.PI), x ? iron : brass);
+        band.rotation.y = Math.PI / 2;
+        band.position.set(x, 0, D / 2);
+        this.lid.add(band);
+      }
+      this.part(this.lid, brass, 0, -0.02, D + 0.01, 0.1, 0.08, 0.02);
     }
-    this.part(this.body, oakDark, 0, 0.02, 0, W, 0.04, D);
-    for (const x of [-W / 2 + 0.12, W / 2 - 0.12]) {
-      this.part(this.body, iron, x, H / 2, D / 2 + 0.005, 0.07, H, 0.02);
-      this.part(this.body, iron, x, H / 2, -D / 2 - 0.005, 0.07, H, 0.02);
-      this.part(this.body, iron, x, 0.01, 0, 0.07, 0.02, D + 0.01);
-      for (const y of [0.1, 0.32]) this.part(this.body, brass, x, y, D / 2 + 0.02, 0.025, 0.025, 0.02);
-    }
-    for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) this.part(this.body, iron, x, H / 2, z, 0.05, H + 0.01, 0.05);
-    this.part(this.body, brass, 0, H - 0.1, D / 2 + 0.02, 0.14, 0.16, 0.02);
-    this.part(this.body, inside, 0, H - 0.12, D / 2 + 0.032, 0.025, 0.05, 0.01);
-    // Lid: a half barrel hinged at the back edge, banded like the body.
-    this.lid.position.set(0, H, -D / 2);
-    this.body.add(this.lid);
-    // Double-sided: the open lid shows its inside to anyone at the chest.
-    const lidOak = this.mat('#7a4f2c', 0.85);
-    lidOak.side = THREE.DoubleSide;
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(D / 2, D / 2, W, 16, 1, true, 0, Math.PI), lidOak);
-    // The cylinder's axis turned onto x, its half shell facing up.
-    shell.rotation.z = Math.PI / 2;
-    shell.position.set(0, 0, D / 2);
-    this.lid.add(shell);
-    const capGeo = new THREE.CircleGeometry(D / 2, 16, 0, Math.PI);
-    for (const s of [-1, 1]) {
-      const cap = new THREE.Mesh(capGeo, lidOak);
-      cap.rotation.y = (s * Math.PI) / 2;
-      cap.position.set((s * W) / 2, 0, D / 2);
-      this.lid.add(cap);
-    }
-    for (const x of [-W / 2 + 0.12, W / 2 - 0.12, 0]) {
-      const band = new THREE.Mesh(new THREE.TorusGeometry(D / 2 + 0.008, 0.012, 4, 16, Math.PI), x ? iron : brass);
-      band.rotation.y = Math.PI / 2;
-      band.position.set(x, 0, D / 2);
-      this.lid.add(band);
-    }
-    this.part(this.lid, brass, 0, -0.02, D + 0.01, 0.1, 0.08, 0.02);
 
     // What's inside: a heap of coins, and (in the real chest) the two weapons.
     const gold = this.mat('#e3b54a', 0.3, 0.85);
     for (let i = 0; i < 18; i++) {
       const c = new THREE.Mesh(coinGeo, gold);
-      c.position.set((Math.sin(i * 2.3) * W) / 3, H - 0.06 + (i % 3) * 0.012, (Math.cos(i * 1.7) * D) / 4);
+      c.position.set((Math.sin(i * 2.3) * W) / 3, (model ? 0.075 : H - 0.06) + (i % 3) * 0.012, (Math.cos(i * 1.7) * D) / 4);
       c.rotation.set(Math.sin(i) * 0.4, i, Math.cos(i) * 0.4);
       this.body.add(c);
     }
     if (full) {
-      const steel = this.mat('#c8d0d4', 0.3, 0.8);
-      this.part(this.sword, steel, 0, 0.35, 0, 0.06, 0.8, 0.018);
-      this.part(this.sword, brass, 0, -0.08, 0, 0.26, 0.045, 0.05);
-      this.part(this.sword, this.mat('#51382b', 0.8), 0, -0.18, 0, 0.045, 0.18, 0.045);
-      this.part(this.sword, brass, 0, -0.29, 0, 0.06, 0.06, 0.06);
-      const blued = this.mat('#2e3a41', 0.4, 0.7);
-      this.part(this.gun, blued, 0, 0.05, -0.12, 0.05, 0.05, 0.32);
-      this.part(this.gun, blued, 0, 0.04, 0.02, 0.1, 0.1, 0.1);
-      const grip = this.part(this.gun, this.mat('#6a4428', 0.9), 0, -0.07, 0.1, 0.06, 0.18, 0.08);
-      grip.rotation.x = -0.35;
+      const sword = cloneGear('Sword');
+      const gun = cloneGear('Revolver');
+      if (sword) {
+        // Blade up (the model's blade runs along -z), grip just above the coins.
+        sword.rotation.x = Math.PI / 2;
+        sword.position.y = -0.2;
+        this.sword.add(sword);
+      } else {
+        const steel = this.mat('#c8d0d4', 0.3, 0.8);
+        this.part(this.sword, steel, 0, 0.35, 0, 0.06, 0.8, 0.018);
+        this.part(this.sword, brass, 0, -0.08, 0, 0.26, 0.045, 0.05);
+        this.part(this.sword, this.mat('#51382b', 0.8), 0, -0.18, 0, 0.045, 0.18, 0.045);
+        this.part(this.sword, brass, 0, -0.29, 0, 0.06, 0.06, 0.06);
+      }
+      if (gun) {
+        gun.scale.setScalar(1.4);
+        this.gun.add(gun);
+      } else {
+        const blued = this.mat('#2e3a41', 0.4, 0.7);
+        this.part(this.gun, blued, 0, 0.05, -0.12, 0.05, 0.05, 0.32);
+        this.part(this.gun, blued, 0, 0.04, 0.02, 0.1, 0.1, 0.1);
+        const grip = this.part(this.gun, this.mat('#6a4428', 0.9), 0, -0.07, 0.1, 0.06, 0.18, 0.08);
+        grip.rotation.x = -0.35;
+      }
       this.sword.visible = this.gun.visible = false;
       this.loot.add(this.sword, this.gun);
       this.loot.position.y = H;

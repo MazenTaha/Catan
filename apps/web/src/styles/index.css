@@ -525,3 +525,35 @@
     opacity: 0;
   }
 }
+
+/* The 3D walk at a run (DECISIONS #43): faint speed lines and a darker rim, faded in by the
+   world's --sprint (0 to 1). One small layer, transform and opacity only. */
+.run-rush {
+  position: absolute;
+  inset: -4%;
+  pointer-events: none;
+  opacity: calc((var(--sprint, 0) - 0.35) * 1.4);
+  background:
+    radial-gradient(ellipse at center, transparent 52%, rgba(6, 8, 10, 0.4) 100%),
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(255, 248, 230, 0) 0deg 3.2deg,
+      rgba(255, 248, 230, 0.13) 3.2deg 3.7deg,
+      rgba(255, 248, 230, 0) 3.7deg 7.5deg
+    );
+  -webkit-mask-image: radial-gradient(circle at center, transparent 34%, #000 78%);
+  mask-image: radial-gradient(circle at center, transparent 34%, #000 78%);
+  animation: run-rush 0.24s steps(3) infinite;
+}
+@keyframes run-rush {
+  from {
+    transform: scale(1) rotate(0deg);
+  }
+  to {
+    transform: scale(1.05) rotate(2.4deg);
+  }
+}
+.reduce-motion .run-rush,
+.fx-lite .run-rush {
+  display: none;
+}

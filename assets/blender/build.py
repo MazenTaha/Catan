@@ -1,5 +1,5 @@
-"""Builds every Catan Night 3D asset from these scripts: textures, then flora, rocks and the
-village. Writes editable sources (assets/blender/*.blend), the atlases (assets/blender/textures/),
+"""Builds every Catan Night 3D asset from these scripts: textures, then flora, rocks, the
+village, the horse, the knight and the props. Writes editable sources (assets/blender/*.blend), the atlases (assets/blender/textures/),
 the game's models (apps/web/public/models/*.glb) and ground textures (apps/web/public/textures/).
 
 Headless, from the repository root:
@@ -25,14 +25,17 @@ if HERE not in sys.path:
 
 import common  # noqa: E402
 import flora  # noqa: E402
+import horse  # noqa: E402
+import knight  # noqa: E402
+import props  # noqa: E402
 import rocks  # noqa: E402
 import textures  # noqa: E402
 import village  # noqa: E402
 
-for m in (common, textures, flora, rocks, village):
+for m in (common, textures, flora, rocks, village, horse, knight, props):
     importlib.reload(m)
 
-FAMILIES = ('textures', 'flora', 'rocks', 'village')
+FAMILIES = ('textures', 'flora', 'rocks', 'village', 'horse', 'knight', 'props')
 
 
 def image(name: str, png: str):
@@ -56,6 +59,12 @@ def main(which=FAMILIES):
         report['rocks'] = rocks.build(image('rock_tex', 'rock.png'))
     if 'village' in which:
         report['village'] = village.build(image('village_atlas', 'village_atlas.png'))
+    if 'horse' in which:
+        report['horse'] = horse.build()
+    if 'knight' in which:
+        report['knight'] = knight.build()
+    if 'props' in which:
+        report['props'] = props.build()
     for family, stats in report.items():
         if family == 'textures':
             continue

@@ -245,7 +245,7 @@ test('3D walk look and cost', async ({ page }) => {
     const row = `${v.name.padEnd(15)} fps ${r.fps.toFixed(0).padStart(3)}  p95 ${r.p95.toFixed(1).padStart(5)} ms  gpu ${gpuMs.toFixed(1).padStart(5)} ms  calls ${String(r.calls).padStart(5)}  tris ${(r.tris / 1000).toFixed(0).padStart(5)}k`;
     rows.push(row);
     console.log(`[look] ${row}`);
-    await page.locator('[data-world3d] canvas').screenshot({ path: path.join(OUT, `${v.name}.png`) });
+    await page.locator('[data-world3d] canvas[data-engine]').screenshot({ path: path.join(OUT, `${v.name}.png`) });
   }
   const mem = await page.evaluate(() => {
     const w = (window as unknown as { __world3d: { world: { renderer: { info: { memory: { geometries: number; textures: number }; programs?: unknown[] } } } } }).__world3d.world;

@@ -258,10 +258,47 @@ def build_clay(mat):
     return objs
 
 
+ORE = C('#c2702e')
+ORE_DK = C('#6b3a1c')
+
+
+def build_ore(mat):
+    """OreFace: a fractured outcrop split by a rusty-gold ore seam; Ledge: stacked slabs with
+    one shelf jutting out (the mountains' shoulders)."""
+    objs = []
+    r = rng(531)
+    bm = bmesh.new()
+    for c, rad, st in (((0, 0, 0.6), 1.0, (1.1, 0.9, 0.85)), ((0.9, 0.3, 0.45), 0.75, (0.9, 0.9, 0.9)),
+                       ((-0.8, 0.2, 0.4), 0.7, (1.0, 0.9, 0.8)), ((0.2, 0.6, 1.25), 0.6, (1.0, 0.9, 0.7))):
+        fractured(bm, r, Vector(c), rad, 9, depth=(0.5, 0.8), stretch=st, tilt_bias=0.2)
+    for v in bm.verts:
+        if v.co.z < 0:
+            v.co.z *= 0.3
+    base = stone_colour(r, 1.6, 0.2)
+    seam = Vector((0.55, -0.2, 0.8)).normalized()
+
+    def ore(c, n, v):
+        d = abs(c.dot(seam) - 0.75 + 0.15 * noise.noise(c * 2.0))
+        if d < 0.16:
+            return lerp(ORE_DK, ORE, smooth(0.16, 0.0, d))
+        return base(c, n, v)
+    objs.append(finish(bm, 'OreFace', mat, ore))
+    r = rng(532)
+    bm = bmesh.new()
+    for c, rad, st in (((0, 0, 0.5), 1.1, (1.3, 1.0, 0.55)), ((0.2, 0.1, 1.15), 1.0, (1.25, 0.95, 0.45)),
+                       ((0.9, -0.5, 1.6), 1.0, (1.6, 1.0, 0.22)), ((-0.6, 0.3, 1.7), 0.7, (1.0, 0.9, 0.5))):
+        fractured(bm, r, Vector(c), rad, 8, depth=(0.6, 0.85), stretch=st, tilt_bias=0.6)
+    for v in bm.verts:
+        if v.co.z < 0:
+            v.co.z *= 0.3
+    objs.append(finish(bm, 'Ledge', mat, stone_colour(r, 2.0, 0.4)))
+    return objs
+
+
 def build(rock_img):
     sc = new_scene('Rocks')
     mat = material('Rock', image=rock_img, rough=0.88)
-    rows = [build_boulders(mat), build_crags(mat), build_clay(mat)]
+    rows = [build_boulders(mat), build_crags(mat), build_clay(mat), build_ore(mat)]
     objs = [o for row in rows for o in row]
     # Spread out first so neighbours don't occlude each other in the bake.
     for i, row in enumerate(rows):

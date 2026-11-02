@@ -46,7 +46,6 @@ interface Props {
   state: GameState;
   seat: number;
   /** True when the seat has to place something on the board (only possible in 2D). */
-  needsBoard: boolean;
   onExit(): void;
 }
 
@@ -55,7 +54,7 @@ interface Props {
  * for mouse look), a thumb-stick on touch screens. The world mirrors the live game (bridges,
  * settlements, cities, robber, the time of day) and, online, the other players walking it.
  */
-export default function World3D({ state, seat, needsBoard, onExit }: Props) {
+export default function World3D({ state, seat, onExit }: Props) {
   const lite = useStore((s) => liteEffects(s.settings));
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   const renderScale = useStore((s) => s.settings.renderScale);
@@ -63,7 +62,6 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   const sensRef = useRef(sensitivity);
   sensRef.current = sensitivity;
   const dispatch = useStore((s) => s.dispatch);
-  const openModal = useStore((s) => s.openModal);
   const online = useStore((s) => s.session?.online ?? null);
   const lobby = useNet((s) => s.lobby);
   const profile = useProfile();
@@ -73,6 +71,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
   const adaptiveRef = useRef(adaptive);
   adaptiveRef.current = adaptive;
   const wrapRef = useRef<HTMLDivElement>(null);
+  const sprintRef = useRef(0);
   const holderRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<World | null>(null);
   const [hex, setHex] = useState<number | null>(null);
@@ -174,6 +173,15 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
               else setNotice('Empty… Your weapons must be in your other first settlement.');
             },
             onChestSound: (s) => audio.play(s),
+            onStep: (s) => audio.play(`step-${s}`),
+            onSprint: (v) => {
+              // Speed lines follow the pace through a CSS variable: no React render per frame.
+              const q = Math.round(v * 20) / 20;
+              if (wrapRef.current && q !== sprintRef.current) {
+                sprintRef.current = q;
+                wrapRef.current.style.setProperty('--sprint', String(q));
+              }
+            },
             onRide: setRiding,
             reduceMotion: reduce,
             renderScale: renderScaleRef.current,
@@ -546,6 +554,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
       style={{ cursor: diving ? 'none' : 'grab', background: '#cfeaff' }}
     >
       <div ref={holderRef} className="h-full w-full" />
+      <div className="run-rush" aria-hidden />
 
       {failed && (
         <div className="absolute inset-0 grid place-items-center bg-abyss/90 p-6 text-center text-bone">
@@ -611,7 +620,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
             </div>
           </div>
 
-          {/* Top right: mouse look and the character. */}
+          {/* Top right: mouse look. The character is designed from the title menu. */}
           <div className="absolute right-2 top-2 flex gap-1.5">
             <button
               className={`btn !px-3 !py-1 text-[12px] ${diving ? 'btn-primary' : ''}`}
@@ -620,16 +629,6 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
               data-testid="dive-in"
             >
               <Icon name="crosshair" size={14} /> Dive in
-            </button>
-            <button
-              className="btn !px-3 !py-1 text-[12px]"
-              onClick={() => {
-                if (document.pointerLockElement) document.exitPointerLock();
-                openModal('character');
-              }}
-              title="Design your character"
-            >
-              <Icon name="user" size={14} /> Character
             </button>
           </div>
 
@@ -752,22 +751,7 @@ export default function World3D({ state, seat, needsBoard, onExit }: Props) {
             >
               {COMBAT_TEXT.practice}
             </button>
-            <button
-              className="btn btn-primary !px-3 !py-1 text-[12px]"
-              onClick={() => {
-                worldRef.current?.attack();
-                refocus();
-              }}
-            >
-              {weapon.weapon === 'revolver' ? COMBAT_TEXT.fire : COMBAT_TEXT.attack} <kbd>F</kbd>
-            </button>
           </div>
-
-          {needsBoard && !duel && (
-            <div className="absolute inset-x-0 top-14 mx-auto w-fit max-w-[50%] rounded-md bg-ember/90 px-3 py-1.5 text-center text-[13px] font-semibold text-abyss shadow-panel">
-              Switch to the 2D board to place your pieces
-            </div>
-          )}
 
           {showHelp && (
             <div className="pointer-events-none absolute right-2 top-12 w-fit max-w-[46%] rounded-md bg-abyss/75 px-3 py-1.5 text-right text-[12px] text-bone backdrop-blur-sm">

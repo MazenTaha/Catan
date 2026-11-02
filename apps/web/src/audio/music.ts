@@ -1,11 +1,12 @@
 import { audio } from './engine';
 
 /**
- * Classical music for the menus and the 2D board (DECISIONS #40), synthesized like the sound
- * effects: public-domain keyboard pieces (Bach's Prelude in C, the Minuet in G from the Anna
- * Magdalena notebook, Beethoven's Für Elise) played by a soft WebAudio piano with a little
- * room reverb. No audio files. It pauses with a fade while the 3D walk is open and picks up
- * where it left off when the board returns.
+ * Classical music for the menus and the 2D board (DECISIONS #40, #42), synthesized like the
+ * sound effects: public-domain Mozart and Beethoven (Eine kleine Nachtmusik, the Moonlight
+ * sonata, Rondo alla Turca, the Pathétique's Adagio, the Sonata facile, Ode to Joy) played by
+ * a soft WebAudio piano with a little room reverb. No audio files. The notes are copied from
+ * Mutopia Project editions (docs/CREDITS.md) in LilyPond's own syntax, read by `voice` below.
+ * It pauses with a fade while the 3D walk is open and picks up where it left off.
  */
 
 type Note = [time: number, midi: number, dur: number, vel: number];
@@ -23,115 +24,251 @@ const m = (name: string) => {
   return 12 * (Number(o) + 1) + N[p];
 };
 
-/** Prelude in C, BWV 846: each bar's five-note chord broken in the familiar figure, twice. */
-function prelude(): Piece {
-  const bars = [
-    'C4 E4 G4 C5 E5', 'C4 D4 A4 D5 F5', 'B3 D4 G4 D5 F5', 'C4 E4 G4 C5 E5',
-    'C4 E4 A4 E5 A5', 'C4 D4 F#4 A4 D5', 'B3 D4 G4 D5 G5', 'B3 C4 E4 G4 C5',
-    'A3 C4 E4 G4 C5', 'D3 A3 D4 F#4 C5', 'G3 B3 D4 G4 B4', 'G3 Bb3 E4 G4 C#5',
-    'F3 A3 D4 A4 D5', 'F3 Ab3 D4 F4 B4', 'E3 G3 C4 G4 C5', 'E3 F3 A3 C4 F4',
-    'D3 F3 A3 C4 F4', 'G2 D3 G3 B3 F4', 'C3 E3 G3 C4 E4', 'C3 G3 Bb3 C4 E4',
-    'F2 F3 A3 C4 E4', 'F#2 C3 A3 C4 Eb4', 'Ab2 F3 B3 C4 D4', 'G2 F3 G3 B3 D4',
-    'G2 E3 G3 C4 E4', 'G2 D3 G3 C4 F4', 'G2 D3 G3 B3 F4', 'G2 Eb3 A3 C4 F#4',
-    'G2 E3 G3 C4 G4', 'G2 D3 G3 C4 F4', 'G2 D3 G3 B3 F4', 'C2 C3 G3 Bb3 E4',
-  ];
-  const s = 0.23;
-  const notes: Note[] = [];
-  bars.forEach((bar, b) => {
-    const c = bar.split(' ').map(m);
-    for (let half = 0; half < 2; half++) {
-      const t0 = (b * 16 + half * 8) * s;
-      // The bass and tenor are held under the figure; the upper three repeat.
-      notes.push([t0, c[0], 8 * s, 0.5], [t0 + s, c[1], 7 * s, 0.42]);
-      [2, 3, 4, 2, 3, 4].forEach((k, i) => notes.push([t0 + (2 + i) * s, c[k], s * 1.6, 0.36 + (k === 4 ? 0.04 : 0)]));
-    }
-  });
-  const end = bars.length * 16 * s;
-  for (const [i, n] of ['C2', 'C3', 'E3', 'G3', 'C4', 'E4'].entries()) notes.push([end + i * 0.05, m(n), 3.5, 0.4]);
-  return { name: 'Prelude in C', notes, length: end + 4 };
+const LETTERS = 'cdefgab';
+const SEMI = [0, 2, 4, 5, 7, 9, 11];
+
+/**
+ * One LilyPond pitch ("fis'", "bes,,", "as"): its diatonic step and MIDI number. Relative to
+ * the step `from` (the nearest such letter, within a fourth), or absolute (c = C3) without it.
+ */
+export function pitch(s: string, from: number | null): [step: number, midi: number] {
+  const [, l, acc, oct] = s.match(/^([a-g])((?:is|es|s)*)([',]*)/)!;
+  const letter = LETTERS.indexOf(l);
+  let step = from === null ? 21 + letter : from + ((letter - (from % 7) + 10) % 7) - 3;
+  for (const c of oct) step += c === "'" ? 7 : -7;
+  let alter = 0;
+  for (const a of acc.match(/is|es|s/g) ?? []) alter += a === 'is' ? 1 : -1;
+  return [step, 12 * (Math.floor(step / 7) + 1) + SEMI[step % 7] + alter];
 }
 
-/** Minuet in G (BWV Anh. 114): the A section, twice, with its walking bass. */
-function minuet(): Piece {
-  const q = 0.5;
-  // [note, beats] per voice; '-' is a rest.
-  const rh: [string, number][] = [
-    ['D5', 1], ['G4', 0.5], ['A4', 0.5], ['B4', 0.5], ['C5', 0.5],
-    ['D5', 1], ['G4', 1], ['G4', 1],
-    ['E5', 1], ['C5', 0.5], ['D5', 0.5], ['E5', 0.5], ['F#5', 0.5],
-    ['G5', 1], ['G4', 1], ['G4', 1],
-    ['C5', 1], ['D5', 0.5], ['C5', 0.5], ['B4', 0.5], ['A4', 0.5],
-    ['B4', 1], ['C5', 0.5], ['B4', 0.5], ['A4', 0.5], ['G4', 0.5],
-    ['F#4', 1], ['G4', 0.5], ['A4', 0.5], ['B4', 0.5], ['G4', 0.5],
-    ['A4', 3],
-    ['D5', 1], ['G4', 0.5], ['A4', 0.5], ['B4', 0.5], ['C5', 0.5],
-    ['D5', 1], ['G4', 1], ['G4', 1],
-    ['E5', 1], ['C5', 0.5], ['D5', 0.5], ['E5', 0.5], ['F#5', 0.5],
-    ['G5', 1], ['G4', 1], ['G4', 1],
-    ['C5', 1], ['D5', 0.5], ['C5', 0.5], ['B4', 0.5], ['A4', 0.5],
-    ['B4', 1], ['C5', 0.5], ['B4', 0.5], ['A4', 0.5], ['G4', 0.5],
-    ['A4', 1], ['B4', 0.5], ['A4', 0.5], ['G4', 0.5], ['F#4', 0.5],
-    ['G4', 3],
-  ];
-  const lh: [string, number][] = [
-    ['G3', 2], ['A3', 1], ['B3', 3], ['C4', 3], ['B3', 3], ['A3', 3], ['G3', 3],
-    ['D4', 1], ['B3', 1], ['G3', 1], ['D4', 1], ['D3', 0.5], ['C4', 0.5], ['B3', 0.5], ['A3', 0.5],
-    ['B3', 2], ['A3', 1], ['G3', 1], ['B3', 1], ['G3', 1], ['C4', 3],
-    ['B3', 1], ['C4', 0.5], ['B3', 0.5], ['A3', 0.5], ['G3', 0.5],
-    ['A3', 2], ['F#3', 1], ['G3', 2], ['B3', 1], ['C4', 1], ['D4', 1], ['D3', 1], ['G3', 2], ['G2', 1],
-  ];
-  const notes: Note[] = [];
-  const voice = (v: [string, number][], vel: number, offset: number) => {
-    let t = offset;
-    for (const [n, beats] of v) {
-      if (n !== '-') notes.push([t, m(n), beats * q * 0.95, vel]);
-      t += beats * q;
-    }
-    return t;
-  };
-  let end = 0;
-  for (let rep = 0; rep < 2; rep++) {
-    const at = rep * 48 * q;
-    end = Math.max(voice(rh, 0.42, at), voice(lh, 0.3, at));
-  }
-  return { name: 'Minuet in G', notes, length: end + 2 };
+interface Voice {
+  /** LilyPond notes, chords and rests, plus `\rel <pitch>` (relative mode), `\abs`, `\oct n`. */
+  text: string;
+  vel: number;
+  /** Sounding length as a share of the written one. */
+  hold?: number;
+  /** Time scale, e.g. 2/3 for a voice written all in triplets. */
+  scale?: number;
 }
 
-/** Für Elise (WoO 59): the famous opening section, twice. */
-function furElise(): Piece {
-  const s = 0.19;
-  const notes: Note[] = [];
+/** Adds a voice's notes (seconds, at `q` seconds a quarter) and returns where it ends. */
+export function voice(v: Voice, q: number, out: Note[]): number {
+  const scale = (v.scale ?? 1) * q;
+  const hold = v.hold ?? 0.95;
+  let prev: number | null = null;
+  let relative = false;
+  let shift = 0;
+  let beats = 1;
   let t = 0;
-  const run = (names: string, vel = 0.4) => {
-    for (const n of names.split(' ')) {
-      notes.push([t, m(n), s * 1.8, vel]);
-      t += s;
+  const length = (s: string) => {
+    const [, n, dots] = s.match(/(\d*)(\.*)$/)!;
+    if (!n) return;
+    beats = 4 / Number(n);
+    for (let i = 0, add = beats / 2; i < dots.length; i++, add /= 2) beats += add;
+  };
+  for (const tok of v.text.replace(/[!?~]/g, '').match(/\\(?:rel|oct) \S+|\\\w+|<[^>]*>[\d.]*|[^\s|]+/g) ?? []) {
+    if (tok.startsWith('\\rel')) {
+      relative = true;
+      prev = pitch(tok.slice(5), null)[0];
+    } else if (tok === '\\abs') relative = false;
+    else if (tok.startsWith('\\oct')) shift = 12 * Number(tok.slice(5));
+    else if (/^[rsR]/.test(tok)) {
+      length(tok);
+      t += beats;
+    } else {
+      const chord = tok.startsWith('<');
+      const close = tok.indexOf('>');
+      length(chord ? tok.slice(close + 1) : tok);
+      // In a chord each pitch is relative to the one before; the next note, to the chord's first.
+      let from = relative ? prev : null;
+      (chord ? tok.slice(1, close) : tok).split(/\s+/).filter(Boolean).forEach((p, i) => {
+        const [step, midi] = pitch(p, from);
+        if (relative) from = step;
+        if (relative && i === 0) prev = step;
+        out.push([t * scale, midi + shift, beats * scale * hold, v.vel]);
+      });
+      t += beats;
     }
-  };
-  // A bar of the left-hand broken chord under a held right-hand note, then three more notes.
-  const arp = (top: string, bass: string, rhAfter: string) => {
-    const [b1, b2, b3] = bass.split(' ');
-    notes.push([t, m(top), s * 2.6, 0.42]);
-    notes.push([t, m(b1), s * 3, 0.3], [t + s, m(b2), s * 2, 0.26], [t + 2 * s, m(b3), s * 1.5, 0.26]);
-    t += 3 * s;
-    run(rhAfter, 0.36);
-  };
-  for (let rep = 0; rep < 2; rep++) {
-    run('E5 D#5');
-    run('E5 D#5 E5 B4 D5 C5');
-    arp('A4', 'A2 E3 A3', 'C4 E4 A4');
-    arp('B4', 'E2 E3 G#3', 'E4 G#4 B4');
-    arp('C5', 'A2 E3 A3', 'E4 E5 D#5');
-    run('E5 D#5 E5 B4 D5 C5');
-    arp('A4', 'A2 E3 A3', 'C4 E4 A4');
-    arp('B4', 'E2 E3 G#3', 'E4 C5 B4');
-    notes.push([t, m('A4'), s * 6, 0.44], [t, m('A2'), s * 6, 0.3], [t + s, m('E3'), s * 5, 0.26], [t + 2 * s, m('A3'), s * 4, 0.26]);
-    t += 6 * s;
   }
-  return { name: 'Für Elise', notes, length: t + 2 };
+  return t * scale;
 }
 
-const PIECES = [prelude, minuet, furElise];
+/** A piece from its voices, played `repeat` times, ending on a held chord. */
+function piece(name: string, q: number, voices: Voice[], end: string[], repeat = 1): Piece {
+  const once: Note[] = [];
+  const len = Math.max(...voices.map((v) => voice(v, q, once)));
+  const notes: Note[] = [];
+  for (let r = 0; r < repeat; r++) for (const [t, midi, dur, vel] of once) notes.push([t + r * len, midi, dur, vel]);
+  const at = len * repeat;
+  end.forEach((n, i) => notes.push([at + i * 0.04, m(n), 3.5, 0.38]));
+  return { name, notes, length: at + 4.5 };
+}
+
+/** Mozart, Eine kleine Nachtmusik K.525, I: bars 1–10, first violin over the cello, twice. */
+const nachtmusik = () =>
+  piece(
+    'Eine kleine Nachtmusik',
+    0.42,
+    [
+      {
+        text: `\\rel g'' <g b, d,>4 r8 d8 g4 r8 d8 | g8 d g b d4 r4 | c4 r8 a8 c4 r8 a8 | c8 a fis a d,4 r4 |
+          <g b, d,>8 r8 g4. b8 a g | g8 fis fis4. a8 c fis, | a8 g g4. b8 a g | g8 fis fis4. a8 c fis, |
+          g8 g fis e16 fis g8 g a g16 a | b8 b c b16 c d4 r4`,
+        vel: 0.44,
+      },
+      {
+        text: `\\rel g g4 r8 d8 g4 r8 d8 | g8 d g b d4 r4 | c4 r8 a8 c4 r8 a8 | c8 a fis a d,4 r4 |
+          g8 g g g g g g g | g g g g g g g g | g g g g g g g g | g g g g g g g g |
+          g g a a b b fis fis | g g a a b4 r4`,
+        vel: 0.3,
+      },
+    ],
+    ['G2', 'G3', 'D4', 'G4', 'B4'],
+    2,
+  );
+
+/** Beethoven, Moonlight sonata, I: bars 1–15, then the opening bars again to close in C♯ minor. */
+const moonlight = () => {
+  const intro = `gis8 cis e gis, cis e gis, cis e gis, cis e | gis, cis e gis, cis e gis, cis e gis, cis e |
+    a, cis e a, cis e a, d fis a, d fis | gis, bis fis' gis, cis e gis, cis dis fis, bis dis`;
+  const introBass = '<cis cis,>1 | <b b,>1 | <a a,>2 <fis fis,>2 | <gis gis,>2 <gis gis,>2';
+  return piece(
+    'Moonlight Sonata',
+    0.62,
+    [
+      {
+        text: `\\rel c' s1 s1 s1 s1 | s2 r4 gis'8. gis16 | gis2. gis8. gis16 | gis2 a2 | gis2 fis4 b | e,4 r4 r2 |
+          r2 r4 g8. g16 | g2. g8. g16 | g2. fis4 | fis2 g4 e | fis2 fis2 | b,4 r4 r2`,
+        vel: 0.5,
+      },
+      {
+        text: `\\rel c' ${intro} |
+          e, gis cis gis, cis e gis, cis e gis, cis e | gis, dis' fis gis, dis' fis gis, dis' fis gis, dis' fis |
+          gis, cis e gis, cis e a, cis fis a, cis fis | gis, b e gis, b e a, b dis a b dis |
+          gis, b e gis, b e gis, b e gis, b e | g, b e g, b e g, b e g, b e | g, b f' g, b f' g, b f' g, b f' |
+          g, c e g, b e g, cis e fis, cis' e | fis, b d fis, b d g, b cis e, b' cis |
+          fis, b d fis, b d fis, ais cis fis, ais cis | b d fis b, d fis b, dis fis b, dis fis |
+          \\rel c' ${intro}`,
+        vel: 0.24,
+        hold: 1.6,
+        scale: 2 / 3,
+      },
+      {
+        text: `\\rel c ${introBass} | <cis gis cis,>1 | <bis gis bis,>1 | <cis cis,>2 <fis, fis,>2 | <b b,>2 <b b,>2 |
+          <e e,>1 | <e e,>1 | <d d,>1 | <c c,>4 <b b,>4 <ais ais,>2 | <b b,>2 e,4 g4 | fis2 <fis fis,>2 | <b b,>1 |
+          \\rel c ${introBass}`,
+        vel: 0.3,
+        hold: 1,
+      },
+    ],
+    ['C#2', 'C#3', 'G#3', 'C#4', 'E4'],
+  );
+};
+
+/** Mozart, Rondo alla Turca (Sonata K.331, III): the pickup and bars 1–24, twice. */
+const turca = () =>
+  piece(
+    'Rondo alla Turca',
+    0.42,
+    [
+      {
+        text: `\\abs \\oct 2 b,16 a, gis, a, | c8 r8 d16 c b, c | e8 r8 f16 e dis e | b16 a gis a b a gis a |
+          c'4 a8 c' | b8 <fis a> <e g> <fis a> | b8 <fis a> <e g> <fis a> | b8 <fis a> <e g> <dis fis> |
+          e4 <c e>8 <d f> | <e g>8 <e g> a16 g f e | <b, d>8 <g, d> <c e>8 <d f> | <e g>8 <e g> a16 g f e |
+          <b, d>4 <a, c>8 <b, d> | <c e>8 <c e> f16 e d c | <gis, b,>8 <e, b,> <a, c>8 <b, d> |
+          <c e>8 <c e> f16 e d c | <gis, b,>4 b,16 a, gis, a, | c8 r8 d16 c b, c | e8 r8 f16 e dis e |
+          b16 a gis a b a gis a | c'8 r8 a8 b | c'8 b a gis | a8 e f d | c4 b,8. a,32 b, | a,4`,
+        vel: 0.42,
+      },
+      {
+        text: `\\abs r4 | a8 <c' e'> <c' e'> <c' e'> | a8 <c' e'> <c' e'> <c' e'> | a8 <c' e'> a <c' e'> |
+          a8 <c' e'> <c' e'> <c' e'> | e8 <b e'> <b e'> <b e'> | e8 <b e'> <b e'> <b e'> | e8 <b e'> b, b |
+          e4 r4 | c8 c' e e' | g4 r4 | c8 c' e e' | g4 r4 | a,8 a c c' | e4 r4 | a,8 a c c' | e4 r4 |
+          a8 <c' e'> <c' e'> <c' e'> | a8 <c' e'> <c' e'> <c' e'> | a8 <c' e'> a <c' e'> |
+          f8 <a dis'> <a dis'> <a dis'> | e8 <a e'> d <f b> | c8 <e a> d <f b> | <e a>8 <e a> <e gis> <e gis> | <a, a>4`,
+        vel: 0.26,
+      },
+    ],
+    ['A2', 'A3', 'C4', 'E4', 'A4'],
+    2,
+  );
+
+/** Beethoven, Pathétique sonata, II (Adagio cantabile): the theme, bars 1–8, twice. */
+const pathetique = () =>
+  piece(
+    'Pathétique, Adagio cantabile',
+    0.95,
+    [
+      {
+        text: `\\rel c' c4 bes | es4. des8 | c8 es as bes | es,4. e8 | f4 bes,8. c32 des32 | es4 a, |
+          des4 c16 bes as g | <bes g>4 as8 r8`,
+        vel: 0.48,
+        hold: 1,
+      },
+      {
+        text: `\\rel c' as16 es as es g es g es | as es as es bes' es, bes' es, | as es bes' es, c' as d as |
+          g bes g bes g bes g bes | g bes g bes g es g es | as es as es es c es c | f des f des des des des des |
+          des es des es r4`,
+        vel: 0.18,
+        hold: 1.4,
+      },
+      {
+        text: `\\rel c as4 des | c g | as8 g f f' | es4 es, | des4 des' | c f, | bes, es | as,8 as' as, r8`,
+        vel: 0.3,
+        hold: 1.2,
+      },
+    ],
+    ['Ab2', 'Ab3', 'C4', 'Eb4', 'Ab4'],
+    2,
+  );
+
+/** Mozart, Sonata facile K.545, I: bars 1–12, home to C. */
+const facile = () =>
+  piece(
+    'Sonata facile',
+    0.5,
+    [
+      {
+        text: `\\rel c'' c2 e4 g4 | b,4. c16 d c4 r4 | a'2 g4 c4 | g4 f8 e16 f e4 r4 |
+          a,8 b16 c d e f g a g f e d c b a | g8 a16 b c d e f g f e d c b a g |
+          f8 g16 a b c d e f e d c b a g f | e8 f16 g a b c d e d c b a g f e |
+          \\rel c' d8 e16 f g a b cis d a b cis d e f g | a16 b c b a g f e f g a g f e d c |
+          \\rel c'' b8 g' e c d g e c | d4 <b d g>4 g4 r4`,
+        vel: 0.42,
+      },
+      {
+        text: `\\rel c'' c,8 g' e g c, g' e g | d g f g c, g' e g | c, a' f a c, g' e g | b, g' d g c, g' e g |
+          f4 r4 r4 <f, c'>4 | <e c'>4 r4 r4 <e c'>4 | <d c'>4 r4 r4 <d b'>4 |
+          \\rel c <c c'>4 r4 r4 <c e>4 | <f a>1 | f4. g8 a4. fis8 |
+          \\rel c' g,16 b d g g, c e g g, b d g g, c e g | g,4 g' g, r4`,
+        vel: 0.24,
+      },
+    ],
+    ['C3', 'G3', 'C4', 'E4', 'C5'],
+  );
+
+/** Beethoven, Ode to Joy (Symphony No. 9, IV): the theme in D over broken chords. */
+const odeToJoy = () => {
+  const D = "d8 a d' a";
+  const A = 'a,8 e a e';
+  const lh = [D, D, D, A, D, D, A, A, D, D, D, A, D, D, A, D, A, A, A, D, A, A, D, A, D, D, D, A, D, D, A, D];
+  return piece(
+    'Ode to Joy',
+    0.5,
+    [
+      {
+        text: `\\rel c' fis4 fis g a | a g fis e | d d e fis | fis4. e8 e2 | fis4 fis g a | a g fis e | d d e fis |
+          e4. d8 d2 | e4 e fis d | e fis8 g fis4 d | e fis8 g fis4 e | d4 e a,2 | fis'4 fis g a | a g fis e |
+          d d e fis | e4. d8 d2`,
+        vel: 0.46,
+      },
+      { text: `\\abs ${lh.join(' ')}`, vel: 0.22, hold: 1.3 },
+    ],
+    ['D2', 'D3', 'A3', 'D4', 'F#4'],
+  );
+};
+
+const PIECES = [nachtmusik, moonlight, turca, pathetique, facile, odeToJoy];
 
 class Music {
   private want = false;

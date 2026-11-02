@@ -12,11 +12,12 @@ DECISIONS #31 explains the choices; this file is the how-to.
 
 | What | Where |
 |---|---|
-| Build scripts | `assets/blender/build.py` (entry), `common.py` (mesh builder, materials, AO bake, export), `textures.py`, `flora.py`, `rocks.py`, `village.py`, `homes.py` (the enterable cottage, hall and mill, called by `village.py`) |
+| Build scripts | `assets/blender/build.py` (entry), `common.py` (mesh builder, materials, AO bake, export), `textures.py`, `flora.py`, `rocks.py`, `village.py`, `homes.py` (the enterable cottage, hall and mill, called by `village.py`), `horse.py` (the skinned horse), `knight.py` (the players' knight), `props.py` (painted props, equipment and furnishings) |
 | Room plans | `apps/web/src/components/world/buildings.json`: one plan per enterable building (room size, walls, doors, windows, furniture boxes), read by `homes.py` to build and by `buildings.ts` for collision, floors and doors |
-| Editable sources | `assets/blender/flora.blend`, `rocks.blend`, `village.blend` (one scene each, written by the build) |
+| Editable sources | `assets/blender/flora.blend`, `rocks.blend`, `village.blend`, `horse.blend`, `knight.blend`, `props.blend` (one scene each, written by the build) |
 | Texture atlases | `assets/blender/textures/flora_atlas.png`, `rock.png`, `village_atlas.png` (embedded into the GLBs) |
-| Game models | `apps/web/public/models/flora.glb`, `rocks.glb`, `village.glb` |
+| Game models | `apps/web/public/models/flora.glb`, `rocks.glb`, `village.glb`, `horse.glb`, `knight.glb`, `props.glb` |
+| Concept art map | `docs/CONCEPT_ART_MAPPING.md`: each sheet of the owner's art pack and the assets made from it |
 | Ground textures | `apps/web/public/textures/ground-{grass,soil,sand,rock}.jpg` and `-n.jpg` normal maps |
 | Slot registry and loader | `apps/web/src/components/world/assets.ts` (`SLOTS`, `ASSET_FILES`, `preloadWorldAssets`) |
 | Placement and drawing | `world.ts` (biomes, `Instancer`), `field.ts` (wheat, grass, flowers in cells), `shaders.ts` (wind, foliage, sky, ground) |
@@ -62,31 +63,60 @@ One GLB per family; each variant is a root node with that name. Triangles as exp
 | `Stook` | `prop.stook` | 1,392 | Plant |
 | `GrassA` `GrassB` | `grass.clump` | 70, 113 | Plant |
 | `Daisy` `Poppy` `Buttercup` `Lavender` | `flower.*` | 111–287 | Plant |
-| `Oak` `Lime` | `tree.broadleaf` | 390, 348 | Leaf, Bark |
+| `Oak` `OakB` `Lime` `LimeB` | `tree.broadleaf` | 336–390 | Leaf, Bark |
 | `Spruce` `Fir` | `tree.conifer` | 446, 434 | Leaf, Bark |
 | `Sapling` | `tree.sapling` | 226 | Leaf, Bark |
 | `ShrubA` `ShrubB` | `shrub` | 236 | Leaf, Bark |
+| `DryScrub` | `shrub.dry` (desert) | 286 | Leaf, Bark |
+| `Reeds` | `plant.reeds` (by the docks) | 288 | Plant |
 | **rocks.glb** (0.6 MB, 512 px stone grain, JPEG) | | | |
 | `BoulderA` `BoulderB` `BoulderC` | `rock.boulder` | 114–130 | Rock |
 | `CragA` `CragB` `CragC` | `rock.crag` (mountain massifs) | 1,078–1,178 | Rock |
 | `ClayA` `ClayB` | `rock.clay` (terraced clay banks) | 306, 466 | Rock |
+| `OreFace` `Ledge` | `rock.ore`, `rock.ledge` (the mountains' way in) | 426, 512 | Rock |
 | **village.glb** (1.3 MB, 1024 px building atlas, JPEG) | | | |
-| `Cottage` (+ `CottageInterior`, `CottageDoor`) | `building.settlement` | 2,125 + 1,298 + 50 | Village, Owner_Roof, Owner_Trim, Interior, Glow, Iron |
-| `Hall` (+ `HallInterior`, `HallDoorA`, `HallDoorB`) | `building.city` | 2,322 + 3,032 + 100 | Village, Owner_Roof, Owner_Trim, Iron, Interior, Glow |
+| `Cottage` (+ `CottageInterior`, `CottageDoor`) | `building.settlement` | 3,521 with interior and door | Village (terracotta roof), Owner_Trim (ridge cap, shutters, banner), Interior, Glow, Iron |
+| `Hall` (+ `HallInterior`, `HallDoorA`, `HallDoorB`) | `building.city` | 5,466 with interior and doors | Village (terracotta roof), Owner_Trim, Iron, Interior, Glow |
 | `Road` | `piece.road` | 464 | Village, Owner_Trim |
 | `Robber` | `piece.robber` | 458 | Village, Glow |
 | `Mill` (+ `MillInterior`, `MillDoor`, `Sails`) | `prop.windmill` | 854 + 688 + 50 + 374 | Village, Interior, Iron |
 | `Dock` | `harbor.dock` | 506 | Village |
-| `Boat` | `harbor.boat` | 472 | Village, Owner_Sail |
+| `Boat` (cog trader, open stern deck) `BoatSloop` `BoatStriped` | `harbor.boat` | 742, 482, 554 | Village, Owner_Sail |
 | `Sheep` (+ `Head`, `LegFL/FR/BL/BR`, `Tail`) | `sheep` | 608 | Village |
 | `Barn` | `prop.barn` | 842 | Village, Iron |
 | `Kiln` | `prop.kiln` | 790 | Village, Iron |
 | `HayBale` | `prop.haybale` | 384 | Village |
 | `Mine` | `prop.mine` | 347 | Village, Iron |
+| **horse.glb** (1.1 MB, no textures) | | | |
+| `Horse` (armature; skinned `HorseBody` on 17 bones: Body, Neck, Head, Tail, Tail2, Upper/Cannon/Pastern per leg) | `animal.horse` | 15,284 | Coat, Hair, Tack, Owner_Blanket |
+| **knight.glb** (0.56 MB, no textures) | | | |
+| `Knight` (armature; skinned `KnightBody`, `KnightFace`, `HelmGreat` `HelmArmet` `HelmBascinet` `HelmCrowned`, `CapeShort` `CapeLong` on 17 bones) | `character.knight` | body 4,156; face 634; helms 572–812; capes 336 | Steel, Dark, Cloth, Owner, Skin |
 
-Still procedural (code in `models.ts` / `world.ts`): fences, trough, brick stacks, the log pile,
-stump and mushrooms, the desert ruin, sign posts with their number plaques, and every slot's
-fallback.
+| **props.glb** (no textures; vertex-painted) | | | |
+| `StumpA` `StumpB`, `AxeStump`, `Log`, `LogPile`, `Stakes`, `Chips` | `prop.stump`, `prop.axestump`, `prop.log`, `prop.logpile`, `prop.stakes`, `prop.chips` | 108–1,800 | Wood, Metal, Cloth |
+| `MushRed` `MushBrown` | `prop.mushroom` | 438, 584 | Cloth |
+| `DesertStones`, `SandRidge`, `Column`, `Drums`, `Lintel`, `Ruin` | `rock.desert`, `prop.dune`, `prop.column`, `prop.drums`, `prop.lintel`, `prop.ruin` | 80–1,642 | Stone |
+| `FencePost`, `FenceRail` (1 m, stretched), `Gate`, `TroughA` `TroughB`, `BrickStack` | `prop.fencepost`, `prop.fencerail`, `prop.gate`, `prop.trough`, `prop.bricks` | 104–1,524 | Wood, Stone, Metal, Water, Cloth |
+| `WeaponChest` (+ `WeaponChestLid`, origin on the rear hinge) | `chest.ts` via `gear.ts` | 2,276 + lid | Wood, Metal, Brass |
+| `Sword`, `Revolver` (grip origin, barrel/blade along -Z), `Shield` (back-centre origin, face +Z), `DummyA` `DummyB` | `avatar.ts`, `chest.ts`, `combat.ts` via `gear.ts` | 504–1,052 | Metal, Brass, Wood, Cloth, Owner_Field |
+| `Antlers` `CandleWheel` `FloorPlant` `TablePlant` `ArmorStand` `Candles` `CrossedShields` `Tapestry` `Banner` `Bookshelf` | `decor.ts` via `gear.ts` | 232–2,124 | Wood, Metal, Brass, Cloth, Glow, Foliage, Tint_Cloth |
+
+`props.glb` materials: `Owner_Field` is tinted in the seat colour (the shield), `Tint_Cloth` in
+the kingdom's furnishing colour, `Glow` is emissive (flames). Equipment and furnishings are not
+slots: `assets.ts` loads them into `gear.ts` by node name, and each builder keeps its shapes when
+a node is missing.
+
+The knight's plates are weighted rigidly to one bone each, as real plate moves; the mail and
+cloth skirts and the cape blend. The game shows one helm, one cape and the face as the look
+asks (`knight.ts`).
+
+The horse is the first skinned model: a metaball body (smoothed, decimated) with automatic
+weights, and ears, hair, hooves and tack joined in with hand-set weights; the tack is laid on
+the body by ray casts. `export_glb(..., skins=True)` keeps the armature; `assets.ts` clones it
+with `SkeletonUtils` so each horse has its own bones, and `horse.ts` poses them.
+
+Still procedural (code in `models.ts` / `world.ts`): sign posts with their number plaques, the
+rug's woven pattern, and every slot's fallback.
 
 ## 4. How the game uses them
 
@@ -122,7 +152,9 @@ fallback.
   The far horizon ranges (crags scaled up) neither cast nor receive. The shadow map is redrawn
   only when its box moves (100-texel steps), when pieces change, and every third frame for
   moving casters (sway, sheep, sails); redrawing ~300 casters every frame was the limit.
-- **Static props** (barn, kiln, mine, bales) join the existing bake: merged per material across
+- **Merging keeps paint.** `bake` (static props) and `RigBaker` (characters, chests, rooms) both
+  keep a model's vertex colours (times its material colour) when they merge parts.
+- **Static props** (barn, kiln, mine, bales and the props family) join the existing bake: merged per material across
   the island. Windmills, docks, boats, sheep, pieces and the robber stay separate objects.
 - **Collision and grounding** come from each slot's `footprint` and the terrain's own height,
   never from a mesh. Plants keep 1.6 m clear of tile edges, where roads run and buildings stand.

@@ -1,0 +1,102 @@
+{
+  "fps": 60,
+  "contact": {
+    "fist": 0.12,
+    "sword": 0.21,
+    "revolver": 0
+  },
+  "duration": {
+    "fist": 0.42,
+    "sword": 0.58,
+    "revolver": 0.42
+  },
+  "chest": {
+    "reveal": 0.64,
+    "finish": 2.4,
+    "keys": [
+      {
+        "time": 0,
+        "lid": 0,
+        "latch": 0
+      },
+      {
+        "time": 0.08,
+        "lid": 0,
+        "latch": -0.32
+      },
+      {
+        "time": 0.17,
+        "lid": 0,
+        "latch": -1.05
+      },
+      {
+        "time": 0.27,
+        "lid": -0.1,
+        "latch": -1.05
+      },
+      {
+        "time": 0.47,
+        "lid": -0.85,
+        "latch": -1.05
+      },
+      {
+        "time": 0.64,
+        "lid": -1.48,
+        "latch": -0.8
+      },
+      {
+        "time": 0.82,
+        "lid": -1.88,
+        "latch": -0.2
+      },
+      {
+        "time": 0.96,
+        "lid": -1.79,
+        "latch": 0
+      },
+      {
+        "time": 1.1,
+        "lid": -1.82,
+        "latch": 0
+      }
+    ]
+  },
+  "clips": {
+    "Combat_Idle": {
+      "duration": 1.6,
+      "loop": true
+    },
+    "Sword_Cut_R": {
+      "duration": 0.58,
+      "loop": false
+    },
+    "Sword_Cut_L": {
+      "duration": 0.58,
+      "loop": false
+    },
+    "Fist_Jab": {
+      "duration": 0.42,
+      "loop": false
+    },
+    "Revolver_Fire": {
+      "duration": 0.42,
+      "loop": false
+    },
+    "Guard_Hold": {
+      "duration": 1.2,
+      "loop": true
+    },
+    "Hit_React": {
+      "duration": 0.3,
+      "loop": false
+    },
+    "Guard_Impact": {
+      "duration": 0.24,
+      "loop": false
+    },
+    "Respawn_Recover": {
+      "duration": 0.45,
+      "loop": false
+    }
+  }
+}

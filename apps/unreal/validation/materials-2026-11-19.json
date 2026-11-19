@@ -1,0 +1,7 @@
+{
+  "materials": [
+    "/Game/CatanNight/Materials/M_GrassVertexPaint.M_GrassVertexPaint",
+    "/Game/CatanNight/Materials/M_TerrainVertexPaint.M_TerrainVertexPaint"
+  ],
+  "nanite_usage_saved": true
+}

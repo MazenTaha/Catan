@@ -1,0 +1,178 @@
+{
+  "map": "Island_20261119_185517_618131",
+  "results": [
+    {
+      "hex": 0,
+      "terrain": "moors",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.1360428863263,
+      "height_change_cm": -1.5455646514892578,
+      "passed": true
+    },
+    {
+      "hex": 1,
+      "terrain": "peaks",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.024999412946,
+      "height_change_cm": 6.791194915771484,
+      "passed": true
+    },
+    {
+      "hex": 2,
+      "terrain": "fields",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.1981990532804,
+      "height_change_cm": 0.519202709197998,
+      "passed": true
+    },
+    {
+      "hex": 3,
+      "terrain": "fields",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0032406549544,
+      "height_change_cm": 0.0,
+      "passed": true
+    },
+    {
+      "hex": 4,
+      "terrain": "waste",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0450402308306,
+      "height_change_cm": 5.826923847198486,
+      "passed": true
+    },
+    {
+      "hex": 5,
+      "terrain": "peaks",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0029206384434,
+      "height_change_cm": 0.7675013542175293,
+      "passed": true
+    },
+    {
+      "hex": 6,
+      "terrain": "ashen",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0025599622313,
+      "height_change_cm": 6.675051818275605,
+      "passed": true
+    },
+    {
+      "hex": 7,
+      "terrain": "ashen",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0081598187717,
+      "height_change_cm": -6.633882011320836,
+      "passed": true
+    },
+    {
+      "hex": 8,
+      "terrain": "witchwood",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0079198530912,
+      "height_change_cm": 3.9552121470223796,
+      "passed": true
+    },
+    {
+      "hex": 9,
+      "terrain": "moors",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0252410876723,
+      "height_change_cm": 1.8124442100524902,
+      "passed": true
+    },
+    {
+      "hex": 10,
+      "terrain": "witchwood",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0071198110745,
+      "height_change_cm": -3.5645661298626976,
+      "passed": true
+    },
+    {
+      "hex": 11,
+      "terrain": "witchwood",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0032801152447,
+      "height_change_cm": 0.0,
+      "passed": true
+    },
+    {
+      "hex": 12,
+      "terrain": "moors",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0206400105999,
+      "height_change_cm": 6.788412811727326,
+      "passed": true
+    },
+    {
+      "hex": 13,
+      "terrain": "moors",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.003638770675,
+      "height_change_cm": -0.2501373291015625,
+      "passed": true
+    },
+    {
+      "hex": 14,
+      "terrain": "witchwood",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0092806158418,
+      "height_change_cm": 7.771520948824644,
+      "passed": true
+    },
+    {
+      "hex": 15,
+      "terrain": "peaks",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 543.3415609311232,
+      "height_change_cm": -1.0294361114501953,
+      "passed": true
+    },
+    {
+      "hex": 16,
+      "terrain": "ashen",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0020799877093,
+      "height_change_cm": 0.0,
+      "passed": true
+    },
+    {
+      "hex": 17,
+      "terrain": "fields",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.02031930716,
+      "height_change_cm": 0.7692346572875977,
+      "passed": true
+    },
+    {
+      "hex": 18,
+      "terrain": "fields",
+      "grounded": true,
+      "falling_after_walk": false,
+      "distance_cm": 550.0195589863706,
+      "height_change_cm": 0.7738275527954102,
+      "passed": true
+    }
+  ],
+  "error": null,
+  "passed": true
+}

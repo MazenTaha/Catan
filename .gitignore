@@ -12,3 +12,13 @@ playwright-report
 __pycache__
 dist-perf
 perf-results
+apps/unreal*/Binaries/
+apps/unreal*/Plugins/**/Binaries/
+apps/unreal*/Plugins/**/Intermediate/
+apps/unreal*/DerivedDataCache/
+apps/unreal*/Intermediate/
+apps/unreal*/Saved/
+apps/unreal*/.vs/
+apps/unreal*/SourceArt/Generated/
+apps/unreal*/*.sln
+.tools/

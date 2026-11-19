@@ -47,3 +47,13 @@ already matches closely enough), **open** (not done yet).
 - The robber as the hooded figure of sheet 20; hairstyle heads for the bare-head look.
 - 2D board pieces, harbour badges and claim emblems redrawn to sheet 21.
 - The clay pit in the hills reads as a bright patch at midday (seen in the probe; not caused by this pass).
+
+## Unreal concept kit (2026-11-19)
+
+The owner supplied the 24-sheet `E:/Catan_art_obj` subset for the Unreal prototype. Canonical
+copies, hashes and per-sheet model mappings are in `assets/concepts/manifest.json`. The new
+`assets/blender/concept_kit.py` supplies cottage/hall A/B/C, two-approach docks, bridges and
+modular furniture/storage in the Unreal asset library. These additions do not replace the
+browser's plan-driven enterable buildings or change their collision. Unbuilt variations,
+character looks, card UI and VFX remain open as listed in the manifest. See
+`apps/unreal/README.md` for the active project, foliage workflow and migration boundary.

@@ -69,6 +69,12 @@ The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES
 
 ## Architecture
 
+**Unreal island prototype:** an editable 730 m island with native walking, instanced biomes
+and a concept-based component library is available in `apps/unreal` as the first step toward
+a native Unreal client. Run `pnpm unreal:export`, then `pnpm unreal:open` after
+installing Unreal Engine. See [the Unreal guide](apps/unreal/README.md) for setup and scope.
+This prototype is for world design; it does not yet run the board game in Unreal.
+
 ```
 packages/engine   pure TypeScript rules — no DOM, deterministic, serializable
 packages/net      online lobby rules and the browser ⇄ server messages (shared by both)

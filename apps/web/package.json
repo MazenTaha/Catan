@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json && tsc --noEmit -p tsconfig.tools.json",
     "e2e": "playwright test",
     "bench": "playwright test -c playwright.perf.config.ts"
   },

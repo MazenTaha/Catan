@@ -1,0 +1,422 @@
+{
+  "CottageA": {
+    "tris": 18915,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "CottageB": {
+    "tris": 18563,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "CottageC": {
+    "tris": 18299,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "HallA": {
+    "tris": 27363,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "HallB": {
+    "tris": 28331,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "HallC": {
+    "tris": 26395,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "BarnA": {
+    "tris": 21995,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "DockA": {
+    "tris": 4720,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "DockB": {
+    "tris": 4852,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "LandingStage": {
+    "tris": 2996,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "BridgeA": {
+    "tris": 3176,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "BridgeB": {
+    "tris": 3176,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Bed": {
+    "tris": 708,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "CottageTable": {
+    "tris": 264,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "LongTable": {
+    "tris": 276,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Bench": {
+    "tris": 264,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "HallBench": {
+    "tris": 264,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Chair": {
+    "tris": 308,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Stool": {
+    "tris": 264,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Dresser": {
+    "tris": 284,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Shelf": {
+    "tris": 308,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "StorageCrate": {
+    "tris": 308,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "MillBin": {
+    "tris": 308,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "BarrelA": {
+    "tris": 1244,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "BarrelB": {
+    "tris": 1244,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "GrainSack": {
+    "tris": 232,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Ladder": {
+    "tris": 440,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  },
+  "Millstone": {
+    "tris": 216,
+    "materials": [
+      "Brass",
+      "Cloth",
+      "Foliage",
+      "Glow",
+      "Metal",
+      "Owner_Field",
+      "Stone",
+      "Tint_Cloth",
+      "Water",
+      "Wood"
+    ]
+  }
+}

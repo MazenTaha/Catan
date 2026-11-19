@@ -1,0 +1,23 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Games",
+  "Description": "Catan Night: editable island design prototype",
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true
+    },
+    {
+      "Name": "CatanAnimation",
+      "Enabled": true
+    }
+  ],
+  "Modules": [
+    {
+      "Name": "CatanNight",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

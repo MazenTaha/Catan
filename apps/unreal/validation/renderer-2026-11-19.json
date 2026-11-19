@@ -1,0 +1,10 @@
+{
+  "engine": "5.8.4",
+  "renderer": "D3D12 SM6",
+  "mesh_distance_fields": true,
+  "material_usage_flags_saved": true,
+  "saved_world_reopened": true,
+  "play_mode_visual_check": true,
+  "map_check_warnings": 0,
+  "scope": "Renderer startup and visual smoke check; tile traversal results are in walk-2026-11-19.json. No frame-time benchmark."
+}

@@ -670,7 +670,7 @@ def build_farm(M):
 CW, CD, CH, LH = 0.86, 0.54, 0.44, 0.17
 
 
-def build_chest(M):
+def build_chest(M, moving_latch=False):
     k = Kit(61, ao=0.3, ao_h=0.3)
     t = 0.045
     # Floor and four walls of planks (two tones), a dark inside.
@@ -722,7 +722,8 @@ def build_chest(M):
         k.add(cube(0.07, 0.014, LH), T((x, -CD - 0.007, 0)), IRON, M_METAL)
         k.add(cube(0.07, 0.014, LH), T((x, 0.007, 0)), IRON, M_METAL)
         k.add(cube(0.06, 0.03, 0.05, 0.008), T((x, 0.02, -0.02)), BRASS, M_BRASS)
-    k.add(cube(0.09, 0.016, 0.12, 0.008), T((0, -CD - 0.012, -0.04)), BRASS, M_BRASS)
+    if not moving_latch:
+        k.add(cube(0.09, 0.016, 0.12, 0.008), T((0, -CD - 0.012, -0.04)), BRASS, M_BRASS)
     k.build('WeaponChestLid', M, root, (0, CD / 2, CH))
     return [root]
 

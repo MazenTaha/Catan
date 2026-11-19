@@ -24,6 +24,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import common  # noqa: E402
+import concept_kit  # noqa: E402
 import flora  # noqa: E402
 import horse  # noqa: E402
 import knight  # noqa: E402
@@ -32,10 +33,10 @@ import rocks  # noqa: E402
 import textures  # noqa: E402
 import village  # noqa: E402
 
-for m in (common, textures, flora, rocks, village, horse, knight, props):
+for m in (common, textures, flora, rocks, village, horse, knight, props, concept_kit):
     importlib.reload(m)
 
-FAMILIES = ('textures', 'flora', 'rocks', 'village', 'horse', 'knight', 'props')
+FAMILIES = ('textures', 'flora', 'rocks', 'village', 'horse', 'knight', 'props', 'concept_kit')
 
 
 def image(name: str, png: str):
@@ -65,6 +66,8 @@ def main(which=FAMILIES):
         report['knight'] = knight.build()
     if 'props' in which:
         report['props'] = props.build()
+    if 'concept_kit' in which:
+        report['concept_kit'] = concept_kit.build()
     for family, stats in report.items():
         if family == 'textures':
             continue

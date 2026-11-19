@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "source_directory": "E:\\Catan_art_obj",
+  "art_direction": "Warm timber, cream plaster, terracotta roofs, bevelled shapes, natural biome colours; metres and human-scale props.",
+  "sheets": [
+    {
+      "id": "knight",
+      "sheet": 0,
+      "title": "Knight character",
+      "path": "assets/concepts/references/00-knight.png",
+      "source_filename": "ChatGPT Image Nov 2, 2026, 11_35_22 PM.png",
+      "sha256": "e1cf7148268b88c76c9a6aee61906fd8227e71ee511d533569047d06c448dabf",
+      "models": [
+        "knight/Knight"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "swords",
+      "sheet": 1,
+      "title": "Sword variants",
+      "path": "assets/concepts/references/01-swords.png",
+      "source_filename": "ChatGPT Image Nov 2, 2026, 11_40_08 PM.png",
+      "sha256": "caeac69b20de24ee30a829afc87465c8129a86b0afeeb20004fd369133c657df",
+      "models": [
+        "props/Sword"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "trees",
+      "sheet": 2,
+      "title": "Trees and saplings",
+      "path": "assets/concepts/references/02-trees.png",
+      "source_filename": "ChatGPT Image Nov 2, 2026, 11_45_48 PM.png",
+      "sha256": "8ae4c4d546545d6c05aaacab997af2e6a37826e31afa023b75c569fb22eda633",
+      "models": [
+        "flora/Oak",
+        "flora/OakB",
+        "flora/Lime",
+        "flora/LimeB",
+        "flora/Spruce",
+        "flora/Fir",
+        "flora/Sapling"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "cottages",
+      "sheet": 3,
+      "title": "Cottage A/B/C and door kit",
+      "path": "assets/concepts/references/03-cottages.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_19_51 AM.png",
+      "sha256": "1af15f120295df6040c108011e67d76463ba76d95cf2c9243cb02f0ce1ff0c0d",
+      "models": [
+        "concept_kit/CottageA",
+        "concept_kit/CottageB",
+        "concept_kit/CottageC"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "undergrowth",
+      "sheet": 4,
+      "title": "Undergrowth and flowers",
+      "path": "assets/concepts/references/04-undergrowth.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_03 AM.png",
+      "sha256": "985944fb8fb1a4c45e6cb5dd5c361606901c49b9c7265d1be28158312a515690",
+      "models": [
+        "flora/ShrubA",
+        "flora/ShrubB",
+        "flora/GrassA",
+        "flora/GrassB",
+        "flora/Daisy",
+        "flora/Poppy",
+        "flora/Buttercup",
+        "flora/Lavender",
+        "flora/Reeds",
+        "props/MushRed",
+        "props/MushBrown"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "harvest",
+      "sheet": 5,
+      "title": "Wheat and harvest",
+      "path": "assets/concepts/references/05-harvest.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_07 AM.png",
+      "sha256": "c4113eb84209e538ee3ebcaa3cca7dc4a7106ae04615a536b88634300095485b",
+      "models": [
+        "flora/WheatA",
+        "flora/WheatB",
+        "flora/WheatC",
+        "flora/Stook",
+        "village/HayBale"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "woodland",
+      "sheet": 6,
+      "title": "Woodland worksite",
+      "path": "assets/concepts/references/06-woodland.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_18 AM.png",
+      "sha256": "99d4c80ab55d2a6d1670f4cec1c73f5a65006e93ba01a807e35240c0375eb99d",
+      "models": [
+        "props/StumpA",
+        "props/StumpB",
+        "props/AxeStump",
+        "props/LogPile",
+        "props/Log",
+        "props/Chips",
+        "props/Stakes"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "rocks",
+      "sheet": 7,
+      "title": "Rocks and ore",
+      "path": "assets/concepts/references/07-rocks.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_24 AM.png",
+      "sha256": "15f6a25e714e809195dc13a56f1b1f170176395f09c684187ad9222087515dbe",
+      "models": [
+        "rocks/BoulderA",
+        "rocks/BoulderB",
+        "rocks/BoulderC",
+        "rocks/CragA",
+        "rocks/CragB",
+        "rocks/CragC",
+        "rocks/OreFace",
+        "rocks/Ledge"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "halls",
+      "sheet": 8,
+      "title": "Hall A/B/C",
+      "path": "assets/concepts/references/08-halls.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_37 AM.png",
+      "sha256": "de9dd79809bda2d6ff1f9f73ddc30c68dad90ef1911bbf53b292173a097e1e77",
+      "models": [
+        "concept_kit/HallA",
+        "concept_kit/HallB",
+        "concept_kit/HallC"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "windmills",
+      "sheet": 9,
+      "title": "Windmills and millstone",
+      "path": "assets/concepts/references/09-windmills.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_45 AM.png",
+      "sha256": "b8921929992aa49610cd13dc5b50e7e729a3b4d47bf1e32ed0b3b8a7183f56ef",
+      "models": [
+        "village/Mill",
+        "concept_kit/Millstone"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "industry",
+      "sheet": 10,
+      "title": "Barn, kiln and mine",
+      "path": "assets/concepts/references/10-industry.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_49 AM.png",
+      "sha256": "310c2858512f4b32feccf129f88a7509005d5970a04709d7e33fdf9f3ff58665",
+      "models": [
+        "concept_kit/BarnA",
+        "village/Barn",
+        "village/Kiln",
+        "village/Mine"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "bridges",
+      "sheet": 11,
+      "title": "Bridges, fences and troughs",
+      "path": "assets/concepts/references/11-bridges.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_21_57 AM.png",
+      "sha256": "3f93778d9a01b815e3f25c7abe8c4319c69bd7b3a1e61405fdaed60103c03afa",
+      "models": [
+        "concept_kit/BridgeA",
+        "concept_kit/BridgeB",
+        "props/FencePost",
+        "props/FenceRail",
+        "props/Gate",
+        "props/TroughA",
+        "props/TroughB",
+        "props/BrickStack"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "harbours",
+      "sheet": 12,
+      "title": "Two-approach docks and boats",
+      "path": "assets/concepts/references/12-harbours.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_27_12 AM.png",
+      "sha256": "51a1699b2a4552a8e092f12e4d3eae2fe5a88e722d1e2de6e56c32c97d82194a",
+      "models": [
+        "concept_kit/DockA",
+        "concept_kit/DockB",
+        "concept_kit/LandingStage",
+        "village/Boat",
+        "village/BoatSloop",
+        "village/BoatStriped"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "furniture",
+      "sheet": 13,
+      "title": "Modular room furniture",
+      "path": "assets/concepts/references/13-furniture.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_27_52 AM.png",
+      "sha256": "137f96e4733d5d9d205e2410c3fe659e8d956e51cd5d549732af243e40a40d80",
+      "models": [
+        "concept_kit/Bed",
+        "concept_kit/CottageTable",
+        "concept_kit/LongTable",
+        "concept_kit/Bench",
+        "concept_kit/HallBench",
+        "concept_kit/Chair",
+        "concept_kit/Stool",
+        "concept_kit/Dresser",
+        "concept_kit/Shelf",
+        "props/Bookshelf"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "storage",
+      "sheet": 14,
+      "title": "Hearth and mill storage",
+      "path": "assets/concepts/references/14-storage.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_28_02 AM.png",
+      "sha256": "ccd3040e7d41587a6e1765278fb363302d14e1c5ce72172e86c716dafab40c69",
+      "models": [
+        "concept_kit/BarrelA",
+        "concept_kit/BarrelB",
+        "concept_kit/GrainSack",
+        "concept_kit/MillBin",
+        "concept_kit/Ladder",
+        "concept_kit/Millstone",
+        "concept_kit/StorageCrate"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "heraldry",
+      "sheet": 15,
+      "title": "Textiles and heraldry",
+      "path": "assets/concepts/references/15-heraldry.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_28_10 AM.png",
+      "sha256": "1a9fb8fc3ca4c5a7b6b9176feccfbfebae3c7bf798bd7494b74dcd963c577b36",
+      "models": [
+        "props/Banner",
+        "props/Tapestry"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "decor",
+      "sheet": 16,
+      "title": "Kingdom furnishings",
+      "path": "assets/concepts/references/16-decor.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_28_23 AM.png",
+      "sha256": "ef2e842184e2592bb5b83330b8fa39c677bb45da040da9b207c5bf8f552e84c3",
+      "models": [
+        "props/Antlers",
+        "props/CandleWheel",
+        "props/FloorPlant",
+        "props/TablePlant",
+        "props/ArmorStand",
+        "props/Candles",
+        "props/CrossedShields",
+        "props/Tapestry"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "animals",
+      "sheet": 17,
+      "title": "Sheep and horses",
+      "path": "assets/concepts/references/17-animals.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_28_32 AM.png",
+      "sha256": "0b6bc6bd7464bd15812444b3714621ac91f33f8f317288ed44131e9f20ef754e",
+      "models": [
+        "village/Sheep",
+        "horse/Horse"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "equipment",
+      "sheet": 18,
+      "title": "Shields, revolvers and targets",
+      "path": "assets/concepts/references/18-equipment.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_28_42 AM.png",
+      "sha256": "2353908433364ed95aa25358c1e96298eb9c0ea0bda5781d286f0ea020a07026",
+      "models": [
+        "props/Shield",
+        "props/Revolver",
+        "props/DummyA",
+        "props/DummyB"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "customization",
+      "sheet": 19,
+      "title": "Helms, robber and character looks",
+      "path": "assets/concepts/references/19-customization.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_29_12 AM.png",
+      "sha256": "e38419e10f8d915e06fff14cc1bba6294e6c64530e0dbf0693a9de6b64ca41b1",
+      "models": [
+        "knight/Knight",
+        "village/Robber"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "board",
+      "sheet": 20,
+      "title": "Board pieces and signs",
+      "path": "assets/concepts/references/20-board.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_29_24 AM.png",
+      "sha256": "026b45ca41e8085ebb792a7dc6e8c26dfde873f329e5409a849cb9de151af155",
+      "models": [
+        "village/Cottage",
+        "village/Hall",
+        "village/Road",
+        "village/Robber"
+      ],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "mapped",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "cards",
+      "sheet": 21,
+      "title": "Resource and development card illustrations",
+      "path": "assets/concepts/references/21-cards.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_29_37 AM.png",
+      "sha256": "482a400888a2c07758758d6761047c3453d8c6900bb0e49dc247b540cc7a15ce",
+      "models": [],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "reference-only",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "biomes",
+      "sheet": 22,
+      "title": "Biome terrain and coast",
+      "path": "assets/concepts/references/22-biomes.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_29_48 AM.png",
+      "sha256": "5279de1e487092fb90921e5ceae49b4097a257010497952edb5ab029aaa7a027",
+      "models": [],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "reference-only",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    },
+    {
+      "id": "effects",
+      "sheet": 23,
+      "title": "Effects and day/night lighting reference",
+      "path": "assets/concepts/references/23-effects.png",
+      "source_filename": "ChatGPT Image Nov 3, 2026, 12_29_59 AM.png",
+      "sha256": "3f70066dffea604afa8c84a8ae3393333ce62920937e5adb77b402ae14c839a4",
+      "models": [],
+      "role": "concept reference; modelled geometry, not a world billboard",
+      "status": "reference-only",
+      "source": {
+        "kind": "user-provided generated art",
+        "creator": "owner-supplied art pack",
+        "authorization": "Owner requested use for this private game on 2026-11-19"
+      }
+    }
+  ],
+  "limitations": "Static 3D interpretations. Not every drawn variation is built. Existing browser cards reuse their cropped illustrations. Character animation, bespoke Unreal UI and VFX are separate systems."
+}

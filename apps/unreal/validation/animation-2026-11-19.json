@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-19",
+  "engine": "5.8.4",
+  "editor_build": "passed",
+  "game_build": "passed",
+  "browser_verify": "passed",
+  "automation_succeeded": 2,
+  "automation_failed": 0,
+  "tests": [
+    {
+      "fullTestPath": "Catan.Animation.Cancellation",
+      "state": "Success",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "fullTestPath": "Catan.Animation.MarkerOnce",
+      "state": "Success",
+      "errors": 0,
+      "warnings": 0
+    }
+  ],
+  "live_scene_validation": "pending",
+  "native_import": "completed; map duplication crashed; Save As correction not yet verified"
+}

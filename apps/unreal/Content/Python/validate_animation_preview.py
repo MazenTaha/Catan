@@ -26,7 +26,9 @@ S = {'session': 0, 'step': 0, 't0': None, 'phase': 'begin', 'wall': time.monoton
 PREFS = [(unreal.find_object(None, '/Script/UnrealEd.Default__LevelEditorMiscSettings'), 'bAllowBackgroundAudio', True),
          (unreal.find_object(None, '/Script/UnrealEd.Default__EditorPerformanceSettings'), 'bThrottleCPUWhenNotForeground', False)]
 RESTORE = [(o, n, o.get_editor_property(n)) for o, n, _ in PREFS]
-for o, n, v in PREFS: o.set_editor_property(n, v)
+# NEVER skips PostEditChange, which would SaveConfig the preference into the user's settings file.
+QUIET = unreal.PropertyAccessChangeNotifyMode.NEVER
+for o, n, v in PREFS: o.set_editor_property(n, v, QUIET)
 
 
 def check(name, passed, details=None):
@@ -274,7 +276,7 @@ SESSIONS = [
 def finish(error=None):
     unreal.unregister_slate_post_tick_callback(S['handle'])
     if levels.is_in_play_in_editor(): levels.editor_request_end_play()
-    for o, n, v in RESTORE: o.set_editor_property(n, v)
+    for o, n, v in RESTORE: o.set_editor_property(n, v, QUIET)
     report = {'map': MAP, 'engine': unreal.SystemLibrary.get_engine_version(), 'error': error, 'checks': S['checks'],
               'scope': 'standalone native animation practice; no inventory, rewards, board rules or online authority'}
     report['passed'] = error is None and bool(S['checks']) and all(c['passed'] for c in S['checks'])

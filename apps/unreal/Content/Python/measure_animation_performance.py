@@ -20,7 +20,8 @@ SAVED = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_sav
 CSV_DIR = SAVED / 'Profiling' / 'CSV'
 PERF = unreal.find_object(None, '/Script/UnrealEd.Default__EditorPerformanceSettings')
 THROTTLE = PERF.get_editor_property('bThrottleCPUWhenNotForeground')
-PERF.set_editor_property('bThrottleCPUWhenNotForeground', False)
+# NEVER skips PostEditChange, so the preference is not saved to the user's settings file.
+PERF.set_editor_property('bThrottleCPUWhenNotForeground', False, unreal.PropertyAccessChangeNotifyMode.NEVER)
 M = {'phase': 0, 't0': None, 'next': 0.0, 'handle': None, 'before': set(CSV_DIR.glob('*.csv')) if CSV_DIR.exists() else set(), 'wall': time.monotonic()}
 
 
@@ -31,7 +32,7 @@ def stats(values):
 
 def finish(error=None):
     unreal.unregister_slate_post_tick_callback(M['handle'])
-    PERF.set_editor_property('bThrottleCPUWhenNotForeground', THROTTLE)
+    PERF.set_editor_property('bThrottleCPUWhenNotForeground', THROTTLE, unreal.PropertyAccessChangeNotifyMode.NEVER)
     if levels.is_in_play_in_editor(): levels.editor_request_end_play()
     report = {'map': MAP, 'error': error, 'engine': unreal.SystemLibrary.get_engine_version(),
               'method': 'PIE in the editor viewport, 3 s warm-up then 6 s CsvProfiler; times in ms'}

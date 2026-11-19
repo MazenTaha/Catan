@@ -2,7 +2,8 @@ param(
     [string]$EditorPath = $env:UNREAL_EDITOR,
     [string]$ProjectPath,
     [switch]$GenerateIsland,
-    [switch]$Build
+    [switch]$Build,
+    [switch]$Practice
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,6 +37,14 @@ if ($Build) {
     & (Join-Path $PSScriptRoot 'build-native.ps1') -EditorPath $EditorPath -ProjectPath $ProjectPath
     if ($LASTEXITCODE -ne 0) { throw 'Native compilation failed; the editor was not launched.' }
 }
-$arguments = @(('"' + $ProjectPath + '"'), '-log')
+$arguments = @(('"' + $ProjectPath + '"'))
+if ($Practice) {
+    # Open the newest isolated animation practice map; the project's startup map stays the authored island.
+    $maps = Join-Path (Split-Path -Parent $ProjectPath) 'Content/CatanNight/Maps'
+    $practiceMap = Get-ChildItem -LiteralPath $maps -Filter 'Island_Animations_*.umap' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $practiceMap) { throw 'No practice map yet: run Content/Python/build_animation_preview.py in Unreal first.' }
+    $arguments += ('/Game/CatanNight/Maps/' + $practiceMap.BaseName)
+}
+$arguments += '-log'
 if ($GenerateIsland) { $arguments += ('-ExecutePythonScript="' + $scriptPath + '"') }
 Start-Process -FilePath $EditorPath -WorkingDirectory (Split-Path -Parent $EditorPath) -ArgumentList $arguments -WindowStyle Hidden

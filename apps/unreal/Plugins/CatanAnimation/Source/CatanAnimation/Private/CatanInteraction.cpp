@@ -14,6 +14,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "InputKeyEventArgs.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWaveProcedural.h"
@@ -131,7 +132,8 @@ void ACatanAnimatedChest::OnConstruction(const FTransform& T) {
 }
 void ACatanAnimatedChest::BeginPlay() {
     Super::BeginPlay();
-    if (bPreviewPersistence && GetNetMode()==NM_Standalone) if(auto Save=Cast<UCatanPreviewSave>(UGameplayStatics::LoadGameFromSlot(PracticeSlot,0))) SetConfirmedOpen(Save->Opened.Contains(PersistentId));
+    if (bPreviewPersistence && GetNetMode()==NM_Standalone && UGameplayStatics::DoesSaveGameExist(PracticeSlot,0))
+        if(auto Save=Cast<UCatanPreviewSave>(UGameplayStatics::LoadGameFromSlot(PracticeSlot,0))) SetConfirmedOpen(Save->Opened.Contains(PersistentId));
 }
 bool ACatanAnimatedChest::Open() {
     if (bOpened || bOpening || !Library) return false;
@@ -147,8 +149,9 @@ void ACatanAnimatedChest::ApplyPose(double Time) {
         float K=Ease((Time-Keys[I-1].Time)/(Keys[I].Time-Keys[I-1].Time));
         A=FMath::Lerp(Keys[I-1].Lid,Keys[I].Lid,K); B=FMath::Lerp(Keys[I-1].Latch,Keys[I].Latch,K); break;
     }
-    LidPivot->SetRelativeRotation(FRotator(0,0,-FMath::RadiansToDegrees(A)));
-    Latch->SetRelativeRotation(FRotator(0,0,-FMath::RadiansToDegrees(B)));
+    // Blender keys rotate about +X in a right-handed frame; the FBX import mirrors Y, so the same sign is Unreal's roll.
+    LidPivot->SetRelativeRotation(FRotator(0,0,FMath::RadiansToDegrees(A)));
+    Latch->SetRelativeRotation(FRotator(0,0,FMath::RadiansToDegrees(B)));
 }
 void ACatanAnimatedChest::Tick(float Delta) {
     Super::Tick(Delta); if (!bOpening || !Library) return;
@@ -160,7 +163,7 @@ void ACatanAnimatedChest::Tick(float Delta) {
         RevealBits->Pulse(GetActorLocation()+FVector(0,0,45),bReducedMotion);
         OnRevealRequested.Broadcast(); // Request only; inventory authority belongs to the future game integration.
         if (bPreviewPersistence && GetNetMode()==NM_Standalone) {
-            auto Save=Cast<UCatanPreviewSave>(UGameplayStatics::LoadGameFromSlot(PracticeSlot,0));
+            auto Save=UGameplayStatics::DoesSaveGameExist(PracticeSlot,0) ? Cast<UCatanPreviewSave>(UGameplayStatics::LoadGameFromSlot(PracticeSlot,0)) : nullptr;
             if (!Save) Save=Cast<UCatanPreviewSave>(UGameplayStatics::CreateSaveGameObject(UCatanPreviewSave::StaticClass()));
             Save->Opened.Add(PersistentId); UGameplayStatics::SaveGameToSlot(Save,PracticeSlot,0);
         }
@@ -175,7 +178,8 @@ void ACatanAnimatedChest::EndPlay(const EEndPlayReason::Type Reason) { bOpening=
 
 UCatanInteractionSound::UCatanInteractionSound() { PrimaryComponentTick.bCanEverTick=true; }
 void UCatanInteractionSound::Cue(FName Kind) {
-    if (Voices.Num()>=6) return;
+    if (Voices.Num()>=6 || !GetWorld()) return;
+    StartedCues.Add(Kind);
     const bool Metal=Kind=="Parry", Reveal=Kind=="Reveal", Shot=Kind=="Shot", Swing=Kind=="Swing", Latch=Kind=="Latch";
     const float Length=Reveal?.4f:Metal?.28f:Swing?.16f:Kind=="ChestCreak"?.32f:.14f;
     const int32 Rate=22050, Count=FMath::CeilToInt(Length*Rate);
@@ -194,14 +198,27 @@ void UCatanInteractionSound::Cue(FName Kind) {
     auto Wave=NewObject<USoundWaveProcedural>(this); Wave->SetSampleRate(Rate); Wave->NumChannels=1; Wave->Duration=Length; Wave->bLooping=false;
     Wave->QueueAudio((const uint8*)Samples.GetData(),Samples.Num()*sizeof(int16));
     auto Voice=NewObject<UAudioComponent>(GetOwner()); Voice->SetSound(Wave); Voice->bAutoDestroy=false; Voice->bIsUISound=false;
-    Voice->RegisterComponentWithWorld(GetWorld()); Voice->SetWorldLocation(GetOwner()->GetActorLocation()); Voice->SetVolumeMultiplier(.5f); Voice->Play();
-    Voices.Add(Voice); Remaining.Add(Length+.1f);
+    Voice->RegisterComponentWithWorld(GetWorld()); Voice->SetWorldLocation(GetOwner()->GetActorLocation()); Voice->SetVolumeMultiplier(.5f);
+    // The mixer reports each source's rendered envelope; bind before Play so the active sound tracks it.
+    Voice->OnAudioSingleEnvelopeValueNative.AddUObject(this,&UCatanInteractionSound::Envelope);
+    Voice->Play();
+    Voices.Add(Voice); Remaining.Add(Length+.1f); VoiceKinds.Add(Kind); VoicePeaks.Add(0);
+}
+void UCatanInteractionSound::Envelope(const UAudioComponent* Voice,const USoundWave*,const float Value) {
+    const int32 Index=Voices.IndexOfByKey(Voice);
+    if(Index!=INDEX_NONE) VoicePeaks[Index]=FMath::Max(VoicePeaks[Index],Value);
+    PeakEnvelope=FMath::Max(PeakEnvelope,Value);
+}
+void UCatanInteractionSound::Retire(int32 I) {
+    if(VoicePeaks[I]>.01f) RenderedCues.Add(VoiceKinds[I]);
+    if(Voices[I]) { Voices[I]->OnAudioSingleEnvelopeValueNative.RemoveAll(this); Voices[I]->Stop(); Voices[I]->DestroyComponent(); }
+    Voices.RemoveAtSwap(I); Remaining.RemoveAtSwap(I); VoiceKinds.RemoveAtSwap(I); VoicePeaks.RemoveAtSwap(I);
 }
 void UCatanInteractionSound::TickComponent(float Delta,ELevelTick Kind,FActorComponentTickFunction* Fn) {
     Super::TickComponent(Delta,Kind,Fn);
-    for(int32 I=Voices.Num()-1;I>=0;--I) if((Remaining[I]-=Delta)<=0) { if(Voices[I]) { Voices[I]->Stop(); Voices[I]->DestroyComponent(); } Voices.RemoveAtSwap(I); Remaining.RemoveAtSwap(I); }
+    for(int32 I=Voices.Num()-1;I>=0;--I) if((Remaining[I]-=Delta)<=0) Retire(I);
 }
-void UCatanInteractionSound::EndPlay(const EEndPlayReason::Type Reason) { for(auto V:Voices) if(V) { V->Stop(); V->DestroyComponent(); } Voices.Empty(); Remaining.Empty(); Super::EndPlay(Reason); }
+void UCatanInteractionSound::EndPlay(const EEndPlayReason::Type Reason) { for(int32 I=Voices.Num()-1;I>=0;--I) Retire(I); Super::EndPlay(Reason); }
 
 ACatanPracticeCharacter::ACatanPracticeCharacter() {
     PrimaryActorTick.bCanEverTick=true;
@@ -212,7 +229,7 @@ ACatanPracticeCharacter::ACatanPracticeCharacter() {
     ImpactBits=CreateDefaultSubobject<UCatanImpactBurst>("ImpactBits"); ImpactBits->SetupAttachment(GetRootComponent());
     SwordMesh=CreateDefaultSubobject<USkeletalMeshComponent>("SwordGrip"); GunMesh=CreateDefaultSubobject<USkeletalMeshComponent>("RevolverGrip"); ShieldMesh=CreateDefaultSubobject<USkeletalMeshComponent>("ShieldForearm");
     for(auto GearMesh:{SwordMesh,GunMesh,ShieldMesh}) { GearMesh->SetupAttachment(GetMesh()); GearMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); }
-    CameraArm=CreateDefaultSubobject<USpringArmComponent>("CameraCollision"); CameraArm->SetupAttachment(GetRootComponent()); CameraArm->TargetArmLength=320; CameraArm->SocketOffset=FVector(0,55,65); CameraArm->bUsePawnControlRotation=true;
+    CameraArm=CreateDefaultSubobject<USpringArmComponent>("CameraCollision"); CameraArm->SetupAttachment(GetRootComponent()); CameraArm->TargetArmLength=360; CameraArm->SocketOffset=FVector(0,100,85); // Wide shoulder offset keeps a partner 2 m ahead in view. CameraArm->bUsePawnControlRotation=true;
     FollowCamera=CreateDefaultSubobject<UCameraComponent>("Camera"); FollowCamera->SetupAttachment(CameraArm);
     bUseControllerRotationYaw=true;
     GetCharacterMovement()->MaxWalkSpeed=400; GetCharacterMovement()->BrakingDecelerationWalking=2000; GetCharacterMovement()->JumpZVelocity=420;
@@ -238,7 +255,7 @@ void ACatanPracticeCharacter::Tick(float Delta) {
     NearbyChest=nullptr;
     if(!bPracticePartner) for(TActorIterator<ACatanAnimatedChest> It(GetWorld());It;++It) if(FVector::Dist2D(GetActorLocation(),It->GetActorLocation())<200) { NearbyChest=*It; break; }
     if(ReturnIn>0 && (ReturnIn-=Delta)<=0 && PracticeHealth>0 && ReturnTarget) {
-        SetActorRotation((ReturnTarget->GetActorLocation()-GetActorLocation()).Rotation()); Combat->Attack();
+        SetActorRotation(FRotator(0,(ReturnTarget->GetActorLocation()-GetActorLocation()).Rotation().Yaw,0)); Combat->Attack();
     }
     if(RecoverIn>0 && (RecoverIn-=Delta)<=0) { PracticeHealth=100; Combat->Recover(); }
 }
@@ -251,6 +268,11 @@ void ACatanPracticeCharacter::SetupPlayerInputComponent(UInputComponent* Input) 
     Input->BindKey(EKeys::One,IE_Pressed,this,&ACatanPracticeCharacter::SwordKey); Input->BindKey(EKeys::Two,IE_Pressed,this,&ACatanPracticeCharacter::GunKey); Input->BindKey(EKeys::Three,IE_Pressed,this,&ACatanPracticeCharacter::FistKey);
     Input->BindKey(EKeys::SpaceBar,IE_Pressed,this,&ACharacter::Jump); Input->BindAxisKey(EKeys::MouseX,this,&ACatanPracticeCharacter::LookYaw); Input->BindAxisKey(EKeys::MouseY,this,&ACatanPracticeCharacter::LookPitch);
 }
+bool ACatanPracticeCharacter::SimulatePracticeKey(FKey Key,bool bPressed) {
+    // Automation only: routes a key through the controller's normal input stack and bindings.
+    auto PC=Cast<APlayerController>(GetController()); if(!PC || !Key.IsValid()) return false;
+    return PC->InputKey(FInputKeyEventArgs::CreateSimulated(Key,bPressed?IE_Pressed:IE_Released,bPressed?1.f:0.f));
+}
 void ACatanPracticeCharacter::LookYaw(float V) { AddControllerYawInput(V); }
 void ACatanPracticeCharacter::LookPitch(float V) { AddControllerPitchInput(-V); }
 void ACatanPracticeCharacter::Strike() { if(PracticeHealth>0) Combat->Attack(); }
@@ -260,7 +282,12 @@ void ACatanPracticeCharacter::SwordKey() { Combat->Select(ECatanWeapon::Sword); 
 void ACatanPracticeCharacter::GunKey() { Combat->Select(ECatanWeapon::Revolver); }
 void ACatanPracticeCharacter::FistKey() { Combat->Select(ECatanWeapon::Fist); }
 void ACatanPracticeCharacter::Interact() { if(NearbyChest) NearbyChest->Open(); }
-void ACatanPracticeCharacter::ReducedMotion() { Combat->bReducedMotion=!Combat->bReducedMotion; for(TActorIterator<ACatanAnimatedChest> It(GetWorld());It;++It) It->bReducedMotion=Combat->bReducedMotion; }
+void ACatanPracticeCharacter::ReducedMotion() {
+    // A viewer preference: every practice character and chest follows it, so no partner sparks remain.
+    const bool On=!Combat->bReducedMotion;
+    for(TActorIterator<ACatanPracticeCharacter> It(GetWorld());It;++It) It->Combat->bReducedMotion=On;
+    for(TActorIterator<ACatanAnimatedChest> It(GetWorld());It;++It) It->bReducedMotion=On;
+}
 void ACatanPracticeCharacter::Contact(ECatanWeapon W) {
     // This is explicitly a standalone practice target, never the authoritative board-game health.
     if(GetNetMode()!=NM_Standalone) return;
@@ -287,9 +314,13 @@ void ACatanPracticeCharacter::ResetPractice() {
 }
 void ACatanPracticeHUD::DrawHUD() {
     Super::DrawHUD(); auto P=Cast<ACatanPracticeCharacter>(GetOwningPawn()); if(!P || !Canvas) return;
+    // Translucent backing keeps white text legible over the white knights and bright sand.
+    DrawRect(FLinearColor(0,0,0,.38f),12,16,560,78);
+    DrawRect(FLinearColor(0,0,0,.38f),12,Canvas->SizeY-64,Canvas->SizeX-24,36);
     DrawText(TEXT("CATAN NIGHT  /  ANIMATION PRACTICE"),FLinearColor(.95f,.72f,.35f),24,22,GEngine->GetMediumFont(),1.1f);
     DrawText(TEXT("WASD move   Shift run   F / click strike   Right click guard   1 2 3 weapons   E chest   R reset   M reduced motion"),FLinearColor::White,24,Canvas->SizeY-55,GEngine->GetSmallFont(),1);
-    DrawText(FString::Printf(TEXT("Practice health %d   /   hits %d   /   parries %d"),P->PracticeHealth,P->ConfirmedPracticeHits,P->PracticeParries),FLinearColor::White,24,55,GEngine->GetSmallFont(),1);
+    DrawText(TEXT("Isolated practice scene: no inventory, rewards, board rules or online play"),FLinearColor(.75f,.78f,.8f),24,50,GEngine->GetSmallFont(),1);
+    DrawText(FString::Printf(TEXT("Practice health %d   /   hits %d   /   parries %d%s"),P->PracticeHealth,P->ConfirmedPracticeHits,P->PracticeParries,P->Combat->bReducedMotion?TEXT("   /   reduced motion"):TEXT("")),FLinearColor::White,24,72,GEngine->GetSmallFont(),1);
     if(P->NearbyChest) DrawText(P->NearbyChest->bOpening ? TEXT("Opening...") : P->NearbyChest->bOpened ? TEXT("Chest open") : TEXT("E  Open chest"),FLinearColor(1,.82f,.46f),Canvas->SizeX*.45f,Canvas->SizeY*.8f,GEngine->GetMediumFont(),1);
 }
 
@@ -313,7 +344,7 @@ void UCatanImpactBurst::TickComponent(float Delta,ELevelTick Kind,FActorComponen
     for(int32 I=0;I<8;++I) {
         float A=I*PI/4;
         FVector Point=Origin+FVector(FMath::Cos(A)*70*Age,FMath::Sin(A)*70*Age,50*Age-180*Age*Age);
-        float Scale=.02f*(1-Age/.28f);
+        float Scale=.045f*(1-Age/.28f);
         UpdateInstanceTransform(I,FTransform(FRotator(0,I*45,Age*360),Point,FVector(Scale,Scale,Scale*2.5f)),true,I==7,true);
     }
 }

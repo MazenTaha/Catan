@@ -145,11 +145,19 @@ class CATANANIMATION_API UCatanInteractionSound : public UActorComponent {
 public:
     UCatanInteractionSound();
     void Cue(FName Kind);
+    /** Cues requested, and cues whose mixer-rendered envelope was audible (checked by the practice validation). */
+    UPROPERTY(BlueprintReadOnly) TArray<FName> StartedCues;
+    UPROPERTY(BlueprintReadOnly) TArray<FName> RenderedCues;
+    UPROPERTY(BlueprintReadOnly) float PeakEnvelope = 0;
     virtual void TickComponent(float Delta, ELevelTick Kind, FActorComponentTickFunction* Fn) override;
     virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 private:
     UPROPERTY(Transient) TArray<TObjectPtr<UAudioComponent>> Voices;
     TArray<float> Remaining;
+    TArray<FName> VoiceKinds;
+    TArray<float> VoicePeaks;
+    void Envelope(const UAudioComponent* Voice, const USoundWave* Wave, const float Value);
+    void Retire(int32 Index);
 };
 
 UCLASS()
@@ -177,6 +185,8 @@ public:
     UFUNCTION(BlueprintCallable) void ReducedMotion();
     UFUNCTION(BlueprintCallable) void ReceivePracticeHit(ACatanPracticeCharacter* Attacker, ECatanWeapon Weapon);
     UFUNCTION() void Contact(ECatanWeapon Weapon);
+    /** Automation hook: sends a simulated key through the owning player's real input bindings. */
+    UFUNCTION(BlueprintCallable) bool SimulatePracticeKey(FKey Key, bool bPressed);
     UFUNCTION(BlueprintCallable, CallInEditor) void RefreshPreview() { OnConstruction(GetActorTransform()); }
     virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;

@@ -277,6 +277,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Change the 3D walk | `components/world/world.ts`, `field.ts`, `shaders.ts`, `terrain.ts`; measure with `pnpm bench` (GPU and main-thread ms, missed frames; not just fps). Run old and new builds alternately and pause other GPU users (Wallpaper Engine on this PC) |
 | Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py` (this PC: `D:\Blender\blender.exe`); register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |
 | Change a building's room, door or furniture | `components/world/buildings.json` (one plan for the model and the collision), then rebuild the village (`-- village`); check with `/?scene=village` and `pnpm e2e buildings` |
+| Change the native Unreal animation practice | `apps/unreal/Plugins/CatanAnimation` (C++, rebuild with `apps/unreal/build-native.ps1` while Unreal is closed), `apps/unreal/Content/Python/*animation*`; run `validate_animation_preview.py` on an `Island_Animations_*` map; see `docs/UNREAL_ANIMATION.md` |
 | Change the online protocol | `packages/net/src/index.ts` (types + lobby rules), then `apps/server/src/hub.ts` and `apps/web/src/state/net.ts` |
 | Add a setting | `Settings` and `DEFAULT_SETTINGS` in `state/persistence.ts`, UI in `components/modals/InfoModals.tsx`; apply it in `store.ts` |
 

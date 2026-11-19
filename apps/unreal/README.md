@@ -57,10 +57,19 @@ creates a separate practice island with native movement, attacks and a sparring 
 does not connect to the browser's inventory, rewards or multiplayer authority. See
 `docs/UNREAL_ANIMATION.md` at the repository root for controls, timings and integration hooks.
 
-**Animation validation status:** editor and game targets compile, and the two native action
-clock tests pass. Live playback, grip/hinge clearance and the complete practice scene have
-not yet passed validation. The unvalidated native animation import output is not committed;
-the original FBX sources and repeatable preview builder are included.
+**Animation validation status (2026-11-19, UE 5.8.4):** editor and game targets compile, the two
+native action-clock tests pass, and `build_animation_preview.py` builds the practice map without
+a crash while leaving the authored island byte-identical. `validate_animation_preview.py` passed
+59/59 live checks across four Play sessions, driven by key input:
+- chest, exchange, guard and cancellation;
+- weapons, reduced motion, walking and running;
+- mixer-rendered synthesized cues;
+- chest persistence and R reset.
+
+A viewport review and a short performance comparison (`measure_animation_performance.py`) were
+also made. The imported animation assets and `Maps/Island_Animations_20261119_231733` are
+committed. Open that map with `open-island.ps1 -Practice`; the startup map stays the authored
+island. Reports and screenshots are in `validation/`.
 
 VS Code works as the editor. Native compilation requires Microsoft C++ Build Tools,
 the Windows SDK and .NET Framework SDK; the full Visual Studio IDE is unnecessary.
@@ -87,7 +96,8 @@ These Blueprints and original art are already present in this checkout. Rebuild 
 with `E:/Blender/blender.exe -b -P assets/blender/build.py -- concept_kit`.
 
 The launcher opens the saved map in the converted project when present. It regenerates
-an island only with `-GenerateIsland`; `-Build` compiles runtime code first. It can take
+an island only with `-GenerateIsland`; `-Build` compiles runtime code first; `-Practice` opens the
+newest `Island_Animations_*` practice map instead. It can take
 `-EditorPath` and `-ProjectPath` through `apps/unreal/open-island.ps1`. Close the existing
 editor before opening another. To regenerate in the converted project, copy the generated
 `island.glb` and `island.json` from `apps/unreal/SourceArt/Generated` to that project's same
@@ -133,8 +143,9 @@ is a blockout mesh. Native animation practice includes combat presentation, a sm
 and synthesized action sounds. Riding, board rules, online play and authoritative game
 inventory/rewards are not connected to Unreal yet. The browser game remains playable.
 Windows uses DirectX 12 with Shader Model 6 for the imported Nanite meshes. The first
-launch after changing shader targets can compile additional shaders. Native frame-time performance has not
-been benchmarked, so placement counts do not establish a frame-rate guarantee.
+launch after changing shader targets can compile additional shaders. Only a short editor PIE comparison
+exists (the animation practice holds the 60 fps cap with about 1 ms extra game-thread time); there
+is no packaged-build benchmark, so placement counts do not establish a frame-rate guarantee.
 
 All visual game assets are original procedural Blender art or owner-supplied concept
 references. Movement/input Blueprint logic comes from the locally installed Unreal Engine

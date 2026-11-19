@@ -3,23 +3,512 @@
   "engine": "5.8.4",
   "editor_build": "passed",
   "game_build": "passed",
-  "browser_verify": "passed",
-  "automation_succeeded": 2,
-  "automation_failed": 0,
-  "tests": [
-    {
-      "fullTestPath": "Catan.Animation.Cancellation",
-      "state": "Success",
-      "errors": 0,
-      "warnings": 0
-    },
-    {
-      "fullTestPath": "Catan.Animation.MarkerOnce",
-      "state": "Success",
-      "errors": 0,
-      "warnings": 0
+  "automation": {
+    "Catan.Animation.MarkerOnce": "Success",
+    "Catan.Animation.Cancellation": "Success"
+  },
+  "preview_build": {
+    "map": "/Game/CatanNight/Maps/Island_Animations_20261119_231733",
+    "source_map": "/Game/CatanNight/Maps/Island_20261119_185517_618131",
+    "source_map_unchanged": true,
+    "crash": "none; Save As copy is opened only after Python releases the source world"
+  },
+  "live_scene_validation": {
+    "passed": true,
+    "checks_passed": 59,
+    "checks": 59,
+    "pie_sessions": 4,
+    "input": "simulated keys through the PlayerController input stack (E, F, LMB, RMB, 1/2/3, M, R, W, LeftShift)",
+    "checks_detail": [
+      {
+        "session": 1,
+        "name": "practice slot cleared by reset",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "isolated practice HUD active",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "native character grounded",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "knight skeletal mesh and clips loaded",
+        "passed": true,
+        "details": 11
+      },
+      {
+        "session": 1,
+        "name": "weapons follow the knight leader pose",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "chest is within interaction range",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "E starts the chest opening once",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "reveal requested on time despite E spam",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "reveal sparks play at the reveal",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "chest finishes open with one reveal request",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "lid rests open on its rear hinge",
+        "passed": true,
+        "details": -104.27831268310551
+      },
+      {
+        "session": 1,
+        "name": "practice reveal persisted in the isolated slot",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "open chest cannot restart",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "state correction does not repeat the reveal",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "1 selects sword and shield",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "F starts one attack",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "attack spam during an action is ignored",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "weapon change waits for recovery",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "sword contact requested once",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "partner confirmed one practice hit",
+        "passed": true,
+        "details": [
+          1,
+          75
+        ]
+      },
+      {
+        "session": 1,
+        "name": "imported sword clip moves the hand",
+        "passed": true,
+        "details": 47.927206347554176
+      },
+      {
+        "session": 1,
+        "name": "impact sparks appear on a confirmed hit",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "partner returns a confirmed attack",
+        "passed": true,
+        "details": [
+          1,
+          75
+        ]
+      },
+      {
+        "session": 1,
+        "name": "partner stays upright while turning",
+        "passed": true,
+        "details": [
+          0.0,
+          -0.0
+        ]
+      },
+      {
+        "session": 1,
+        "name": "right mouse raises the guard",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "facing sword guard parries",
+        "passed": true,
+        "details": [
+          1,
+          75
+        ]
+      },
+      {
+        "session": 1,
+        "name": "strike between guards starts an attack",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "guard cancels the pending contact",
+        "passed": true,
+        "details": 1
+      },
+      {
+        "session": 1,
+        "name": "releasing right mouse lowers the guard",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "2 selects the revolver",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "revolver contact lands at once",
+        "passed": true,
+        "details": [
+          75,
+          25
+        ]
+      },
+      {
+        "session": 1,
+        "name": "3 selects fists",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "fist jab contact",
+        "passed": true,
+        "details": [
+          25,
+          15
+        ]
+      },
+      {
+        "session": 1,
+        "name": "M reaches every native component",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "partner defeated by the practice exchange",
+        "passed": true,
+        "details": 0
+      },
+      {
+        "session": 1,
+        "name": "reduced motion draws no impact sparks",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "defeated partner recovers in place",
+        "passed": true,
+        "details": 100
+      },
+      {
+        "session": 1,
+        "name": "M toggles reduced motion off again",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 1,
+        "name": "W walks with native movement",
+        "passed": true,
+        "details": [
+          424.22318121599733,
+          400.00000000000006
+        ]
+      },
+      {
+        "session": 1,
+        "name": "walk clip moves the legs",
+        "passed": true,
+        "details": 16.1910604840532
+      },
+      {
+        "session": 1,
+        "name": "Shift runs",
+        "passed": true,
+        "details": 800.0000000000001
+      },
+      {
+        "session": 1,
+        "name": "attacks while moving keep movement responsive",
+        "passed": true,
+        "details": 400.00000000000006
+      },
+      {
+        "session": 1,
+        "name": "releasing W stops the character",
+        "passed": true,
+        "details": 0.0
+      },
+      {
+        "session": 1,
+        "name": "chest Latch cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 1,
+          "rendered": 1,
+          "peak": 0.02
+        }
+      },
+      {
+        "session": 1,
+        "name": "chest ChestCreak cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 1,
+          "rendered": 1,
+          "peak": 0.02
+        }
+      },
+      {
+        "session": 1,
+        "name": "chest Reveal cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 1,
+          "rendered": 1,
+          "peak": 0.02
+        }
+      },
+      {
+        "session": 1,
+        "name": "player Swing cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 5,
+          "rendered": 5,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 1,
+        "name": "player Shot cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 1,
+          "rendered": 1,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 1,
+        "name": "player Impact cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 3,
+          "rendered": 3,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 1,
+        "name": "player Parry cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 1,
+          "rendered": 1,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 1,
+        "name": "partner Swing cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 4,
+          "rendered": 4,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 1,
+        "name": "partner Impact cue synthesized and rendered",
+        "passed": true,
+        "details": {
+          "started": 4,
+          "rendered": 4,
+          "peak": 0.016
+        }
+      },
+      {
+        "session": 2,
+        "name": "restart restores the open chest without a new reveal",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 2,
+        "name": "restored chest ignores E",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 2,
+        "name": "Play ends mid-attack, before contact",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 3,
+        "name": "open state persisted to a second restart",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 3,
+        "name": "R closes the practice chest and deletes only its slot",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 3,
+        "name": "R restores practice health",
+        "passed": true,
+        "details": null
+      },
+      {
+        "session": 4,
+        "name": "after reset a restart offers a fresh chest",
+        "passed": true,
+        "details": null
+      }
+    ]
+  },
+  "visual_review": "PIE viewport screenshots: chest latch/lid/settle, reveal sparks, sword wind-up/contact, partner counter, guard parry, revolver recoil, reduced motion; follow camera widened after review",
+  "performance": {
+    "method": "PIE in the editor viewport, 3 s warm-up then 6 s CsvProfiler, 60 fps editor cap, runs alternated; practice runs strike every 0.7 s with partner counters and chest opening",
+    "runs": {
+      "source_1": {
+        "FrameTime": {
+          "mean": 16.75,
+          "p95": 16.69,
+          "max": 44.49
+        },
+        "GameThreadTime": {
+          "mean": 6.72,
+          "p95": 9.11,
+          "max": 43.96
+        },
+        "GPUTime": {
+          "mean": 9.42,
+          "p95": 9.87,
+          "max": 10.17
+        },
+        "frames": 358
+      },
+      "practice_1": {
+        "FrameTime": {
+          "mean": 16.84,
+          "p95": 16.7,
+          "max": 78.16
+        },
+        "GameThreadTime": {
+          "mean": 7.87,
+          "p95": 9.16,
+          "max": 79.53
+        },
+        "GPUTime": {
+          "mean": 10.06,
+          "p95": 10.76,
+          "max": 11.49
+        },
+        "frames": 356
+      },
+      "practice_2": {
+        "FrameTime": {
+          "mean": 16.67,
+          "p95": 16.67,
+          "max": 16.94
+        },
+        "GameThreadTime": {
+          "mean": 6.1,
+          "p95": 7.53,
+          "max": 12.54
+        },
+        "GPUTime": {
+          "mean": 9.42,
+          "p95": 10.06,
+          "max": 11.29
+        },
+        "frames": 360
+      },
+      "source_2": {
+        "FrameTime": {
+          "mean": 16.69,
+          "p95": 16.67,
+          "max": 24.5
+        },
+        "GameThreadTime": {
+          "mean": 5.03,
+          "p95": 5.62,
+          "max": 23.38
+        },
+        "GPUTime": {
+          "mean": 8.99,
+          "p95": 9.29,
+          "max": 9.75
+        },
+        "frames": 359
+      }
     }
-  ],
-  "live_scene_validation": "pending",
-  "native_import": "completed; map duplication crashed; Save As correction not yet verified"
+  }
 }

@@ -1,21 +1,16 @@
 import { motion } from 'framer-motion';
 import { useMemo, type ReactNode } from 'react';
-import {
-  HOST_MIN,
-  LONGEST_MIN,
-  activeActor,
-  handTotal,
-  relicCount,
-  victoryPoints,
-  type GameState,
-} from '@hexfall/engine';
+import { HOST_MIN, LONGEST_MIN, activeActor, handTotal, relicCount, victoryPoints, type GameState } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
-import { PlayerDisc } from '../../art/pieces/Sigil';
 import { BOT_NAME, HOST, LONGEST, TERRAIN_NAME } from '../../lexicon';
-import { Tooltip } from '../ui/primitives';
 import { describeEvent } from '../../state/log';
 import { useStore } from '../../state/store';
-import { LogLineView, NAME_COLOR } from './LogLineView';
+import { Arms } from '../../ui/hall/Arms';
+import { Banner, BannerPole } from '../../ui/hall/Banner';
+import { BoneDie } from '../../ui/hall/Controls';
+import { OakPanel } from '../../ui/hall/Surfaces';
+import { daylight, hourOf, stageName } from '../world/daytime';
+import { LogLineView, INK_NAME } from './LogLineView';
 
 /** How many settlements, cities and roads a player has on the board. */
 function piecesOf(state: GameState, player: number) {
@@ -30,151 +25,204 @@ function piecesOf(state: GameState, player: number) {
   return { outposts, citadels, roads };
 }
 
-/** Everyone at the table in one row: name and points, then cards, settlements, cities and roads. */
-/** Whose turn it is and who plays next (the others are a hover away on the board). */
-export function PlayersPanel({ state, seat, row = false }: { state: GameState; seat: number; row?: boolean }) {
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+const roman = (n: number) => ROMAN[n] ?? String(n);
+
+/**
+ * Everyone at the table as banners on a pole above the board: arms, victory points, name. The
+ * player whose turn it is hangs lit; a small dot marks whoever must act now (discarding,
+ * answering an offer). Cards in hand and pieces on the board ride under the ribbon. Hovering a
+ * banner highlights that player's pieces on the board.
+ */
+export function PlayersPanel({ state, seat, size = 'wide' }: { state: GameState; seat: number; size?: 'wide' | 'mid' | 'strip' }) {
   const setHover = useStore((s) => s.setHoverPlayer);
   const actor = activeActor(state);
   const n = state.players.length;
-  const order = [state.currentPlayer, (state.currentPlayer + 1) % n];
-  return (
-    <section className="panel flex flex-col gap-2 px-3.5 py-3" aria-label="Players">
-      <h2 className="panel-title px-0.5">Turn</h2>
-      <ul className={`grid gap-2 ${row ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        {order.map((i, k) => {
-          const p = state.players[i];
-          const vp = victoryPoints(state, i, false);
-          const hidden = i === seat ? relicCount(p) : 0;
-          const playing = i === state.currentPlayer && state.phase.kind !== 'ended';
-          const busy = i === actor && state.phase.kind !== 'ended';
-          const pieces = piecesOf(state, i);
-          const color = NAME_COLOR[p.color];
+  const ended = state.phase.kind === 'ended';
+  const next = (state.currentPlayer + 1) % n;
+  const describe = (i: number) => {
+    const p = state.players[i];
+    const vp = victoryPoints(state, i, false);
+    const pieces = piecesOf(state, i);
+    const playing = i === state.currentPlayer && !ended;
+    return {
+      p,
+      vp,
+      hidden: i === seat ? relicCount(p) : 0,
+      pieces,
+      playing,
+      busy: i === actor && !ended,
+      kicker: i === state.currentPlayer ? (ended ? 'Last turn' : 'Playing') : i === next && !ended ? 'Next up' : '',
+      aria: `${p.name}, ${vp} of ${state.config.targetVp} points, ${handTotal(p)} cards, ${pieces.outposts} settlements, ${pieces.citadels} cities, ${pieces.roads} roads${playing ? ', playing' : ''}`,
+    };
+  };
+
+  if (size === 'strip') {
+    // Phones: a strip of small pennants, arms and points.
+    return (
+      <section className="flex gap-2 overflow-x-auto pb-1" aria-label="Players">
+        {state.players.map((_, i) => {
+          const d = describe(i);
           return (
-            <li
+            <div
               key={i}
-              className={`tile min-w-0 px-2.5 py-1.5 ${playing ? 'tile-selected' : ''}`}
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-              aria-label={`${p.name}, ${vp} of ${state.config.targetVp} points, ${handTotal(p)} cards, ${pieces.outposts} settlements, ${pieces.citadels} cities, ${pieces.roads} roads${playing ? ', playing' : ''}`}
+              className={`hc-oak flex shrink-0 items-center gap-2 !px-2 !py-1.5 ${d.playing ? 'outline outline-2 outline-[color:var(--gold-light)]' : ''}`}
+              aria-label={d.aria}
+              title={d.p.kind === 'bot' ? `Bot · ${BOT_NAME[d.p.bot ?? 'warlord']}` : undefined}
             >
-              <div className="mb-1 font-display text-[10px] uppercase tracking-[0.16em] text-muted">
-                {k === 0 ? (state.phase.kind === 'ended' ? 'Last turn' : 'Playing') : 'Next up'}
-              </div>
-              <div className="flex items-center gap-2">
-                <PlayerDisc color={p.color} sigil={p.sigil} size={24} active={playing} />
-                <span
-                  className="min-w-0 flex-1 truncate font-display text-[13px] tracking-[0.02em]"
-                  style={{ color }}
-                  title={p.kind === 'bot' ? `Bot · ${BOT_NAME[p.bot ?? 'warlord']}` : undefined}
-                >
-                  {p.name}
-                  {i === seat && <span className="ml-1 text-[10px] text-muted">you</span>}
+              <Arms color={d.p.color} sigil={d.p.sigil} size={26} />
+              <span className="flex flex-col leading-none">
+                <span className="hc-label max-w-[72px] truncate text-[13px] text-[color:var(--on-dark)]">
+                  {d.p.name}
+                  {i === seat && ' (you)'}
                 </span>
-                {busy && (
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold anim-pulse" aria-hidden />
-                )}
-                <span className="num shrink-0 text-[18px] leading-none text-gold" title="Victory points">
-                  {vp}
-                  {hidden > 0 && (
-                    <span className="text-[11px]" title="Hidden Victory Point cards (only you see these)">
-                      +{hidden}
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-1 pl-8 text-[12px] text-muted">
-                <Stat icon={<Icon name="omen" size={12} />} value={handTotal(p)} label="Cards in hand" />
-                <Stat icon={<Icon name="outpost" size={12} />} value={pieces.outposts} label="Settlements" />
-                <Stat icon={<Icon name="citadel" size={12} />} value={pieces.citadels} label="Cities" />
-                <Stat icon={<Icon name="causeway" size={12} />} value={pieces.roads} label="Roads" />
-              </div>
-            </li>
+                <span className="text-[11px] text-[color:var(--on-dark-muted)]">{d.kicker || ' '}</span>
+              </span>
+              <span className="hc-title text-[24px] text-[color:var(--gold-light)]">
+                {d.vp}
+                {d.hidden > 0 && <span className="hc-body text-[12px]">+{d.hidden}</span>}
+              </span>
+              {d.busy && <span className="h-2 w-2 rounded-full anim-pulse" style={{ background: 'var(--gold-light)' }} aria-hidden />}
+            </div>
           );
         })}
-      </ul>
+      </section>
+    );
+  }
+
+  const bw = size === 'wide' ? 150 : 120;
+  const bh = size === 'wide' ? 196 : 170;
+  return (
+    <section aria-label="Players" className="flex justify-center">
+      <BannerPole gap={size === 'wide' ? 40 : 26} overhang={40}>
+        {state.players.map((_, i) => {
+          const d = describe(i);
+          return (
+            <Banner
+              key={i}
+              width={bw}
+              height={bh}
+              tincture={{ player: d.p.color }}
+              arms={{ color: d.p.color, sigil: d.p.sigil }}
+              numeral={
+                <>
+                  {d.vp}
+                  {d.hidden > 0 && (
+                    <span className="hc-body ml-0.5 text-[15px]" title="Hidden Victory Point cards (only you see these)">
+                      +{d.hidden}
+                    </span>
+                  )}
+                </>
+              }
+              label={i === seat ? `${d.p.name} · you` : d.p.name}
+              labelSize={size === 'wide' ? 18 : 15}
+              kicker={d.kicker}
+              lit={d.playing}
+              aria-label={d.aria}
+              role="group"
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              extra={
+                <>
+                  {d.busy && <span className="pointer-events-none absolute right-3 top-8 h-2.5 w-2.5 rounded-full anim-pulse" style={{ background: 'var(--gold-light)', boxShadow: '0 0 6px var(--gold-light)' }} aria-hidden />}
+                  {/* cards in hand and pieces on the board: a paper tag hung under the cloth, between the tassels */}
+                  <span
+                    className="absolute flex items-center justify-center gap-1.5 text-[color:var(--map-ink)]"
+                    style={{ top: bh + 6, left: 14, right: 14, height: 22, background: 'var(--paper-card)', border: '1.2px solid var(--ink)', boxShadow: '1px 2px 0 rgba(0,0,0,0.5)' }}
+                    title={d.p.kind === 'bot' ? `Bot · ${BOT_NAME[d.p.bot ?? 'warlord']}` : undefined}
+                    aria-hidden
+                  >
+                    <Stat icon="omen" value={handTotal(d.p)} />
+                    <Stat icon="outpost" value={d.pieces.outposts} />
+                    <Stat icon="citadel" value={d.pieces.citadels} />
+                    <Stat icon="causeway" value={d.pieces.roads} />
+                  </span>
+                </>
+              }
+            />
+          );
+        })}
+      </BannerPole>
     </section>
   );
 }
 
-function Stat({ icon, value, label }: { icon: ReactNode; value: number; label: string }) {
+function Stat({ icon, value }: { icon: 'omen' | 'outpost' | 'citadel' | 'causeway'; value: number }) {
   return (
-    <Tooltip label={label}>
-      <span className="inline-flex items-center gap-1" tabIndex={-1}>
-        {icon} <span className="num text-bone">{value}</span>
-      </span>
-    </Tooltip>
+    <span className="inline-flex items-center gap-[1px]">
+      <Icon name={icon} size={12} strokeWidth={2} />
+      <span className="hc-num text-[13px] leading-none">{value}</span>
+    </span>
   );
 }
 
-export function BonusPanel({ state }: { state: GameState }) {
+/** The Lists: the game's title chips (room, round, time of day, the race) and the two claims. */
+export function ListsPanel({ state }: { state: GameState }) {
+  const online = useStore((s) => s.session?.online);
+  const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
+  const hour = hourOf(state);
   const lc = state.longestCauseway;
   const gh = state.greatestHost.holder;
   const bestRoad = Math.max(0, ...lc.lengths);
   const bestHost = Math.max(...state.players.map((p) => p.playedWardens));
-  const claim = (
-    label: string,
-    holder: number | null,
-    detail: string,
-    icon: 'causeway' | 'sword',
-    progress: number,
-  ) => (
-    <div className={`tile px-2.5 py-2.5 ${holder !== null ? 'tile-selected' : ''}`}>
+  const claim = (label: string, holder: number | null, detail: string, icon: 'causeway' | 'sword', progress: number) => (
+    <div className="py-1.5">
       <div className="flex items-center gap-2">
-        <span
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${holder !== null ? 'bg-gold/20 text-gold' : 'bg-black/25 text-muted'}`}
-        >
-          <Icon name={icon} size={18} />
+        <span className={holder !== null ? 'hc-rubric' : 'hc-ink-muted'} aria-hidden>
+          <Icon name={icon} size={17} strokeWidth={1.8} />
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="whitespace-nowrap font-display text-[11px] uppercase tracking-[0.04em] text-bone">
-            {label}
-          </div>
-          <div className="truncate text-[12px] text-muted" title={detail}>
-            {detail}
-          </div>
-        </div>
-        {holder !== null && (
-          <PlayerDisc
-            color={state.players[holder].color}
-            sigil={state.players[holder].sigil}
-            size={26}
-            label={state.players[holder].name}
-          />
-        )}
-        <span className="num rounded-lg bg-gold/15 px-1.5 text-[13px] text-gold">+2</span>
+        <span className="hc-label min-w-0 flex-1 text-[16px]">{label}</span>
+        {holder !== null && <Arms color={state.players[holder].color} sigil={state.players[holder].sigil} size={20} label={state.players[holder].name} />}
+        <span className="hc-num text-[15px] hc-rubric">+2</span>
+      </div>
+      <div className="pl-6 text-[15px] italic" title={detail} style={{ color: holder !== null ? INK_NAME[state.players[holder].color] : undefined }}>
+        {detail}
       </div>
       {holder === null && (
-        <div className="meter mt-2" aria-hidden>
-          <span style={{ width: `${Math.min(100, progress * 100)}%` }} />
+        <div className="ml-6 mt-1 h-[5px]" style={{ border: '1px solid var(--map-ink)', background: 'var(--paper-card)' }} aria-hidden>
+          <span className="block h-full" style={{ width: `${Math.min(100, progress * 100)}%`, background: 'var(--map-ink)' }} />
         </div>
       )}
     </div>
   );
   return (
-    <section className="panel flex flex-col gap-2 px-3.5 py-3" aria-label="Bonuses">
-      <h2 className="panel-title px-0.5">Claims</h2>
-      {claim(
-        LONGEST,
-        lc.holder,
-        lc.holder !== null
-          ? `${state.players[lc.holder].name} · ${lc.lengths[lc.holder]} long`
-          : `Needs ${LONGEST_MIN}+ · best ${bestRoad}`,
-        'causeway',
-        bestRoad / LONGEST_MIN,
-      )}
-      {claim(
-        HOST,
-        gh,
-        gh !== null
-          ? `${state.players[gh].name} · ${state.players[gh].playedWardens} Knights`
-          : `Needs ${HOST_MIN}+ Knights · best ${bestHost}`,
-        'sword',
-        bestHost / HOST_MIN,
-      )}
-    </section>
+    <OakPanel title="The Lists" aria-label="Claims">
+      <div className="flex flex-col px-3 py-3">
+        <div className="hc-title text-center text-[26px] leading-none text-[color:var(--rubric-dark)]">Catan Night</div>
+        <div className="mt-1 text-center text-[16px] italic">
+          {state.phase.kind !== 'setup' ? `Round ${roman(state.round)} · ` : 'The founding · '}
+          <span data-testid="time-of-day" aria-label={`Time of day: ${stageName(hour)}`}>
+            <Icon name={daylight(hour) < 0.35 ? 'moon' : 'sun'} size={13} className="inline align-[-1px]" /> {stageName(hour)}
+          </span>
+        </div>
+        <div className="mt-1 flex items-center justify-center gap-2 text-[15px]" title={`Leader has ${leader} of ${state.config.targetVp} points`}>
+          <Icon name="crown" size={14} />
+          <span>
+            First to <b className="hc-num">{state.config.targetVp}</b>
+          </span>
+          <span className="h-[6px] w-14" style={{ border: '1px solid var(--map-ink)', background: 'var(--paper-card)' }} aria-hidden>
+            <span className="block h-full" style={{ width: `${(leader / state.config.targetVp) * 100}%`, background: 'var(--rubric)' }} />
+          </span>
+          <span className="sr-only">Leader has {leader} points</span>
+        </div>
+        {online && (
+          <div className="mt-1 text-center text-[15px]" title="Online game — share this code only with your table">
+            <Icon name="user" size={13} className="inline align-[-1px]" /> Room <b className="hc-num">{online.code}</b>
+          </div>
+        )}
+        <hr className="hc-dots" />
+        {claim(LONGEST, lc.holder, lc.holder !== null ? `${state.players[lc.holder].name} · ${lc.lengths[lc.holder]} long` : `Needs ${LONGEST_MIN}+ · best ${bestRoad}`, 'causeway', bestRoad / LONGEST_MIN)}
+        <hr className="hc-dots !my-0.5" />
+        {claim(HOST, gh, gh !== null ? `${state.players[gh].name} · ${state.players[gh].playedWardens} Knights` : `Needs ${HOST_MIN}+ Knights · best ${bestHost}`, 'sword', bestHost / HOST_MIN)}
+      </div>
+    </OakPanel>
   );
 }
 
+/** Kept for the narrow layout's drawer and older imports. */
+export const BonusPanel = ListsPanel;
+
+/** The Herald: the latest events, each a red ¶ with arms and resource art. */
 export function RecentLog({ state, seat }: { state: GameState; seat: number }) {
   const log = useStore((s) => s.session?.log);
   const openModal = useStore((s) => s.openModal);
@@ -193,34 +241,36 @@ export function RecentLog({ state, seat }: { state: GameState; seat: number }) {
     return out;
   }, [log, state.players, state.board, seat]);
   return (
-    <section className="panel flex min-h-0 flex-1 flex-col px-3.5 py-3" aria-label="Recent events">
-      <div className="mb-2 flex items-center px-0.5">
-        <h2 className="panel-title flex-1">Recent</h2>
-        <button className="chip text-gold" onClick={() => openModal('log')}>
-          Full log <Icon name="arrow" size={11} />
-        </button>
-      </div>
-      <ol className="scroll-thin relative flex min-h-0 flex-col gap-2 overflow-y-auto pl-3">
-        <span
-          className="absolute bottom-1 left-[5px] top-1 w-px bg-gradient-to-b from-gold/60 via-iron/60 to-transparent"
-          aria-hidden
-        />
+    <OakPanel title="The Herald" aria-label="Recent events" className="flex min-h-0 flex-1 flex-col" insetClassName="flex min-h-0 flex-1 flex-col">
+      <ol className="hc-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-3 pb-2 pt-1">
         {lines.map(({ seq, line }, k) => (
-          <motion.li
-            key={seq}
-            className="relative pl-2"
-            initial={k === 0 ? { opacity: 0, x: -6 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <span
-              className={`absolute -left-[10px] top-[7px] h-[7px] w-[7px] rounded-full ${k === 0 ? 'bg-gold shadow-[0_0_8px_rgb(var(--gold))]' : 'bg-iron'}`}
-              aria-hidden
-            />
+          <motion.li key={seq} initial={k === 0 ? { opacity: 0, x: -6 } : false} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}>
             <LogLineView line={line} players={state.players} compact />
           </motion.li>
         ))}
       </ol>
-    </section>
+      <div className="flex justify-end px-2 pb-2">
+        <button className="hc-paper-btn hc-paper-btn--sm" onClick={() => openModal('log')}>
+          Full log <Icon name="arrow" size={13} />
+        </button>
+      </div>
+    </OakPanel>
+  );
+}
+
+/** The last cast of the dice, in bone. */
+export function LastRoll({ state }: { state: GameState }): ReactNode {
+  if (!state.dice) return null;
+  const [a, b] = state.dice;
+  const total = a + b;
+  return (
+    <div className="hc-oak flex items-center gap-3 !py-2.5" aria-label={`Last roll ${total}`}>
+      <BoneDie value={a} size={42} red={total === 7} />
+      <BoneDie value={b} size={42} red={total === 7} />
+      <span className="flex flex-col leading-none">
+        <span className={`hc-title text-[30px] ${total === 7 ? 'text-[#ff9a86]' : 'text-[color:var(--gold-light)]'}`}>{total}</span>
+        <span className="hc-gloss text-[color:var(--on-dark-muted)]">was cast</span>
+      </span>
+    </div>
   );
 }

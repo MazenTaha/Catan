@@ -1,10 +1,12 @@
 import { memo } from 'react';
 import type { PlayerState } from '@hexfall/engine';
-import { Icon, RES_COLOR, ResourceGlyph } from '../../art/icons/Icon';
 import { RESOURCE_NAME } from '../../lexicon';
 import type { LogLine } from '../../state/log';
+import { Arms } from '../../ui/hall/Arms';
+import { ResourceArt } from '../../ui/hall/Controls';
 import { CountsInline } from '../ui/primitives';
 
+/** One herald's entry: a red ¶, then the text with each player's arms and the resources' art. */
 export const LogLineView = memo(function LogLineView({
   line,
   players,
@@ -14,40 +16,30 @@ export const LogLineView = memo(function LogLineView({
   players: PlayerState[];
   compact?: boolean;
 }) {
-  const toneClass =
-    line.tone === 'good' ? 'text-venom' : line.tone === 'bad' ? 'text-ember' : line.tone === 'gold' ? 'text-gold' : 'text-muted';
   return (
-    <div className={`flex items-start gap-2 ${compact ? 'text-[14px]' : 'text-[15px]'} leading-snug`}>
-      <Icon name={line.icon} size={compact ? 14 : 16} className={`mt-[3px] shrink-0 ${toneClass}`} />
-      <span className={line.tone === 'muted' ? 'text-muted' : 'text-bone/90'}>
-        {line.parts.map((p, i) => {
-          if (typeof p === 'string') return <span key={i}>{p}</span>;
-          if ('player' in p) {
-            const pl = players[p.player];
-            return (
-              <b
-                key={i}
-                className="font-semibold"
-                style={{ color: NAME_COLOR[pl.color] }}
-              >
-                {pl.name}
-              </b>
-            );
-          }
-          if ('res' in p) {
-            return (
-              <span key={i} className="inline-flex items-center gap-0.5 align-middle">
-                {p.n !== undefined && <span className="num">{p.n}</span>}
-                <span style={{ color: RES_COLOR[p.res] }}>
-                  <ResourceGlyph res={p.res} size={14} />
-                </span>
-                <span className="sr-only">{RESOURCE_NAME[p.res]}</span>
-              </span>
-            );
-          }
-          return <CountsInline key={i} counts={p.counts} size={14} />;
-        })}
-      </span>
+    <div className={`hc-para ${compact ? 'text-[16px]' : 'text-[17px]'} leading-snug ${line.tone === 'muted' ? 'hc-ink-muted' : ''}`}>
+      {line.parts.map((p, i) => {
+        if (typeof p === 'string') return <span key={i}>{p}</span>;
+        if ('player' in p) {
+          const pl = players[p.player];
+          return (
+            <b key={i} className="inline-flex items-baseline gap-1 whitespace-nowrap" style={{ color: INK_NAME[pl.color] }}>
+              <Arms color={pl.color} sigil={pl.sigil} size={compact ? 16 : 18} className="self-center" />
+              {pl.name}
+            </b>
+          );
+        }
+        if ('res' in p) {
+          return (
+            <span key={i} className="inline-flex items-center gap-0.5 align-middle">
+              {p.n !== undefined && <span className="hc-num">{p.n}</span>}
+              <ResourceArt res={p.res} size={compact ? 20 : 22} />
+              <span className="sr-only">{RESOURCE_NAME[p.res]}</span>
+            </span>
+          );
+        }
+        return <CountsInline key={i} counts={p.counts} size={compact ? 20 : 22} />;
+      })}
     </div>
   );
 });
@@ -58,4 +50,12 @@ export const NAME_COLOR = {
   frost: '#7aa8ea',
   bone: '#e8e2d0',
   violet: '#f0a060',
+} as const;
+
+/** Player name colors in ink on parchment (AA); White is written in plain ink. */
+export const INK_NAME = {
+  crimson: '#8a1a16',
+  frost: '#1f3a7a',
+  bone: '#3a2614',
+  violet: '#8a3d06',
 } as const;

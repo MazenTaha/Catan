@@ -35,7 +35,7 @@ export const ResourceCard = memo(function ResourceCard({
   const empty = count === 0 && !hidden;
   return (
     <div
-      className={`hc-card group px-1 pb-1.5 pt-1.5 hover:-translate-y-1 ${compact ? 'h-[84px] w-[60px]' : fluid ? 'h-[104px] w-full' : 'h-[104px] w-[66px]'}`}
+      className={`hc-card group px-[3px] pb-1.5 pt-[3px] hover:-translate-y-1 ${compact ? 'h-[84px] w-[60px]' : fluid ? 'h-[104px] w-full' : 'h-[104px] w-[66px]'}`}
       data-zero={(empty || dim) && need !== 'have' ? 'true' : undefined}
       data-need={need ?? undefined}
       aria-label={`${RESOURCE_NAME[res]}: ${hidden ? 'hidden' : count}`}
@@ -45,7 +45,7 @@ export const ResourceCard = memo(function ResourceCard({
         <img src={cardArt(res)} alt="" draggable={false} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110" />
       </span>
       <span className={`hc-num ${compact ? 'text-[21px]' : 'text-[26px]'} mt-0.5 leading-none text-[color:var(--ink)]`}>{hidden ? '?' : count}</span>
-      <span className="hc-body w-full truncate text-center text-[12.5px] italic leading-tight">{RESOURCE_NAME[res]}</span>
+      <span className="hc-body w-full overflow-hidden text-clip whitespace-nowrap text-center text-[12px] italic leading-tight tracking-[-0.02em]">{RESOURCE_NAME[res]}</span>
       <AnimatePresence>
         {gained > 0 && !hidden && (
           <motion.span

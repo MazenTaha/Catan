@@ -6,92 +6,86 @@ import { Icon } from '../../art/icons/Icon';
 import { OMEN_NAME, PIECE_NAME } from '../../lexicon';
 import { displaySeat, prefersReducedMotion, useStore } from '../../state/store';
 import { DieFace } from './Dice';
-import { IconButton, Tooltip } from '../ui/primitives';
+import { IconButton } from '../ui/primitives';
+import { Crest } from '../../ui/hall/Surfaces';
 
 // ------------------------------------------------------------------ top bar
 
-/** Logo, room code, round and the race to the target: the game's title block. */
+/** Narrow screens: the crest, title and the game's chips (room, round, time, the race) in one line. */
 export function TitleBlock({ state, className = '' }: { state: GameState; className?: string }) {
   const online = useStore((s) => s.session?.online);
   const leader = Math.max(...state.players.map((_, i) => victoryPoints(state, i, false)));
   return (
-    <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-1.5 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[color:var(--on-dark)] ${className}`}>
       <div className="flex items-center gap-2">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[#ffb760] to-[#c4473a] shadow-[0_6px_18px_-6px_rgb(255_120_60/0.8),inset_0_1px_0_rgb(255_240_210/0.6)]">
-          <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden>
-            <path d="M32 6 54 19v26L32 58 10 45V19z" fill="#2a1406" opacity="0.25" />
-            <path d="M32 6 54 19v26L32 58 10 45V19z" fill="none" stroke="#2a1406" strokeWidth="4" />
-            <path d="M32 18 43 40H21z" fill="#2a1406" />
-          </svg>
-        </span>
-        <h1 className="font-logo text-[17px] leading-none tracking-[0.05em] text-gold">Catan Night</h1>
+        <Crest size={30} />
+        <h1 className="hc-title hc-title-gold text-[26px]">Catan Night</h1>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] italic text-[color:var(--on-dark-muted)]">
         {online && (
-          <Tooltip label="Online game — share this code only with your table" side="bottom">
-            <span className="chip num border-frost/50 bg-frost/10 text-frost" tabIndex={0}>
-              <Icon name="user" size={12} /> {online.code}
-            </span>
-          </Tooltip>
-        )}
-        {state.phase.kind !== 'setup' && (
-          <span className="chip num border-gold/40 bg-gold/10 text-gold" aria-label={`Round ${state.round}`}>
-            <Icon name="hourglass" size={12} />
-            Round {state.round}
+          <span title="Online game — share this code only with your table">
+            <Icon name="user" size={13} className="inline align-[-1px]" /> <b className="hc-num not-italic text-[color:var(--on-dark)]">{online.code}</b>
           </span>
         )}
-        <span className="chip text-muted" data-testid="time-of-day" aria-label={`Time of day: ${stageName(hourOf(state))}`}>
-          <Icon name={daylight(hourOf(state)) < 0.35 ? 'moon' : 'sun'} size={12} className="text-gold" />
-          {stageName(hourOf(state))}
+        {state.phase.kind !== 'setup' && <span aria-label={`Round ${state.round}`}>Round {state.round}</span>}
+        <span aria-label={`Time of day: ${stageName(hourOf(state))}`}>
+          <Icon name={daylight(hourOf(state)) < 0.35 ? 'moon' : 'sun'} size={13} className="inline align-[-1px]" /> {stageName(hourOf(state))}
         </span>
-        <Tooltip label={`Leader has ${leader} of ${state.config.targetVp} points`} side="bottom">
-          <span className="chip text-muted" tabIndex={0}>
-            <Icon name="crown" size={12} className="text-gold" />
-            First to <b className="num text-gold">{state.config.targetVp}</b>
-            <span className="meter ml-1 w-10" aria-hidden>
-              <span style={{ width: `${(leader / state.config.targetVp) * 100}%` }} />
-            </span>
-          </span>
-        </Tooltip>
+        <span title={`Leader has ${leader} of ${state.config.targetVp} points`}>
+          <Icon name="crown" size={13} className="inline align-[-1px]" /> First to <b className="hc-num not-italic">{state.config.targetVp}</b>
+        </span>
       </div>
     </div>
   );
 }
 
-/** Undo, log, rules, sound, settings and leave. */
-export function Toolbar({ className = '' }: { className?: string }) {
+/** Undo, log, rules, sound, settings and leave, as round brass buttons. */
+export function Toolbar({ className = '', extra }: { className?: string; extra?: React.ReactNode }) {
   const openModal = useStore((s) => s.openModal);
   const muted = useStore((s) => s.settings.muted);
   const updateSettings = useStore((s) => s.updateSettings);
   const undoable = useStore((s) => (s.session?.undo.length ?? 0) > 0);
   const undo = useStore((s) => s.undo);
   return (
-    <nav
-      className={`flex items-center gap-0.5 rounded-xl border border-iron/60 bg-black/20 p-0.5 ${className}`}
-      aria-label="Game menu"
-    >
+    <nav className={`flex items-center gap-2 ${className}`} aria-label="Game menu">
       <IconButton icon="undo" label="Undo last action" hint="Undo — placement, building and bank trades" align="start" onClick={undo} disabled={!undoable} />
       <IconButton icon="log" label="Full log" onClick={() => openModal('log')} />
       <IconButton icon="question" label="Rulebook" onClick={() => openModal('rules')} />
-      <IconButton
-        icon={muted ? 'mute' : 'sound'}
-        label={muted ? 'Unmute' : 'Mute'}
-        pressed={muted}
-        onClick={() => updateSettings({ muted: !muted })}
-      />
+      <IconButton icon={muted ? 'mute' : 'sound'} label={muted ? 'Unmute' : 'Mute'} pressed={muted} onClick={() => updateSettings({ muted: !muted })} />
       <IconButton icon="settings" label="Settings" onClick={() => openModal('settings')} />
+      {extra}
       <IconButton icon="leave" label="Leave game" align="end" onClick={() => openModal('confirm-new')} />
     </nav>
   );
 }
 
-/** Title block and toolbar in one bar, for screens too narrow for the side rails. */
-export function TopBar({ state, tools = true }: { state: GameState; tools?: boolean }) {
+/** Title line and toolbar in one bar, for screens too narrow for the side rails. */
+export function TopBar({ state, tools = true, extra }: { state: GameState; tools?: boolean; extra?: React.ReactNode }) {
   return (
-    <header className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5 sm:px-4">
+    <header className="hc-oak flex flex-wrap items-center gap-x-3 gap-y-2 !px-3 !py-2">
       <TitleBlock state={state} />
-      {tools && <Toolbar className="ml-auto" />}
+      {tools && <Toolbar className="ml-auto flex-wrap" extra={extra} />}
     </header>
+  );
+}
+
+/** The herald's ribbon above the board: what to do now (the same words screen readers hear). */
+export function InstructionRibbon({ state, seat }: { state: GameState; seat: number }) {
+  return (
+    <div className="flex justify-center" aria-hidden>
+      <div className="relative">
+        {[-1, 1].map((s) => (
+          <span
+            key={s}
+            className="absolute top-[7px] h-[calc(100%-2px)] w-6"
+            style={{ [s < 0 ? 'left' : 'right']: -16, background: '#b48a3a', border: '1.3px solid var(--ink)', clipPath: s < 0 ? 'polygon(0 0,100% 0,100% 100%,0 100%,40% 50%)' : 'polygon(0 0,100% 0,60% 50%,100% 100%,0 100%)' }}
+          />
+        ))}
+        <div className="relative px-6 py-1.5 text-center text-[18px] italic text-[color:var(--map-ink)]" style={{ background: 'linear-gradient(180deg,#f7ecd0,#e6d4a8)', border: '1.5px solid var(--ink)' }}>
+          {instruction(state, seat)}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -108,9 +102,7 @@ export function instruction(state: GameState, seat: number): string {
   switch (ph.kind) {
     case 'setup':
       if (ph.step === 'outpost') {
-        return ph.index < state.players.length
-          ? 'Place your first Settlement'
-          : 'Place your second Settlement — it gives you resources at once';
+        return ph.index < state.players.length ? 'Place your first Settlement' : 'Place your second Settlement — it gives you resources at once';
       }
       return 'Build a Road from your new Settlement';
     case 'roll':
@@ -126,9 +118,7 @@ export function instruction(state: GameState, seat: number): string {
     case 'decree':
       return `Build ${ph.remaining} free Road${ph.remaining > 1 ? 's' : ''} (${OMEN_NAME.decree})`;
     case 'trade':
-      return mine
-        ? `${state.players[ph.offer.proposer].name} offers you a trade`
-        : `Waiting for ${a.name} to answer the offer`;
+      return mine ? `${state.players[ph.offer.proposer].name} offers you a trade` : `Waiting for ${a.name} to answer the offer`;
     case 'main':
       return 'Build & trade, then end your turn (Space)';
     case 'duel': {
@@ -156,10 +146,11 @@ export function TurnTimerBadge({ state }: { state: GameState }) {
   const left = Math.max(0, Math.ceil((deadline - now) / 1000));
   return (
     <span
-      className={`chip num !px-3 !py-1 text-[13px] ${left <= 10 ? 'border-ember bg-ember/15 text-ember anim-pulse' : 'text-bone'}`}
+      className={`hc-num inline-flex items-center gap-1 px-2 text-[16px] ${left <= 10 ? 'anim-pulse' : ''}`}
+      style={{ border: '1.5px solid var(--map-ink)', background: left <= 10 ? 'var(--rubric)' : 'var(--paper-card)', color: left <= 10 ? '#fff3e0' : 'var(--map-ink)' }}
       aria-label={`${left} seconds left`}
     >
-      <Icon name="hourglass" size={12} /> {left}s
+      <Icon name="hourglass" size={13} /> {left}s
     </span>
   );
 }
@@ -168,7 +159,7 @@ export function TurnTimerBadge({ state }: { state: GameState }) {
 
 const randomFace = () => 1 + Math.floor(Math.random() * 6);
 
-/** When anyone rolls, two dice tumble onto the board, show the total, then fade away. */
+/** When anyone rolls, two bone dice tumble onto the board, show the total, then fade away. */
 export function RollOverlay({ state }: { state: GameState }) {
   const roll = useStore((s) => s.fx.roll);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
@@ -185,24 +176,12 @@ export function RollOverlay({ state }: { state: GameState }) {
   }, [roll?.seq]);
   return (
     <AnimatePresence>
-      {roll && shown === roll.seq && (
-        <RollBurst key={roll.seq} dice={roll.dice} total={roll.total} name={state.players[roll.player].name} reduce={reduce} />
-      )}
+      {roll && shown === roll.seq && <RollBurst key={roll.seq} dice={roll.dice} total={roll.total} name={state.players[roll.player].name} reduce={reduce} />}
     </AnimatePresence>
   );
 }
 
-function RollBurst({
-  dice,
-  total,
-  name,
-  reduce,
-}: {
-  dice: [number, number];
-  total: number;
-  name: string;
-  reduce: boolean;
-}) {
+function RollBurst({ dice, total, name, reduce }: { dice: [number, number]; total: number; name: string; reduce: boolean }) {
   const [faces, setFaces] = useState<[number, number]>(() => (reduce ? dice : [randomFace(), randomFace()]));
   const [landed, setLanded] = useState(reduce);
   useEffect(() => {
@@ -230,14 +209,12 @@ function RollBurst({
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.5 } }}
       aria-hidden
     >
-      <div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(circle at 50% 50%, rgba(9,10,11,0.6), transparent 42%)' }}
-      />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(20,12,6,0.55), transparent 42%)' }} />
       <div className="relative flex flex-col items-center gap-3">
         {landed && !reduce && (
           <motion.span
-            className="absolute left-1/2 top-[42px] h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold"
+            className="absolute left-1/2 top-[42px] h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ border: '2px dashed var(--gold-light)' }}
             initial={{ scale: 0.4, opacity: 0.8 }}
             animate={{ scale: 1.8, opacity: 0 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
@@ -250,20 +227,19 @@ function RollBurst({
               initial={reduce ? false : { y: 160, x: i ? 110 : -110, rotate: i ? -540 : 540, scale: 0.35 }}
               animate={{ y: 0, x: 0, rotate: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 160, damping: 13, mass: 0.9, delay: i * 0.06 }}
-              style={{ filter: 'drop-shadow(0 18px 16px rgba(0,0,0,0.45))' }}
             >
               <DieFace value={faces[i]} size={84} red={landed && seven} />
             </motion.div>
           ))}
         </div>
         <motion.div
-          className="flex items-baseline gap-2 rounded-full border border-gold/50 bg-[#141617]/90 px-4 py-1 shadow-panel"
+          className="hc-slip !gap-3 !px-5 !py-1.5"
           initial={{ opacity: 0, scale: 0.5, y: 10 }}
           animate={landed ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.5, y: 10 }}
           transition={{ type: 'spring', stiffness: 320, damping: 16 }}
         >
-          <span className="font-display text-[11px] uppercase tracking-[0.16em] text-muted">{name}</span>
-          <span className={`num text-[30px] leading-none ${seven ? 'text-ember' : 'text-gold'}`}>{total}</span>
+          <span className="hc-label text-[16px]">{name}</span>
+          <span className={`hc-title text-[36px] leading-none ${seven ? 'hc-rubric' : 'text-[color:var(--ink)]'}`}>{total}</span>
         </motion.div>
       </div>
     </motion.div>
@@ -274,7 +250,7 @@ function RollBurst({
 
 const TOAST_MS = 2600;
 
-/** Notices float up from the bottom of the screen, then fade away on their own. */
+/** Notices arrive as a herald's slip at the top of the board, then fade away on their own. */
 export function FloatingToast() {
   const toast = useStore((s) => s.toast);
   const [shown, setShown] = useState<number | null>(null);
@@ -287,23 +263,23 @@ export function FloatingToast() {
   }, [toast, ms]);
   const visible = toast && shown === toast.id;
   const tone = toast?.tone ?? 'info';
-  const accent = tone === 'good' ? '#8cc56a' : tone === 'bad' ? '#ff805c' : tone === 'gold' ? '#f2ac52' : '#b09e96';
+  const accent = tone === 'good' ? 'var(--ok-ink)' : tone === 'bad' ? 'var(--rubric)' : tone === 'gold' ? '#8a6018' : 'var(--map-ink-muted)';
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4" aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-0 top-24 z-[70] flex justify-center px-4" aria-live="polite">
       <AnimatePresence>
         {visible && (
           <motion.div
             key={toast.id}
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-            className="relative flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl border border-iron/80 bg-[#16181a]/95 py-2.5 pl-2.5 pr-4 text-[15px] shadow-panel"
+            className="hc-slip relative max-w-xl overflow-hidden"
             role="status"
             data-testid="toast"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl" style={{ background: `${accent}26`, color: accent }}>
-              <Icon name={tone === 'good' ? 'gain' : tone === 'bad' ? 'close' : tone === 'gold' ? 'crown' : 'scroll'} size={17} />
+            <span className="shrink-0" style={{ color: accent }} aria-hidden>
+              <Icon name={tone === 'good' ? 'gain' : tone === 'bad' ? 'close' : tone === 'gold' ? 'crown' : 'scroll'} size={19} strokeWidth={2} />
             </span>
             <span>{toast.text}</span>
             <motion.span
@@ -320,14 +296,15 @@ export function FloatingToast() {
   );
 }
 
+/** Expected odds against this game's rolls, as an ink bar chart. */
 export function ProbabilityPanel({ state }: { state: GameState }) {
   const rolls = state.stats.rolls;
   const total = rolls.reduce((a, b) => a + b, 0);
   const maxExpected = 6 / 36;
   const maxSeen = Math.max(1, ...rolls);
   return (
-    <div className="panel mx-auto w-full max-w-xl px-4 py-3" aria-label="Roll odds and history">
-      <div className="panel-title mb-2">Odds vs. this game's rolls ({total})</div>
+    <div className="hc-parchment mx-auto w-full max-w-xl px-4 py-3" aria-label="Roll odds and history">
+      <div className="hc-label mb-2 text-[16px]">Odds vs. this game's rolls ({total})</div>
       <div className="flex h-28 items-end gap-1.5">
         {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => {
           const p = 6 - Math.abs(7 - n);
@@ -336,15 +313,15 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
           return (
             <div key={n} className="flex flex-1 flex-col items-center gap-1">
               <div className="relative flex h-20 w-full items-end justify-center">
-                <div className="absolute bottom-0 w-full border border-tarnish/40 bg-tarnish/15" style={{ height: `${expected * 100}%` }} title={`${Math.round((p / 36) * 100)}% expected`} />
-                <div className={`relative w-2/3 ${n === 7 ? 'bg-blood' : n === 6 || n === 8 ? 'bg-ember/80' : 'bg-gold/80'}`} style={{ height: `${seen * 100}%` }} title={`${rolls[n]} rolled`} />
+                <div className="absolute bottom-0 w-full" style={{ height: `${expected * 100}%`, borderTop: '1.5px dashed var(--map-ink)' }} title={`${Math.round((p / 36) * 100)}% expected`} />
+                <div className="relative w-2/3" style={{ height: `${seen * 100}%`, background: n === 7 ? 'var(--rubric)' : 'var(--map-ink)' }} title={`${rolls[n]} rolled`} />
               </div>
-              <span className={`num text-[14px] ${n === 6 || n === 8 ? 'text-ember' : 'text-muted'}`}>{n}</span>
+              <span className={`hc-num text-[14px] ${n === 6 || n === 8 ? 'hc-rubric' : ''}`}>{n}</span>
             </div>
           );
         })}
       </div>
-      <p className="mt-1 text-[14px] text-muted">Outline: expected odds · Bars: rolled so far</p>
+      <p className="hc-gloss mt-1">Dashes: expected odds · Bars: rolled so far</p>
     </div>
   );
 }
@@ -354,10 +331,16 @@ export function ProbabilityPanel({ state }: { state: GameState }) {
 export function PieceSupply({ state, seat }: { state: GameState; seat: number }) {
   const p = state.players[seat];
   return (
-    <div className="flex gap-3 text-[14px] text-muted">
-      <span>{p.supply.causeways} {PIECE_NAME.causeway}s</span>
-      <span>{p.supply.outposts} {PIECE_NAME.outpost}s</span>
-      <span>{p.supply.citadels} {PIECE_NAME.citadel}s</span>
+    <div className="flex gap-3 text-[15px] italic">
+      <span>
+        {p.supply.causeways} {PIECE_NAME.causeway}s
+      </span>
+      <span>
+        {p.supply.outposts} {PIECE_NAME.outpost}s
+      </span>
+      <span>
+        {p.supply.citadels} {PIECE_NAME.citadel}s
+      </span>
     </div>
   );
 }

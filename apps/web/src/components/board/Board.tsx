@@ -19,6 +19,7 @@ import {
 } from '@hexfall/engine';
 import { ResGlyphSvg, CausewayPiece, CitadelPiece, NumberToken, OutpostPiece, WraithPawn } from '../../art/pieces/Pieces';
 import { TerrainArt } from '../../art/terrain/TerrainArt';
+import { cardArt } from '../../art/cards/cardArt';
 import { HARBOR_NAME, TERRAIN_NAME } from '../../lexicon';
 import { useStore, type Fx } from '../../state/store';
 import { BoardDefs } from './BoardDefs';
@@ -467,10 +468,13 @@ function HitLayer({ state, targets, fire }: { state: GameState; targets: Targets
         {/* show-why: illegal spots */}
         {whyVertices.map(({ v, why }) => {
           const p = vertexXY(v);
+          // a red-ink cross on a paper dot; the reason shows on hover
           return (
-            <circle key={v} cx={p.x} cy={p.y} r={7} fill="#3a1015" stroke="#8b1e2d" strokeWidth={1} opacity={0.6}>
+            <g key={v} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`} opacity={0.85}>
               <title>{why}</title>
-            </circle>
+              <circle r={7.5} fill="#f1e4c4" stroke="#a8281e" strokeWidth={1.4} />
+              <path d="M-3.2-3.2 3.2 3.2M3.2-3.2-3.2 3.2" stroke="#a8281e" strokeWidth={1.8} strokeLinecap="round" />
+            </g>
           );
         })}
 
@@ -501,7 +505,10 @@ function HitLayer({ state, targets, fire }: { state: GameState; targets: Targets
   );
 }
 
-/** Pulsing markers on every legal spot, drawn as one layer whose opacity the compositor animates. */
+/**
+ * Markers on every legal spot, drawn like ink on a chart: a dashed red ring with a centre dot
+ * (a paper halo keeps it readable on dark tiles). One layer whose opacity the compositor pulses.
+ */
 const TargetMarkers = memo(function TargetMarkers({ kind, spots }: { kind: 'vertex' | 'edge'; spots: string[] }) {
   return (
     <svg viewBox={VIEWBOX_STR} className="anim-pulse pointer-events-none absolute inset-0 h-full w-full" style={layer(Z.pulse)} aria-hidden>
@@ -510,8 +517,9 @@ const TargetMarkers = memo(function TargetMarkers({ kind, spots }: { kind: 'vert
             const p = vertexXY(v);
             return (
               <g key={v} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}>
-                <circle r={13} fill="url(#g-target)" />
-                <circle r={5.2} fill="#fbf3dc" stroke="#9c7430" strokeWidth={1.6} />
+                <circle r={11} fill="none" stroke="#f1e4c4" strokeWidth={4.5} opacity={0.75} />
+                <circle r={11} fill="none" stroke="#a8281e" strokeWidth={2.2} strokeDasharray="4 3" />
+                <circle r={3.4} fill="#a8281e" stroke="#f1e4c4" strokeWidth={1.2} />
               </g>
             );
           })
@@ -519,8 +527,9 @@ const TargetMarkers = memo(function TargetMarkers({ kind, spots }: { kind: 'vert
             const g = edgeXY(e);
             return (
               <g key={e} transform={`translate(${g.mid.x.toFixed(1)} ${g.mid.y.toFixed(1)}) rotate(${g.angle.toFixed(1)})`}>
-                <rect x={-27} y={-8} width={54} height={16} rx={8} fill="url(#g-target)" />
-                <rect x={-22} y={-2.6} width={44} height={5.2} rx={2.6} fill="#fbf3dc" stroke="#9c7430" strokeWidth={1.2} opacity={0.95} />
+                <rect x={-24} y={-6} width={48} height={12} rx={6} fill="none" stroke="#f1e4c4" strokeWidth={4.5} opacity={0.75} />
+                <rect x={-24} y={-6} width={48} height={12} rx={6} fill="none" stroke="#a8281e" strokeWidth={2.2} strokeDasharray="4 3" />
+                <circle r={3.2} fill="#a8281e" stroke="#f1e4c4" strokeWidth={1.2} />
               </g>
             );
           })}
@@ -557,10 +566,11 @@ const HexHit = memo(function HexHit({
     <path
       d={HEX_PATH}
       transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
-      fill={isTarget && hovered ? 'rgba(255,236,190,0.16)' : 'transparent'}
-      stroke={isTarget ? '#f3e2b0' : 'none'}
-      strokeOpacity={isTarget ? (hovered ? 0.9 : 0.3) : 0}
-      strokeWidth={isTarget ? 3 : 0}
+      fill={isTarget && hovered ? 'rgba(255,236,190,0.14)' : 'transparent'}
+      stroke={isTarget ? (hovered ? '#f3d27a' : '#d9a93f') : 'none'}
+      strokeOpacity={isTarget ? (hovered ? 1 : 0.35) : 0}
+      strokeWidth={isTarget ? (hovered ? 5 : 2.5) : 0}
+      strokeDasharray={isTarget && !hovered ? '10 7' : undefined}
       className={isTarget ? 'cursor-pointer' : undefined}
       onMouseEnter={() => onEnter(hex, isTarget)}
       onMouseLeave={isTarget ? () => onHover(null) : undefined}
@@ -682,14 +692,15 @@ function GainChips({ state, hexes }: { state: GameState; hexes: number[] }) {
           animate={{ opacity: [0, 1, 1, 0], y: [-0, -26, -34, -44] }}
           transition={{ duration: 2.6, delay: 0.75 + i * 0.05, times: [0, 0.15, 0.75, 1] }}
         >
+          {/* a small parchment tag with the resource's own art */}
           <g transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}>
-            <rect x={-25} y={-13} width={50} height={26} rx={13} fill="#14160f" stroke="#6fa058" strokeWidth={1.5} />
-            <text x={-9} y={6} textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700} fontSize={15} fill="#9fd07f">
+            <rect x={-26} y={-13} width={52} height={26} rx={2} fill="#f1e4c4" stroke="#1a120b" strokeWidth={1.4} />
+            <rect x={-26} y={-13} width={52} height={26} rx={2} fill="none" stroke="#d9a93f" strokeWidth={1} transform="scale(0.88)" />
+            <text x={-10} y={6} textAnchor="middle" fontFamily="'IM Fell DW Pica', Georgia, serif" fontWeight={700} fontSize={17} fill="#2f5a46">
               +{c.n}
             </text>
-            <g transform="translate(10 0)">
-              <ResGlyphSvg res={c.res} size={16} />
-            </g>
+            <image href={cardArt(c.res)} x={1} y={-9} width={22} height={18} preserveAspectRatio="xMidYMid slice" />
+            <rect x={1} y={-9} width={22} height={18} fill="none" stroke="#1a120b" strokeWidth={0.8} />
           </g>
         </motion.g>
       ))}

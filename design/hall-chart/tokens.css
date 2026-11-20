@@ -1,0 +1,120 @@
+/* Hall & Chart — design tokens for Catan Night (2D UI)
+   Source of truth for colours, type, spacing, depth and texture.
+   Import once at the app root, then use the variables everywhere. */
+
+@import url("https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=IM+Fell+English+SC&family=IM+Fell+DW+Pica:ital@0;1&family=IM+Fell+DW+Pica+SC&display=swap");
+
+:root {
+  /* ---- Type ---- */
+  --font-title: "UnifrakturCook", "IM Fell English SC", serif;   /* blackletter: titles >= 32px and big score numerals ONLY */
+  --font-label: "IM Fell English SC", Georgia, serif;             /* buttons, tabs, headings, small caps labels */
+  --font-body: "IM Fell DW Pica", Georgia, serif;                  /* body text, numbers, inputs, log */
+  --font-body-sc: "IM Fell DW Pica SC", Georgia, serif;
+
+  --fs-hero: 96px;     /* main menu "Catan" / "Night" */
+  --fs-h1: 62px;       /* screen titles: "Muster the Table" */
+  --fs-h2: 50px;       /* section titles on parchment: "Of the Board" */
+  --fs-h3: 32px;       /* dialog titles: "A Bargain Offered" */
+  --fs-label-lg: 26px; /* primary banner label, End turn */
+  --fs-label: 20px;    /* banner labels, tabs, buttons */
+  --fs-body: 19px;
+  --fs-body-sm: 16px;
+  --fs-note: 14px;     /* italic glosses, small print — never smaller than 13px */
+
+  /* ---- Hall (dark) surfaces ---- */
+  --stone-mortar: #16120f;
+  --stone-1: #29241f;
+  --stone-2: #2e2823;
+  --stone-3: #27221d;
+  --on-dark: #f1e3c2;        /* text on stone/oak */
+  --on-dark-muted: #cdb98e;
+  --on-dark-ok: #bfe8a0;
+  --on-dark-warn: #ffc08a;
+
+  /* ---- Ink & paper (light) surfaces ---- */
+  --ink: #1a120b;            /* outlines, strongest text */
+  --map-ink: #3a2614;        /* text and rules on parchment / chart */
+  --map-ink-muted: #6b4e2e;
+  --vellum: #e9d5a8;         /* chart sheets */
+  --parchment: #ead6ad;      /* letters, decrees */
+  --paper-card: #f1e4c4;     /* controls on parchment, resource card frames */
+  --rubric: #a8281e;         /* red ink: emphasis, selected tab, warnings on paper */
+  --rubric-dark: #7a1912;
+  --ok-ink: #2f5a46;         /* positive state on paper */
+
+  /* ---- Metals ---- */
+  --gold: #d9a93f;
+  --gold-light: #f3d27a;
+  --gold-dark: #8a6018;
+  --brass: #b48a3a;          /* brass plaque buttons */
+  --iron: #2a2a2e;
+  --iron-rivet: #8a8a90;
+
+  /* ---- Wood ---- */
+  --oak: #3a2414;
+  --oak-grain: #24150b;
+  --oak-edge: #5a3a20;
+  --oak-deep: #120a05;
+
+  /* ---- Heraldic tinctures (banner fields) ---- */
+  --gules: #8a1a16;    /* red */
+  --azure: #1f3a7a;    /* blue */
+  --vert: #24543a;     /* green */
+  --sable: #1f1b18;    /* black */
+  --purpure: #4f2560;  /* purple */
+  --or: #c99a2e;       /* gold metal */
+  --argent: #e6dcc4;   /* silver metal */
+
+  /* ---- Primary action ---- */
+  --crimson: #7a1712;  /* "Play", "End turn", "Begin the game" fill */
+  --wax: #8e1a14;      /* wax seal body */
+  --wax-dark: #5c0f0b;
+  --wax-light: #c2452f;
+
+  /* ---- Textures (tile these; do NOT run SVG noise filters at runtime on big areas) ---- */
+  --tex-stone: url("./assets/textures/stone-wall-tile.png");
+  --tex-parchment: url("./assets/textures/parchment.png");
+  --tex-vellum: url("./assets/textures/vellum.png");
+  --tex-letter: url("./assets/textures/letter-paper.png");
+  --tex-oak: url("./assets/textures/oak-tile.png");
+  --tex-weave: url("./assets/textures/cloth-weave-overlay.svg");
+
+  /* ---- Spacing / shape ---- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --radius-btn: 3px;   /* everything is nearly square; no pill shapes except round brass icon buttons */
+  --touch: 44px;       /* minimum hit target */
+
+  /* ---- Depth ---- */
+  --shadow-panel: 0 12px 26px rgba(0,0,0,.6);
+  --shadow-paper: 0 14px 22px rgba(0,0,0,.6);
+  --shadow-press: 0 4px 0 #2a0a06, 0 8px 18px rgba(0,0,0,.5);
+  --vignette: inset 0 0 240px 90px rgba(0,0,0,.68);
+  --torch-glow: radial-gradient(circle, rgba(255,176,74,.42) 0, rgba(255,154,58,.14) 40%, rgba(255,154,58,0) 100%);
+  --focus-ring: 0 0 0 2px var(--ink), 0 0 0 5px var(--gold-light);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(.2,.7,.2,1);
+  --dur-fast: 120ms; --dur: 220ms; --dur-slow: 420ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+}
+
+/* ---- Reference button recipes (port to components) ---- */
+.hc-btn-primary { min-height: 48px; padding: 0 22px; border: 2px solid var(--gold); background: var(--crimson); color: #f6ead0;
+  font: 21px var(--font-label); border-radius: var(--radius-btn);
+  box-shadow: inset 0 0 0 2px var(--crimson), inset 0 0 0 3px var(--gold-light), var(--shadow-press); text-shadow: 0 1px 0 #000; }
+.hc-btn-dark { /* same as primary */ background: #2a1a12; box-shadow: inset 0 0 0 2px #2a1a12, inset 0 0 0 3px var(--gold), 0 4px 0 #0c0805; }
+.hc-plaque { min-height: 44px; padding: 0 16px; border: 2px solid var(--ink); background: var(--brass); color: var(--ink);
+  font: 18px var(--font-label); border-radius: var(--radius-btn);
+  box-shadow: inset 0 1px 0 var(--gold-light), inset 0 -2px 0 var(--gold-dark), 0 3px 0 #0c0805; }
+.hc-plaque--iron { background: #5a524a; color: var(--on-dark); box-shadow: inset 0 1px 0 #8a8278, inset 0 -2px 0 #2a2622, 0 3px 0 #0c0805; }
+.hc-icon-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--ink); background: var(--brass); color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--gold-light), inset 0 -2px 0 var(--gold-dark), 0 3px 0 #0c0805; }
+.hc-paper-btn { min-height: 44px; padding: 0 16px; border: 1.5px solid var(--map-ink); background: var(--paper-card); color: var(--map-ink);
+  font: 18px var(--font-label); box-shadow: 2px 2px 0 var(--map-ink); }
+.hc-check { width: 30px; height: 30px; border: 1.5px solid var(--map-ink); background: var(--paper-card); } /* checked: red ink tick (--rubric), stroke 2.6 */
+.hc-seg { display: flex; border: 1.5px solid var(--map-ink); } /* options separated by 1.5px rules; selected = map-ink fill, paper text */
+.hc-seg > [aria-pressed="true"] { background: var(--map-ink); color: var(--paper-card); }
+:where(button, a, input, select, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }

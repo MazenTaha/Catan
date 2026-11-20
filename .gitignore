@@ -20,5 +20,7 @@ apps/unreal*/Intermediate/
 apps/unreal*/Saved/
 apps/unreal*/.vs/
 apps/unreal*/SourceArt/Generated/
+apps/unreal*/WebGame/
+apps/unreal*/Packaged/
 apps/unreal*/*.sln
 .tools/

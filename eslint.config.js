@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default tseslint.config(
-  { ignores: ['**/dist', '**/dist-perf', '**/perf-results', '**/coverage', '**/node_modules', '**/test-results', '**/playwright-report'] },
+  { ignores: ['**/dist', '**/dist-perf', '**/perf-results', '**/coverage', '**/node_modules', '**/test-results', '**/playwright-report', 'apps/unreal*/WebGame', 'apps/unreal*/Packaged', 'apps/unreal*/Saved'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -16,6 +16,11 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
       'prefer-const': ['error', { destructuring: 'all' }],
     },
+  },
+  {
+    // Node build scripts (the Unreal web-game stager).
+    files: ['**/*.mjs'],
+    languageOptions: { globals: globals.node },
   },
   {
     files: ['packages/engine/**/*.ts'],

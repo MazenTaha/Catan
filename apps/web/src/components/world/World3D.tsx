@@ -4,6 +4,7 @@ import { DEFAULT_DECOR, DEFAULT_LOOK, cleanDecor, cleanLook, type KingdomDecor }
 import { audio } from '../../audio/engine';
 import { COLOR_HEX, COMBAT_TEXT, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
 import { liteEffects, onGameEvents, prefersReducedMotion, useStore } from '../../state/store';
+import { nativeHost, type HostLookDetail } from '../../state/host';
 import { useNet } from '../../state/net';
 import { usePresence } from '../../state/presence';
 import { useProfile } from '../../state/profile';
@@ -357,6 +358,18 @@ export default function World3D({ state, seat, onExit }: Props) {
   // ------------------------------------------------------------ Dive in: mouse look
 
   const unlockedAt = useRef(0);
+  // Inside the Unreal app there is no pointer lock; the app locks the mouse and streams the motion.
+  const host = useMemo(nativeHost, []);
+  const hostLocked = useRef(false);
+  const isLocked = () => hostLocked.current || (!!wrapRef.current && document.pointerLockElement === wrapRef.current);
+  const releaseHost = useCallback(() => {
+    if (!hostLocked.current) return;
+    hostLocked.current = false;
+    void host?.lockmouse(false);
+    setDiving(false);
+    unlockedAt.current = performance.now();
+    worldRef.current?.setBlock(false);
+  }, [host]);
   useEffect(() => {
     const wrap = wrapRef.current;
     const onChange = () => {
@@ -371,19 +384,35 @@ export default function World3D({ state, seat, onExit }: Props) {
       if (document.pointerLockElement !== wrap) return;
       worldRef.current?.look(e.movementX * sensRef.current, e.movementY * sensRef.current);
     };
+    const onHostLook = (e: Event) => {
+      if (!hostLocked.current) return;
+      const { dx, dy } = (e as CustomEvent<HostLookDetail>).detail;
+      worldRef.current?.look(dx * sensRef.current, dy * sensRef.current);
+    };
     document.addEventListener('pointerlockchange', onChange);
     document.addEventListener('mousemove', onMove);
+    window.addEventListener('catanhost:look', onHostLook);
+    window.addEventListener('catanhost:unlock', releaseHost);
     return () => {
       document.removeEventListener('pointerlockchange', onChange);
       document.removeEventListener('mousemove', onMove);
+      window.removeEventListener('catanhost:look', onHostLook);
+      window.removeEventListener('catanhost:unlock', releaseHost);
       if (wrap && document.pointerLockElement === wrap) document.exitPointerLock();
+      releaseHost();
     };
-  }, []);
+  }, [releaseHost]);
   const diveIn = () => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     wrap.focus({ preventScroll: true });
     setShowHelp(false);
+    if (host) {
+      hostLocked.current = true;
+      setDiving(true);
+      void host.lockmouse(true);
+      return;
+    }
     const blocked = () => setNotice('Your browser blocked mouse look. Click the island and try again.');
     try {
       const r = wrap.requestPointerLock() as unknown as Promise<void> | undefined;
@@ -419,9 +448,10 @@ export default function World3D({ state, seat, onExit }: Props) {
     }
     if (e.key === 'Escape') {
       // Esc first leaves Dive in (the browser does that itself); only a second Esc leaves the walk.
-      if (document.pointerLockElement === wrapRef.current || performance.now() - unlockedAt.current < 400) {
+      if (isLocked() || performance.now() - unlockedAt.current < 400) {
         e.preventDefault();
         e.stopPropagation();
+        releaseHost();
         return;
       }
       if (!useStore.getState().modal) {
@@ -458,7 +488,7 @@ export default function World3D({ state, seat, onExit }: Props) {
       worldRef.current?.setBlock(true);
       return;
     }
-    if (document.pointerLockElement === wrap) {
+    if (isLocked()) {
       if (e.button === 0) worldRef.current?.attack();
       return;
     }

@@ -73,9 +73,12 @@ The full rules are in the in-game rulebook (the **?** button) and in [docs/RULES
 and a concept-based component library is available in `apps/unreal` as the first step toward
 a native Unreal client. Run `pnpm unreal:export`, then `pnpm unreal:open` after
 installing Unreal Engine. See [the Unreal guide](apps/unreal/README.md) for setup and scope.
-This prototype is for world design; it does not yet run the board game in Unreal. A separate,
-validated animation practice island (hinged chest and a sparring exchange, isolated from game
-rules, inventory and online play) is described in [docs/UNREAL_ANIMATION.md](docs/UNREAL_ANIMATION.md).
+The Unreal app also runs the complete game: its start map shows this web game (menu, 2D board,
+bots, hot-seat, online rooms, 3D walk) in Unreal's built-in browser, served by the bundled game
+server. Stage it with `pnpm unreal:web`; package it with `apps/unreal/package-game.ps1` (see the
+Unreal guide). A separate, validated animation practice island (hinged chest and a sparring
+exchange, isolated from game rules, inventory and online play) is described in
+[docs/UNREAL_ANIMATION.md](docs/UNREAL_ANIMATION.md).
 
 ```
 packages/engine   pure TypeScript rules — no DOM, deterministic, serializable

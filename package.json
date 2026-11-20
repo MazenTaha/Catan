@@ -21,6 +21,7 @@
     "server": "pnpm --filter @hexfall/server start",
     "start": "pnpm build && pnpm server",
     "unreal:export": "pnpm --filter @hexfall/server exec tsx ../../apps/web/scripts/unreal/export-world.ts",
+    "unreal:web": "pnpm build && node apps/unreal/stage-web-game.mjs",
     "unreal:open": "powershell -NoProfile -ExecutionPolicy Bypass -File apps/unreal/open-island.ps1",
     "unreal:test": "pnpm unreal:export && pnpm --filter @hexfall/server exec tsx --test ../../apps/web/scripts/unreal/glb.test.ts"
   },

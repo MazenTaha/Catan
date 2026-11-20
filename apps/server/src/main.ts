@@ -33,7 +33,7 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   if (url.pathname === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, rooms: hub.rooms.size }));
+    res.end(JSON.stringify({ ok: true, app: 'catan-night', rooms: hub.rooms.size }));
     return;
   }
   if (!hasWeb) {
@@ -84,6 +84,19 @@ setInterval(() => {
   }
   hub.sweep();
 }, 20_000).unref();
+
+// The Unreal app starts this server as a child process and passes its own id: leave with it, so a
+// crashed or force-closed host never leaves a server holding the port.
+const parent = Number(process.env.CATAN_PARENT_PID);
+if (parent) {
+  setInterval(() => {
+    try {
+      process.kill(parent, 0);
+    } catch {
+      process.exit(0);
+    }
+  }, 2000);
+}
 
 server.listen(PORT, () => {
   console.log(

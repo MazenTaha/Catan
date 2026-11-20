@@ -1,7 +1,76 @@
 # Catan Night in Unreal
 
-An editable, walkable world-design prototype for Unreal Engine 5.8+. The working browser
-rules, online game and saves remain in the existing application.
+An editable, walkable world-design prototype for Unreal Engine 5.8+, and a Windows app that
+runs the complete game. The game's rules, bots, online rooms and saves are still the web
+game's code: the app shows that game inside Unreal (see *The full game in Unreal*).
+
+## The full game in Unreal
+
+`Maps/Table` is the app's start map. Its game mode (`ACatanTableGameMode`, in
+`Source/CatanNight/CatanTable.cpp`) has no pawn. It fills the viewport with Unreal's built-in
+Chromium browser (CEF 128, GPU-accelerated) showing the full web game: title menu, 2D board,
+bots, hot-seat, online rooms, settings, My kingdom, Character and the 3D walk. The page is
+served by the real game server, which `UCatanTableServer` runs as a hidden child process for as
+long as the app is open:
+- The process is the bundled `server.mjs` run by `node.exe` from the project's `WebGame` folder.
+- It listens on port 8797. A fixed port keeps one browser origin, so local saves and settings
+  persist between runs. Override it with `-CatanPort=`.
+- Hosting from the app works as with `pnpm play`: friends on the same network open
+  `http://<this PC>:8797` or join from their own app. Windows asks once per program location
+  whether Node.js may use the network. Local, bot and hot-seat play work either way.
+- The server also exits by itself if the app is gone, so it never holds the port after a crash.
+
+What the app adds around the page:
+- **Quit** appears on the title menu only inside the app (`window.ue.catanhost`).
+- **Dive in mouse look.** CEF has no pointer lock, so the app hides and recentres the cursor
+  and streams the motion to the page (`catanhost:look` events). Esc or switching away releases it.
+- **Key codes.** Unreal's browser reports keys without `KeyboardEvent.code`; the page derives
+  it, so WASD, Shift, 1–3, E and F work in the walk.
+- **Logging.** The page's console goes to the log as `LogCatanTable`.
+- **Links** that open new windows go to the system browser.
+
+Stage the web game before playing the table in the editor (re-run it after web changes):
+
+```powershell
+pnpm unreal:web
+```
+
+That builds the web app and writes `apps/unreal 5.8/WebGame`: `web/`, a single-file
+`server.mjs` (esbuild), this machine's `node.exe` and `stage.json`. The folder is git-ignored and
+sits outside `Content`, so the editor never offers to import its images. In the editor, open
+`CatanNight/Maps/Table` and press Play; Esc leaves Play once Dive in is not active.
+
+Package the Windows app (close the editor first; cooking needs the memory):
+
+```powershell
+powershell -File apps/unreal/package-game.ps1 -EditorPath E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe
+```
+
+It syncs the native source, rebuilds and restages the web game, then cooks only `Maps/Table` and
+writes `apps/unreal/Packaged/Windows/CatanNight.exe` (Shipping; `-Configuration Development`
+keeps logs and the console). `CatanNight.Build.cs` stages `WebGame` beside the pak as loose
+files. `build_table_map.py` recreates the table map if needed. The editor still opens the island.
+
+**Verified on 2026-11-20 (UE 5.8.4, RTX 4050 laptop).**
+- *In the editor:* Play on the table drove a full 1 human + 3 bot game in the page, through a
+  hosted room on the bundled server, to the victory dialog with no page errors.
+- *Real mouse and keyboard:*
+  - clicks and typing reach the page, and a click unlocks Web Audio;
+  - the 3D walk renders with GPU WebGL (ANGLE/D3D11) at 60 frames per second;
+  - Dive in turns the camera with no drift at rest, and Esc releases it;
+  - W and Shift move the knight.
+- *Packaged Shipping build* (1.1 GB):
+  - it opens straight into the menu, and typing works;
+  - it hosted room MOOR-52, which a separate browser joined over the app's server;
+  - the first placements synced both ways with the server's bots;
+  - Leave and Quit work, and Quit closes the app, its browser processes and the server;
+  - force-killing the app stops the server within seconds.
+- `pnpm verify` and `pnpm e2e world3d smoke` pass. A screenshot of the packaged app is in
+  `validation/table-app-2026-11-20.jpg`.
+
+The packaged folder is not an installer. Copy the whole `Packaged/Windows` folder to move it.
+Its saves live in Unreal's browser profile for the app, separate from saves made in Chrome or
+another browser.
 
 ## Current project
 
@@ -137,11 +206,12 @@ of every point on the island.
 
 ## Migration boundary
 
-This remains a design prototype, not a packaged Windows game. Its terrain is static mesh,
+The table app packages and runs the complete game, but its rules, UI and online play are the
+web game's, not native Unreal systems. The island itself remains a design prototype. Its terrain is static mesh,
 not sculptable Landscape; vegetation, animals, doors, boats and mill blades are static; sea
 is a blockout mesh. Native animation practice includes combat presentation, a small HUD
 and synthesized action sounds. Riding, board rules, online play and authoritative game
-inventory/rewards are not connected to Unreal yet. The browser game remains playable.
+inventory/rewards are not connected to the native Unreal island or practice scene yet. The browser game remains playable.
 Windows uses DirectX 12 with Shader Model 6 for the imported Nanite meshes. The first
 launch after changing shader targets can compile additional shaders. Only a short editor PIE comparison
 exists (the animation practice holds the 60 fps cap with about 1 ms extra game-thread time); there

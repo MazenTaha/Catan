@@ -1,7 +1,9 @@
 param(
     [string]$EditorPath = $env:UNREAL_EDITOR,
     [string]$ProjectPath,
-    [ValidateSet('Editor', 'Game')][string]$Target = 'Editor'
+    [ValidateSet('Editor', 'Game')][string]$Target = 'Editor',
+    # Copy the canonical runtime source into the converted project without compiling.
+    [switch]$SyncOnly
 )
 $ErrorActionPreference = 'Stop'
 if (-not $EditorPath -or -not (Test-Path -LiteralPath $EditorPath)) {
@@ -20,6 +22,7 @@ if ($nativeProjectDir -ne $PSScriptRoot) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Plugins/CatanAnimation/Source') -Destination $pluginDir -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Plugins/CatanAnimation/CatanAnimation.uplugin') -Destination $pluginDir -Force
 }
+if ($SyncOnly) { return }
 $engineRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $EditorPath)))
 $buildScript = Join-Path $engineRoot 'Engine/Build/BatchFiles/Build.bat'
 $nativeTarget = if ($Target -eq 'Editor') { 'CatanNightEditor' } else { 'CatanNight' }

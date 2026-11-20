@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { applyAction, createGame, decideAction, randomSeed, type GameState } from '@hexfall/engine';
 import { Icon } from '../../art/icons/Icon';
 import { audio } from '../../audio/engine';
+import { nativeHost } from '../../state/host';
 import { savedOnlineSeat, useNet } from '../../state/net';
 import { peekAutosave } from '../../state/persistence';
 import { useStore } from '../../state/store';
@@ -38,6 +39,7 @@ export function TitleScreen() {
   const [save] = useState(() => peekAutosave());
   const [online] = useState(() => savedOnlineSeat());
   const net = useNet();
+  const [host] = useState(nativeHost);
   const backdrop = useMemo(demoBoard, []);
   const item = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void, primary = false, testid?: string) => (
     <button
@@ -88,6 +90,7 @@ export function TitleScreen() {
           {item('Character', 'user', () => openModal('character'), false, 'character')}
           {item('How to play', 'rules', () => openModal('rules'))}
           {item('Settings', 'settings', () => openModal('settings'))}
+          {host && item('Quit', 'leave', () => void host.quit(), false, 'quit')}
         </motion.nav>
         {online && (net.status === 'connecting' || net.error) && (
           <p className="mt-4 text-[14px] text-muted" aria-live="polite">

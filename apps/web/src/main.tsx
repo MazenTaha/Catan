@@ -4,6 +4,9 @@ import './styles/fonts';
 import './styles/index.css';
 import { App } from './App';
 import { startFrameWatch } from './state/frameWatch';
+import { fillMissingKeyCodes } from './state/host';
+
+fillMissingKeyCodes();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

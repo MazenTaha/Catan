@@ -30,8 +30,8 @@ import {
   type LobbySettings,
   type Seat,
 } from '@hexfall/net';
-import { Icon, type IconName } from '../../art/icons/Icon';
-import { PlayerDisc, SigilGlyph } from '../../art/pieces/Sigil';
+import { Icon } from '../../art/icons/Icon';
+import { SigilGlyph } from '../../art/pieces/Sigil';
 import { audio } from '../../audio/engine';
 import { BOT_BLURB, BOT_NAME, COLOR_HEX, COLOR_NAME, LAYOUT_NAME, SIGIL_NAME } from '../../lexicon';
 import { useNet } from '../../state/net';
@@ -39,10 +39,15 @@ import { loadProfile, type PlayerProfile } from '../../state/persistence';
 import { updateProfile } from '../../state/profile';
 import { useStore } from '../../state/store';
 import { BoardView } from '../board/Board';
-import { NAME_COLOR } from '../panels/LogLineView';
-import { Tooltip } from '../ui/primitives';
+import { Stepper } from '../ui/primitives';
+import { blazon } from '../../ui/hall/Arms';
+import { Banner, BannerPole } from '../../ui/hall/Banner';
+import { Seg } from '../../ui/hall/Controls';
+import { ChartSheet, CompassRose, HallBackground, HallLoader, OakPanel, ParchmentSheet, Torch, WaxSeal } from '../../ui/hall/Surfaces';
+import { useViewport } from '../../ui/hall/useViewport';
 
 const BOTS: BotLevel[] = ['wanderer', 'warlord', 'archdemon'];
+const ROMAN = ['I', 'II', 'III', 'IV'];
 type View = 'choose' | 'host' | 'join';
 
 /** Play: set up your profile, then host a table or join one with a room code. */
@@ -61,45 +66,57 @@ export function NewGameScreen() {
       setView('choose');
     }
   };
+  const vp = useViewport();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-4 px-4 py-6">
-      <header className="flex items-center gap-3">
-        <button
-          className="icon-btn"
-          onClick={back}
-          aria-label={view === 'choose' ? 'Back to menu' : 'Back'}
-        >
-          <Icon name="arrow" className="rotate-180" />
-        </button>
-        <h1 className="font-display text-[24px] uppercase tracking-[0.18em] text-gold">
-          {view === 'choose' ? 'Play' : view === 'host' ? 'Host a game' : 'Join a game'}
-        </h1>
-      </header>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={view}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.2 }}
-        >
-          {view === 'choose' && (
-            <Choose
-              profile={profile}
-              onProfile={setProfile}
-              onHost={() => setView('host')}
-              onJoin={(code) => {
-                useNet.getState().join(code, profile);
-                setView('join');
-              }}
-            />
+    <HallBackground
+      className="relative overflow-x-hidden"
+      decor={vp.w >= 1100 && <Torch x={10} y={150} height={130} />}
+    >
+      <main className="mx-auto flex min-h-screen max-w-[1440px] flex-col gap-5 px-4 pb-8 pt-5 sm:px-8">
+        <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <button className="hc-plaque" onClick={back} aria-label={view === 'choose' ? 'Back to menu' : 'Back'}>
+            <Icon name="arrow" className="rotate-180" size={16} /> {view === 'choose' ? 'The hall' : 'Back'}
+          </button>
+          <h1 className="hc-title hc-title-gold" style={{ fontSize: vp.w < 640 ? 40 : 62 }}>
+            {view === 'choose' ? 'Play' : view === 'host' ? 'Muster the Table' : 'Join a game'}
+          </h1>
+          {view === 'host' && (
+            <div className="ml-auto flex gap-3">
+              <span className="hc-btn hc-btn--sm" aria-current="page">
+                Host a game
+              </span>
+              <button className="hc-btn hc-btn--dark hc-btn--sm" onClick={back}>
+                Join a game
+              </button>
+            </div>
           )}
-          {view === 'host' && <HostLobby profile={profile} />}
-          {view === 'join' && <JoinLobby onBack={back} />}
-        </motion.div>
-      </AnimatePresence>
-    </main>
+        </header>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+          >
+            {view === 'choose' && (
+              <Choose
+                profile={profile}
+                onProfile={setProfile}
+                onHost={() => setView('host')}
+                onJoin={(code) => {
+                  useNet.getState().join(code, profile);
+                  setView('join');
+                }}
+              />
+            )}
+            {view === 'host' && <HostLobby profile={profile} />}
+            {view === 'join' && <JoinLobby onBack={back} />}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    </HallBackground>
   );
 }
 
@@ -119,45 +136,40 @@ function Choose({
   const [code, setCode] = useState('');
   const valid = /^[A-Z]+-\d{2}$/.test(normalizeCode(code));
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-      <section className="panel px-5 py-4" aria-label="Your profile">
-        <h2 className="panel-title mb-3">Your profile</h2>
-        <ProfileEditor profile={profile} onChange={onProfile} />
-        <p className="mt-3 text-[13px] text-muted">
-          Saved on this device and used whenever you host or join.
-        </p>
-      </section>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <OakPanel title="Your profile" aria-label="Your profile">
+        <div className="flex flex-wrap items-start gap-6 p-5">
+          {/* the player's arms on a banner, live as they change */}
+          <div className="mx-auto pt-2" aria-hidden>
+            <BannerPole gap={0} overhang={30} brackets={false}>
+              <Banner width={150} height={250} tincture={{ player: profile.color }} arms={{ color: profile.color, sigil: profile.sigil }} label={profile.name || 'Player'} labelSize={18} gloss={blazon(profile.color, profile.sigil)} />
+            </BannerPole>
+          </div>
+          <ProfileEditor profile={profile} onChange={onProfile} />
+        </div>
+        <p className="hc-gloss hc-ink-muted px-5 pb-4 !text-[15px]">Saved on this device and used whenever you host or join.</p>
+      </OakPanel>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-7">
         <button
-          className="panel tile-interactive group flex items-center gap-4 px-5 py-5 text-left transition-transform"
+          className="hc-parchment group flex items-center gap-5 px-6 py-6 text-left transition-transform hover:-translate-y-0.5"
           onClick={() => {
             audio.unlock();
             onHost();
           }}
           data-testid="host"
         >
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl cream-fill">
-            <Icon name="flag" size={26} />
-          </span>
+          <WaxSeal size={64} />
           <span className="min-w-0 flex-1">
-            <span className="block font-display text-[18px] uppercase tracking-[0.12em] text-gold">
-              Host a game
-            </span>
-            <span className="block text-[15px] text-muted">
-              Choose the board and rules, share a room code with friends, and fill empty seats with
-              bots.
-            </span>
+            <span className="hc-title block text-[36px] text-[color:var(--rubric-dark)]">Host a game</span>
+            <span className="mt-1 block text-[18px]">Choose the board and rules, share a room code with friends, and fill empty seats with bots.</span>
           </span>
-          <Icon
-            name="arrow"
-            size={18}
-            className="text-muted transition-transform group-hover:translate-x-1"
-          />
+          <Icon name="arrow" size={22} className="transition-transform group-hover:translate-x-1" />
         </button>
 
         <form
-          className="panel flex flex-col gap-3 px-5 py-5"
+          className="hc-letter flex flex-col gap-4 px-6 py-6"
+          style={{ transform: 'rotate(-0.6deg)' }}
           onSubmit={(e) => {
             e.preventDefault();
             if (valid) {
@@ -166,22 +178,13 @@ function Choose({
             }
           }}
         >
-          <div className="flex items-center gap-4">
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-frost/15 text-frost shadow-[inset_0_0_0_1px_rgb(var(--frost)/0.35)]">
-              <Icon name="user" size={26} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-display text-[18px] uppercase tracking-[0.12em] text-bone">
-                Join a game
-              </span>
-              <span className="block text-[15px] text-muted">
-                Enter the room code your host shared.
-              </span>
-            </span>
+          <div>
+            <span className="hc-title block text-[36px] text-[color:var(--rubric-dark)]">Join a game</span>
+            <span className="block text-[18px]">Enter the room code your host shared.</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <input
-              className="min-w-0 flex-1 rounded-xl border border-iron bg-surface-1 px-4 py-2.5 font-display text-[18px] uppercase tracking-[0.18em] text-bone placeholder:text-muted/60 focus:border-gold/70"
+              className="hc-input min-w-0 flex-1 !text-[26px] uppercase tracking-[0.16em]"
               placeholder="DUSK-42"
               value={code}
               onChange={(e) => setCode(e.target.value)}
@@ -192,12 +195,7 @@ function Choose({
               maxLength={12}
               data-testid="join-code"
             />
-            <button
-              className="btn btn-primary !px-5"
-              type="submit"
-              disabled={!valid}
-              data-testid="join"
-            >
+            <button className="hc-btn" type="submit" disabled={!valid} data-testid="join">
               Join
             </button>
           </div>
@@ -207,79 +205,54 @@ function Choose({
   );
 }
 
-function ProfileEditor({
-  profile,
-  onChange,
-}: {
-  profile: PlayerProfile;
-  onChange: (p: PlayerProfile) => void;
-}) {
+function ProfileEditor({ profile, onChange }: { profile: PlayerProfile; onChange: (p: PlayerProfile) => void }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <PlayerDisc color={profile.color} sigil={profile.sigil} size={64} active />
-        <label className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="font-display text-[10px] uppercase tracking-[0.16em] text-muted">
-            Name
-          </span>
-          <input
-            className="w-full rounded-xl border border-iron bg-surface-1 px-3 py-2 text-[17px] text-bone focus:border-gold/70"
-            value={profile.name}
-            maxLength={16}
-            onChange={(e) => onChange({ ...profile, name: e.target.value })}
-            onBlur={() => !profile.name.trim() && onChange({ ...profile, name: 'Player' })}
-            aria-label="Your name"
-            data-testid="profile-name"
-          />
-        </label>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div>
-          <div className="mb-1.5 font-display text-[10px] uppercase tracking-[0.16em] text-muted">
-            Colour
-          </div>
-          <div className="flex gap-1.5" role="radiogroup" aria-label="Your colour">
-            {PLAYER_COLORS.map((c: PlayerColor) => (
-              <button
-                key={c}
-                role="radio"
-                aria-checked={profile.color === c}
-                aria-label={COLOR_NAME[c]}
-                title={COLOR_NAME[c]}
-                className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${
-                  profile.color === c
-                    ? 'scale-110 border-bone shadow-[0_0_14px_rgba(255,255,255,0.35)]'
-                    : 'border-transparent'
-                }`}
-                style={{ background: COLOR_HEX[c] }}
-                onClick={() => onChange({ ...profile, color: c })}
+    <div className="flex min-w-[240px] flex-1 flex-col gap-5">
+      <label className="flex flex-col gap-1">
+        <span className="hc-label text-[16px] hc-ink-muted">Name</span>
+        <input
+          className="hc-input w-full"
+          value={profile.name}
+          maxLength={16}
+          onChange={(e) => onChange({ ...profile, name: e.target.value })}
+          onBlur={() => !profile.name.trim() && onChange({ ...profile, name: 'Player' })}
+          aria-label="Your name"
+          data-testid="profile-name"
+        />
+      </label>
+      <div>
+        <div className="hc-label mb-1.5 text-[16px] hc-ink-muted">Colour</div>
+        <div className="flex gap-2" role="radiogroup" aria-label="Your colour">
+          {PLAYER_COLORS.map((c: PlayerColor) => (
+            <button
+              key={c}
+              role="radio"
+              aria-checked={profile.color === c}
+              aria-label={COLOR_NAME[c]}
+              title={COLOR_NAME[c]}
+              className="grid h-11 w-11 place-items-center"
+              onClick={() => onChange({ ...profile, color: c })}
+            >
+              <span
+                className="block h-8 w-8 rounded-full"
+                style={{
+                  background: COLOR_HEX[c],
+                  border: '1.5px solid var(--ink)',
+                  boxShadow: profile.color === c ? '0 0 0 3px var(--paper-card), 0 0 0 5px var(--rubric)' : 'inset 0 -3px 0 rgba(0,0,0,0.25)',
+                }}
               />
-            ))}
-          </div>
+            </button>
+          ))}
         </div>
-        <div>
-          <div className="mb-1.5 font-display text-[10px] uppercase tracking-[0.16em] text-muted">
-            Sigil
-          </div>
-          <div className="flex gap-1.5" role="radiogroup" aria-label="Your sigil">
-            {SIGILS.map((g: Sigil) => (
-              <button
-                key={g}
-                role="radio"
-                aria-checked={profile.sigil === g}
-                aria-label={SIGIL_NAME[g]}
-                title={SIGIL_NAME[g]}
-                className={`grid h-9 w-9 place-items-center rounded-xl border transition-colors ${
-                  profile.sigil === g
-                    ? 'border-gold bg-gold/15 text-gold'
-                    : 'border-iron text-muted hover:text-bone'
-                }`}
-                onClick={() => onChange({ ...profile, sigil: g })}
-              >
-                <SigilGlyph sigil={g} size={17} />
-              </button>
-            ))}
-          </div>
+      </div>
+      <div>
+        <div className="hc-label mb-1.5 text-[16px] hc-ink-muted">Sigil</div>
+        <div className="hc-seg" role="radiogroup" aria-label="Your sigil">
+          {SIGILS.map((g: Sigil) => (
+            <button key={g} type="button" role="radio" aria-checked={profile.sigil === g} aria-label={SIGIL_NAME[g]} title={SIGIL_NAME[g]} className="!px-3" onClick={() => onChange({ ...profile, sigil: g })}>
+              <SigilGlyph sigil={g} size={20} />
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -296,13 +269,19 @@ function applyLocal(l: Lobby, msg: ClientMsg): Lobby {
   return l;
 }
 
+/** Seat banner sizes for the window width (four seats share the pole). */
+function seatSize(w: number): { bw: number; bh: number; gap: number } {
+  if (w < 640) return { bw: 140, bh: 250, gap: 18 };
+  if (w < 1360) return { bw: 168, bh: 270, gap: 18 };
+  return { bw: 196, bh: 290, gap: 24 };
+}
+
 function HostLobby({ profile }: { profile: PlayerProfile }) {
   const net = useNet();
   const startGame = useStore((s) => s.startGame);
-  const [local, setLocal] = useState<Lobby>(() =>
-    createLobby('', profile, 'me', defaultSettings(randomSeed())),
-  );
+  const [local, setLocal] = useState<Lobby>(() => createLobby('', profile, 'me', defaultSettings(randomSeed())));
   const opened = useRef(false);
+  const vp = useViewport();
 
   // Open a room on the server; if there is none, play on this device.
   useEffect(() => {
@@ -326,8 +305,7 @@ function HostLobby({ profile }: { profile: PlayerProfile }) {
     } else setLocal((l) => applyLocal(l, msg));
   };
   const settings = lobby.settings;
-  const setSettings = (patch: Partial<LobbySettings>) =>
-    apply({ t: 'settings', settings: { ...settings, ...patch } });
+  const setSettings = (patch: Partial<LobbySettings>) => apply({ t: 'settings', settings: { ...settings, ...patch } });
   const problem = startProblem(lobby);
 
   const start = () => {
@@ -338,140 +316,224 @@ function HostLobby({ profile }: { profile: PlayerProfile }) {
       startGame(lobbyToConfig(lobby));
     } else net.send({ t: 'start' });
   };
+  const seats = activeSeats(lobby);
+  const firstOpen = seats.findIndex((s) => s.kind === 'open');
+  const size = seatSize(vp.w);
+  const pairsOnPhone = vp.w < 640;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="flex min-w-0 flex-col gap-4">
-        <InviteCard status={net.status} code={serverLobby ? lobby.code : null} />
-
-        <section className="panel px-4 py-4 sm:px-5" aria-label="Seats">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <h2 className="panel-title flex-1">Seats</h2>
-            {([3, 4] as const).map((n) => (
-              <button
-                key={n}
-                className={`chip !py-1 ${settings.players === n ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
-                onClick={() => setSettings({ players: n })}
-                aria-pressed={settings.players === n}
-                disabled={!editable}
-              >
-                {n} players
-              </button>
-            ))}
-          </div>
-          <ul className="flex flex-col gap-2">
-            {activeSeats(lobby).map((s, i) => (
-              <SeatRow
-                key={i}
-                seat={s}
-                index={i}
-                editable={editable && i > 0}
-                onChoose={(choice) => apply({ t: 'seat', index: i, choice })}
-                onKick={() => net.send({ t: 'kick', index: i })}
-              />
-            ))}
-          </ul>
-          {openSeats(lobby) > 0 && (
-            <button
-              className="btn mt-3 w-full !py-2 text-[12px]"
-              onClick={() => apply({ t: 'fill-bots' })}
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="flex min-w-0 flex-col gap-6">
+        <section aria-label="Seats" className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="hc-label text-[20px] text-[color:var(--gold-light)]">Seats</h2>
+            <Seg
+              label="Players"
+              value={settings.players}
+              onChange={(n) => setSettings({ players: n })}
               disabled={!editable}
-              data-testid="fill-bots"
-            >
-              <Icon name="bot" size={15} /> Fill empty seats with bots
-            </button>
-          )}
-
-          <h2 className="panel-title mb-2 mt-5">Rules</h2>
-          <label className="flex items-center gap-3">
-            <span className="w-28 shrink-0 text-[15px]">Victory at</span>
-            <input
-              type="range"
-              min={MIN_TARGET}
-              max={MAX_TARGET}
-              value={settings.targetVp}
-              onChange={(e) => setSettings({ targetVp: Number(e.target.value) })}
-              className="min-w-0 flex-1 accent-[#f2ac52]"
-              aria-label="Target victory points"
-              disabled={!editable}
+              small
+              options={[
+                { v: 3, l: '3 players' },
+                { v: 4, l: '4 players' },
+              ]}
             />
-            <span className="num w-10 text-right text-[20px] text-gold">{settings.targetVp}</span>
-          </label>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="w-28 shrink-0 text-[15px]">First player</span>
-            <button
-              className={`chip !py-1 ${settings.rollOff ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
-              onClick={() => setSettings({ rollOff: true })}
-              disabled={!editable}
-            >
-              Dice roll-off
-            </button>
-            <button
-              className={`chip !py-1 ${!settings.rollOff ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
-              onClick={() => setSettings({ rollOff: false })}
-              disabled={!editable}
-            >
-              Seat 1
-            </button>
+          </div>
+          <div className={`flex flex-col items-center gap-6 pt-7 ${pairsOnPhone ? '' : 'xl:items-start'}`}>
+            {(pairsOnPhone ? [seats.slice(0, 2), seats.slice(2)] : [seats]).map((row, ri) => (
+              <BannerPole key={ri} gap={size.gap} overhang={36} align="flex-start">
+                {row.map((s, j) => {
+                  const i = ri * 2 + j;
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-3" style={{ width: size.bw }}>
+                      <SeatBanner seat={s} index={i} lit={i === firstOpen} w={size.bw} h={size.bh} />
+                      <SeatControls
+                        seat={s}
+                        index={i}
+                        editable={editable && i > 0}
+                        canKick={editable}
+                        onChoose={(choice) => apply({ t: 'seat', index: i, choice })}
+                        onKick={() => net.send({ t: 'kick', index: i })}
+                      />
+                    </div>
+                  );
+                })}
+              </BannerPole>
+            ))}
           </div>
         </section>
+
+        <div className="grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <InviteCard status={net.status} code={serverLobby ? lobby.code : null} />
+          <div className="flex flex-col gap-3">
+            {problem && (
+              <p className="hc-oak flex items-center gap-3 !px-4 !py-3 text-[17px] text-[color:var(--on-dark)]" role="status">
+                <Icon name="question" size={20} /> {problem}
+              </p>
+            )}
+            <div className="flex flex-wrap justify-end gap-3">
+              {openSeats(lobby) > 0 && (
+                <button className="hc-btn hc-btn--dark" onClick={() => apply({ t: 'fill-bots' })} disabled={!editable} data-testid="fill-bots">
+                  <Icon name="bot" size={18} /> Fill empty seats with bots
+                </button>
+              )}
+              <button className="hc-btn !min-h-[56px] !px-8 !text-[24px]" disabled={!!problem || connecting || (!!serverLobby && !live)} onClick={start} data-testid="begin">
+                Start game
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <section className="panel flex flex-col gap-3 px-4 py-4 sm:px-5" aria-label="The board">
-        <h2 className="panel-title">The board</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {(Object.keys(LAYOUT_NAME) as LayoutMode[]).map((l) => (
-            <button
-              key={l}
-              className={`chip !py-1 ${settings.layout === l ? 'border-gold bg-gold/15 text-gold' : 'text-muted'}`}
-              onClick={() => setSettings({ layout: l })}
-              aria-pressed={settings.layout === l}
+      <OakPanel title="Articles of the Game" aria-label="The board" className="self-start">
+        <div className="flex flex-col gap-1 p-5 text-[18px]">
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span>Victory at</span>
+            <Stepper value={settings.targetVp} onChange={(v) => editable && setSettings({ targetVp: v })} min={MIN_TARGET} max={MAX_TARGET} label="Target victory points" />
+          </div>
+          <hr className="hc-dots" />
+          <div className="flex flex-wrap items-center justify-between gap-3 py-1.5">
+            <span>First player</span>
+            <Seg
+              label="First player"
+              value={settings.rollOff}
+              onChange={(v) => setSettings({ rollOff: v })}
               disabled={!editable}
-            >
-              {LAYOUT_NAME[l]}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            className="min-w-0 flex-1 rounded-xl border border-iron bg-surface-1 px-3 py-1.5 font-mono text-[14px] text-bone"
-            value={settings.seed}
-            onChange={(e) => setSettings({ seed: e.target.value })}
-            aria-label="Seed"
-            data-testid="seed"
+              small
+              options={[
+                { v: true, l: 'Dice roll-off' },
+                { v: false, l: 'Seat 1' },
+              ]}
+            />
+          </div>
+          <hr className="hc-dots" />
+          <div className="hc-label mt-1 text-[17px]">The board</div>
+          <Seg
+            label="Board layout"
+            value={settings.layout}
+            onChange={(l) => setSettings({ layout: l })}
             disabled={!editable}
+            small
+            className="w-full [&>button]:flex-1"
+            options={(Object.keys(LAYOUT_NAME) as LayoutMode[]).map((l) => ({ v: l, l: LAYOUT_NAME[l] }))}
           />
-          <Tooltip label="New random board" align="end">
-            <button
-              className="icon-btn"
-              onClick={() => setSettings({ seed: randomSeed() })}
-              aria-label="Randomize seed"
-              disabled={!editable}
-            >
-              <Icon name="refresh" />
+          <div className="hc-label mt-3 text-[17px]">Seed</div>
+          <div className="flex items-center gap-2">
+            <input className="hc-input min-w-0 flex-1 italic" value={settings.seed} onChange={(e) => setSettings({ seed: e.target.value })} aria-label="Seed" data-testid="seed" disabled={!editable} />
+            <button className="hc-paper-btn !w-[44px] !px-0" onClick={() => setSettings({ seed: randomSeed() })} aria-label="Randomize seed" title="New random board" disabled={!editable}>
+              <Icon name="refresh" size={18} />
             </button>
-          </Tooltip>
+          </div>
+          <div className="mt-3 flex items-center gap-4">
+            <div className="w-1/2 shrink-0 p-1" style={{ border: '1.5px solid var(--map-ink)', background: 'var(--paper-card)' }}>
+              <BoardPreview settings={settings} />
+            </div>
+            <p className="hc-gloss hc-ink-muted !text-[15px]">Same seed, same board — share it to play this map again.</p>
+          </div>
         </div>
-        <p className="-mt-1 text-[13px] text-muted">
-          Same seed, same board — share it to play this map again.
-        </p>
-        <BoardPreview settings={settings} />
-        <div className="mt-auto flex flex-col gap-2">
-          {problem && <p className="text-center text-[14px] text-muted">{problem}</p>}
-          <button
-            className="btn btn-primary w-full !py-2.5 text-[13px]"
-            disabled={!!problem || connecting || (!!serverLobby && !live)}
-            onClick={start}
-            data-testid="begin"
-          >
-            <Icon name="flag" /> Start game
-          </button>
-        </div>
-      </section>
+      </OakPanel>
     </div>
   );
 }
 
+/** A seat's banner: kicker, arms (or a dashed empty shield), name on the ribbon, status as gloss. */
+function SeatBanner({ seat, index, lit, w, h, you = false, read = false }: { seat: Seat; index: number; lit: boolean; w: number; h: number; you?: boolean; read?: boolean }) {
+  const profile = seat.kind === 'open' ? null : seat.profile;
+  let status = '';
+  let tone: 'ok' | 'warn' = 'ok';
+  if (seat.kind === 'host') status = read ? 'Host' : 'You · host';
+  else if (seat.kind === 'remote') {
+    status = seat.connected ? (read ? 'Joined' : 'Joined online') : 'Reconnecting…';
+    tone = seat.connected ? 'ok' : 'warn';
+  } else if (seat.kind === 'bot') status = read ? `Bot · ${BOT_NAME[seat.bot]}` : `Bot · ${BOT_BLURB[seat.bot]}`;
+  else if (seat.kind === 'local') status = read ? 'On the host’s device' : 'Plays on this device';
+  else {
+    status = read ? 'Waiting for a player' : 'Waiting for a player… share the room code';
+    tone = 'warn';
+  }
+  if (you) status = `(you) · ${status}`;
+  return (
+    <Banner
+      width={w}
+      height={h}
+      tincture={profile ? { player: profile.color } : 'sable'}
+      arms={profile ? { color: profile.color, sigil: profile.sigil } : 'empty'}
+      kicker={`Seat ${ROMAN[index]}`}
+      label={profile ? profile.name : read ? 'Open seat' : 'Empty seat'}
+      labelSize={w >= 190 ? 20 : 17}
+      gloss={status}
+      glossTone={tone}
+      lit={lit}
+      extra={
+        seat.kind === 'host' ? (
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[color:var(--gold-light)]" style={{ top: -30, filter: 'drop-shadow(0 2px 2px #000)' }} aria-hidden>
+            <Icon name="crown" size={30} strokeWidth={2} />
+          </span>
+        ) : undefined
+      }
+    />
+  );
+}
+
+/** Under each banner: Invite / Bot / This device, bot difficulty, a local name, or Remove. */
+function SeatControls({
+  seat,
+  index,
+  editable,
+  canKick,
+  onChoose,
+  onKick,
+}: {
+  seat: Seat;
+  index: number;
+  editable: boolean;
+  canKick: boolean;
+  onChoose: (c: { kind: 'open' } | { kind: 'bot'; bot: BotLevel } | { kind: 'local'; name?: string }) => void;
+  onKick?: () => void;
+}) {
+  const person = seat.kind === 'host' || seat.kind === 'remote';
+  if (seat.kind === 'host') return null;
+  return (
+    <OakPanel as="div" className="w-[calc(100%+20px)] !p-2" insetClassName="flex flex-col gap-2 p-2">
+      {!person && (
+        <>
+          <Seg
+            label={`Seat ${index + 1}`}
+            value={seat.kind}
+            onChange={(k) => onChoose(k === 'bot' ? { kind: 'bot', bot: seat.kind === 'bot' ? seat.bot : 'warlord' } : k === 'local' ? { kind: 'local' } : { kind: 'open' })}
+            disabled={!editable}
+            small
+            className="w-full [&>button]:flex-1 [&>button]:!px-1 [&>button]:!text-[14px]"
+            options={[
+              { v: 'open', l: 'Invite', testId: `seat-open-${index}` },
+              { v: 'bot', l: 'Bot', testId: `seat-bot-${index}` },
+              { v: 'local', l: 'This device', testId: `seat-human-${index}` },
+            ]}
+          />
+          {seat.kind === 'bot' && (
+            <select className="hc-select !min-h-[38px] w-full !text-[16px]" value={seat.bot} onChange={(e) => onChoose({ kind: 'bot', bot: e.target.value as BotLevel })} aria-label={`Seat ${index + 1} bot difficulty`} disabled={!editable}>
+              {BOTS.map((b) => (
+                <option key={b} value={b}>
+                  {BOT_NAME[b]}
+                </option>
+              ))}
+            </select>
+          )}
+          {seat.kind === 'local' && editable && (
+            <input className="hc-input !min-h-[38px] w-full !text-[16px]" defaultValue={seat.profile.name} maxLength={16} onBlur={(e) => onChoose({ kind: 'local', name: e.target.value })} aria-label={`Seat ${index + 1} name`} />
+          )}
+        </>
+      )}
+      {seat.kind === 'remote' && onKick && canKick && (
+        <button className="hc-paper-btn hc-paper-btn--danger hc-paper-btn--sm w-full" onClick={onKick}>
+          Remove
+        </button>
+      )}
+    </OakPanel>
+  );
+}
+
+/** A letter of summons with the room code; also "Opening a room…" and the offline note. */
 function InviteCard({ status, code }: { status: string; code: string | null }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -487,180 +549,45 @@ function InviteCard({ status, code }: { status: string; code: string | null }) {
   let body: ReactNode;
   if (code && (status === 'online' || status === 'reconnecting')) {
     body = (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <div className="font-display text-[10px] uppercase tracking-[0.2em] text-muted">
-            Room code
-          </div>
-          <div
-            className="num select-all text-[34px] leading-tight tracking-[0.12em] text-gold"
-            data-testid="room-code"
-            style={{ textShadow: '0 0 22px rgb(var(--gold) / 0.45)' }}
-          >
-            {code}
-          </div>
-        </div>
-        <button className="btn !px-3" onClick={copy}>
-          <Icon name={copied ? 'check' : 'scroll'} size={15} /> {copied ? 'Copied' : 'Copy code'}
-        </button>
-        <p className="w-full text-[14px] text-muted sm:w-auto sm:flex-1">
-          Friends choose <b className="text-bone">Join a game</b> and type this code. They take the
-          open seats as they arrive.
+      <>
+        <div className="hc-label text-[15px] hc-rubric">A letter of summons</div>
+        <p className="italic">
+          Friends choose <b>Join a game</b> and type this code. They take the open seats as they arrive.
         </p>
-      </div>
+        <div className="hc-title select-all whitespace-nowrap py-1 leading-none text-[color:var(--ink)]" style={{ fontSize: 'clamp(30px, 8vw, 54px)' }} data-testid="room-code">
+          {code}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button className="hc-paper-btn" onClick={copy}>
+            <Icon name={copied ? 'check' : 'scroll'} size={16} /> {copied ? 'Copied' : 'Copy code'}
+          </button>
+        </div>
+      </>
     );
   } else if (status === 'connecting') {
     body = (
-      <div className="flex items-center gap-3 text-muted">
-        <span className="h-3 w-3 rounded-full bg-gold anim-pulse" aria-hidden /> Opening a room…
-      </div>
+      <>
+        <div className="hc-label text-[15px] hc-rubric">A letter of summons</div>
+        <p className="flex items-center gap-3 italic">
+          <span className="h-3 w-3 rounded-full anim-pulse" style={{ background: 'var(--rubric)' }} aria-hidden /> Opening a room…
+        </p>
+      </>
     );
   } else {
     body = (
-      <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/30 text-muted">
-          <Icon name="user" size={18} />
-        </span>
-        <div className="text-[14px]">
-          <div className="font-display text-[12px] uppercase tracking-[0.14em] text-bone">
-            Playing on this device
-          </div>
-          <p className="text-muted">
-            The game server isn’t reachable, so friends can’t join right now. You can still play
-            against bots and with friends sharing this device.
-          </p>
-        </div>
-      </div>
+      <>
+        <div className="hc-label text-[18px] hc-rubric">Playing on this device</div>
+        <p className="italic">The game server isn’t reachable, so friends can’t join right now. You can still play against bots and with friends sharing this device.</p>
+      </>
     );
   }
   return (
-    <section className="panel px-4 py-4 sm:px-5" aria-label="Invite">
+    <section className="hc-letter relative flex max-w-[460px] flex-col gap-2 px-6 py-5 pr-16 text-[17px]" style={{ transform: 'rotate(-1.5deg)' }} aria-label="Invite">
+      <span className="absolute -right-3 -top-4" aria-hidden>
+        <WaxSeal size={62} />
+      </span>
       {body}
     </section>
-  );
-}
-
-function SeatRow({
-  seat,
-  index,
-  editable,
-  onChoose,
-  onKick,
-}: {
-  seat: Seat;
-  index: number;
-  editable: boolean;
-  onChoose: (
-    c: { kind: 'open' } | { kind: 'bot'; bot: BotLevel } | { kind: 'local'; name?: string },
-  ) => void;
-  onKick?: () => void;
-}) {
-  const person = seat.kind === 'host' || seat.kind === 'remote';
-  const profile = seat.kind === 'open' ? null : seat.profile;
-  const choice = (
-    kind: 'open' | 'bot' | 'local',
-    label: string,
-    icon: IconName,
-    testid: string,
-  ) => (
-    <button
-      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-display text-[11px] uppercase tracking-[0.08em] transition-colors ${
-        seat.kind === kind
-          ? 'bg-gold text-[#2a1406] shadow-[0_4px_12px_-6px_rgb(255_140_60/0.9)]'
-          : 'text-muted hover:bg-surface-2 hover:text-bone'
-      }`}
-      onClick={() =>
-        onChoose(
-          kind === 'bot'
-            ? { kind: 'bot', bot: seat.kind === 'bot' ? seat.bot : 'warlord' }
-            : kind === 'local'
-              ? { kind: 'local' }
-              : { kind: 'open' },
-        )
-      }
-      aria-pressed={seat.kind === kind}
-      disabled={!editable}
-      data-testid={testid}
-    >
-      <Icon name={icon} size={13} /> {label}
-    </button>
-  );
-  return (
-    <li
-      className={`tile flex flex-wrap items-center gap-3 px-3 py-2.5 ${seat.kind === 'host' ? 'tile-selected' : ''}`}
-    >
-      {profile ? (
-        <PlayerDisc color={profile.color} sigil={profile.sigil} size={36} />
-      ) : (
-        <span
-          className="grid h-9 w-9 place-items-center rounded-full border-2 border-dashed border-iron text-muted anim-pulse"
-          aria-hidden
-        >
-          <Icon name="user" size={16} />
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        {seat.kind === 'local' && editable ? (
-          <input
-            className="w-full max-w-[180px] rounded-lg border border-iron bg-surface-1 px-2 py-1 text-[15px] text-bone"
-            defaultValue={seat.profile.name}
-            maxLength={16}
-            onBlur={(e) => onChoose({ kind: 'local', name: e.target.value })}
-            aria-label={`Seat ${index + 1} name`}
-          />
-        ) : (
-          <div
-            className="truncate font-display text-[14px] tracking-[0.04em]"
-            style={{ color: profile ? NAME_COLOR[profile.color] : undefined }}
-          >
-            {profile ? profile.name : <span className="text-muted">Waiting for a player…</span>}
-          </div>
-        )}
-        <div className="mt-0.5 text-[12px] text-muted">
-          {seat.kind === 'host' && 'You · host'}
-          {seat.kind === 'remote' && (seat.connected ? 'Joined online' : 'Reconnecting…')}
-          {seat.kind === 'bot' && `Bot · ${BOT_BLURB[seat.bot]}`}
-          {seat.kind === 'local' && 'Plays on this device'}
-          {seat.kind === 'open' && 'Share the room code to fill this seat'}
-        </div>
-      </div>
-      {!person && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div
-            className="flex rounded-xl border border-iron/70 bg-black/25 p-0.5"
-            role="group"
-            aria-label={`Seat ${index + 1}`}
-          >
-            {choice('open', 'Invite', 'user', `seat-open-${index}`)}
-            {choice('bot', 'Bot', 'bot', `seat-bot-${index}`)}
-            {choice('local', 'This device', 'eye', `seat-human-${index}`)}
-          </div>
-          {seat.kind === 'bot' && (
-            <select
-              className="rounded-lg border border-iron bg-surface-1 px-2 py-1.5 text-[14px] text-bone"
-              value={seat.bot}
-              onChange={(e) => onChoose({ kind: 'bot', bot: e.target.value as BotLevel })}
-              aria-label={`Seat ${index + 1} bot difficulty`}
-              disabled={!editable}
-            >
-              {BOTS.map((b) => (
-                <option key={b} value={b}>
-                  {BOT_NAME[b]}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
-      {seat.kind === 'remote' && onKick && editable && (
-        <button
-          className="chip !py-1 text-muted hover:!border-ember hover:!text-ember"
-          onClick={onKick}
-        >
-          Remove
-        </button>
-      )}
-    </li>
   );
 }
 
@@ -683,140 +610,87 @@ function BoardPreview({ settings }: { settings: LobbySettings }) {
       return null;
     }
   }, [settings.seed, settings.layout]);
-  return (
-    <div className="overflow-hidden rounded-2xl">
-      {preview && <BoardView state={preview} canAct={false} decorative />}
-    </div>
-  );
+  return <div className="overflow-hidden">{preview && <BoardView state={preview} canAct={false} decorative />}</div>;
 }
 
 // ------------------------------------------------------------------ join
 
 function JoinLobby({ onBack }: { onBack: () => void }) {
   const net = useNet();
+  const vp = useViewport();
   const lobby = net.lobby;
   if (!lobby || net.status !== 'online') {
     const failed = net.status === 'idle' || net.status === 'offline';
-    return (
-      <section
-        className="panel mx-auto flex w-full max-w-lg flex-col items-center gap-3 px-6 py-8 text-center"
-        aria-live="polite"
-      >
-        {failed ? (
-          <>
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-ember/15 text-ember">
-              <Icon name="close" size={22} />
-            </span>
-            <p className="text-[16px] text-bone" data-testid="join-error">
-              {net.closed ??
-                net.error ??
-                'Couldn’t reach the game server. Check your connection and try again.'}
-            </p>
-            <button className="btn" onClick={onBack}>
-              Try another code
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="h-4 w-4 rounded-full bg-gold anim-pulse" aria-hidden />
-            <p className="text-muted">Finding the table…</p>
-          </>
-        )}
-      </section>
+    return failed ? (
+      <ParchmentSheet className="mx-auto flex w-full max-w-lg flex-col items-center gap-4 px-8 py-8 text-center">
+        <WaxSeal size={60} />
+        <h2 className="hc-title text-[34px] text-[color:var(--rubric-dark)]">No table found</h2>
+        <p className="text-[18px]" data-testid="join-error" aria-live="polite">
+          {net.closed ?? net.error ?? 'Couldn’t reach the game server. Check your connection and try again.'}
+        </p>
+        <button className="hc-paper-btn" onClick={onBack}>
+          Try another code
+        </button>
+      </ParchmentSheet>
+    ) : (
+      <div className="h-48" aria-live="polite">
+        <HallLoader>Finding the table…</HallLoader>
+      </div>
     );
   }
   const host = lobby.seats[0];
+  const seats = activeSeats(lobby);
+  const size = seatSize(vp.w);
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="flex min-w-0 flex-col gap-4">
-        <section className="panel flex flex-wrap items-center gap-4 px-5 py-4" aria-live="polite">
-          <div>
-            <div className="font-display text-[10px] uppercase tracking-[0.2em] text-muted">
-              Room
-            </div>
-            <div className="num text-[28px] leading-tight tracking-[0.12em] text-gold">
-              {lobby.code}
-            </div>
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="flex min-w-0 flex-col gap-6">
+        <section className="flex flex-wrap items-center gap-5" aria-live="polite">
+          <div className="hc-letter px-5 py-3" style={{ transform: 'rotate(-1deg)' }}>
+            <div className="hc-label text-[14px] hc-rubric">Room</div>
+            <div className="hc-title text-[44px] leading-none">{lobby.code}</div>
           </div>
-          <div
-            className="flex w-full min-w-0 items-center gap-2 text-[15px] text-bone sm:w-auto sm:flex-1"
-            data-testid="join-waiting"
-          >
+          <div className="hc-slip" data-testid="join-waiting">
             <span className="inline-flex gap-1" aria-hidden>
               {[0, 1, 2].map((k) => (
-                <span
-                  key={k}
-                  className="h-1.5 w-1.5 rounded-full bg-gold anim-pulse"
-                  style={{ animationDelay: `${k * 0.2}s` }}
-                />
+                <span key={k} className="h-1.5 w-1.5 rounded-full anim-pulse" style={{ background: 'var(--rubric)', animationDelay: `${k * 0.2}s` }} />
               ))}
             </span>
-            You’re in. Waiting for {host.kind === 'open' ? 'the host' : host.profile.name} to start
-            the game.
+            You’re in. Waiting for {host.kind === 'open' ? 'the host' : host.profile.name} to start the game.
           </div>
         </section>
-        <section className="panel px-5 py-4" aria-label="Seats">
-          <h2 className="panel-title mb-3">At the table</h2>
-          <ul className="flex flex-col gap-2">
-            {activeSeats(lobby).map((s, i) => (
-              <JoinSeat
-                key={i}
-                seat={s}
-                you={(s.kind === 'remote' || s.kind === 'host') && s.client === net.client}
-              />
+        <section aria-label="Seats" className="flex flex-col items-center gap-2">
+          <h2 className="hc-label text-[20px] text-[color:var(--gold-light)]">At the table</h2>
+          <div className="flex flex-col items-center gap-6 pt-10">
+            {(vp.w < 640 ? [seats.slice(0, 2), seats.slice(2)] : [seats]).map((row, ri) => (
+              <BannerPole key={ri} gap={size.gap} overhang={36}>
+                {row.map((s, j) => (
+                  <SeatBanner key={j} seat={s} index={ri * 2 + j} lit={false} w={size.bw} h={size.bh} read you={(s.kind === 'remote' || s.kind === 'host') && s.client === net.client} />
+                ))}
+              </BannerPole>
             ))}
-          </ul>
+          </div>
         </section>
       </div>
-      <section className="panel flex flex-col gap-3 px-5 py-4" aria-label="The board">
-        <h2 className="panel-title">The board</h2>
-        <div className="flex flex-wrap gap-1.5 text-[13px]">
-          <span className="chip text-bone">{LAYOUT_NAME[lobby.settings.layout]}</span>
-          <span className="chip text-bone">{lobby.settings.players} players</span>
-          <span className="chip text-bone">First to {lobby.settings.targetVp}</span>
-          <span className="chip text-bone">
-            {lobby.settings.rollOff ? 'Dice roll-off' : 'Host starts'}
-          </span>
-        </div>
-        <BoardPreview settings={lobby.settings} />
-        <button className="btn mt-auto w-full" onClick={onBack}>
-          Leave table
-        </button>
+      <section aria-label="The board">
+        <ChartSheet pad={28}>
+          <h2 className="hc-label text-center text-[20px]">· The board ·</h2>
+          <ul className="mt-2 text-[18px] [&>li+li]:border-t-[1.5px] [&>li+li]:border-dotted [&>li+li]:border-[color:var(--map-ink-muted)] [&>li]:py-1">
+            <li>{LAYOUT_NAME[lobby.settings.layout]}</li>
+            <li>{lobby.settings.players} players</li>
+            <li>First to {lobby.settings.targetVp}</li>
+            <li>{lobby.settings.rollOff ? 'Dice roll-off' : 'Host starts'}</li>
+          </ul>
+          <div className="mt-3 p-1" style={{ border: '1.5px solid var(--map-ink)', background: 'var(--paper-card)' }}>
+            <BoardPreview settings={lobby.settings} />
+          </div>
+          <div className="mt-4 flex items-end justify-between">
+            <button className="hc-paper-btn" onClick={onBack}>
+              Leave table
+            </button>
+            <CompassRose size={84} />
+          </div>
+        </ChartSheet>
       </section>
     </div>
-  );
-}
-
-function JoinSeat({ seat, you }: { seat: Seat; you: boolean }) {
-  const profile = seat.kind === 'open' ? null : seat.profile;
-  return (
-    <li className={`tile flex items-center gap-3 px-3 py-2.5 ${you ? 'tile-selected' : ''}`}>
-      {profile ? (
-        <PlayerDisc color={profile.color} sigil={profile.sigil} size={34} />
-      ) : (
-        <span
-          className="grid h-[34px] w-[34px] place-items-center rounded-full border-2 border-dashed border-iron text-muted"
-          aria-hidden
-        >
-          <Icon name="user" size={15} />
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <div
-          className="truncate font-display text-[14px]"
-          style={{ color: profile ? NAME_COLOR[profile.color] : undefined }}
-        >
-          {profile ? profile.name : <span className="text-muted">Open seat</span>}
-          {you && <span className="ml-2 text-[11px] text-muted">(you)</span>}
-        </div>
-        <div className="text-[12px] text-muted">
-          {seat.kind === 'host' && 'Host'}
-          {seat.kind === 'remote' && (seat.connected ? 'Joined' : 'Reconnecting…')}
-          {seat.kind === 'bot' && `Bot · ${BOT_NAME[seat.bot]}`}
-          {seat.kind === 'local' && 'On the host’s device'}
-          {seat.kind === 'open' && 'Waiting for a player'}
-        </div>
-      </div>
-    </li>
   );
 }

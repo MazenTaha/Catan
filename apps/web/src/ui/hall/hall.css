@@ -909,10 +909,13 @@ button.hc-banner:active:not(:disabled) {
 }
 .hc-ribbon__text {
   position: relative;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-label);
   color: var(--ink);
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.15;
 }
 .hc-banner__gloss {
   position: absolute;

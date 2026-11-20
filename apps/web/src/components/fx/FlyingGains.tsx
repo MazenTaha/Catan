@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { RESOURCES, TERRAIN_RESOURCE, type GameState, type Resource } from '@hexfall/engine';
-import { RES_COLOR, ResourceGlyph } from '../../art/icons/Icon';
+import { cardArt } from '../../art/cards/cardArt';
 import { VIEWBOX, hexCenter, topo } from '../board/geometry';
 import { useStore } from '../../state/store';
 
@@ -63,22 +63,16 @@ export function FlyingGains({ state, seat, disabled }: { state: GameState; seat:
     <div className="pointer-events-none fixed inset-0 z-40" aria-hidden>
       <AnimatePresence>
         {flyers.map((f) => (
+          // a small parchment card with the resource's own art, flying to the hand
           <motion.div
             key={f.id}
-            className="absolute grid h-11 w-8 place-items-center rounded-[3px] border"
-            style={{
-              left: 0,
-              top: 0,
-              borderColor: RES_COLOR[f.res],
-              background: '#121415',
-              color: RES_COLOR[f.res],
-              boxShadow: `0 0 14px ${RES_COLOR[f.res]}88`,
-            }}
-            initial={{ x: f.from.x - 16, y: f.from.y - 22, scale: 0.4, opacity: 0, rotate: -20 }}
-            animate={{ x: f.to.x - 16, y: f.to.y - 22, scale: 1, opacity: [0, 1, 1, 0], rotate: 0 }}
+            className="hc-card absolute h-11 w-9 justify-center p-[3px]"
+            style={{ left: 0, top: 0 }}
+            initial={{ x: f.from.x - 18, y: f.from.y - 22, scale: 0.4, opacity: 0, rotate: -20 }}
+            animate={{ x: f.to.x - 18, y: f.to.y - 22, scale: 1, opacity: [0, 1, 1, 0], rotate: 0 }}
             transition={{ duration: 0.9, delay: f.delay, ease: [0.4, 0, 0.2, 1], opacity: { duration: 0.9, delay: f.delay, times: [0, 0.15, 0.85, 1] } }}
           >
-            <ResourceGlyph res={f.res} size={18} />
+            <img src={cardArt(f.res)} alt="" className="h-full w-full object-cover" draggable={false} />
           </motion.div>
         ))}
       </AnimatePresence>

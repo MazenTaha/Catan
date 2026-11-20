@@ -305,40 +305,7 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    first?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissable && onClose) {
-        e.stopPropagation();
-        onClose();
-      }
-      if (e.key === 'Tab' && ref.current) {
-        const items = [
-          ...ref.current.querySelectorAll<HTMLElement>(
-            'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-          ),
-        ];
-        if (!items.length) return;
-        const i = items.indexOf(document.activeElement as HTMLElement);
-        if (e.shiftKey && i <= 0) {
-          e.preventDefault();
-          items[items.length - 1].focus();
-        } else if (!e.shiftKey && i === items.length - 1) {
-          e.preventDefault();
-          items[0].focus();
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('keydown', onKey, true);
-      prev?.focus?.();
-    };
-  }, [dismissable, onClose]);
+  useDialogTrap(ref, dismissable, onClose);
 
   return (
     <motion.div
@@ -380,6 +347,50 @@ export function Modal({
       </motion.div>
     </motion.div>
   );
+}
+
+/**
+ * A dialog's keyboard contract: focus moves inside when it opens and back when it closes, Tab
+ * stays inside, and Esc closes it when it may be dismissed.
+ */
+export function useDialogTrap(ref: React.RefObject<HTMLElement>, dismissable: boolean, onClose?: () => void) {
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const first = ref.current?.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    // focus without scrolling, so a tall dialog opens at its top
+    first?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && dismissable && onClose) {
+        e.stopPropagation();
+        onClose();
+      }
+      if (e.key === 'Tab' && ref.current) {
+        const items = [
+          ...ref.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ];
+        if (!items.length) return;
+        const i = items.indexOf(document.activeElement as HTMLElement);
+        if (e.shiftKey && i <= 0) {
+          e.preventDefault();
+          items[items.length - 1].focus();
+        } else if (!e.shiftKey && i === items.length - 1) {
+          e.preventDefault();
+          items[0].focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      prev?.focus?.();
+    };
+    // the ref is stable; re-run only when the closing rules change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissable, onClose]);
 }
 
 /** A rookie tip: a map note pinned to the board, shown once per id while rookie tips are on. */

@@ -6,11 +6,12 @@ import { CountsInline, Modal } from '../ui/primitives';
 
 function Section({ title, icon, children }: { title: string; icon: IconName; children: React.ReactNode }) {
   return (
-    <section className="mb-5">
-      <h3 className="mb-2 flex items-center gap-2 font-display text-[14px] uppercase tracking-[0.16em] text-gold">
-        <Icon name={icon} size={18} /> {title}
+    <section className="mb-5 break-inside-avoid">
+      <h3 className="hc-label mb-1.5 flex items-center gap-2 text-[22px] hc-rubric">
+        <span aria-hidden>¶</span> {title}
+        <Icon name={icon} size={17} className="hc-ink-muted" />
       </h3>
-      <div className="flex flex-col gap-1.5 text-[15px] leading-relaxed text-bone/90">{children}</div>
+      <div className="flex flex-col gap-1.5 text-[17px] leading-relaxed">{children}</div>
     </section>
   );
 }
@@ -26,6 +27,8 @@ export default function RulebookModal() {
   const close = useStore((s) => s.closeModal);
   return (
     <Modal title="How to Play" icon="rules" onClose={close} wide>
+      {/* an open book: two pages with a spine down the middle on wide screens */}
+      <div className="gap-12 md:columns-2 md:[column-rule:1.5px_solid_rgba(58,38,20,0.35)]">
       <Section title="Goal" icon="crown">
         <p>Be the first to reach 10 victory points (or the target you chose) on your own turn.</p>
       </Section>
@@ -45,19 +48,19 @@ export default function RulebookModal() {
         <p>If the bank cannot pay everyone a resource, a single owed player takes what remains; if several are owed, nobody gets it.</p>
       </Section>
       <Section title="Costs" icon="citadel">
-        <table className="w-full text-left text-[14px]">
+        <table className="w-full text-left text-[15px]">
           <tbody>
             {ROWS.map((r) => (
-              <tr key={r.key} className="border-b border-iron/40">
+              <tr key={r.key} className="border-b-[1.5px] border-dotted border-[color:var(--map-ink-muted)] align-top">
                 <td className="py-1.5 pr-2">
-                  <span className="inline-flex items-center gap-1.5 font-display text-[14px] uppercase tracking-[0.08em]">
-                    <Icon name={r.icon} size={16} className="text-gold" /> {PIECE_NAME[r.key]}
+                  <span className="hc-label inline-flex items-center gap-1.5 text-[16px]">
+                    <Icon name={r.icon} size={16} /> {PIECE_NAME[r.key]}
                   </span>
                 </td>
                 <td className="py-1.5 pr-2">
-                  <CountsInline counts={COSTS[r.key]} size={16} />
+                  <CountsInline counts={COSTS[r.key]} size={20} />
                 </td>
-                <td className="py-1.5 text-muted">{r.note}</td>
+                <td className="py-1.5 italic hc-ink-muted">{r.note}</td>
               </tr>
             ))}
           </tbody>
@@ -75,21 +78,24 @@ export default function RulebookModal() {
       <Section title="Development cards (25)" icon="omen">
         {(['warden', 'decree', 'harvest', 'tithe', 'relic'] as const).map((o) => (
           <p key={o}>
-            <b className="text-gold">{OMEN_NAME[o]}</b> — {OMEN_TEXT[o]}
+            <b className="hc-rubric">{OMEN_NAME[o]}</b> — {OMEN_TEXT[o]}
           </p>
         ))}
       </Section>
       <Section title="Special cards (2 points each)" icon="sword">
         <p>
-          <b className="text-gold">{LONGEST}</b>: an unbroken road of 5+ segments, longer than anyone else's. An opponent's settlement or city on it breaks it. The holder keeps it on ties.
+          <b className="hc-rubric">{LONGEST}</b>: an unbroken road of 5+ segments, longer than anyone else's. An opponent's settlement or city on it breaks it. The holder keeps it on ties.
         </p>
         <p>
-          <b className="text-gold">{HOST}</b>: 3+ Knights played, more than anyone else. The holder keeps it on ties.
+          <b className="hc-rubric">{HOST}</b>: 3+ Knights played, more than anyone else. The holder keeps it on ties.
         </p>
       </Section>
       <Section title="Keys" icon="dice">
-        <p>Space — roll / end turn · Esc — cancel placement or close · Tab — move between spots, Enter to place.</p>
+        <p>
+          <span className="hc-kbd">Space</span> roll / end turn · <span className="hc-kbd">Esc</span> cancel placement or close · <span className="hc-kbd">Tab</span> move between spots, <span className="hc-kbd">Enter</span> to place.
+        </p>
       </Section>
+      </div>
     </Modal>
   );
 }

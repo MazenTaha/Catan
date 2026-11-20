@@ -40,11 +40,11 @@
   --rubric-dark: #7a1912;
   --ok-ink: #2f5a46;
 
-  --gold: #d9a93f;
+  --hc-gold: #d9a93f;
   --gold-light: #f3d27a;
   --gold-dark: #8a6018;
   --brass: #b48a3a;
-  --iron: #2a2a2e;
+  --hc-iron: #2a2a2e;
   --iron-rivet: #8a8a90;
 
   --oak: #3a2414;
@@ -97,7 +97,7 @@
 
 /* Frostbound: the same hall by moonlight. Silver metals, colder fire. */
 :root[data-theme='frostbound'] {
-  --gold: #b9c4cc;
+  --hc-gold: #b9c4cc;
   --gold-light: #e4ecf2;
   --gold-dark: #5e6a74;
   --brass: #9aa6ae;
@@ -119,6 +119,14 @@
   --dur-slow: 0ms;
 }
 
+html body {
+  background-color: var(--stone-mortar);
+  background-image: var(--tex-stone);
+  background-size: 480px 240px;
+  background-attachment: fixed;
+  color: var(--on-dark);
+}
+
 /* ------------------------------------------------------------------ type */
 
 .hc-title {
@@ -130,7 +138,7 @@
 /* Gold blackletter on stone: light top, dark bevel, soft drop. */
 .hc-title-gold {
   color: var(--gold-light);
-  background: linear-gradient(180deg, #fff1b8 0%, var(--gold-light) 30%, var(--gold) 62%, #b07d22 100%);
+  background: linear-gradient(180deg, #fff1b8 0%, var(--gold-light) 30%, var(--hc-gold) 62%, #b07d22 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -369,7 +377,7 @@
 .hc-btn {
   min-height: 48px;
   padding: 0 22px;
-  border: 2px solid var(--gold);
+  border: 2px solid var(--hc-gold);
   border-radius: var(--radius-btn);
   font-family: var(--font-label);
   font-size: 21px;
@@ -380,7 +388,7 @@
 }
 .hc-btn--dark {
   background: #2a1a12;
-  box-shadow: inset 0 0 0 2px #2a1a12, inset 0 0 0 3px var(--gold), 0 4px 0 #0c0805;
+  box-shadow: inset 0 0 0 2px #2a1a12, inset 0 0 0 3px var(--hc-gold), 0 4px 0 #0c0805;
 }
 .hc-btn--sm {
   min-height: var(--touch);
@@ -408,7 +416,7 @@
   font-size: 15px;
 }
 .hc-plaque[aria-pressed='true'] {
-  background: linear-gradient(180deg, #fff0b8, var(--gold-light) 50%, var(--gold));
+  background: linear-gradient(180deg, #fff0b8, var(--gold-light) 50%, var(--hc-gold));
 }
 .hc-icon-btn {
   width: var(--touch);
@@ -420,7 +428,7 @@
   box-shadow: inset 0 1px 0 var(--gold-light), inset 0 -2px 0 var(--gold-dark), 0 3px 0 #0c0805;
 }
 .hc-icon-btn[aria-pressed='true'] {
-  background: radial-gradient(circle at 35% 30%, #fff0b8, var(--gold-light) 55%, var(--gold));
+  background: radial-gradient(circle at 35% 30%, #fff0b8, var(--gold-light) 55%, var(--hc-gold));
 }
 .hc-paper-btn {
   padding: 0 16px;
@@ -497,12 +505,20 @@
   color: var(--on-dark);
 }
 
-:where(.hc-scope) :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+.hc-scope :is(button, a, input, select, textarea, [tabindex]):focus-visible,
 .hc-focus:focus-visible {
   outline: none;
+  border-radius: var(--radius-btn);
   box-shadow: var(--focus-ring);
 }
-:where(.hc-scope) :where(svg [tabindex]):focus-visible {
+.hc-scope .hc-icon-btn:focus-visible {
+  border-radius: 50%;
+}
+.hc-scope .hc-banner:focus-visible {
+  box-shadow: none;
+}
+/* Board targets show focus through their own highlight (no box around hexes). */
+.hc-scope svg [tabindex]:focus-visible {
   box-shadow: none;
 }
 
@@ -767,7 +783,7 @@
   background: var(--paper-card);
   border: 1.5px solid var(--ink);
   border-radius: 3px;
-  box-shadow: inset 0 0 0 2px var(--paper-card), inset 0 0 0 3px var(--gold), 0 3px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 2px var(--paper-card), inset 0 0 0 3px var(--hc-gold), 0 3px 6px rgba(0, 0, 0, 0.35);
   color: var(--map-ink);
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }

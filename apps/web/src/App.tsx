@@ -2,14 +2,13 @@ import { AnimatePresence } from 'framer-motion';
 import { Suspense, lazy, useEffect } from 'react';
 import { audio } from './audio/engine';
 import { music } from './audio/music';
-import { Embers } from './components/fx/Embers';
 import { startScene } from './devScenario';
 import { SettingsModal } from './components/modals/InfoModals';
 import { GameScreen } from './components/screens/GameScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
 import { TitleScreen } from './components/screens/TitleScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import { liteEffects, prefersReducedMotion, useStore } from './state/store';
+import { prefersReducedMotion, useStore } from './state/store';
 
 const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
 const CharacterModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.CharacterModal })));
@@ -22,7 +21,6 @@ export function App() {
   const modal = useStore((s) => s.modal);
   const announce = useStore((s) => s.announce);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
-  const lite = useStore((s) => liteEffects(s.settings));
 
   // Development builds: `?scene=village` opens the walk's building scenario (devScenario.ts).
   useEffect(() => {
@@ -64,9 +62,7 @@ export function App() {
   }
 
   return (
-    <div className={`relative min-h-screen ${reduce ? 'reduce-motion' : ''}`}>
-      <div className="vignette" aria-hidden />
-      <Embers disabled={reduce || lite} count={screen === 'game' ? 28 : 40} />
+    <div className={`hc-scope relative min-h-screen ${reduce ? 'reduce-motion' : ''}`}>
       <div className="relative z-10 min-h-screen">
         <ErrorBoundary onReset={() => useStore.getState().go('title')}>
           {screen === 'title' && <TitleScreen />}

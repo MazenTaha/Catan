@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/fonts';
-import './styles/index.css';
+// The Hall & Chart kit first, so Tailwind utilities (later) can adjust its classes.
 import './ui/hall/hall.css';
+import './styles/index.css';
 import { App } from './App';
 import { startFrameWatch } from './state/frameWatch';
 import { fillMissingKeyCodes } from './state/host';

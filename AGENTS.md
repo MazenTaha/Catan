@@ -1,7 +1,7 @@
 # AGENTS.md — Catan Night (repo codename "Hexfall")
 
 Orientation for AI coding agents. Read this first, then `README.md` (player/run guide) and
-`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-10-25.
+`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-11-20.
 
 ## 1. What this is
 
@@ -25,8 +25,9 @@ Key constraints that shape everything:
 - **Sound effects and synthesized classical music** (DECISIONS #40, the owner reversed the old
   music ban): public-domain pieces on a WebAudio piano (`audio/music.ts`), on the menus and the 2D
   board only, never in the 3D walk. No audio files.
-- **UI palette is a cool graphite black** (not purple/plum, not blue-slate). Warm amber/gold and
-  coral are accents; reds are for danger. See §8.
+- **The 2D UI is "Hall & Chart"** (DECISIONS #54): a great hall at night (stone, torches, banners,
+  wax seals, oak-and-iron panels) with island information drawn as an old sea chart. The board and
+  every illustration stay as they are. The 3D walk's HUD keeps the older cool graphite look. See §8.
 - Private, non-commercial fan project. "Catan" is a trademark used at the owner's request.
 
 ## 2. Run, test, verify
@@ -180,7 +181,8 @@ tab, modal, hover), `fx`, `toast` and `settings`.
 | `components/panels/` | Left rail (title block, claims, turn: playing and next up, recent log), right rail (toolbar, hand, Build / Cards / Trade tabs, End turn); the board has the whole centre column |
 | `components/modals/` | Discard, steal, trade, dev cards, curtain, victory, settings, credits, import, rulebook |
 | `components/world/` | 3D walk: `World3D.tsx` (preloads models, then builds), `world.ts` (island, biomes, `Instancer`, controls, animals), `assets.ts` (slots, `ASSET_FILES`, loader), `field.ts` (wheat/grass/flowers in cells with LOD), `shaders.ts` (wind, foliage, depth pre-pass, sky, ground detail), `terrain.ts` (ground heights, colours), `models.ts` (procedural fallbacks, `bake`), `wheat.ts` (fallback wheat), `adaptive.ts` (Auto's adaptive resolution), `stress.ts` (dev-only stress presets), `buildings.json` + `buildings.ts` (enterable cottage/hall/mill: room plans shared with Blender, collision capsules, floors, doors); lazy chunk around 730 kB |
-| `components/ui/primitives.tsx` | Shared building blocks: ResourceCard, Tooltip, IconButton, segmented tabs, steppers, Modal |
+| `components/ui/primitives.tsx` | Shared building blocks, drawn in Hall & Chart: ResourceCard, Tooltip (map note), IconButton (brass), panel tabs, stepper, Modal (decree), `useDialogTrap` |
+| `ui/hall/` | The Hall & Chart kit: `hall.css` (tokens, `hc-*` classes, textures in `tex/`), `Banner.tsx` (banners, `BannerPole`), `Arms.tsx` (players' coats of arms), `Surfaces.tsx` (hall, war table, parchment, chart sheet, oak panel, ornaments), `Controls.tsx` (resource art, ink controls, scale-bar meter, bone dice, wax-seal button); `/#ui-kit` shows them all (dev builds) |
 | `art/` | Procedural terrain (`terrain/TerrainArt.tsx`), pieces/tokens/harbors/robber (`pieces/Pieces.tsx`), sigils, icons, dev-card art; `art/manifest.ts` can swap in image files |
 | `audio/` | `engine.ts` (SFX and music buses, optional Howler files via `manifest.json`), `synth.ts` (WebAudio SFX recipes), `music.ts` (synthesized classical pieces) |
 | `state/log.ts` | Event → log line / spoken text |
@@ -192,6 +194,31 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 `renderScale: 1|0.75|0.5` (Auto also adapts the walk's resolution, `world/adaptive.ts`).
 
 ## 8. Styling and design system
+
+**2D screens: Hall & Chart** (DECISIONS #54; kit, mockups and inventory in `design/hall-chart/`).
+
+- **Two halves on every screen.** Royal Court is the hall, for things you press and for people:
+  stone walls, banners on a pole, wax seals, brass and iron plaques, coats of arms. Sea Chart is for
+  information about the island: vellum chart sheets, cartouches, map notes, ink rules, the scale-bar
+  meter.
+- **Classes and components.** Use the `hc-*` classes in `ui/hall/hall.css` and the `ui/hall`
+  components; tokens are CSS variables (`--map-ink`, `--rubric`, `--parchment`,
+  `--hc-gold`…).
+  - Buttons: `hc-btn` (crimson primary, `--dark`), `hc-plaque` (brass, `--iron`),
+    `hc-icon-btn`, `hc-paper-btn`, and `SealButton` for confirming.
+  - Panels: `OakPanel` with a brass title plate. Dialogs: `Modal`, which draws as a decree.
+- **Fonts.**
+  - Blackletter (`hc-title`): titles of 32px and over and score numerals only.
+  - IM Fell English SC (`hc-label`): labels and buttons.
+  - IM Fell DW Pica: body text and numbers.
+- **Never redraw or filter the board, and never swap the resource card art** (`cardArt`,
+  `ResourceArt`) for an icon. Players always show colour and sigil (`Arms`).
+- **Flavour words go in headings only.** Buttons, status words and errors keep plain wording. When a
+  heading changes, keep the old accessible name (`Modal label`).
+- **Loading order.** `hall.css` loads before Tailwind, so utilities can adjust kit classes. The
+  2D UI does not use `.panel`, `.btn`, `.chip` or `.tile`; those remain for the 3D walk's HUD.
+
+**3D walk HUD and the Tailwind tokens:**
 
 - Tokens are RGB triplets in `styles/tokens.css` (so Tailwind can apply alpha), mapped in
   `tailwind.config.ts` (`bg-abyss`, `bg-surface-1/2/raised`, `border-iron`, `text-gold`, `text-muted`…).
@@ -240,6 +267,10 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 
 ## 11. Recent history (newest first)
 
+- Hall & Chart 2D redesign (DECISIONS #54, `design/hall-chart/`): banners on a pole for the menu,
+  seats and players; decrees for dialogs; the board on a chart on the war table; Thy Treasury with
+  the scale-bar limit; Settings with banner tabs. The 3D walk and the board art are unchanged.
+  `node design/hall-chart/capture.cjs <dir>` screenshots every 2D scene at three sizes.
 - Enterable buildings prototype (DECISIONS #33, `docs/VILLAGE_PROTOTYPE.md`): settlements are a
   cottage, cities a hall, windmills a mill, each with a finished room, a hinged door (E) and
   plan-driven collision; buildings face their best tile, roads stop at their walls, plants clear
@@ -273,7 +304,8 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Change a rule | `packages/engine/src/rules/*` + tests; check bots in `ai/` still emit only legal actions |
 | Add a player-facing label or rename something | `apps/web/src/lexicon.ts` |
 | Add or change a sound effect | `audio/synth.ts` (recipe + `SfxName`), `audio/manifest.json`, `SOUND_FOR` in `state/store.ts` |
-| Change colors or theme | `styles/tokens.css`, then grep for hard-coded hex values in `components/` |
+| Change the 2D look (colors, panels, buttons, banners) | `ui/hall/hall.css` and the `ui/hall` components; check `/#ui-kit`, then `node design/hall-chart/capture.cjs <dir>` (web on :5188, server on :8787) |
+| Change the 3D HUD colors or theme | `styles/tokens.css`, then grep for hard-coded hex values in `components/world/` |
 | Change board visuals | `components/board/*`, `art/terrain/TerrainArt.tsx`, `art/pieces/Pieces.tsx` |
 | Change the 3D walk | `components/world/world.ts`, `field.ts`, `shaders.ts`, `terrain.ts`; measure with `pnpm bench` (GPU and main-thread ms, missed frames; not just fps). Run old and new builds alternately and pause other GPU users (Wallpaper Engine on this PC) |
 | Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py` (this PC: `D:\Blender\blender.exe`); register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |

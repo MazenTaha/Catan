@@ -34,7 +34,18 @@ const roman = (n: number) => ROMAN[n] ?? String(n);
  * answering an offer). Cards in hand and pieces on the board ride under the ribbon. Hovering a
  * banner highlights that player's pieces on the board.
  */
-export function PlayersPanel({ state, seat, size = 'wide' }: { state: GameState; seat: number; size?: 'wide' | 'mid' | 'strip' }) {
+export function PlayersPanel({
+  state,
+  seat,
+  size = 'wide',
+  avail = 900,
+}: {
+  state: GameState;
+  seat: number;
+  size?: 'wide' | 'mid' | 'strip';
+  /** Width of the column the banners hang in; they shrink to fit it. */
+  avail?: number;
+}) {
   const setHover = useStore((s) => s.setHoverPlayer);
   const actor = activeActor(state);
   const n = state.players.length;
@@ -90,11 +101,20 @@ export function PlayersPanel({ state, seat, size = 'wide' }: { state: GameState;
     );
   }
 
-  const bw = size === 'wide' ? 150 : 120;
-  const bh = size === 'wide' ? 196 : 170;
+  // Fit the pole to the column: banners up to 150 wide (120 on mid screens), never under 84.
+  let gap = size === 'wide' ? 40 : 22;
+  let overhang = 40;
+  const fit = () => (avail - overhang * 2 - gap * (n - 1)) / n;
+  if (fit() < 84) {
+    // a tight column: hang them closer together
+    gap = 10;
+    overhang = 24;
+  }
+  const bw = Math.round(Math.max(60, Math.min(size === 'wide' ? 150 : 120, fit())));
+  const bh = Math.round(bw * 1.3);
   return (
     <section aria-label="Players" className="flex justify-center">
-      <BannerPole gap={size === 'wide' ? 40 : 26} overhang={40}>
+      <BannerPole gap={gap} overhang={overhang}>
         {state.players.map((_, i) => {
           const d = describe(i);
           return (
@@ -115,7 +135,7 @@ export function PlayersPanel({ state, seat, size = 'wide' }: { state: GameState;
                 </>
               }
               label={i === seat ? `${d.p.name} · you` : d.p.name}
-              labelSize={size === 'wide' ? 18 : 15}
+              labelSize={bw >= 140 ? 18 : bw >= 110 ? 15 : 13}
               kicker={d.kicker}
               lit={d.playing}
               aria-label={d.aria}
@@ -190,7 +210,14 @@ export function ListsPanel({ state }: { state: GameState }) {
       <div className="flex flex-col px-3 py-3">
         <div className="hc-title text-center text-[26px] leading-none text-[color:var(--rubric-dark)]">Catan Night</div>
         <div className="mt-1 text-center text-[16px] italic">
-          {state.phase.kind !== 'setup' ? `Round ${roman(state.round)} · ` : 'The founding · '}
+          {state.phase.kind !== 'setup' ? (
+            <>
+              <span aria-label={`Round ${state.round}`}>Round {roman(state.round)}</span>
+              {' · '}
+            </>
+          ) : (
+            'The founding · '
+          )}
           <span data-testid="time-of-day" aria-label={`Time of day: ${stageName(hour)}`}>
             <Icon name={daylight(hour) < 0.35 ? 'moon' : 'sun'} size={13} className="inline align-[-1px]" /> {stageName(hour)}
           </span>

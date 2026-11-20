@@ -103,7 +103,7 @@ export function TradeInboxModal({ state, seat }: { state: GameState; seat: numbe
   const me = state.players[seat];
   const canAccept = hasAtLeast(me.hand, offer.want);
   return (
-    <Modal title="A Bargain Offered" icon="trade" dismissable={false} emblem={<Arms color={from.color} sigil={from.sigil} size={46} label={from.name} />}>
+    <Modal title="A Bargain Offered" label="An offer arrives" icon="trade" dismissable={false} emblem={<Arms color={from.color} sigil={from.sigil} size={46} label={from.name} />}>
       <p className="text-[19px]">
         <Named state={state} id={offer.proposer} /> {offer.counterOf !== null ? 'counters' : 'proposes'}: <CountsInline counts={offer.give} /> for <CountsInline counts={offer.want} />.
       </p>

@@ -14,7 +14,8 @@ const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
 const CharacterModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.CharacterModal })));
 const KingdomModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.KingdomModal })));
 const ArtBoard = lazy(() => import('./components/screens/ArtBoard'));
-const UiKit = lazy(() => import('./ui/hall/UiKit'));
+// Dev builds only: production never references the kit page, so it isn't bundled.
+const UiKit = import.meta.env.DEV ? lazy(() => import('./ui/hall/UiKit')) : () => null;
 
 export function App() {
   const screen = useStore((s) => s.screen);

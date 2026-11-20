@@ -200,6 +200,8 @@ html body {
 /* The stone wall of the hall, with a heavy inner vignette. */
 .hc-hall {
   position: relative;
+  /* ornaments (scroll ends, finials, ribbon tails) may reach past the edge; never scroll for them */
+  overflow-x: clip;
   background-color: var(--stone-mortar);
   background-image: var(--tex-stone);
   background-size: 480px 240px;

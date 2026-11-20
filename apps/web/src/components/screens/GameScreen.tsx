@@ -18,6 +18,7 @@ import { useNet } from '../../state/net';
 import { useBotDriver, useGameKeys, useTurnTimer } from './gameHooks';
 import { isTouchDevice } from '../../state/device';
 import { ChartSheet, HallBackground, HallLoader, WarTable } from '../../ui/hall/Surfaces';
+import { useViewport } from '../../ui/hall/useViewport';
 
 const VictoryScreen = lazy(() => import('../modals/VictoryScreen'));
 const World3D = lazy(() => import('../world/World3D'));
@@ -92,6 +93,7 @@ export function GameScreen() {
   const showRollOff = useStore((s) => s.showRollOff);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
   const layout = useLayout();
+  const vp = useViewport();
   const [sheetOpen, setSheetOpen] = useState(true);
   const [ledger, setLedger] = useState(false);
   // The 3D walk is desktop-only: phones and tablets keep the 2D board.
@@ -198,7 +200,7 @@ export function GameScreen() {
             <LastRoll state={state} />
           </aside>
           <main className="flex min-w-0 flex-col gap-1">
-            <PlayersPanel state={state} seat={seat} size={layout === 'wide' ? 'wide' : 'mid'} />
+            <PlayersPanel state={state} seat={seat} size={layout === 'wide' ? 'wide' : 'mid'} avail={vp.w - (layout === 'wide' ? 256 + 286 : 220 + 260) - 32 - 24} />
             {live}
             {!view3d && <InstructionRibbon state={state} seat={seat} />}
             {board}

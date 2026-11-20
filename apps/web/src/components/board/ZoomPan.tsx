@@ -69,7 +69,7 @@ export function ZoomPan({ children, enabled }: { children: ReactNode; enabled: b
     >
       <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, transformOrigin: 'center' }}>{children}</div>
       {view.scale > 1 && (
-        <button className="chip absolute right-2 top-2 bg-surface-1 text-muted" onClick={() => setView({ scale: 1, x: 0, y: 0 })}>
+        <button className="hc-plaque hc-plaque--sm absolute right-2 top-2 !min-h-[44px]" onClick={() => setView({ scale: 1, x: 0, y: 0 })}>
           Reset view
         </button>
       )}

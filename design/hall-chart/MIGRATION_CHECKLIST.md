@@ -65,24 +65,24 @@ drives Auto graphics, and the 3D walk's numbers come from `pnpm bench`. Frame ra
 
 | Item | Pattern | Status |
 |---|---|---|
-| Fonts (UnifrakturCook, IM Fell English SC, IM Fell DW Pica + SC) self-hosted | foundations | [ ] |
-| Tokens from `tokens.css`, Ember and Frostbound variants | foundations | [ ] |
-| Textures (stone, parchment, vellum, letter, oak, weave) | foundations | [ ] |
-| `HallBackground` (stone, vignette, columns, windows, torches, war table) | Royal Court | [ ] |
-| `ParchmentSheet`, `ChartSheet` (rolled ends, neat line, ticks), `OakPanel` (iron corners, brass plate) | surfaces | [ ] |
-| `Banner` (all 11 layers, states) and `BannerPole` (rings on the rod's centre line) | banners | [ ] |
-| Buttons: primary, dark, brass plaque, iron plaque, round brass icon, paper, wax seal | controls | [ ] |
-| Check box, segmented, select, text input, stepper, range | parchment controls | [ ] |
-| Panel tabs (red underline); banner tabs on a pole | tabs | [ ] |
-| Scale-bar meter (`role="meter"`) | Sea Chart | [ ] |
-| Map-note tooltip with leader line | Sea Chart | [ ] |
-| Herald's slip toast | Royal Court | [ ] |
-| Decree dialog (focus trap, Esc, dismissable flag, 55% stone backdrop) | Royal Court | [ ] |
-| Bone dice | Royal Court | [ ] |
-| Arms (heater shield: player colour, gold rim, sigil charge) | heraldry | [ ] |
-| Resource art (cropped card art at small sizes) | art | [ ] |
-| Iron connection plaque; loading (torch or hourglass) | Royal Court | [ ] |
-| `/#ui-kit` dev page with every component and state | — | [ ] |
+| Fonts (UnifrakturCook, IM Fell English SC, IM Fell DW Pica + SC) self-hosted | foundations | [x] |
+| Tokens from `tokens.css`, Ember and Frostbound variants | foundations | [x] |
+| Textures (stone, parchment, vellum, letter, oak, weave) | foundations | [x] |
+| `HallBackground` (stone, vignette, columns, windows, torches, war table) | Royal Court | [x] |
+| `ParchmentSheet`, `ChartSheet` (rolled ends, neat line, ticks), `OakPanel` (iron corners, brass plate) | surfaces | [x] |
+| `Banner` (all 11 layers, states) and `BannerPole` (rings on the rod's centre line) | banners | [x] |
+| Buttons: primary, dark, brass plaque, iron plaque, round brass icon, paper, wax seal | controls | [x] |
+| Check box, segmented, select, text input, stepper, range | parchment controls | [x] |
+| Panel tabs (red underline); banner tabs on a pole | tabs | [x] |
+| Scale-bar meter (`role="meter"`) | Sea Chart | [x] |
+| Map-note tooltip with leader line | Sea Chart | [x] |
+| Herald's slip toast | Royal Court | [x] |
+| Decree dialog (focus trap, Esc, dismissable flag, 55% stone backdrop) | Royal Court | [x] |
+| Bone dice | Royal Court | [x] |
+| Arms (heater shield: player colour, gold rim, sigil charge) | heraldry | [x] |
+| Resource art (cropped card art at small sizes) | art | [x] |
+| Iron connection plaque; loading (torch or hourglass) | Royal Court | [x] |
+| `/#ui-kit` dev page with every component and state | — | [x] |
 
 ## Phase 2: screens
 
@@ -90,94 +90,112 @@ drives Auto graphics, and the 3D walk's numbers come from `pnpm bench`. Frame ra
 
 | Item | Pattern | Status |
 |---|---|---|
-| Hall: stone, columns, night windows, torches | HallBackground | [ ] |
-| Title "Catan + crest + Night", ribbon "Trade · Build · Settle" | blackletter, ribbon | [ ] |
-| Menu banners on one pole, symmetric, Play lit; Continue only with a save (skyline rule) | Banner | [ ] |
-| Rejoin as a sealed letter "A summons: room <code> awaits" (+ "Rejoining…" / error) | ParchmentSheet + wax seal | [ ] |
-| Quit (native host only) iron plaque; sound brass button | plaques | [ ] |
-| Profile plaque bottom-left (arms, name, blazon), opens Character | OakPanel | [ ] |
-| War table with the real board on a vellum chart in perspective | ChartSheet | [ ] |
+| Hall: stone, columns, night windows, torches | HallBackground | [x] |
+| Title "Catan + crest + Night", ribbon "Trade · Build · Settle" | blackletter, ribbon | [x] |
+| Menu banners on one pole, symmetric, Play lit; Continue only with a save (skyline rule) | Banner | [x] |
+| Rejoin as a sealed letter "A summons: room <code> awaits" (+ "Rejoining…" / error) | ParchmentSheet + wax seal | [x] |
+| Quit (native host only) iron plaque; sound brass button | plaques | [x] |
+| Profile plaque bottom-left (arms, name, blazon), opens Character | OakPanel | [x] |
+| War table with the real board on a vellum chart in perspective | ChartSheet | [x] |
 
 ### Play (`screens/NewGameScreen.tsx`)
 
 | Item | Pattern | Status |
 |---|---|---|
-| Header: "The hall" brass back plaque, blackletter title, Host / Join buttons | plaques | [ ] |
-| Choose view: profile (name, colour radio, sigil radio) + live arms banner | parchment controls, Banner | [ ] |
-| Choose view: Host card, Join form (code input, Join) | ParchmentSheet | [ ] |
-| Host: invite letter, all states (Opening a room…, code + Copy code/Copied, Playing on this device) | letter of summons | [ ] |
-| Host: seat banners on a pole; Seat kicker, arms or empty shield, status gloss, host crown | Banner | [ ] |
-| Host: per-seat Invite / Bot / This device segmented + bot difficulty + Remove + local name input | OakPanel + seg | [ ] |
-| Host: 3 / 4 players | seg | [ ] |
-| Host: Articles of the Game (Victory at, First player, layout, seed + reroll, preview) | OakPanel | [ ] |
-| Host: start problem strip, Fill empty seats with bots, Start game (disabled reasons) | buttons | [ ] |
-| Join: Finding the table…, failure decree + Try another code | decree | [ ] |
-| Waiting room: room code, waiting slip, seat banners (read-only), rules chart, Leave table | Banner, ChartSheet | [ ] |
+| Header: "The hall" brass back plaque, blackletter title, Host / Join buttons | plaques | [x] |
+| Choose view: profile (name, colour radio, sigil radio) + live arms banner | parchment controls, Banner | [x] |
+| Choose view: Host card, Join form (code input, Join) | ParchmentSheet | [x] |
+| Host: invite letter, all states (Opening a room…, code + Copy code/Copied, Playing on this device) | letter of summons | [x] |
+| Host: seat banners on a pole; Seat kicker, arms or empty shield, status gloss, host crown | Banner | [x] |
+| Host: per-seat Invite / Bot / This device segmented + bot difficulty + Remove + local name input | OakPanel + seg | [x] |
+| Host: 3 / 4 players | seg | [x] |
+| Host: Articles of the Game (Victory at, First player, layout, seed + reroll, preview) | OakPanel | [x] |
+| Host: start problem strip, Fill empty seats with bots, Start game (disabled reasons) | buttons | [x] |
+| Join: Finding the table…, failure decree + Try another code | decree | [x] |
+| Waiting room: room code, waiting slip, seat banners (read-only), rules chart, Leave table | Banner, ChartSheet | [x] |
 
 ### Game screen (`screens/GameScreen.tsx`, `panels/*`, `hud/Hud.tsx`)
 
 | Item | Pattern | Status |
 |---|---|---|
-| Hall background, oak war table, board on a vellum ChartSheet (board art untouched) | Court + Chart | [ ] |
-| Player banners on a pole: arms, VP numeral, name ribbon, lit current, hidden VP, cards/pieces gloss, hover highlight | Banner | [ ] |
-| Instruction ribbon above the board (same text as the live region) | ribbon | [ ] |
-| The Lists: logo, room chip, Round, time of day, First to N + leader meter, Claims | OakPanel | [ ] |
-| Turn panel content (Playing / Next up, stats) folded into banners and gloss | Banner | [ ] |
-| The Herald: Recent log (¶ entries, arms, resource art), Full log | OakPanel | [ ] |
-| Last roll with bone dice | dice | [ ] |
-| Toolbar: Undo, Full log, Rulebook, Mute, Settings, Leave (round brass) | icon buttons | [ ] |
-| Thy Treasury: hand cards (real art, +N wax seal, zero dimmed), count, hold-to-reveal | OakPanel | [ ] |
-| Scale-bar hand-limit meter + "N to the limit" / "A 7 would cost you N cards" | meter | [ ] |
-| Build tab: 4 items, cost (art), N left, status words, toasts on decline, Esc to cancel | tabs | [ ] |
-| Cards tab: empty state, rows, New · next turn, status reasons, VP hidden, Played fan | tabs | [ ] |
-| Trade tab: Bank (give/get rates, bank stock, stepper, button text), Players (counts, To, Offer), offer out + Withdraw | Bill of Exchange | [ ] |
-| Roll and End turn buttons, Space hints, Next up, turn timer badge | primary | [ ] |
-| Rookie tips (setup, robber, build) | map note | [ ] |
-| 2D board / 3D walk switch (duel-call pulse) | brass plaque | [ ] |
-| Hex tooltip, placement markers, show-why reasons, robber targets | map note, ink rings | [ ] |
-| Dice roll overlay | bone dice | [ ] |
-| Flying gains | parchment tags | [ ] |
-| Toasts (good, bad, gold, info) | herald's slip | [ ] |
-| Connection banner (reconnecting, lost + Main menu) | iron plaque | [ ] |
-| Loading 3D ("Building the island…") | torch loader | [ ] |
-| Walk layer markers (walkers, fights) | board overlay (kept) | [ ] |
+| Hall background, oak war table, board on a vellum ChartSheet (board art untouched) | Court + Chart | [x] |
+| Player banners on a pole: arms, VP numeral, name ribbon, lit current, hidden VP, cards/pieces gloss, hover highlight | Banner | [x] |
+| Instruction ribbon above the board (same text as the live region) | ribbon | [x] |
+| The Lists: logo, room chip, Round, time of day, First to N + leader meter, Claims | OakPanel | [x] |
+| Turn panel content (Playing / Next up, stats) folded into banners and gloss | Banner | [x] |
+| The Herald: Recent log (¶ entries, arms, resource art), Full log | OakPanel | [x] |
+| Last roll with bone dice | dice | [x] |
+| Toolbar: Undo, Full log, Rulebook, Mute, Settings, Leave (round brass) | icon buttons | [x] |
+| Thy Treasury: hand cards (real art, +N wax seal, zero dimmed), count, hold-to-reveal | OakPanel | [x] |
+| Scale-bar hand-limit meter + "N to the limit" / "A 7 would cost you N cards" | meter | [x] |
+| Build tab: 4 items, cost (art), N left, status words, toasts on decline, Esc to cancel | tabs | [x] |
+| Cards tab: empty state, rows, New · next turn, status reasons, VP hidden, Played fan | tabs | [x] |
+| Trade tab: Bank (give/get rates, bank stock, stepper, button text), Players (counts, To, Offer), offer out + Withdraw | Bill of Exchange | [x] |
+| Roll and End turn buttons, Space hints, Next up, turn timer badge | primary | [x] |
+| Rookie tips (setup, robber, build) | map note | [x] |
+| 2D board / 3D walk switch (duel-call pulse) | brass plaque | [x] |
+| Hex tooltip, placement markers, show-why reasons, robber targets | map note, ink rings | [x] |
+| Dice roll overlay | bone dice | [x] |
+| Flying gains | parchment tags | [x] |
+| Toasts (good, bad, gold, info) | herald's slip | [x] |
+| Connection banner (reconnecting, lost + Main menu) | iron plaque | [x] |
+| Loading 3D ("Building the island…") | torch loader | [x] |
+| Walk layer markers (walkers, fights) | board overlay (kept) | [x] |
 
 ### Dialogs (`modals/GameModals.tsx`, `InfoModals.tsx`, `panels/RightRail.tsx`)
 
 | Item | Pattern | Status |
 |---|---|---|
-| Who shall go first? (roll-off rows, Start setup) | decree + bone dice | [ ] |
-| Discard N cards (not dismissable; steppers, N / N chosen, Discard) | decree, wax-seal pips | [ ] |
-| Choose whom to rob (not dismissable; arms rows, card counts) | decree | [ ] |
-| An offer arrives (not dismissable; receive/give, hand, Accept/Counter/Decline, lack message) | A Bargain Offered | [ ] |
-| Counter composer (give/want steppers, Send counter, Back) | Bill of Exchange | [ ] |
-| Year of Plenty (picker, Chosen chips, Invoke) | decree | [ ] |
-| Monopoly (picker) | decree | [ ] |
-| Man up: choose your opponent | decree | [ ] |
-| Card details (art, text, flavour) | decree | [ ] |
-| Chronicle (search, filters, Export JSON, rows, Nothing recorded.) | ChartSheet cartouche | [ ] |
-| Leave this game? (local: Main menu / New game… / Restart same seed / Cancel; online: Leave game / Stay) | decree | [ ] |
-| Pass the device curtain (reason, I am X — reveal, withdraw offer) | full-screen hall + decree | [ ] |
+| Who shall go first? (roll-off rows, Start setup) | decree + bone dice | [x] |
+| Discard N cards (not dismissable; steppers, N / N chosen, Discard) | decree, wax-seal pips | [x] |
+| Choose whom to rob (not dismissable; arms rows, card counts) | decree | [x] |
+| An offer arrives (not dismissable; receive/give, hand, Accept/Counter/Decline, lack message) | A Bargain Offered | [x] |
+| Counter composer (give/want steppers, Send counter, Back) | Bill of Exchange | [x] |
+| Year of Plenty (picker, Chosen chips, Invoke) | decree | [x] |
+| Monopoly (picker) | decree | [x] |
+| Man up: choose your opponent | decree | [x] |
+| Card details (art, text, flavour) | decree | [x] |
+| Chronicle (search, filters, Export JSON, rows, Nothing recorded.) | ChartSheet cartouche | [x] |
+| Leave this game? (local: Main menu / New game… / Restart same seed / Cancel; online: Leave game / Stay) | decree | [x] |
+| Pass the device curtain (reason, I am X — reveal, withdraw offer) | full-screen hall + decree | [x] |
 
 ### Other screens
 
 | Item | Pattern | Status |
 |---|---|---|
-| Victory: winner banner lit, title, Final reckoning, Rolls of fate, Spoils, buttons | ChartSheet | [ ] |
-| Settings (title and in-game): banner tabs, every option, Done / Restore defaults, Back | ChartSheet | [ ] |
-| How to Play: open book, ¶ chapters, Costs table, Keys | ParchmentSheet | [ ] |
-| Character: banner preview of arms, profile fields, existing 3D preview kept | OakPanel | [ ] |
-| My kingdom: existing options and 3D preview kept | OakPanel, ChartSheet | [ ] |
-| Error boundary screen | decree | [ ] |
+| Victory: winner banner lit, title, Final reckoning, Rolls of fate, Spoils, buttons | ChartSheet | [x] |
+| Settings (title and in-game): banner tabs, every option, Done / Restore defaults, Back | ChartSheet | [x] |
+| How to Play: open book, ¶ chapters, Costs table, Keys | ParchmentSheet | [x] |
+| Character: banner preview of arms, profile fields, existing 3D preview kept | OakPanel | [x] |
+| My kingdom: existing options and 3D preview kept | OakPanel, ChartSheet | [x] |
+| Error boundary screen | decree | [x] |
 
 ### Layouts
 
 | Item | Status |
 |---|---|
-| Wide ≥ 1280 (rails 256 / 286) | [ ] |
-| Mid 900–1279 (rails narrow, banners about 120 wide) | [ ] |
-| Narrow < 900: board on top, pennant strip, Treasury bottom sheet, sticky End turn, Herald and Lists behind a toolbar icon | [ ] |
-| 44 px minimum targets everywhere | [ ] |
+| Wide ≥ 1280 (rails 256 / 286) | [x] |
+| Mid 900–1279 (rails narrow, banners about 120 wide) | [x] |
+| Narrow < 900: board on top, pennant strip, Treasury bottom sheet, sticky End turn, Herald and Lists behind a toolbar icon | [x] |
+| 44 px minimum targets everywhere | [x] |
+
+## Where the result differs from the brief
+
+These items are deliberately not built, because the game has no such feature and the brief forbids
+new behaviour. The design leaves room for them.
+
+| Brief item | What exists instead |
+|---|---|
+| Lobby "Card limit on a 7" and "Turn timer" rows | The lobby has no such settings. The limit is fixed at 7; the turn timer is a personal setting in Settings › Gameplay. |
+| Menu "2D · 3D" plaque | The 2D/3D switch exists only in a game (bottom right of the board). The menu keeps the sound button and Quit. |
+| Invite "Copy link" | There are no join links, only codes, so the letter has Copy code. |
+| Join code as separate letter boxes plus "paste link" | One wide ink input (same validation and test id). No links exist. |
+| Trade offer countdown | Offers have no timer. |
+| "Away" tag on a disconnected player's banner | The game state holds no per-seat connection status during play (only the lobby does). Autopilot still covers absent players. |
+| Settings live preview | No setting had a preview; the chart shows the compass rose there instead. |
+| Settings "Of the Keys" tab | There is no key rebinding; the key list stays in How to Play. |
+| FPS/GPU/CPU/LAT overlay | The 2D game never had one; frame rate is checked with `LAG=1 pnpm e2e lag` (60 fps, no jank). |
+| 4.5:1 contrast | Text sits on parchment, ribbons or dark oak with shadows as in the kit. It was checked by eye on every screenshot, not measured with a tool. |
 
 ## Decisions
 

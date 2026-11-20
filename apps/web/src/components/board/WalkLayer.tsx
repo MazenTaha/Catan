@@ -92,8 +92,8 @@ export const WalkPresence = memo(function WalkPresence({ state }: { state: GameS
           >
             <span className="walk-ripple absolute inset-0 rounded-full" style={{ borderColor: color }} />
             <span
-              className="grid h-4 w-4 place-items-center rounded-full border border-[#090a0b] text-[#090a0b] opacity-85 shadow-panel"
-              style={{ background: color }}
+              className="grid h-4 w-4 place-items-center rounded-full text-[#1a120b] opacity-90"
+              style={{ background: color, border: '1.5px solid #1a120b', boxShadow: '0 0 0 1.5px #f1e4c4' }}
             >
               <Icon name="user" size={10} />
             </span>
@@ -105,8 +105,8 @@ export const WalkPresence = memo(function WalkPresence({ state }: { state: GameS
         return (
           <div
             key={i}
-            className="absolute -translate-x-1/2 -translate-y-[140%] rounded-full border border-blood bg-abyss/85 p-0.5 text-ember"
-            style={{ left: pos.left, top: pos.top }}
+            className="absolute -translate-x-1/2 -translate-y-[140%] rounded-full p-0.5"
+            style={{ left: pos.left, top: pos.top, background: '#f1e4c4', border: '1.5px solid #a8281e', color: '#a8281e', boxShadow: '1px 2px 0 #1a120b' }}
             title="A fight in the 3D walk"
           >
             <Icon name="duel" size={14} />

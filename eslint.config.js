@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default tseslint.config(
-  { ignores: ['**/dist', '**/dist-perf', '**/perf-results', '**/coverage', '**/node_modules', '**/test-results', '**/playwright-report', 'apps/unreal*/WebGame', 'apps/unreal*/Packaged', 'apps/unreal*/Saved'] },
+  { ignores: ['**/dist', '**/dist-perf', '**/perf-results', '**/coverage', '**/node_modules', '**/test-results', '**/playwright-report', 'apps/unreal*/WebGame', 'apps/unreal*/Packaged', 'apps/unreal*/Saved', 'design/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

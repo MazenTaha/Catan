@@ -293,6 +293,7 @@ export function Modal({
   dismissable = true,
   icon,
   emblem,
+  label,
 }: {
   title: string;
   onClose?: () => void;
@@ -302,6 +303,8 @@ export function Modal({
   icon?: Parameters<typeof Icon>[0]['name'];
   /** A coat of arms (or other emblem) shown before the title instead of the icon. */
   emblem?: ReactNode;
+  /** The dialog's accessible name when the heading shows a flavour title instead. */
+  label?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
@@ -322,7 +325,7 @@ export function Modal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={label ?? title}
         className={`hc-decree ${wide ? 'max-w-3xl' : 'max-w-[560px]'}`}
         initial={reduce ? false : { y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -404,7 +407,7 @@ export function RookieTip({ id, children }: { id: string; children: ReactNode })
         <Icon name="torch" size={17} strokeWidth={1.8} />
       </span>
       <div className="flex-1 italic">{children}</div>
-      <button className="hc-paper-btn hc-paper-btn--sm !min-h-[32px] !w-[32px] !px-0" onClick={() => dismiss(id)} aria-label="Dismiss tip">
+      <button className="hc-paper-btn hc-paper-btn--sm !min-h-[44px] !w-[44px] !px-0" onClick={() => dismiss(id)} aria-label="Dismiss tip">
         <Icon name="close" size={14} strokeWidth={2} />
       </button>
     </div>

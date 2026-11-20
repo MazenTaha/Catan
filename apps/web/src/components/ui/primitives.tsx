@@ -1,14 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useEffect, useId, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { RESOURCES, type Resource, type ResourceCounts } from '@hexfall/engine';
-import { Icon, RES_COLOR, ResourceGlyph, type IconName } from '../../art/icons/Icon';
+import { Icon, type IconName } from '../../art/icons/Icon';
 import { cardArt } from '../../art/cards/cardArt';
 import { RESOURCE_NAME } from '../../lexicon';
 import { prefersReducedMotion, useStore } from '../../state/store';
+import { ResourceArt } from '../../ui/hall/Controls';
 
 /**
- * A resource card you can feel: lifts on hover, glows when a hovered build needs it
- * (`need: 'have'`) or shows a dashed outline when it is missing (`need: 'missing'`).
+ * A resource card in a parchment frame with the resource's own illustration: lifts on hover,
+ * a green rule when a hovered build needs it and the hand has it (`need: 'have'`), a dashed red
+ * rule when it is missing (`need: 'missing'`). Zero cards fade but stay readable.
  */
 export const ResourceCard = memo(function ResourceCard({
   res,
@@ -30,48 +32,29 @@ export const ResourceCard = memo(function ResourceCard({
   /** Fill the parent's width (the hand shares its row between five cards). */
   fluid?: boolean;
 }) {
-  const c = RES_COLOR[res];
-  const empty = count === 0;
+  const empty = count === 0 && !hidden;
   return (
     <div
-      className={`group relative flex flex-col items-center justify-between overflow-hidden rounded-xl border px-1 pb-1.5 pt-2 transition-[transform,opacity,box-shadow,border-color] duration-200 hover:-translate-y-1 ${
-        compact ? 'h-[78px] w-[56px]' : fluid ? 'h-[92px] w-full' : 'h-[96px] w-[64px]'
-      } ${(dim || empty) && need !== 'have' ? 'opacity-[0.62]' : ''}`}
-      style={{
-        borderColor: need === 'have' ? c : need === 'missing' ? '#ff805c' : `${c}4d`,
-        borderStyle: need === 'missing' ? 'dashed' : 'solid',
-        // one set of crafted cards: a faint wash of the resource colour on graphite,
-        // an engraved inner line and a lit top edge
-        background: `radial-gradient(120% 60% at 50% 0%, ${c}2a, transparent 62%), linear-gradient(180deg, #212426, #131516)`,
-        boxShadow:
-          need === 'have'
-            ? `0 0 0 1px ${c}, 0 0 18px -4px ${c}99, 0 10px 18px -10px #000`
-            : `inset 0 1px 0 rgb(var(--antique) / 0.1), inset 0 0 0 2px #0000002e, inset 0 -10px 16px -12px ${c}30, 0 8px 16px -10px #000`,
-      }}
+      className={`hc-card group px-1 pb-1.5 pt-1.5 hover:-translate-y-1 ${compact ? 'h-[84px] w-[60px]' : fluid ? 'h-[104px] w-full' : 'h-[104px] w-[66px]'}`}
+      data-zero={(empty || dim) && need !== 'have' ? 'true' : undefined}
+      data-need={need ?? undefined}
       aria-label={`${RESOURCE_NAME[res]}: ${hidden ? 'hidden' : count}`}
       role="img"
     >
-      {/* the resource's illustration (concept sheet 22) on a parchment window */}
-      <span
-        className="block overflow-hidden rounded-md bg-[#efe2c4] transition-transform duration-200 group-hover:scale-110"
-        style={{
-          width: compact ? 40 : 46,
-          height: compact ? 30 : 34,
-          boxShadow: `0 0 0 1px ${c}66`,
-        }}
-      >
-        <img src={cardArt(res)} alt="" draggable={false} className="h-full w-full object-cover" />
+      <span className="block w-full overflow-hidden" style={{ height: compact ? 32 : 40, boxShadow: '0 0 0 1px rgba(26,18,11,0.55)' }}>
+        <img src={cardArt(res)} alt="" draggable={false} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110" />
       </span>
-      <span className={`num ${compact ? 'text-[19px]' : 'text-[23px]'} leading-none text-bone`}>{hidden ? '?' : count}</span>
-      <span className="w-full truncate text-center font-body text-[11.5px] leading-none text-bone/75">{RESOURCE_NAME[res]}</span>
+      <span className={`hc-num ${compact ? 'text-[21px]' : 'text-[26px]'} mt-0.5 leading-none text-[color:var(--ink)]`}>{hidden ? '?' : count}</span>
+      <span className="hc-body w-full truncate text-center text-[12.5px] italic leading-tight">{RESOURCE_NAME[res]}</span>
       <AnimatePresence>
         {gained > 0 && !hidden && (
           <motion.span
             key={gained}
-            initial={{ scale: 0.4, opacity: 0, y: 6 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="num absolute right-1 top-1 rounded-full bg-venom px-1.5 text-[11px] font-bold leading-[18px] text-[#14230b] shadow"
+            transition={{ duration: 0.22 }}
+            className="hc-wax-mark"
           >
             +{gained}
           </motion.span>
@@ -81,18 +64,16 @@ export const ResourceCard = memo(function ResourceCard({
   );
 });
 
-/** Inline resource counts, e.g. "2 ◆ 1 ◆". */
-export function CountsInline({ counts, size = 14 }: { counts: Partial<ResourceCounts>; size?: number }) {
+/** Inline resource counts with the resources' own art, e.g. "2 [Wool] 1 [Ore]". */
+export function CountsInline({ counts, size = 22 }: { counts: Partial<ResourceCounts>; size?: number }) {
   const has = RESOURCES.filter((r) => (counts[r] ?? 0) > 0);
-  if (!has.length) return <span className="text-muted">nothing</span>;
+  if (!has.length) return <span className="italic opacity-75">nothing</span>;
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-1.5 align-middle">
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 align-middle">
       {has.map((r) => (
-        <span key={r} className="inline-flex items-center gap-0.5" title={RESOURCE_NAME[r]}>
-          <span className="num text-[0.95em]">{counts[r]}</span>
-          <span style={{ color: RES_COLOR[r] }}>
-            <ResourceGlyph res={r} size={size} />
-          </span>
+        <span key={r} className="inline-flex items-center gap-1" title={RESOURCE_NAME[r]}>
+          <span className="hc-num text-[1em]">{counts[r]}</span>
+          <ResourceArt res={r} size={size} />
           <span className="sr-only">{RESOURCE_NAME[r]}</span>
         </span>
       ))}
@@ -100,7 +81,7 @@ export function CountsInline({ counts, size = 14 }: { counts: Partial<ResourceCo
   );
 }
 
-/** Cost pips: filled when the player holds the card, hollow when not. */
+/** Cost pips with the resources' art: clear when the player holds the card, faded and dashed when not. */
 export function CostPips({ cost, hand }: { cost: Partial<ResourceCounts>; hand: ResourceCounts }) {
   const pips: { r: Resource; have: boolean; k: string }[] = [];
   for (const r of RESOURCES) {
@@ -113,15 +94,14 @@ export function CostPips({ cost, hand }: { cost: Partial<ResourceCounts>; hand: 
         <span
           key={p.k}
           title={RESOURCE_NAME[p.r]}
-          className="grid h-[24px] w-[24px] place-items-center rounded-lg border transition-colors"
+          className="inline-grid place-items-center p-[2px]"
           style={{
-            borderColor: p.have ? RES_COLOR[p.r] : '#4a5154',
-            background: p.have ? `${RES_COLOR[p.r]}30` : '#00000030',
-            color: p.have ? RES_COLOR[p.r] : '#737b7e',
-            borderStyle: p.have ? 'solid' : 'dashed',
+            border: p.have ? '1.5px solid var(--ok-ink)' : '1.5px dashed var(--rubric)',
+            background: p.have ? 'rgba(47,90,70,0.12)' : 'transparent',
+            opacity: p.have ? 1 : 0.6,
           }}
         >
-          <ResourceGlyph res={p.r} size={13} />
+          <ResourceArt res={p.r} size={22} />
         </span>
       ))}
     </span>
@@ -140,6 +120,7 @@ export function costProgress(cost: Partial<ResourceCounts>, hand: ResourceCounts
   return { have, need };
 }
 
+/** −/+ boxes with a red numeral. */
 export function Stepper({
   value,
   onChange,
@@ -154,35 +135,23 @@ export function Stepper({
   label: string;
 }) {
   return (
-    <div className="inline-flex items-center rounded-xl border border-iron/80 bg-surface-1/80 p-0.5" role="group" aria-label={label}>
-      <button
-        type="button"
-        className="icon-btn !h-7 !w-7 !rounded-lg"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-        aria-label={`Fewer ${label}`}
-      >
-        <Icon name="minus" size={14} />
+    <div className="hc-stepper" role="group" aria-label={label}>
+      <button type="button" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} aria-label={`Fewer ${label}`}>
+        <Icon name="minus" size={16} strokeWidth={2} />
       </button>
-      <span className={`num w-6 text-center text-[17px] ${value > 0 ? 'text-gold' : 'text-muted'}`} aria-live="polite">
+      <span className="hc-stepper__value" aria-live="polite">
         {value}
       </span>
-      <button
-        type="button"
-        className="icon-btn !h-7 !w-7 !rounded-lg"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
-        aria-label={`More ${label}`}
-      >
-        <Icon name="plus" size={14} />
+      <button type="button" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} aria-label={`More ${label}`}>
+        <Icon name="plus" size={16} strokeWidth={2} />
       </button>
     </div>
   );
 }
 
 /**
- * A small label that appears on hover or keyboard focus (CSS only). It is `display: none`
- * until shown, so a tooltip near the screen edge never widens the page.
+ * A map note that appears on hover or keyboard focus (CSS only), joined to what it describes by
+ * a dashed ink leader line. It is `display: none` until shown, so it never widens the page.
  */
 export function Tooltip({
   label,
@@ -198,22 +167,26 @@ export function Tooltip({
   className?: string;
 }) {
   const x = align === 'center' ? 'left-1/2 -translate-x-1/2' : align === 'start' ? 'left-0' : 'right-0';
+  const lx = align === 'center' ? 'left-1/2' : align === 'start' ? 'left-4' : 'right-4';
   return (
     <span className={`group/tip relative inline-flex ${className}`}>
       {children}
       <span
         role="tooltip"
-        className={`tip-pop pointer-events-none absolute z-[80] hidden w-max max-w-[220px] rounded-lg border border-iron/80 bg-[#0f1112]/95 px-2.5 py-1.5 text-center font-body text-[13px] normal-case leading-snug tracking-normal text-bone shadow-panel group-focus-within/tip:block group-hover/tip:block ${x} ${
-          side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+        className={`tip-pop pointer-events-none absolute z-[80] hidden w-max max-w-[240px] group-focus-within/tip:block group-hover/tip:block ${x} ${
+          side === 'top' ? 'bottom-full mb-3' : 'top-full mt-3'
         }`}
       >
-        {label}
+        <span className="hc-note block text-center normal-case not-italic tracking-normal">
+          <span className="italic">{label}</span>
+        </span>
+        <span className={`hc-leader ${lx} ${side === 'top' ? '-bottom-3 h-3' : '-top-3 h-3'}`} aria-hidden />
       </span>
     </span>
   );
 }
 
-/** An icon-only button with an accessible name and a hover tooltip. */
+/** A round brass icon button with an accessible name and a map-note hint. */
 export function IconButton({
   icon,
   label,
@@ -235,8 +208,8 @@ export function IconButton({
 }) {
   return (
     <Tooltip label={hint ?? label} side={side} align={align}>
-      <button className="icon-btn" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={pressed}>
-        <Icon name={icon} size={17} />
+      <button className="hc-icon-btn" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={pressed}>
+        <Icon name={icon} size={20} strokeWidth={1.9} />
       </button>
     </Tooltip>
   );
@@ -247,7 +220,7 @@ export function ProgressRing({
   value,
   size = 44,
   stroke = 4,
-  color = 'rgb(var(--gold))',
+  color = 'var(--rubric)',
   children,
 }: {
   value: number;
@@ -262,7 +235,7 @@ export function ProgressRing({
   return (
     <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(0 0 0 / 0.35)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(58,38,20,0.25)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -270,13 +243,9 @@ export function ProgressRing({
           fill="none"
           stroke={color}
           strokeWidth={stroke}
-          strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - v)}
-          style={{
-            transition: 'stroke-dashoffset 600ms cubic-bezier(0.2,0.8,0.2,1)',
-            filter: `drop-shadow(0 0 4px ${color})`,
-          }}
+          style={{ transition: 'stroke-dashoffset 600ms cubic-bezier(0.2,0.8,0.2,1)' }}
         />
       </svg>
       <span className="relative">{children}</span>
@@ -284,7 +253,7 @@ export function ProgressRing({
   );
 }
 
-/** Tabs drawn as a segmented control with a sliding highlight. */
+/** Small-caps tabs inside a panel; the selected one is underlined in red ink. */
 export function SegmentedTabs<T extends string>({
   items,
   value,
@@ -296,41 +265,14 @@ export function SegmentedTabs<T extends string>({
   onChange: (id: T) => void;
   label: string;
 }) {
-  const uid = useId();
-  const reduce = useStore((s) => prefersReducedMotion(s.settings));
   return (
-    <div role="tablist" aria-label={label} className="relative flex rounded-2xl border border-iron/70 bg-black/25 p-1">
+    <div role="tablist" aria-label={label} className="hc-tabs">
       {items.map((t) => {
         const on = t.id === value;
         return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={on}
-            data-testid={t.testId}
-            onClick={() => onChange(t.id)}
-            className={`relative z-0 flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 font-display text-[12px] uppercase tracking-[0.12em] transition-colors ${
-              on ? 'text-[#2a1406]' : 'text-muted hover:text-bone'
-            }`}
-          >
-            {on && (
-              <motion.span
-                layoutId={`seg-${uid}`}
-                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }}
-                className="cream-fill absolute inset-0 -z-10 rounded-xl"
-              />
-            )}
-            {t.icon && <Icon name={t.icon} size={15} />}
+          <button key={t.id} role="tab" aria-selected={on} data-testid={t.testId} onClick={() => onChange(t.id)}>
             {t.label}
-            {t.badge ? (
-              <span
-                className={`num grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] ${
-                  on ? 'bg-[#2a1406]/20 text-[#2a1406]' : 'bg-ember text-[#2a1406]'
-                }`}
-              >
-                {t.badge}
-              </span>
-            ) : null}
+            {t.badge ? <span className="hc-badge">{t.badge}</span> : null}
           </button>
         );
       })}
@@ -338,7 +280,11 @@ export function SegmentedTabs<T extends string>({
   );
 }
 
-/** Accessible modal shell: Esc to close, focus trap, soft slide-up. */
+/**
+ * A decree: a parchment dialog with a blackletter title in dark red ink, an optional emblem,
+ * dotted ink dividers. Esc closes it and focus stays inside while it is open, as before;
+ * dialogs that must be answered (`dismissable={false}`) cannot be closed.
+ */
 export function Modal({
   title,
   onClose,
@@ -346,6 +292,7 @@ export function Modal({
   wide = false,
   dismissable = true,
   icon,
+  emblem,
 }: {
   title: string;
   onClose?: () => void;
@@ -353,6 +300,8 @@ export function Modal({
   wide?: boolean;
   dismissable?: boolean;
   icon?: Parameters<typeof Icon>[0]['name'];
+  /** A coat of arms (or other emblem) shown before the title instead of the icon. */
+  emblem?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useStore((s) => prefersReducedMotion(s.settings));
@@ -393,7 +342,7 @@ export function Modal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 grid place-items-center bg-[#050606]/75 p-4"
+      className="hc-backdrop hc-scope"
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={reduce ? undefined : { opacity: 0 }}
@@ -407,44 +356,45 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`panel panel-raised max-h-[90vh] w-full overflow-hidden !rounded-3xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}
-        initial={reduce ? false : { y: 24, scale: 0.97, opacity: 0 }}
-        animate={{ y: 0, scale: 1, opacity: 1 }}
+        className={`hc-decree ${wide ? 'max-w-3xl' : 'max-w-[560px]'}`}
+        initial={reduce ? false : { y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 32 }}
       >
-        <header className="relative flex items-center gap-3 px-6 pb-3 pt-5">
-          {icon && (
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gold/15 text-gold shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)]">
-              <Icon name={icon} size={17} />
-            </span>
-          )}
-          <h2 className="font-display text-lg uppercase tracking-[0.14em] text-gold">{title}</h2>
+        <header className="flex items-center gap-3 px-[26px] pb-2 pt-5">
+          {emblem ??
+            (icon && (
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-[color:var(--ink)] text-[color:var(--gold-light)]" style={{ background: 'radial-gradient(circle at 35% 30%, #4a2a1a, #1f1b18)' }} aria-hidden>
+                <Icon name={icon} size={20} strokeWidth={1.8} />
+              </span>
+            ))}
+          <h2 className="hc-decree__title min-w-0 flex-1">{title}</h2>
           {dismissable && onClose && (
-            <button className="icon-btn ml-auto" onClick={onClose} aria-label="Close">
-              <Icon name="close" />
+            <button className="hc-paper-btn hc-paper-btn--sm !min-h-[44px] !w-[44px] !px-0" onClick={onClose} aria-label="Close">
+              <Icon name="close" size={18} strokeWidth={2} />
             </button>
           )}
-          <span className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-tarnish/70 to-transparent" />
         </header>
-        <div className="scroll-thin max-h-[calc(90vh-84px)] overflow-y-auto px-6 py-5">{children}</div>
+        <hr className="hc-dots mx-[26px] mb-3 mt-1" />
+        <div className="hc-decree__body hc-scroll">{children}</div>
       </motion.div>
     </motion.div>
   );
 }
 
-/** Small dismissible rookie tip, shown once per id while rookie tips are on. */
+/** A rookie tip: a map note pinned to the board, shown once per id while rookie tips are on. */
 export function RookieTip({ id, children }: { id: string; children: ReactNode }) {
   const show = useStore((s) => s.settings.rookieTips && !s.settings.dismissedTips.includes(id));
   const dismiss = useStore((s) => s.dismissTip);
   if (!show) return null;
   return (
-    <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-gold/30 bg-gradient-to-br from-[#3a2418]/95 to-[#1a1c1d]/95 px-3 py-2.5 text-[14px] text-bone/90 shadow-panel">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-ember/20 text-ember">
-        <Icon name="torch" size={15} />
+    <div className="hc-note mt-2 flex items-start gap-2.5 !py-2 text-[15px]">
+      <span className="mt-0.5 shrink-0 hc-rubric" aria-hidden>
+        <Icon name="torch" size={17} strokeWidth={1.8} />
       </span>
-      <div className="flex-1">{children}</div>
-      <button className="icon-btn !h-6 !w-6 !rounded-md" onClick={() => dismiss(id)} aria-label="Dismiss tip">
-        <Icon name="close" size={13} />
+      <div className="flex-1 italic">{children}</div>
+      <button className="hc-paper-btn hc-paper-btn--sm !min-h-[32px] !w-[32px] !px-0" onClick={() => dismiss(id)} aria-label="Dismiss tip">
+        <Icon name="close" size={14} strokeWidth={2} />
       </button>
     </div>
   );

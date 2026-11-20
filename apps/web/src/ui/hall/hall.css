@@ -1,0 +1,961 @@
+/*
+ * Hall & Chart (DECISIONS #45): the 2D interface as a lord's great hall at night, with island
+ * information drawn as an old sea chart. Tokens come from design/hall-chart/tokens.css; textures
+ * are pre-rendered tiles (no runtime SVG noise on large or animated areas).
+ * The 3D walk's HUD keeps the older shared classes in styles/index.css.
+ */
+
+:root {
+  --font-title: 'UnifrakturCook', 'IM Fell English SC', serif;
+  --font-label: 'IM Fell English SC', Georgia, serif;
+  --font-body: 'IM Fell DW Pica', Georgia, serif;
+  --font-body-sc: 'IM Fell DW Pica SC', Georgia, serif;
+
+  --fs-hero: 96px;
+  --fs-h1: 62px;
+  --fs-h2: 50px;
+  --fs-h3: 32px;
+  --fs-label-lg: 26px;
+  --fs-label: 20px;
+  --fs-body: 19px;
+  --fs-body-sm: 16px;
+  --fs-note: 14px;
+
+  --stone-mortar: #16120f;
+  --stone-1: #29241f;
+  --stone-2: #2e2823;
+  --stone-3: #27221d;
+  --on-dark: #f1e3c2;
+  --on-dark-muted: #cdb98e;
+  --on-dark-ok: #bfe8a0;
+  --on-dark-warn: #ffc08a;
+
+  --ink: #1a120b;
+  --map-ink: #3a2614;
+  --map-ink-muted: #6b4e2e;
+  --vellum: #e9d5a8;
+  --parchment: #ead6ad;
+  --paper-card: #f1e4c4;
+  --rubric: #a8281e;
+  --rubric-dark: #7a1912;
+  --ok-ink: #2f5a46;
+
+  --gold: #d9a93f;
+  --gold-light: #f3d27a;
+  --gold-dark: #8a6018;
+  --brass: #b48a3a;
+  --iron: #2a2a2e;
+  --iron-rivet: #8a8a90;
+
+  --oak: #3a2414;
+  --oak-grain: #24150b;
+  --oak-edge: #5a3a20;
+  --oak-deep: #120a05;
+
+  --gules: #8a1a16;
+  --azure: #1f3a7a;
+  --vert: #24543a;
+  --sable: #1f1b18;
+  --purpure: #4f2560;
+  --or: #c99a2e;
+  --argent: #e6dcc4;
+
+  --crimson: #7a1712;
+  --wax: #8e1a14;
+  --wax-dark: #5c0f0b;
+  --wax-light: #c2452f;
+
+  --tex-stone: url('./tex/stone-wall-tile.png');
+  --tex-parchment: url('./tex/parchment.png');
+  --tex-vellum: url('./tex/vellum.png');
+  --tex-letter: url('./tex/letter-paper.png');
+  --tex-oak: url('./tex/oak-tile.png');
+  --tex-weave: url('./tex/cloth-weave-overlay.svg');
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --radius-btn: 3px;
+  --touch: 44px;
+
+  --shadow-panel: 0 12px 26px rgba(0, 0, 0, 0.6);
+  --shadow-paper: 0 14px 22px rgba(0, 0, 0, 0.6);
+  --shadow-press: 0 4px 0 #2a0a06, 0 8px 18px rgba(0, 0, 0, 0.5);
+  --vignette: inset 0 0 240px 90px rgba(0, 0, 0, 0.68);
+  --torch-glow: radial-gradient(circle, rgba(255, 176, 74, 0.42) 0, rgba(255, 154, 58, 0.14) 40%, rgba(255, 154, 58, 0) 100%);
+  --focus-ring: 0 0 0 2px var(--ink), 0 0 0 5px var(--gold-light);
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
+}
+
+/* Frostbound: the same hall by moonlight. Silver metals, colder fire. */
+:root[data-theme='frostbound'] {
+  --gold: #b9c4cc;
+  --gold-light: #e4ecf2;
+  --gold-dark: #5e6a74;
+  --brass: #9aa6ae;
+  --or: #aab4bc;
+  --torch-glow: radial-gradient(circle, rgba(170, 200, 255, 0.32) 0, rgba(140, 180, 240, 0.1) 40%, rgba(140, 180, 240, 0) 100%);
+  --on-dark-muted: #b9c2c8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}
+.reduce-motion {
+  --dur-fast: 0ms;
+  --dur: 0ms;
+  --dur-slow: 0ms;
+}
+
+/* ------------------------------------------------------------------ type */
+
+.hc-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+/* Gold blackletter on stone: light top, dark bevel, soft drop. */
+.hc-title-gold {
+  color: var(--gold-light);
+  background: linear-gradient(180deg, #fff1b8 0%, var(--gold-light) 30%, var(--gold) 62%, #b07d22 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 var(--gold-dark)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.75));
+}
+.hc-label {
+  font-family: var(--font-label);
+  letter-spacing: 0.04em;
+}
+.hc-body {
+  font-family: var(--font-body);
+}
+.hc-sc {
+  font-family: var(--font-body-sc);
+}
+.hc-num {
+  font-family: var(--font-body);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.hc-gloss {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: var(--fs-note);
+}
+.hc-rubric {
+  color: var(--rubric);
+}
+.hc-ok {
+  color: var(--ok-ink);
+}
+.hc-ink {
+  color: var(--map-ink);
+}
+.hc-ink-muted {
+  color: var(--map-ink-muted);
+}
+.hc-on-dark {
+  color: var(--on-dark);
+}
+.hc-on-dark-muted {
+  color: var(--on-dark-muted);
+}
+/* A dotted ink rule between entries on paper. */
+.hc-dots {
+  border: 0;
+  height: 0;
+  border-top: 1.5px dotted color-mix(in srgb, var(--map-ink) 60%, transparent);
+  margin: 6px 0;
+}
+.hc-para::before {
+  content: '¶';
+  color: var(--rubric);
+  margin-right: 0.3em;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ surfaces */
+
+/* The stone wall of the hall, with a heavy inner vignette. */
+.hc-hall {
+  position: relative;
+  background-color: var(--stone-mortar);
+  background-image: var(--tex-stone);
+  background-size: 480px 240px;
+  color: var(--on-dark);
+  font-family: var(--font-body);
+}
+.hc-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--vignette);
+  z-index: 1;
+}
+.hc-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  background: var(--torch-glow);
+  transform: translate(-50%, -50%);
+}
+.hc-flicker {
+  animation: hc-flicker 2.8s linear infinite;
+}
+@keyframes hc-flicker {
+  0%, 100% { opacity: 1; }
+  20% { opacity: 0.86; }
+  37% { opacity: 0.97; }
+  55% { opacity: 0.82; }
+  73% { opacity: 0.95; }
+}
+
+.hc-parchment {
+  position: relative;
+  color: var(--map-ink);
+  background-color: var(--parchment);
+  background-image: var(--tex-parchment);
+  background-size: 512px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-paper), inset 0 0 0 1px rgba(58, 38, 20, 0.35), inset 0 0 40px rgba(110, 70, 30, 0.22);
+}
+.hc-letter {
+  position: relative;
+  color: var(--map-ink);
+  background-color: var(--paper-card);
+  background-image: var(--tex-letter);
+  background-size: 512px;
+  border-radius: 3px;
+  box-shadow: var(--shadow-paper), inset 0 0 0 1px rgba(58, 38, 20, 0.3);
+}
+
+/* A chart sheet: vellum with rolled wooden ends, a neat line and ink tick marks. */
+.hc-chart {
+  position: relative;
+  color: var(--map-ink);
+  background-color: var(--vellum);
+  background-image: var(--tex-vellum);
+  background-size: 512px;
+  box-shadow: var(--shadow-paper), inset 0 0 50px rgba(110, 70, 30, 0.25);
+  margin: 14px 6px;
+}
+.hc-chart::before {
+  /* neat line + tick marks along top and bottom, inside the sheet */
+  content: '';
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  border: 1.4px solid var(--map-ink);
+  background:
+    repeating-linear-gradient(90deg, var(--map-ink) 0 14px, transparent 14px 28px) top / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, var(--map-ink) 0 14px, transparent 14px 28px) bottom / 100% 3px no-repeat;
+  opacity: 0.9;
+}
+.hc-roll {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  height: 18px;
+  pointer-events: none;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #e8cf95 0%, #c9a464 35%, #8e6a34 80%, #5c4220 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(58, 38, 20, 0.7);
+}
+.hc-roll--top {
+  top: -12px;
+}
+.hc-roll--bottom {
+  bottom: -12px;
+}
+.hc-roll::before,
+.hc-roll::after {
+  /* the spiral at each end */
+  content: '';
+  position: absolute;
+  top: -3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #6a4a22 0 2px, #e8cf95 2px 4px, #8e6a34 4px 6px, #e0c486 6px 8px, #7a5a2a 8px 10px, #c9a464 10px 12px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 0 1px #3a2614;
+}
+.hc-roll::before {
+  left: -6px;
+}
+.hc-roll::after {
+  right: -6px;
+}
+
+/* Oak-and-iron panel with a parchment inset; iron brackets come from <OakPanel>. */
+.hc-oak {
+  position: relative;
+  background-color: var(--oak);
+  background-image: var(--tex-oak);
+  background-size: 512px 256px;
+  border: 2px solid var(--oak-deep);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 3px var(--oak-edge), inset 0 0 0 5px rgba(0, 0, 0, 0.45), var(--shadow-panel);
+  padding: 13px;
+}
+.hc-oak__inset {
+  position: relative;
+  color: var(--map-ink);
+  background-color: var(--parchment);
+  background-image: var(--tex-parchment);
+  background-size: 512px;
+  border-radius: 2px;
+  box-shadow: inset 0 2px 10px rgba(60, 35, 10, 0.55), inset 0 0 0 1px rgba(26, 18, 11, 0.55);
+}
+.hc-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 2;
+}
+/* The brass plate on a panel's top edge: half outside. */
+.hc-plate {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  white-space: nowrap;
+  padding: 3px 16px 4px;
+  font-family: var(--font-label);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-light), var(--brass) 55%, var(--gold-dark));
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.7), 0 3px 0 #0c0805, 0 6px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* ------------------------------------------------------------------ buttons */
+
+.hc-btn,
+.hc-plaque,
+.hc-paper-btn,
+.hc-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--touch);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    filter var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+.hc-btn {
+  min-height: 48px;
+  padding: 0 22px;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius-btn);
+  font-family: var(--font-label);
+  font-size: 21px;
+  color: #f6ead0;
+  text-shadow: 0 1px 0 #000;
+  background: var(--crimson);
+  box-shadow: inset 0 0 0 2px var(--crimson), inset 0 0 0 3px var(--gold-light), var(--shadow-press);
+}
+.hc-btn--dark {
+  background: #2a1a12;
+  box-shadow: inset 0 0 0 2px #2a1a12, inset 0 0 0 3px var(--gold), 0 4px 0 #0c0805;
+}
+.hc-btn--sm {
+  min-height: var(--touch);
+  padding: 0 14px;
+  font-size: 17px;
+}
+.hc-plaque {
+  padding: 0 16px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-btn);
+  font-family: var(--font-label);
+  font-size: 18px;
+  color: var(--ink);
+  background: linear-gradient(180deg, #d0a650, var(--brass) 60%, #9c7430);
+  box-shadow: inset 0 1px 0 var(--gold-light), inset 0 -2px 0 var(--gold-dark), 0 3px 0 #0c0805;
+}
+.hc-plaque--iron {
+  color: var(--on-dark);
+  background: linear-gradient(180deg, #6a625a, #5a524a 60%, #48413a);
+  box-shadow: inset 0 1px 0 #8a8278, inset 0 -2px 0 #2a2622, 0 3px 0 #0c0805;
+}
+.hc-plaque--sm {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 15px;
+}
+.hc-plaque[aria-pressed='true'] {
+  background: linear-gradient(180deg, #fff0b8, var(--gold-light) 50%, var(--gold));
+}
+.hc-icon-btn {
+  width: var(--touch);
+  height: var(--touch);
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  background: radial-gradient(circle at 35% 30%, #e3bd66, var(--brass) 55%, #8c6526);
+  box-shadow: inset 0 1px 0 var(--gold-light), inset 0 -2px 0 var(--gold-dark), 0 3px 0 #0c0805;
+}
+.hc-icon-btn[aria-pressed='true'] {
+  background: radial-gradient(circle at 35% 30%, #fff0b8, var(--gold-light) 55%, var(--gold));
+}
+.hc-paper-btn {
+  padding: 0 16px;
+  border: 1.5px solid var(--map-ink);
+  border-radius: 1px;
+  font-family: var(--font-label);
+  font-size: 18px;
+  color: var(--map-ink);
+  background: var(--paper-card);
+  box-shadow: 2px 2px 0 var(--map-ink);
+}
+.hc-paper-btn--danger {
+  color: var(--rubric-dark);
+  border-color: var(--rubric-dark);
+  box-shadow: 2px 2px 0 var(--rubric-dark);
+}
+.hc-paper-btn--sm {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 15px;
+}
+.hc-paper-btn[aria-pressed='true'] {
+  background: var(--map-ink);
+  color: var(--paper-card);
+}
+:is(.hc-btn, .hc-plaque, .hc-icon-btn, .hc-paper-btn):hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+:is(.hc-btn, .hc-plaque, .hc-icon-btn):active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 0 var(--gold-light), 0 1px 0 #0c0805;
+}
+.hc-paper-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--map-ink);
+}
+:is(.hc-btn, .hc-plaque, .hc-icon-btn, .hc-paper-btn, .hc-seal-btn):disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+:is(.hc-btn, .hc-plaque, .hc-icon-btn, .hc-paper-btn, .hc-seal-btn)[data-loading='true'] {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+/* A wax seal with its label beside it. */
+.hc-seal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch);
+  padding: 0 10px 0 0;
+  font-family: var(--font-label);
+  font-size: 22px;
+  color: var(--map-ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  border-radius: 30px 3px 3px 30px;
+  transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
+}
+.hc-seal-btn img {
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+  transition: transform var(--dur) var(--ease);
+}
+.hc-seal-btn:hover:not(:disabled) img {
+  transform: rotate(-8deg) scale(1.04);
+}
+.hc-seal-btn:active:not(:disabled) {
+  transform: translateY(2px);
+}
+.hc-seal-btn--on-dark {
+  color: var(--on-dark);
+}
+
+:where(.hc-scope) :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+.hc-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+:where(.hc-scope) :where(svg [tabindex]):focus-visible {
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ controls on paper */
+
+.hc-check {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--map-ink);
+  background: var(--paper-card);
+  color: var(--rubric);
+  cursor: pointer;
+}
+.hc-check-hit {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+.hc-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1.5px solid var(--map-ink);
+  background: var(--paper-card);
+}
+.hc-seg > button {
+  min-height: var(--touch);
+  padding: 0 14px;
+  font-family: var(--font-body);
+  font-size: 17px;
+  color: var(--map-ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.hc-seg > button + button {
+  border-left: 1.5px solid var(--map-ink);
+}
+.hc-seg > button:hover:not(:disabled):not([aria-pressed='true']):not([aria-checked='true']) {
+  background: rgba(58, 38, 20, 0.1);
+}
+.hc-seg > button[aria-pressed='true'],
+.hc-seg > button[aria-checked='true'] {
+  background: var(--map-ink);
+  color: var(--paper-card);
+}
+.hc-seg > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.hc-seg--sm > button {
+  min-height: 36px;
+  padding: 0 9px;
+  font-size: 15px;
+}
+.hc-input,
+.hc-select {
+  min-height: var(--touch);
+  padding: 0 12px;
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--map-ink);
+  background: var(--paper-card);
+  border: 0;
+  border-bottom: 1.5px solid var(--map-ink);
+  box-shadow: inset 0 0 0 1px rgba(58, 38, 20, 0.35);
+  border-radius: 0;
+}
+.hc-input::placeholder {
+  color: var(--map-ink-muted);
+  font-style: italic;
+}
+.hc-select {
+  padding-right: 28px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--map-ink) 50%), linear-gradient(135deg, var(--map-ink) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.hc-input:disabled,
+.hc-select:disabled {
+  opacity: 0.6;
+}
+.hc-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hc-stepper > button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--map-ink);
+  background: var(--paper-card);
+  color: var(--map-ink);
+  cursor: pointer;
+}
+.hc-stepper > button::after {
+  /* 44px hit area around a 34px box */
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+.hc-stepper > button {
+  position: relative;
+}
+.hc-stepper > button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.hc-stepper__value {
+  min-width: 30px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 24px;
+  color: var(--rubric);
+}
+.hc-range {
+  accent-color: var(--rubric);
+}
+
+/* Small-caps panel tabs with a red underline on the selected one. */
+.hc-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1.5px solid var(--map-ink);
+}
+.hc-tabs > button {
+  position: relative;
+  flex: 1;
+  min-height: var(--touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-label);
+  font-size: 19px;
+  color: var(--map-ink-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.hc-tabs > button[aria-selected='true'] {
+  color: var(--rubric);
+}
+.hc-tabs > button[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1.5px;
+  height: 3px;
+  background: var(--rubric);
+}
+.hc-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 50%;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #fff3e0;
+  background: radial-gradient(circle at 35% 30%, var(--wax-light), var(--wax) 60%, var(--wax-dark));
+  box-shadow: 0 0 0 1px var(--wax-dark);
+}
+
+/* ------------------------------------------------------------------ notes, slips, decrees */
+
+/* A map note: paper slip, ink border, offset ink shadow. */
+.hc-note {
+  position: relative;
+  padding: 7px 11px 8px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--map-ink);
+  background: var(--paper-card);
+  border: 1.5px solid var(--map-ink);
+  box-shadow: 2px 2px 0 var(--map-ink), 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+.hc-note__title {
+  font-style: italic;
+  color: var(--rubric);
+}
+.hc-note__body {
+  font-style: italic;
+}
+.hc-leader {
+  position: absolute;
+  border-left: 1.5px dashed var(--map-ink);
+  pointer-events: none;
+}
+
+/* A herald's slip: a short parchment strip that slides in. */
+.hc-slip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 10px;
+  font-family: var(--font-body);
+  font-size: 17px;
+  color: var(--map-ink);
+  background-color: var(--paper-card);
+  background-image: var(--tex-letter);
+  background-size: 512px;
+  border: 1.5px solid var(--map-ink);
+  border-radius: 2px;
+  box-shadow: 2px 3px 0 var(--map-ink), 0 10px 22px rgba(0, 0, 0, 0.55);
+}
+
+.hc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 8, 6, 0.55);
+}
+.hc-decree {
+  position: relative;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--map-ink);
+  background-color: var(--parchment);
+  background-image: var(--tex-parchment);
+  background-size: 512px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-paper), inset 0 0 0 1px rgba(58, 38, 20, 0.4), inset 0 0 60px rgba(110, 70, 30, 0.25);
+}
+.hc-decree__title {
+  font-family: var(--font-title);
+  font-size: var(--fs-h3);
+  line-height: 1.05;
+  color: var(--rubric-dark);
+}
+.hc-decree__body {
+  overflow-y: auto;
+  padding: 0 26px 22px;
+  font-family: var(--font-body);
+  font-size: 17px;
+}
+
+/* ------------------------------------------------------------------ cards, meters, dice */
+
+/* A resource card frame: paper, ink border, gold inner rule. */
+.hc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--paper-card);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px var(--paper-card), inset 0 0 0 3px var(--gold), 0 3px 6px rgba(0, 0, 0, 0.35);
+  color: var(--map-ink);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.hc-card[data-zero='true'] {
+  opacity: 0.45;
+}
+.hc-card[data-zero='true'] img {
+  filter: saturate(0.25);
+}
+.hc-card[data-need='have'] {
+  box-shadow: inset 0 0 0 2px var(--paper-card), inset 0 0 0 3px var(--ok-ink), 0 0 0 2px var(--ok-ink), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+.hc-card[data-need='missing'] {
+  border-style: dashed;
+  border-color: var(--rubric);
+  box-shadow: inset 0 0 0 2px var(--paper-card), inset 0 0 0 3px var(--rubric), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+/* the "+1" gain mark: a small wax seal */
+.hc-wax-mark {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 50%;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff1dc;
+  background: radial-gradient(circle at 35% 30%, var(--wax-light), var(--wax) 62%, var(--wax-dark));
+  box-shadow: 0 0 0 1px var(--wax-dark), inset 0 0 0 3px var(--wax), inset 0 0 0 4px rgba(255, 190, 160, 0.55), 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+.hc-wax-mark::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 200, 170, 0.6);
+}
+
+.hc-art {
+  display: inline-block;
+  flex: none;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #efe2c4;
+  box-shadow: 0 0 0 1px rgba(26, 18, 11, 0.6);
+  vertical-align: middle;
+}
+.hc-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ------------------------------------------------------------------ banners */
+
+.hc-banner {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: center;
+  transform-origin: 50% 0;
+  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease);
+}
+button.hc-banner {
+  cursor: pointer;
+}
+button.hc-banner:hover:not(:disabled) {
+  transform: rotate(-1deg);
+}
+button.hc-banner:active:not(:disabled) {
+  transform: translateY(2px);
+}
+.hc-banner:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.hc-banner:focus-visible .hc-banner__cloth {
+  filter: drop-shadow(0 0 0 var(--ink)) drop-shadow(0 0 3px var(--gold-light)) drop-shadow(0 0 2px var(--gold-light));
+}
+.hc-banner[data-lit='true'] .hc-banner__cloth {
+  filter: drop-shadow(0 0 2px var(--gold-light)) drop-shadow(0 0 14px rgba(217, 169, 63, 0.75));
+}
+.hc-banner:disabled,
+.hc-banner[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+.hc-banner:disabled .hc-banner__cloth,
+.hc-banner[aria-disabled='true'] .hc-banner__cloth {
+  filter: saturate(0.4) brightness(0.8);
+}
+.hc-banner:disabled .hc-ribbon__text,
+.hc-banner[aria-disabled='true'] .hc-ribbon__text {
+  opacity: 0.6;
+}
+.hc-banner[data-away='true'] .hc-banner__cloth {
+  filter: saturate(0.25) brightness(0.7);
+}
+.reduce-motion button.hc-banner:hover:not(:disabled) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  button.hc-banner:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* The label ribbon laid across a banner (real text, centred). */
+.hc-ribbon {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.hc-ribbon__text {
+  position: relative;
+  font-family: var(--font-label);
+  color: var(--ink);
+  white-space: nowrap;
+  line-height: 1;
+}
+.hc-banner__gloss {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  font-family: var(--font-body);
+  font-style: italic;
+  line-height: 1.15;
+  color: #f6e7c4;
+  text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+.hc-banner__gloss[data-tone='ok'] {
+  color: var(--on-dark-ok);
+}
+.hc-banner__gloss[data-tone='warn'] {
+  color: var(--on-dark-warn);
+}
+
+/* A heraldic tab: the selected banner hangs longer and lit. */
+.hc-banner-tab[aria-selected='true'] {
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ misc */
+
+.hc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--map-ink-muted) transparent;
+}
+.hc-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  min-height: 20px;
+  font-family: var(--font-label);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper-card);
+  border: 1px solid var(--ink);
+  border-bottom-width: 2.5px;
+  border-radius: 2px;
+}
+.hc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+@keyframes hc-turn {
+  to { transform: rotate(360deg); }
+}
+.hc-turn {
+  animation: hc-turn 2.4s linear infinite;
+}
+.reduce-motion .hc-flicker,
+.reduce-motion .hc-turn,
+.fx-lite .hc-flicker {
+  animation: none;
+}

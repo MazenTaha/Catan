@@ -15,6 +15,7 @@ const RulebookModal = lazy(() => import('./components/modals/RulebookModal'));
 const CharacterModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.CharacterModal })));
 const KingdomModal = lazy(() => import('./components/modals/ProfileModals').then((m) => ({ default: m.KingdomModal })));
 const ArtBoard = lazy(() => import('./components/screens/ArtBoard'));
+const UiKit = lazy(() => import('./ui/hall/UiKit'));
 
 export function App() {
   const screen = useStore((s) => s.screen);
@@ -47,6 +48,13 @@ export function App() {
     };
   }, []);
 
+  if (import.meta.env.DEV && typeof location !== 'undefined' && location.hash.startsWith('#ui-kit')) {
+    return (
+      <Suspense fallback={null}>
+        <UiKit />
+      </Suspense>
+    );
+  }
   if (import.meta.env.DEV && typeof location !== 'undefined' && location.hash.startsWith('#artboard')) {
     return (
       <Suspense fallback={null}>

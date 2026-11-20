@@ -75,6 +75,18 @@ importers:
       '@fontsource/crimson-pro':
         specifier: ^5.1.0
         version: 5.3.0
+      '@fontsource/im-fell-dw-pica':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/im-fell-dw-pica-sc':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/im-fell-english-sc':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/unifrakturcook':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@hexfall/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -589,6 +601,18 @@ packages:
 
   '@fontsource/crimson-pro@5.3.0':
     resolution: {integrity: sha512-PXQH0NGma2wwskZAySBH+s/ezAYBwyDH0I4oRURBu9u81nNUCm5DcNCJaUS9H0UR1y8qlslLfVRU6mnDBpffrA==}
+
+  '@fontsource/im-fell-dw-pica-sc@5.3.0':
+    resolution: {integrity: sha512-m8jCQRnoHCZR+bFA/o9VBhLlaFgVj/WEKU3m0lBscTQbzBq3SnNyD64k/lqTogmlbn2Dgux9dNBp5vvg7I4nTw==}
+
+  '@fontsource/im-fell-dw-pica@5.3.0':
+    resolution: {integrity: sha512-bbBU4sYDeOCv1R2Sb7E+e+gBVJNEl5FNoRdlOTtHKySr1Rst9EFwhZjQI1ZizaTMfYh1i9V5NWuy/+75nX9DdA==}
+
+  '@fontsource/im-fell-english-sc@5.3.0':
+    resolution: {integrity: sha512-jKnCJ22tgVwxWVs1YQ/GCWmP60ulVq49IJZ7c0wgv0MXHe8T8LPbl0sOteYLOkCURW5+ZKwFiLNU2h/l9fHgrg==}
+
+  '@fontsource/unifrakturcook@5.3.0':
+    resolution: {integrity: sha512-oOeUerPztcIBR6/+krMW4n/8VLF8A4NrjCNpR1C6F/C8JLekLMoSm5JzrxfPtyn5RtJdYQdTYigk4CtUCWxBCw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2308,6 +2332,14 @@ snapshots:
   '@fontsource/cinzel@5.3.0': {}
 
   '@fontsource/crimson-pro@5.3.0': {}
+
+  '@fontsource/im-fell-dw-pica-sc@5.3.0': {}
+
+  '@fontsource/im-fell-dw-pica@5.3.0': {}
+
+  '@fontsource/im-fell-english-sc@5.3.0': {}
+
+  '@fontsource/unifrakturcook@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

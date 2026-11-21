@@ -134,7 +134,9 @@ cleanly.
 - **UI:** UMG with CommonUI (gamepad focus, input prompts, layers). Rebuild the Hall & Chart kit as
   widgets: banner, coat of arms, decree, oak panel, map note, wax-seal button, scale-bar meter, bone
   dice. Reuse the textures in `apps/web/src/ui/hall/tex` and the card art in `public/art/cards`.
-  `design/hall-chart/MIGRATION_CHECKLIST.md` is the screen list.
+  `design/hall-chart/MIGRATION_CHECKLIST.md` is the screen list. **The full UI plan (design
+  system, hall scene, every component and screen, input, build approach, quality bar, milestones
+  UI-0 to UI-11) is `docs/CATNIGHT_UI_PLAN.md`.**
 - **Text:** a string table replaces `lexicon.ts` (and makes translation possible later).
 - **Accessibility carried over:** UI scale, colour plus sigil, reduced motion, rebindable keys,
   readable at Steam Deck size (1280×800).
@@ -282,13 +284,15 @@ packaging.
 **Not done yet in phase 2:**
 - Clicking through a whole game by hand with a mouse and with a real gamepad (the tests drive the
   same actions; the screenshots show focus landing on the main button).
-- The packaged build with the new screens.
-- Git LFS (still no binary assets).
+- Git LFS (generated Unreal art is still rebuilt rather than committed).
+
+A Windows Development package with the screens and cooked artwork now passes the packaged
+match tests and multi-angle picking. Full manual/physical-gamepad play remains open.
 
 ## 9. Next steps
 
 1. Owner: decide the name and terms (gate 0, section 2).
-2. Finish phase 2 validation: a packaged build with generated artwork, then a full game by hand with mouse and a real gamepad. The menus, privacy, saves and board focus are implemented.
+2. Finish phase 2 validation: the Development package and cooked artwork are checked; a full game by hand with mouse and a real gamepad remains. The menus, privacy, saves and board focus are implemented.
 3. Phase 3: the 3D war table and the Hall & Chart UI (`docs/CATNIGHT_PARITY.md` §3–4).
 
 ## 10. Phase 3, first part: the native 3D war table (2026-11-21)
@@ -314,7 +318,12 @@ current camera: the fresh setup matches 50/50 legal spots from each of three ang
 handoff's captures show the 3D scenery and player pieces; the refreshed setup capture also shows
 the camera hint. The rules and their TypeScript reference are unchanged.
 
-This completes the first table presentation milestone, not phase 3 as a whole. Next: package it
-and confirm the generated assets cook, play manually with mouse and a real gamepad, then finish
+The standalone Windows Development package now cooks all 92 models and 156 generated asset
+packages, passes both match tests, and picks 50/50 legal targets from three camera angles. A
+rendered autoplay match reaches victory after 694 actions. `pnpm catnight:package` and
+`pnpm catnight:test-package` make these build/check steps repeatable.
+
+This completes the first table presentation milestone, not phase 3 as a whole. Next: finish the
+full manual mouse/physical-gamepad playthrough, then finish
 board polish, the hall, Hall & Chart UI and audio. The island walk is phase 4 and Steam online,
 rejoin/autopilot and duels are phase 5. Gate 0 still precedes public release.

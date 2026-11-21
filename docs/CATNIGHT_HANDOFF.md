@@ -2,7 +2,9 @@
 
 Where the native Unreal game stands, so another agent can continue. Read with:
 `docs/UNREAL_NATIVE_PLAN.md` (phases), `docs/CATNIGHT_PARITY.md` (every browser feature, its
-Unreal status and the "better" target) and `apps/catnight/README.md` (build, play, test).
+Unreal status and the "better" target), `docs/CATNIGHT_UI_PLAN.md` (the Hall & Chart UI plan:
+look, components, screens, milestones UI-0 to UI-11) and `apps/catnight/README.md` (build, play,
+test).
 
 ## The goal (owner's words, paraphrased)
 
@@ -116,8 +118,9 @@ Verified: builds; screenshots in `apps/catnight/validation/board3d-*.png`; pick 
 ## Next steps (in order)
 
 1. Obtain the owner's approval before pushing the local 3D-table commit.
-2. Phase 2 leftovers: package a build (`RunUAT BuildCookRun`, README) and check `/Game/Generated`
-   cooks; play a game by hand with mouse and a gamepad.
+2. Phase 2 leftovers: finish a full game by hand with mouse and a physical gamepad. The cooked
+   Development package, artwork, automated matches and representative interactive flows are
+   now checked (see the packaged-validation update below).
 3. Phase 3, rest (parity §3–4, §8–9):
    - Board polish: dice that roll on the table, placement animations and dust, hex tooltip,
      production highlights, time of day (sun/moon from rounds), water with foam and better waves,
@@ -131,3 +134,31 @@ Verified: builds; screenshots in `apps/catnight/validation/board3d-*.png`; pick 
    horses, rooms, chest, minimap, Character and My kingdom.
 5. Phase 5: Steam online (host as referee, owner-only replication, rejoin, autopilot) and duels.
 6. Phase 6: release (gate 0 name decision first: "Catnight" is taken on Steam).
+
+## Packaged-validation update (2026-11-21)
+
+The 3D table is committed locally as `eb29431`. It has not been pushed. A Windows Development
+package now builds at `apps/catnight/Packaged/Windows/Catnight.exe`; keep the full Windows folder.
+
+- `pnpm catnight:package` checks the imported artwork before BuildCookRun; it refuses a missing
+  or incomplete import rather than producing an empty board. The cooked IoStore container holds
+  all 92 meshes and 156 generated asset packages, plus the basic shapes loaded by path.
+- `pnpm catnight:test-package` inspects that cooked container, runs both match automation tests
+  inside the packaged executable (12 full games; hot-seat/save/undo), picks 50/50 spots at three
+  camera angles, and captures title, new game, flat board and an autoplay victory.
+- The screenshot harness now supports `-CatnightShotOnWin`. A fixed delay could capture a
+  still-running game under desktop load; the packaged test instead requires an actual ended
+  match and its `CATNIGHT CAPTURE victory after ... actions` log before accepting the capture.
+  Screenshot polling also quits shortly after the capture completes, rather than waiting another
+  full capture delay.
+- Interactive native-app checks cover three-player seat setup, the hot-seat curtain, mouse
+  settlement placement, arrow/Enter road placement, wheel zoom, Flat/3D switching, Ctrl+Z undo,
+  the leave menu and save/Continue across a process restart. An isolated UserDir was used: the
+  six-action save stayed byte-for-byte identical after Continue; the player's save was untouched.
+- Tracked evidence and scope: `apps/catnight/validation/package-validation.json` and the
+  `packaged-table.png` / `packaged-victory.png` captures. Detailed logs and automated reports are
+  ignored under `Saved/PackageValidation` and `validation/*.log`.
+- Full manual mouse play, a physical gamepad (including reconnect), and a clean-PC prerequisite
+  check remain open. This is not a finished phase 3 or a release build. No game rules changed.
+- `native/tests/main.cpp` remains another session's edit. Stage only the named native packaging,
+  capture-harness, evidence and documentation paths; no push without a fresh owner approval.

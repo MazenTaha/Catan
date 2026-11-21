@@ -106,16 +106,21 @@ void ACatnightGameMode::BeginPlay()
 	{
 		float After = 6.f;
 		FParse::Value(Cmd, TEXT("CatnightShotAfter="), After);
+		const bool bOnWin = FParse::Param(Cmd, TEXT("CatnightShotOnWin"));
+		const double Earliest = FPlatformTime::Seconds() + FMath::Max(0.f, After);
 		double Requested = 0;
-		ShotHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("CatnightShot"), After, [Shot, Requested](float) mutable
+		ShotHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("CatnightShot"), 0.1f, [Shot, Match, bOnWin, Earliest, Requested](float) mutable
 		{
+			const double Now = FPlatformTime::Seconds();
 			if (Requested == 0)
 			{
+				if (Now < Earliest || (bOnWin && !Match->IsEnded())) return true;
+				if (bOnWin) UE_LOG(LogTemp, Display, TEXT("CATNIGHT CAPTURE victory after %d actions"), Match->ActionCount());
 				FScreenshotRequest::RequestScreenshot(Shot, true, false);
-				Requested = FPlatformTime::Seconds();
+				Requested = Now;
 				return true;
 			}
-			if (FPlatformTime::Seconds() - Requested > 2.0)
+			if (Now - Requested > 2.0 && !FScreenshotRequest::IsScreenshotRequested())
 			{
 				FPlatformMisc::RequestExit(false, TEXT("CatnightShot"));
 				return false;

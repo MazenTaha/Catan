@@ -47,9 +47,9 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| 19 painted hexes with terrain scenery (forest, clay, pasture with sheep, wheat and windmills, mountains, desert ruin) | part: native 3D hexes and instanced Blender scenery, sun and shadows verified in `-game`; crop wind and packaged validation pending | **Real 3D miniature board** on an oak war table: modelled tiles with the island's own trees, wheat, rocks and buildings, sunlit with soft shadows, wind in the crops | 3 |
+| 19 painted hexes with terrain scenery (forest, clay, pasture with sheep, wheat and windmills, mountains, desert ruin) | part: native 3D hexes and instanced Blender scenery, sun/shadows and cooked artwork verified in the Development package; crop wind pending | **Real 3D miniature board** on an oak war table: modelled tiles with the island's own trees, wheat, rocks and buildings, sunlit with soft shadows, wind in the crops | 3 |
 | Sea, turquoise shallows, foam, docks with badges, little boats | part: shaded sea tray, sand shelves, modelled docks/boats and rate plaques; foam and boat motion pending | Animated water with depth colour and foam, the Blender docks and boats bobbing | 3 |
-| Ivory number tokens with pips, red 6/8 | part: 3D ivory tokens, pips and red 6/8; further readability and packaged checks pending | Carved tokens with engraved pips | 3 |
+| Ivory number tokens with pips, red 6/8 | part: 3D ivory tokens, pips and red 6/8; cooked display verified; further readability polish pending | Carved tokens with engraved pips | 3 |
 | Pieces: settlement, city, road, robber, player colours and sigils | part: modelled cottages/halls with owner-coloured trim, roads and robber; bridge-roads, sigils and placement effects pending | Modelled cottage, hall, bridge-road and hooded robber; colour and sigil on every piece; placement animation and dust | 3 |
 | Legal targets on hover/click, keyboard focusable, show-why reasons | part: 3D hover/picking and glowing targets; projection/deprojection checked from three angles; keys/shoulders + Enter/A remain, real gamepad play pending | Glowing targets, gamepad cursor and stick snapping, reasons on hover | 2 → 3 |
 | Hex tooltip (terrain, number, odds, owners) | to do | Same, as a map note | 3 |
@@ -58,13 +58,17 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 | Time of day wash and label (rounds → Sunrise … Small hours) | to do | Real sun and moon over the hall's windows and the table | 3 |
 | Walk layer: walkers and fights on the board | to do | Same markers in 3D | 4 / 5 |
 
-The first 3D-table milestone is verified in the native editor game, not yet in a packaged build.
+The first 3D-table milestone is verified in the native editor game and a cooked Windows
+Development package (92 models, 156 generated asset packages, 50/50 targets from three angles).
 `pnpm catnight:import` recreates its ignored artwork; see the native README. The actor, import
 pipeline, shared board targets and Flat view toggle are in place. Hall scenery, full Hall & Chart
-widgets, animation, audio and the packaged/manual-play gate remain open. Validation captures:
+widgets, animation, audio and the full manual/physical-gamepad playthrough remain open. The packaged
+match tests cover 12 full games and hot-seat/save/undo; a rendered autoplay match reaches victory. Validation captures:
 `apps/catnight/validation/board3d-*.png`.
 
 ## 4. The Hall & Chart interface
+
+How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|

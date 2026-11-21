@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "date": "2026-11-21",
+  "engine": "Unreal Engine 5.8",
+  "configuration": "Development",
+  "platform": "Windows x64",
+  "launch": "apps/catnight/Packaged/Windows/Catnight.exe",
+  "commands": [
+    "pnpm catnight:package",
+    "pnpm catnight:test-package",
+    "pnpm catnight:test",
+    "pnpm verify"
+  ],
+  "cookedArtwork": {
+    "meshes": 92,
+    "generatedAssetPackages": 156,
+    "basicShapes": 3,
+    "omittedAssets": 0
+  },
+  "automation": {
+    "editorTestsPassed": 3,
+    "goldenGamesMatched": 248,
+    "packagedMatchTestsPassed": 2,
+    "fullMatchGames": 12,
+    "hotseatHandoffs": 181,
+    "unitTests": 132,
+    "typecheck": "passed",
+    "lint": "zero warnings",
+    "webBuild": "passed"
+  },
+  "picking": [
+    {
+      "camera": "0,0,1",
+      "picked": 50,
+      "legal": 50
+    },
+    {
+      "camera": "40,12,0.9",
+      "picked": 50,
+      "legal": 50
+    },
+    {
+      "camera": "-55,-18,1.1",
+      "picked": 50,
+      "legal": 50
+    }
+  ],
+  "renderedMatch": {
+    "victorySignalRequired": true,
+    "actions": 694,
+    "round": 40,
+    "winner": "You",
+    "points": 10,
+    "victoryScreenshotReviewed": true
+  },
+  "interactiveChecks": [
+    "Native title and three-player seat setup",
+    "Hot-seat privacy curtain and hand-off",
+    "Mouse settlement placement",
+    "Arrow/Enter road placement",
+    "Wheel zoom",
+    "Flat/3D board switching",
+    "Ctrl+Z undo removes the settlement",
+    "Escape and Main menu",
+    "Quit, restart process, Continue restores the table"
+  ],
+  "isolatedSave": {
+    "userDir": "apps/catnight/Saved/PackageValidation/interactive-20261121",
+    "actions": 6,
+    "seats": 3,
+    "unchangedAfterRestartAndContinue": true,
+    "sha256": "490a29e41f89f291eb6e4856136c01e5801cca30d8c7e2834a3ec84874560cbc",
+    "normalSaveUsed": false
+  },
+  "screenshots": [
+    "packaged-table.png",
+    "packaged-victory.png"
+  ],
+  "localDetailedRun": "apps/catnight/Saved/PackageValidation/20261121-184151-192",
+  "packageFingerprints": {
+    "Catnight.exe": {
+      "bytes": 171520,
+      "sha256": "73dedb8ac87498adec649f488639ca3079fce4a79e05641a53dad92bc8d8a48f"
+    },
+    "Catnight/Binaries/Win64/Catnight.exe": {
+      "bytes": 332578816,
+      "sha256": "e2f08050cc1b8ee9ca94fff23ed07adc864d652b69e34960d51cd06615f18360"
+    },
+    "Catnight/Content/Paks/Catnight-Windows.pak": {
+      "bytes": 10690886,
+      "sha256": "66991eb8a3e1578c1e465ff7795445933511cfe505d47f55bd6f18f0be2e12df"
+    },
+    "Catnight/Content/Paks/Catnight-Windows.ucas": {
+      "bytes": 138891616,
+      "sha256": "1f9eb1a6647bbbb6217aab6959011a615aba9112ab580afe0c74215247927329"
+    },
+    "Catnight/Content/Paks/Catnight-Windows.utoc": {
+      "bytes": 163994,
+      "sha256": "e7bc95fc8290ad22fbb0e4df28580ec745ed30bf7a21a282f9df76589e90eb05"
+    },
+    "Catnight/Content/Paks/global.ucas": {
+      "bytes": 3208272,
+      "sha256": "910f659b65973cb12760e2dcfed84f7bc6dbdb3d8b9f599eb879e2c3984041e2"
+    },
+    "Catnight/Content/Paks/global.utoc": {
+      "bytes": 782,
+      "sha256": "dd06f8d4901052e9c6e8ca907f2b280617cd2ff4b1854d820275c6697e014672"
+    }
+  },
+  "remainingChecks": [
+    "Complete manual mouse playthrough, including trades, cards, robber/discard and victory",
+    "Physical gamepad playthrough, camera controls, focus and reconnect",
+    "Clean PC with no existing C++ runtime or DirectX prerequisites"
+  ],
+  "fullManualPlaythroughChecked": false,
+  "physicalGamepadChecked": false,
+  "releaseReady": false,
+  "rulesChanged": false
+}

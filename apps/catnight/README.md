@@ -32,7 +32,8 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 - The game uses the engine's `Entry` map and creates its table at runtime. Model/material assets
   live in ignored `/Game/Generated`; recreate them before playing or packaging (below).
 - Hall & Chart visual polish, the hall, animated dice/placement, audio and the island walk remain
-  later milestones. A packaged full-game/manual mouse and real-gamepad check is still required.
+  later milestones. The Development package passes cooked-asset and match checks; a full manual
+  mouse/real-gamepad playthrough is still required.
 
 ## Rebuild the board artwork
 
@@ -73,7 +74,8 @@ Options for the game (also used for automated screenshots); any match option ski
 `-CatnightPlayers=3|4`, `-CatnightHotseat=<n>` (the first n seats are people),
 `-CatnightAutoplay` (bots play the people's seats), `-CatnightBotDelay=<seconds>`,
 `-CatnightNoSave`, `-CatnightShot=<file.png>` with `-CatnightShotAfter=<seconds>` (saves a
-screenshot, then quits).
+screenshot, then quits). Add `-CatnightShotOnWin` to wait until the match has actually ended
+before capturing; the log then records `CATNIGHT CAPTURE victory after <n> actions`.
 
 3D table options: `-CatnightFlat` starts with the 2D chart;
 `-CatnightCamera=<yawDelta>,<pitchDelta>,<zoomFactor>` adjusts the default camera (degrees and
@@ -102,12 +104,49 @@ saving and loading a record, and undo.
 Package a standalone Windows build (run `pnpm catnight:import` first):
 
 ```powershell
-& 'E:/UE_5.8/Engine/Build/BatchFiles/RunUAT.bat' BuildCookRun -project=E:/Catan/apps/catnight/Catnight.uproject -noP4 -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory=E:/Catan/apps/catnight/Packaged -unattended -nocompileeditor
+pnpm catnight:package
+pnpm catnight:test-package
 ```
 
-The result is `Packaged/Windows/Catnight.exe` (git-ignored). `DefaultGame.ini` includes
-`/Game/Generated` and `/Engine/BasicShapes` in the cook because the actor loads assets by path.
-The packaged/cooked result has not yet been validated; that is the next milestone.
+`package-game.ps1` checks that the imported meshes and base materials exist before invoking
+Unreal BuildCookRun. It accepts `-Engine`, `-Configuration Development|Shipping` and `-OutputDir`.
+The result is `Packaged/Windows/Catnight.exe` (git-ignored). Keep the whole `Windows` directory
+together. Launch that executable directly;
+it does not need the Unreal editor, Node, a browser or the source artwork alongside it.
+`DefaultGame.ini` includes `/Game/Generated` and `/Engine/BasicShapes` in the cook because the
+actor loads assets by path.
+
+`test-package.ps1` tests a **Development** package. It inspects the cooked IoStore container
+against every imported asset, runs the two `Catnight.Match` automation tests inside the packaged
+executable, checks legal-target picking from three camera angles, and captures title, new game,
+flat board and an autoplay match through victory. The autoplay check waits for an ended match
+and requires its victory log; it cannot pass solely because a timed capture exists. Screenshots
+require visual review, particularly the victory capture. Logs, screenshots and `report.json` go to a fresh `Saved/PackageValidation/<timestamp>`
+directory. Tests disable saving and never need the external golden fixtures. Options:
+`-PackageDir`, `-Engine`, `-TimeoutSeconds` (per process). The audit uses UnrealPak from the engine
+installation; the packaged game itself has no engine-install dependency.
+
+The first cooked build includes all 92 models and 156 generated asset packages. Both packaged
+match tests pass (12 full games and hot-seat/save/undo); picking matches 50/50 spots from each of
+three angles. See `validation/package-validation.json` for the recorded scope and remaining
+manual/physical-controller checks. This is a Development validation build, not a Steam release.
+A clean PC with no existing Microsoft C++ runtime/DirectX prerequisites has not yet been tested.
+
+Manual acceptance still open:
+
+- Play a complete mouse-driven match, exercising trades, cards, robber/discard, undo and victory.
+- Repeat with a physical gamepad: menus, shoulders + A picking, right-stick camera, dialogs and
+  returning focus after every action. Test reconnecting the controller.
+
+Representative interactive checks already pass: three-player setup, hot-seat curtain, mouse
+settlement placement, arrow/Enter road placement, wheel zoom, Flat/3D switching, Ctrl+Z undo,
+leave menu and save/Continue after a real process restart. The isolated six-action save remains
+byte-for-byte identical after Continue. These checks supplement the full-match automation; they
+are not a complete manual playthrough.
+
+For isolated local testing, Unreal's `-UserDir=<absolute directory>` keeps saves and settings
+under that directory's `Saved/` folder. Use a fresh directory rather than replacing a player's
+existing Continue record.
 
 ## Things to know
 

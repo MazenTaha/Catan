@@ -56,6 +56,9 @@ private:
 		for (int32 I = 0; Children && I < Children->Num(); I++) Collect(Children->GetChildAt(I), Out);
 	}
 
+	/** HallKit buttons are SHallButton (an SButton with the gold focus ring). */
+	static bool IsButton(const TSharedRef<SWidget>& W) { return W->GetType() == TEXT("SButton") || W->GetType() == TEXT("SHallButton"); }
+
 	static FString TextsUnder(const TSharedRef<SWidget>& W)
 	{
 		TArray<TSharedRef<SWidget>> All;
@@ -77,7 +80,7 @@ private:
 		Collect(T.ToSharedRef(), All);
 		for (const TSharedRef<SWidget>& W : All)
 		{
-			if (W->GetType() != TEXT("SButton") || (!bAll && !W->IsEnabled())) continue;
+			if (!IsButton(W) || (!bAll && !W->IsEnabled())) continue;
 			TArray<FString> Texts;
 			TextsUnder(W).ParseIntoArray(Texts, TEXT("|"));
 			for (const FString& Text : Texts)
@@ -102,7 +105,7 @@ private:
 		for (const TSharedRef<SWidget>& W : All)
 		{
 			if (W->GetType() == TEXT("STextBlock") && StaticCastSharedRef<STextBlock>(W)->GetText().ToString().StartsWith(After)) bSeen = true;
-			if (bSeen && W->GetType() == TEXT("SButton") && W->IsEnabled() && TextsUnder(W).Contains(Label + TEXT("|"))) return W;
+			if (bSeen && IsButton(W) && W->IsEnabled() && TextsUnder(W).Contains(Label + TEXT("|"))) return W;
 		}
 		return nullptr;
 	}
@@ -366,7 +369,7 @@ private:
 		}
 		case ActionType::BankTrade:
 		{
-			// Give row: "<rate>:1" buttons; get row: the bank's stock numbers; then the "→" seal.
+			// Give row: "<rate>:1" buttons; get row: the bank's stock numbers; then the "… for 1 …" seal.
 			TabStep(STable::ETab::Trade, TEXT("Trade"));
 			const int32 Give = static_cast<int32>(A.giveRes), Get = static_cast<int32>(A.receiveRes);
 			Steps.Add([this, Give]
@@ -414,7 +417,7 @@ private:
 			Steps.Add([this]
 			{
 				for (const TSharedRef<SWidget>& W : Buttons(TEXT(""), true))
-					if (TextsUnder(W).Contains(TEXT(" → 1 ")))
+					if (TextsUnder(W).Contains(TEXT(" for 1 ")))
 						return Press(W);
 				return false;
 			});

@@ -20,6 +20,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/SOverlay.h"
 
 using namespace catnight;
@@ -172,7 +173,7 @@ void SCatnightRoot::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		bFocusPending = false;
 		// Buttons show their focus ring (navigation); a whole screen taking focus should not.
 		const TSharedPtr<SWidget> F = FocusTarget();
-		const bool bButton = F && F->GetType() == TEXT("SButton");
+		const bool bButton = F && (F->GetType() == TEXT("SButton") || F->GetType() == TEXT("SHallButton"));
 		if (F) FSlateApplication::Get().SetAllUserFocus(F, bButton ? EFocusCause::Navigation : EFocusCause::SetDirectly);
 	}
 }
@@ -235,8 +236,14 @@ void SCatnightRoot::StartGame(FCatnightMatchSetup Setup)
 
 // ------------------------------------------------------------------ the hall
 
-TSharedRef<SWidget> SCatnightRoot::InHall(TSharedRef<SWidget> Inner)
+TSharedRef<SWidget> SCatnightRoot::InHall(TSharedRef<SWidget> Inner, float ContentWidth)
 {
+	// The torches stand 150–230 units in from each side; hide them when centred content reaches them.
+	const TAttribute<EVisibility> TorchVis = TAttribute<EVisibility>::CreateLambda([this, ContentWidth]
+	{
+		const float W = static_cast<float>(GetCachedGeometry().GetLocalSize().X);
+		return ContentWidth <= 0.f || W <= 0.f || (W - ContentWidth) * 0.5f >= 240.f ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+	});
 	auto Window = [](EHorizontalAlignment H, float Side)
 	{
 		return SNew(SOverlay)
@@ -249,8 +256,8 @@ TSharedRef<SWidget> SCatnightRoot::InHall(TSharedRef<SWidget> Inner)
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(0, 70, 250, 0))[Window(HAlign_Right, 1)]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Fill)[SNew(SBox).WidthOverride(120)[SNew(SImage).Image(Hall::Image(TEXT("ornaments/stone-column")))]]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Fill)[SNew(SBox).WidthOverride(120)[SNew(SImage).Image(Hall::Image(TEXT("ornaments/stone-column")))]]
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(150, 360, 0, 0))[Torch(190, 0.7f)]
-		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(0, 360, 150, 0))[Torch(190, 2.9f)]
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(150, 360, 0, 0))[SNew(SBox).Visibility(TorchVis)[Torch(190, 0.7f)]]
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(0, 360, 150, 0))[SNew(SBox).Visibility(TorchVis)[Torch(190, 2.9f)]]
 		+ SOverlay::Slot()[Inner];
 }
 
@@ -278,7 +285,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildTitle()
 		[
 			SAssignNew(Banner, SBanner)
 			.Cloth(B.Cloth).Charge(B.Charge).Label(FString(B.Label)).Gloss(FString(B.Gloss)).Width(B.Width)
-			.LabelPx(bPlay ? 28.f : 21.f).Lit(bPlay).Seed(Index * 1.9f).Clickable(true)
+			.LabelPx(bPlay ? 30.f : 23.f).Lit(bPlay).Seed(Index * 1.9f).Clickable(true)
 			.OnClicked_Lambda([this, Target] { Back = EScreen::Title; Show(Target); return FReply::Handled(); })
 		];
 		if (bPlay && !bSave) Primary = Banner->GetButton();
@@ -304,8 +311,8 @@ TSharedRef<SWidget> SCatnightRoot::BuildTitle()
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
 						SNew(SVerticalBox)
-						+ SVerticalBox::Slot().AutoHeight()[InkItalic(TEXT("A letter, sealed:"), 17)]
-						+ SVerticalBox::Slot().AutoHeight()[Ink(TEXT("Your table awaits, as you left it."), 20, C::Ink)]
+						+ SVerticalBox::Slot().AutoHeight()[InkItalic(TEXT("A letter, sealed:"), 19)]
+						+ SVerticalBox::Slot().AutoHeight()[Ink(TEXT("Your table awaits, as you left it."), 21, C::Ink)]
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 					[
@@ -336,7 +343,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildTitle()
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(150, 0, 0, 46))
 		[
-			OnDark(TEXT("Catnight is a working title."), 15, C::OnDarkMuted, false)
+			OnDark(TEXT("Catnight is a working title."), 17, C::OnDarkMuted, false)
 		]);
 }
 
@@ -357,7 +364,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 		Banners->AddSlot().AutoWidth().Padding(FMargin(28, 0))
 		[
 			SNew(SBanner).Cloth(Hall::PlayerBannerName(SeatColors[I])).ArmsImage(Hall::ArmsName(SeatColors[I], SeatSigils[I]))
-			.Label(Seat.Name.IsEmpty() ? FString(TEXT("Seat")) : Seat.Name).LabelPx(19).Width(BW).Seed(I * 1.3f).Lit(I == 0)
+			.Label(Seat.Name.IsEmpty() ? FString(TEXT("Seat")) : Seat.Name).LabelPx(21).Width(BW).Seed(I * 1.3f).Lit(I == 0)
 		];
 		Boards->AddSlot().AutoWidth().Padding(FMargin(6, 0))
 		[
@@ -367,9 +374,10 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 					+ SVerticalBox::Slot().AutoHeight()[Field(Seat.Name, [this, I](const FString& V) { Draft.Seats[I].Name = V; }, 150)]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
 					[
-						Button(SeatKindLabel(Seat), [this, I, Rebuild] { CycleSeat(Draft.Seats[I]); Rebuild(); return FReply::Handled(); }, EButton::Plaque, true, nullptr, FString(), 17)
+						Button(SeatKindLabel(Seat), [this, I, Rebuild] { CycleSeat(Draft.Seats[I]); Rebuild(); return FReply::Handled(); }, EButton::Plaque, true, nullptr, FString(), 18)
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 6, 0, 0)[OnDark(SeatGloss(Seat), 14, C::OnDarkMuted)],
+					// Room for two lines, so every seat's board is the same height.
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 6, 0, 0)[SNew(SBox).MinDesiredHeight(44)[OnDark(SeatGloss(Seat), 17, C::OnDarkMuted)]],
 					FString(), FMargin(12, 12))
 			]
 		];
@@ -388,19 +396,19 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 	TSharedRef<SHorizontalBox> Count = SNew(SHorizontalBox);
 	for (int32 K = kMinPlayers; K <= kMaxPlayers; K++)
 	{
-		Count->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FString::Printf(TEXT("%d players"), K), [this, K, Rebuild] { Draft.Players = K; Rebuild(); return FReply::Handled(); }, N == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 17)];
+		Count->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FString::Printf(TEXT("%d players"), K), [this, K, Rebuild] { Draft.Players = K; Rebuild(); return FReply::Handled(); }, N == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
 	}
 	TSharedRef<SHorizontalBox> Layouts = SNew(SHorizontalBox);
 	for (LayoutMode L : {LayoutMode::Balanced, LayoutMode::Random, LayoutMode::Beginner})
 	{
-		Layouts->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(CatnightText::Layout(L), [this, L, Rebuild] { Draft.Layout = L; Rebuild(); return FReply::Handled(); }, Draft.Layout == L ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 17)];
+		Layouts->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(CatnightText::Layout(L), [this, L, Rebuild] { Draft.Layout = L; Rebuild(); return FReply::Handled(); }, Draft.Layout == L ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
 	}
 	int32 Humans = 0;
 	for (int32 I = 0; I < N; I++) Humans += Draft.Seats[I].bHuman ? 1 : 0;
 	auto Row = [](const FString& Name, TSharedRef<SWidget> Control)
 	{
 		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 16, 0)[SNew(SBox).WidthOverride(130)[LabelText(Name, 19, C::MapInk)]]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 16, 0)[SNew(SBox).WidthOverride(140)[LabelText(Name, 21, C::MapInk)]]
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Control];
 	};
 	TSharedPtr<SWidget> StartButton;
@@ -414,16 +422,16 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 		[
 			Row(TEXT("Seed"), SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth()[Field(Draft.Seed, [this](const FString& V) { Draft.Seed = V; }, 210)]
-				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0)[Button(TEXT("Reroll"), [this, Rebuild] { Draft.Seed = NewSeed(); Rebuild(); return FReply::Handled(); }, EButton::Paper, true, nullptr, FString(), 17)])
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0)[Button(TEXT("Reroll"), [this, Rebuild] { Draft.Seed = NewSeed(); Rebuild(); return FReply::Handled(); }, EButton::Paper, true, nullptr, FString(), 19)])
 		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Rule()]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 6, 0, 0)
 		[
 			InkItalic(Humans > 1 ? TEXT("Hot-seat: the people pass the device between turns; a curtain hides each hand.")
 				: Humans == 0 ? TEXT("No people seated: the bots play on their own.")
-				: TEXT("The first player is chosen by a roll of the dice. The same seed always deals the same island."), 16)
+				: TEXT("The first player is chosen by a roll of the dice. The same seed always deals the same island."), 18)
 		];
-	if (!StartError.IsEmpty()) Articles->AddSlot().AutoHeight().Padding(0, 8, 0, 0)[Ink(StartError, 18, C::Rubric)];
+	if (!StartError.IsEmpty()) Articles->AddSlot().AutoHeight().Padding(0, 8, 0, 0)[Ink(StartError, 20, C::Rubric)];
 	Articles->AddSlot().AutoHeight().HAlign(HAlign_Right).Padding(0, 14, 0, 0)
 	[
 		Button(TEXT("Start the game"), [this, N]
@@ -437,6 +445,8 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 	];
 	Primary = StartButton;
 
+	// Seats (four boards of 188) beside the articles (620), 40 apart.
+	const float Wide = N * 188.f + 40.f + 620.f;
 	return InHall(SNew(SOverlay)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 40, 0, 0)
 		[
@@ -446,13 +456,13 @@ TSharedRef<SWidget> SCatnightRoot::BuildNewGame()
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0, 0, 40, 0)[Seats]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top)[SNew(SBox).WidthOverride(560)[Paper(Articles, EPaper::Vellum, FMargin(30, 22))]]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top)[SNew(SBox).WidthOverride(620)[Paper(Articles, EPaper::Vellum, FMargin(30, 22))]]
 			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(150, 46, 0, 0))
 		[
 			Button(TEXT("The hall"), [this] { Show(EScreen::Title); return FReply::Handled(); }, EButton::Plaque, true, nullptr, TEXT("undo"))
-		]);
+		], Wide);
 }
 
 // ------------------------------------------------------------------ how to play
@@ -462,15 +472,15 @@ TSharedRef<SWidget> SCatnightRoot::BuildRules()
 	auto Chapter = [](const FString& Title, const FString& Text)
 	{
 		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 2)[LabelText(TEXT("¶ ") + Title, 24, C::RubricDark)]
-			+ SVerticalBox::Slot().AutoHeight()[Ink(Text, 19)];
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 2)[LabelText(TEXT("¶ ") + Title, 25, C::RubricDark)]
+			+ SVerticalBox::Slot().AutoHeight()[Ink(Text, 20)];
 	};
 	auto Cost = [](const FString& Piece, TArray<Resource> Cards, const FString& Note)
 	{
 		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(SBox).WidthOverride(130)[LabelText(Piece, 20, C::Ink)]];
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(SBox).WidthOverride(140)[LabelText(Piece, 21, C::Ink)]];
 		for (Resource R : Cards) Row->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[Picture(Hall::CardName(R), 34, 44)];
-		Row->AddSlot().FillWidth(1.f).VAlign(VAlign_Center).Padding(10, 0, 0, 0)[InkItalic(Note, 16)];
+		Row->AddSlot().FillWidth(1.f).VAlign(VAlign_Center).Padding(10, 0, 0, 0)[InkItalic(Note, 18)];
 		return SNew(SBox).Padding(FMargin(0, 3))[Row];
 	};
 	using R = Resource;
@@ -481,7 +491,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildRules()
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("A turn"), TEXT("Roll the dice: every settlement on a hex with that number takes one card, every city two, except where the robber stands. Then trade and build in any order, and end your turn."))]
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Rolling a 7"), TEXT("Nothing is produced. Everyone holding more than seven cards gives up half. The roller moves the robber to another hex and steals one card from a player with a building there."))];
 	TSharedRef<SVerticalBox> Right = SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 4)[LabelText(TEXT("¶ The costs"), 24, C::RubricDark)]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 4)[LabelText(TEXT("¶ The costs"), 25, C::RubricDark)]
 		+ SVerticalBox::Slot().AutoHeight()[Cost(TEXT("Road"), {R::Wood, R::Clay}, TEXT("15 each"))]
 		+ SVerticalBox::Slot().AutoHeight()[Cost(TEXT("Settlement"), {R::Wood, R::Clay, R::Wool, R::Grain}, TEXT("1 point · 5 each"))]
 		+ SVerticalBox::Slot().AutoHeight()[Cost(TEXT("City"), {R::Grain, R::Grain, R::Ore, R::Ore, R::Ore}, TEXT("2 points · 4 each"))]
@@ -491,7 +501,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildRules()
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Keys"), TEXT("Space (Y) rolls or ends the turn. Arrows (LB / RB) choose a spot on the board; Enter (A) places it. Esc (Menu) cancels or opens the menu; Ctrl+Z (X) undoes; L (View) opens the Herald. Drag with the right mouse button or use the right stick to turn the table; the wheel (triggers) zooms. The prompts on screen follow whichever you use."))];
 
 	TSharedPtr<SWidget> BackButton;
-	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(1320)
+	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(1400)
 		[
 			Paper(SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[Blackletter(TEXT("How to Play"), 64)]
@@ -531,34 +541,34 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 	TSharedRef<SHorizontalBox> Speeds = SNew(SHorizontalBox);
 	for (int32 K = 0; K < 4; K++)
 	{
-		Speeds->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FHallSettings::BotSpeedName(K), [K, Apply] { FHallSettings::Get().BotSpeed = K; Apply(); return FReply::Handled(); }, S.BotSpeed == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 17)];
+		Speeds->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FHallSettings::BotSpeedName(K), [K, Apply] { FHallSettings::Get().BotSpeed = K; Apply(); return FReply::Handled(); }, S.BotSpeed == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
 	}
 	auto Pair = [Apply](bool bValue, const FString& On, const FString& Off, TFunction<void(bool)> Set)
 	{
 		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(On, [Set, Apply] { Set(true); Apply(); return FReply::Handled(); }, bValue ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 17)]
-			+ SHorizontalBox::Slot().AutoWidth()[Button(Off, [Set, Apply] { Set(false); Apply(); return FReply::Handled(); }, !bValue ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 17)];
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(On, [Set, Apply] { Set(true); Apply(); return FReply::Handled(); }, bValue ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)]
+			+ SHorizontalBox::Slot().AutoWidth()[Button(Off, [Set, Apply] { Set(false); Apply(); return FReply::Handled(); }, !bValue ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
 	};
 	auto Row = [](const FString& Name, const FString& Note, TSharedRef<SWidget> Control)
 	{
 		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 2)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 2)
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 18, 0)[SNew(SBox).WidthOverride(200)[LabelText(Name, 21, C::Ink)]]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 18, 0)[SNew(SBox).WidthOverride(210)[LabelText(Name, 22, C::Ink)]]
 				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Control]
 			]
-			+ SVerticalBox::Slot().AutoHeight()[InkItalic(Note, 16)];
+			+ SVerticalBox::Slot().AutoHeight()[InkItalic(Note, 18)];
 	};
 	TSharedPtr<SWidget> Done;
-	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(860)
+	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(900)
 		[
 			Paper(SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()[Blackletter(TEXT("Of Sound and Sight"), 56)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Rule()]
-				+ SVerticalBox::Slot().AutoHeight()[LabelText(TEXT("¶ Gameplay"), 22, C::RubricDark)]
+				+ SVerticalBox::Slot().AutoHeight()[LabelText(TEXT("¶ Gameplay"), 23, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Bot speed"), TEXT("How long the bots think before each move."), Speeds)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Sound"), 22, C::RubricDark)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Sound"), 23, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Effects"), TEXT("Dice, building, trading and the hall's own sounds (0 is silent)."),
 					Stepper(S.Volume, [Apply](int32 V)
 					{
@@ -566,22 +576,23 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 						Apply();
 						HallSound::Play(TEXT("ui-brass"));
 					}, 0, 10))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Board"), 22, C::RubricDark)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Board"), 23, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Start on"), TEXT("The 3D war table, or the flat chart (you can switch in the game)."),
 					Pair(S.bStart3D, TEXT("3D table"), TEXT("Flat chart"), [](bool b) { FHallSettings::Get().bStart3D = b; }))]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("The hall"), TEXT("Stone walls, torches, banners and candles round the war table (from the next start)."),
 					Pair(S.bHall, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bHall = b; }))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Access"), 22, C::RubricDark)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Access"), 23, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Reduce motion"), TEXT("No swaying banners, flickering torches or travelling pieces. Results always stay visible."),
 					Pair(S.bReduceMotion, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bReduceMotion = b; }))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 0)[Rule()]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)
 				[
 					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 					[
-						Button(TEXT("Restore defaults"), [Apply] { FHallSettings::Get() = FHallSettings(); Apply(); return FReply::Handled(); }, EButton::Paper, true, nullptr, FString(), 17)
+						Button(TEXT("Restore defaults"), [Apply] { FHallSettings::Get() = FHallSettings(); Apply(); return FReply::Handled(); }, EButton::Paper, true, nullptr, FString(), 19)
 					]
+					+ SHorizontalBox::Slot().FillWidth(1.f)[SNullWidget::NullWidget]
 					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Done"), [this] { Show(Back); return FReply::Handled(); }, EButton::Seal, true, &Done, TEXT("key"), 24)]
 				],
 				EPaper::Parchment, FMargin(44, 28))
@@ -628,7 +639,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildGallery()
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10)
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 20, 0)[Button(TEXT("Accept"), Noop, EButton::Seal, true, nullptr, TEXT("crown"))]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 20, 0)[Button(TEXT("Accept"), Noop, EButton::SealOnDark, true, nullptr, TEXT("crown"))]
 				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 20, 0)[Button(TEXT("End turn"), Noop, EButton::SealOnDark, true, nullptr, TEXT("hourglass"), 26)]
 				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 20, 0).VAlign(VAlign_Center)[Ribbon(TEXT("Build & trade, then end your turn"), 22, 0.f, true)]
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Stepper(3, [](int32) {}, 0, 9, true)]

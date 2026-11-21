@@ -106,7 +106,14 @@ before capturing; the log then records `CATNIGHT CAPTURE victory after <n> actio
 UI checks: `-CatnightScreen=gallery|rules|settings` shows the HallKit gallery, How to Play or
 Settings; `-CatnightFixture=<moves>` with `-CatnightFixturePhase=main|roll|setup` (and
 `-CatnightFixtureSeed=<seed>`) lets bots play a seeded game until the person's seat must act in that
-phase, then hands it over: real positions for screenshots (`validation/ui/`).
+phase, then hands it over: real positions for screenshots (`validation/ui/`). On the table,
+`-CatnightTab=build|cards|trade` opens that tab, `-CatnightFullLog` the long Herald and
+`-CatnightLeave` the leave decree, so every panel can be captured.
+
+Text sizes follow the plan's minimums at 1080p (labels 20 px, body 18 px; the fonts never go below
+17/16 px whatever a widget asks), and `Config/DefaultEngine.ini` sets a gentler UI scale curve than
+the engine's (0.8 at 720p instead of 0.67). Long names on ribbons and narrow cells shrink to fit
+(`HallKit::FitText`) instead of being cut off.
 
 Playthrough through the UI: `-CatnightUiDrive=mouse|pad` plays the person's seats with simulated
 input on the real controls (clicks on buttons and 3D board spots, or pad keys), using the Medium

@@ -16,6 +16,8 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Lexicon.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
 #include "Ui/CatnightUi.h"
@@ -552,6 +554,14 @@ void STable::Construct(const FArguments& InArgs)
 	];
 	SeenSerial = Match->EventSerial;
 	bPadShown = Hall::bGamepad;
+	// Screenshot switches (validation/ui): -CatnightTab=build|cards|trade, -CatnightFullLog, -CatnightLeave.
+	FString TabName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("CatnightTab="), TabName))
+	{
+		Tab = TabName == TEXT("cards") ? ETab::Cards : TabName == TEXT("trade") ? ETab::Trade : ETab::Build;
+	}
+	bFullLog = FParse::Param(FCommandLine::Get(), TEXT("CatnightFullLog"));
+	bLeaving = FParse::Param(FCommandLine::Get(), TEXT("CatnightLeave"));
 	Refresh();
 	CatnightUiDriver::AttachIfRequested(SharedThis(this));
 }

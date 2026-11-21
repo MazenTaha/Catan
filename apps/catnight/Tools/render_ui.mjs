@@ -163,7 +163,9 @@ const template = svgFile('banners/banner-player-1-template.svg');
 for (const [k, [cloth, fold]] of Object.entries(CLOTH)) add(`banners/player-${k}`, template.replaceAll('#8a1a16', cloth).replaceAll('#6e1210', fold));
 for (const c of Object.keys(PLAYER)) for (const s of Object.keys(SIGIL)) add(`arms/${c}-${s}`, arms(c, s));
 for (const f of ['banner-pole-800', 'candle', 'coin-stack', 'compass-rose', 'crest', 'iron-corner', 'night-window', 'ribbon-label', 'ribbon-title', 'scale-bar-meter', 'scroll-frame-600x400', 'spear-finial', 'stone-column', 'torch', 'wax-seal-small', 'wax-seal']) add(`ornaments/${f}`, svgFile(`ornaments/${f}.svg`));
-for (let i = 1; i <= 6; i++) add(`dice/die-${i}`, svgFile(`dice/bone-die-${i}.svg`));
+// The kit's dice nest an 80 px drawing in a 40-unit box, which showed only the die's top-left
+// quarter: the inner drawing is set to the box's size.
+for (let i = 1; i <= 6; i++) add(`dice/die-${i}`, svgFile(`dice/bone-die-${i}.svg`).replace(/(<svg viewBox="0 0 40 40") width="80" height="80"/, '$1 width="40" height="40"'));
 for (const f of ['fleur', 'lion', 'star', 'tower']) add(`ornaments/charge-${f}`, svgFile(`heraldry/charge-${f}.svg`));
 for (const [k, v] of Object.entries(FX)) add(`fx/${k}`, v);
 mkdirSync(join(out, 'icons'), { recursive: true });
@@ -209,10 +211,37 @@ if (!only) for (const f of ['wood', 'clay', 'wool', 'grain', 'ore', 'warden', 'r
   writeFileSync(join(out, `cards/${f}.png`), await p2.screenshot({ clip: { x: 0, y: 0, width: dims[0], height: dims[1] } }));
   await p2.close();
 }
-await browser.close();
-
+// Tiling textures. The kit's papers have blotches cut at the tile's edges, which tile into straight
+// seams across a large sheet, so papers are mirrored into a 2x2 tile that has no seams.
+const MIRROR = new Set(['parchment', 'vellum', 'letter-paper']);
+const flat = await browser.newPage({ deviceScaleFactor: 1 });
 for (const f of ['parchment', 'vellum', 'letter-paper', 'oak-tile', 'stone-wall-tile']) {
   const src = join(kit, `textures/${f}.png`);
-  if (existsSync(src)) copyFileSync(src, join(out, `textures/${f}.png`));
+  if (!existsSync(src)) continue;
+  const dst = join(out, `textures/${f}.png`);
+  if (!MIRROR.has(f)) {
+    copyFileSync(src, dst);
+    continue;
+  }
+  const url = await flat.evaluate(async (data) => {
+    const img = new Image();
+    img.src = data;
+    await img.decode();
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = 2 * w;
+    c.height = 2 * h;
+    const g = c.getContext('2d');
+    for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      g.save();
+      g.translate(sx < 0 ? 2 * w : 0, sy < 0 ? 2 * h : 0);
+      g.scale(sx, sy);
+      g.drawImage(img, 0, 0);
+      g.restore();
+    }
+    return c.toDataURL('image/png');
+  }, `data:image/png;base64,${readFileSync(src).toString('base64')}`);
+  writeFileSync(dst, Buffer.from(url.split(',')[1], 'base64'));
 }
+await browser.close();
 console.log(`[ui] ${jobs.length} images + 11 cards + textures -> ${out}`);

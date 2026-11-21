@@ -827,8 +827,33 @@ skyline stays at three); decrees live in the right column, never over the island
   hot-seat: 348 of 348, including 126 curtain reveals. In pad mode the driver puts focus on the
   button it wants before pressing A, so D-pad navigation between buttons is not covered.
 
+### Readability pass (2026-11-21)
+
+Every screen captured before and after (including each tab, the long Herald and the leave decree,
+via `-CatnightTab`, `-CatnightFullLog`, `-CatnightLeave`). Fixed:
+
+- **Type sizes (§4.2):** labels and body text raised to the plan's minimums (most were 13–17 px);
+  `Hall::Label/Body/Italic` now have floors (17/16 px) so no call can go below them.
+- **UI scale (§4.3):** the engine's default curve made a 720p window two-thirds size; the project's
+  curve is 0.8 at 720p, 1.0 at 1080p, 1.33 at 1440p, 2.0 at 2160p.
+- **Ribbons:** label text sat low and its lower half was cut by the ribbon's edge; it is now
+  centred on the ribbon's face, and ribbons are only as wide as their name (they overlapped on the
+  player pole). Names too long for their room shrink (`FitText`) instead of being cut.
+- **Cut-off controls:** the bill of exchange's steppers were wider than their columns, the bank's
+  rate buttons overflowed the paper, a decree's title ran off the paper, and a build card's name
+  shared its line with the count. Steppers are compact and square, the bank is a table of equal
+  cells, decree titles wrap, and build cards put each thing on its own line.
+- **Hidden text:** the hand-limit meter's figures and marker were dark ink on dark oak; a banner's
+  card count lay over the board under a swallowtail (now on a small dark plate).
+- **Layout:** the top banners and the bottom ribbon move aside on narrow screens instead of covering
+  the Lists or the Herald, and the hint row wraps. Buttons in decrees keep their own width (some
+  stretched across the paper). The victory sheet is wider and its subtitle no longer breaks after two
+  words. Keyboard and pad focus shows as a gold ring instead of Slate's blue box.
+- **Paper:** the kit's paper tiles were not seamless (straight seams across big sheets); they are
+  mirrored into 2×2 seamless tiles by `render_ui.mjs`.
+
 Next: real UI materials, the Blender hall and per-screen cameras, toasts, hex map notes, the
-Chronicle scroll, CommonUI and focus navigation tests, string table, music.
+Chronicle scroll, CommonUI and focus navigation tests, string table, music, a Text size setting.
 
 ## 13. Decisions for the owner
 

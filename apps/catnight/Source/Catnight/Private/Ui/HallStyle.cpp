@@ -77,8 +77,9 @@ namespace Hall
 			return 2.f;
 		}
 
-		FSlateFontInfo Font(const TCHAR* File, float Px)
+		FSlateFontInfo Font(const TCHAR* File, float Px, float MinPx = 1.f)
 		{
+			Px = FMath::Max(Px, MinPx);
 			static TMap<FString, TSharedPtr<const FCompositeFont>> Faces;
 			TSharedPtr<const FCompositeFont>& Face = Faces.FindOrAdd(File);
 			if (!Face)
@@ -201,11 +202,12 @@ namespace Hall
 		return B.Get();
 	}
 
+	// Floors (plan §4.2): nothing a player reads is smaller than this at 1080p, whatever a call asks.
 	FSlateFontInfo Title(float Px) { return Font(TEXT("UnifrakturCook-Bold.ttf"), Px); }
-	FSlateFontInfo Label(float Px) { return Font(TEXT("IMFellEnglishSC-Regular.ttf"), Px); }
-	FSlateFontInfo Body(float Px) { return Font(TEXT("IMFellDWPica-Regular.ttf"), Px); }
-	FSlateFontInfo Italic(float Px) { return Font(TEXT("IMFellDWPica-Italic.ttf"), Px); }
-	FSlateFontInfo BodySC(float Px) { return Font(TEXT("IMFellDWPicaSC-Regular.ttf"), Px); }
+	FSlateFontInfo Label(float Px) { return Font(TEXT("IMFellEnglishSC-Regular.ttf"), Px, 17.f); }
+	FSlateFontInfo Body(float Px) { return Font(TEXT("IMFellDWPica-Regular.ttf"), Px, 16.f); }
+	FSlateFontInfo Italic(float Px) { return Font(TEXT("IMFellDWPica-Italic.ttf"), Px, 16.f); }
+	FSlateFontInfo BodySC(float Px) { return Font(TEXT("IMFellDWPicaSC-Regular.ttf"), Px, 16.f); }
 
 	FString ArmsName(PlayerColor C, Sigil S)
 	{

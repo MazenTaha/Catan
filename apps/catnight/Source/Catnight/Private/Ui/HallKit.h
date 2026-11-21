@@ -11,7 +11,8 @@
 namespace HallKit
 {
 	enum class EPaper : uint8 { Parchment, Vellum, Letter };
-	enum class EButton : uint8 { Primary, Plaque, Paper, Seal, SealOnDark, Danger, Tab, TabOn };
+	/** Chip / ChipOn: small paper or crimson keys with a tight padding (steppers, rates, counts in narrow rows). */
+	enum class EButton : uint8 { Primary, Plaque, Paper, Seal, SealOnDark, Danger, Tab, TabOn, Chip, ChipOn };
 
 	// ---- surfaces
 	/** A paper sheet: tiled texture, an ink neat line, a soft shadow. */
@@ -22,8 +23,8 @@ namespace HallKit
 	TSharedRef<SWidget> StoneWall();
 
 	// ---- text
-	TSharedRef<SWidget> Ink(const FString& Text, float Px = 18, const FLinearColor& Color = Hall::Color::MapInk, bool bWrap = true);
-	TSharedRef<SWidget> InkItalic(const FString& Text, float Px = 16, const FLinearColor& Color = Hall::Color::MapInkMuted);
+	TSharedRef<SWidget> Ink(const FString& Text, float Px = 19, const FLinearColor& Color = Hall::Color::MapInk, bool bWrap = true);
+	TSharedRef<SWidget> InkItalic(const FString& Text, float Px = 17, const FLinearColor& Color = Hall::Color::MapInkMuted);
 	TSharedRef<SWidget> OnDark(const FString& Text, float Px = 18, const FLinearColor& Color = Hall::Color::OnDark, bool bWrap = true);
 	TSharedRef<SWidget> LabelText(const FString& Text, float Px, const FLinearColor& Color, bool bShadow = false);
 	/** Blackletter heading (≥ 40 px per the plan; numerals may be smaller). */
@@ -43,7 +44,12 @@ namespace HallKit
 	// ---- controls
 	TSharedRef<SWidget> Button(const FString& Label, TFunction<FReply()> OnClick, EButton Kind = EButton::Plaque, bool bEnabled = true,
 		TSharedPtr<SWidget>* OutButton = nullptr, const FString& IconName = FString(), float Px = 0.f);
-	TSharedRef<SWidget> Stepper(int32 Value, TFunction<void(int32)> OnChange, int32 Min, int32 Max, bool bOnDark = false);
+	/** – value +, the keys `Size` px square (36 by default; 30 in tight rows such as the trade terms). */
+	TSharedRef<SWidget> Stepper(int32 Value, TFunction<void(int32)> OnChange, int32 Min, int32 Max, bool bOnDark = false, float Size = 36.f);
+	/** A clickable surface (a build card, a banner) with the hall's gold focus ring, or none when `bRing` is false. */
+	TSharedRef<SWidget> Clickable(TSharedRef<SWidget> Content, TFunction<FReply()> OnClick, bool bRing = true);
+	/** Text that shrinks to fit its slot instead of being cut off (names on ribbons, long labels). */
+	TSharedRef<SWidget> FitText(TSharedRef<SWidget> Text);
 	/** A decree (dialog body): parchment, blackletter title, optional arms, rules, content. */
 	TSharedRef<SWidget> Decree(const FString& Title, TSharedRef<SWidget> Body, float Width = 620.f, const FString& ArmsImage = FString());
 	/** A herald's slip (toast / note on paper). */

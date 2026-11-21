@@ -42,8 +42,8 @@ namespace HallKit
 			static TMap<uint8, TSharedPtr<FButtonStyle>> Styles;
 			if (const TSharedPtr<FButtonStyle>* Found = Styles.Find(static_cast<uint8>(Kind))) return **Found;
 			FButtonStyle S = FButtonStyle()
-				.SetNormalPadding(FMargin(16, 8, 16, 10))
-				.SetPressedPadding(FMargin(16, 10, 16, 8));
+				.SetNormalPadding(FMargin(14, 7, 14, 9))
+				.SetPressedPadding(FMargin(14, 9, 14, 7));
 			const FSlateNoResource None;
 			switch (Kind)
 			{
@@ -71,6 +71,16 @@ namespace HallKit
 				S.SetNormal(*Rounded(C::Gules, 2, C::Gold, 1.5f)).SetHovered(*Rounded(Lighter(C::Gules, 1.2f), 2, C::GoldLight, 1.5f))
 					.SetPressed(*Rounded(C::WaxDark, 2, C::Gold, 1.5f)).SetDisabled(None);
 				break;
+			case EButton::Chip:
+				S.SetNormal(*Rounded(C::PaperCard, 3, C::MapInk, 1.5f)).SetHovered(*Rounded(FLinearColor(1.f, 0.96f, 0.86f), 3, C::Ink, 2.f))
+					.SetPressed(*Rounded(C::Vellum, 3, C::Ink, 2.f)).SetDisabled(*Rounded(A(C::Vellum, 0.5f), 3, A(C::MapInkMuted, 0.5f), 1.f))
+					.SetNormalPadding(FMargin(6, 3, 6, 4)).SetPressedPadding(FMargin(6, 4, 6, 3));
+				break;
+			case EButton::ChipOn:
+				S.SetNormal(*Rounded(C::Gules, 3, C::Gold, 1.5f)).SetHovered(*Rounded(Lighter(C::Gules, 1.2f), 3, C::GoldLight, 1.5f))
+					.SetPressed(*Rounded(C::WaxDark, 3, C::Gold, 1.5f)).SetDisabled(*Rounded(A(C::Gules, 0.5f), 3, A(C::Gold, 0.5f), 1.f))
+					.SetNormalPadding(FMargin(6, 3, 6, 4)).SetPressedPadding(FMargin(6, 4, 6, 3));
+				break;
 			case EButton::Seal:
 			case EButton::SealOnDark:
 				S.SetNormal(None).SetHovered(*Rounded(A(C::Gold, 0.10f), 30, A(C::Gold, 0.0f), 0.f)).SetPressed(None).SetDisabled(None)
@@ -88,14 +98,74 @@ namespace HallKit
 			{
 			case EButton::Primary:
 			case EButton::Danger:
+			case EButton::ChipOn:
 			case EButton::TabOn: return C::OnDark;
 			case EButton::Plaque: return C::Ink;
 			case EButton::Paper:
+			case EButton::Chip:
 			case EButton::Seal: return C::MapInk;
 			case EButton::SealOnDark:
 			case EButton::Tab: return C::OnDark;
 			}
 			return C::Ink;
+		}
+
+		/** A button whose keyboard/gamepad focus shows as a gold ring (Slate's default is a blue box),
+		 *  or as nothing where the widget lights up by itself (banners). */
+		class SHallButton : public SButton
+		{
+		public:
+			bool bRing = true;
+			virtual const FSlateBrush* GetFocusBrush() const override
+			{
+				static const FSlateRoundedBoxBrush Ring(FLinearColor::Transparent, 5.f, C::GoldLight, 2.5f);
+				static const FSlateNoResource NoRing;
+				return bRing ? static_cast<const FSlateBrush*>(&Ring) : static_cast<const FSlateBrush*>(&NoRing);
+			}
+		};
+
+		/** The label ribbon art (348 × 51 at 1x): a curved face over the top 69 %, folded tails below
+		 *  and at the ends. Height follows the text so the face holds a full line. */
+		float RibbonHeight(float Px) { return FMath::Max(40.f, Px * 2.05f + 4.f); }
+
+		/** The ribbon's left end, middle or right end (UV slices of the one image). Drawn as three
+		 *  images, not a 9-slice box: Slate sizes box borders in texture pixels, which doubles the ends
+		 *  of 2x art and leaves the face too small for its words. */
+		const FSlateBrush* RibbonPart(int32 Part)
+		{
+			static TSharedPtr<FSlateBrush> Parts[3];
+			if (!Parts[Part])
+			{
+				static const float U0[] = {0.f, 0.13f, 0.87f}, U1[] = {0.13f, 0.87f, 1.f};
+				TSharedPtr<FSlateBrush> B = MakeShared<FSlateBrush>(*Hall::Image(TEXT("ornaments/ribbon-label")));
+				B->SetUVRegion(FBox2f(FVector2f(U0[Part], 0.f), FVector2f(U1[Part], 1.f)));
+				Parts[Part] = B;
+			}
+			return Parts[Part].Get();
+		}
+
+		TSharedRef<SWidget> RibbonPlate(TSharedRef<SWidget> Text, float Px, float MinWidth)
+		{
+			const float H = RibbonHeight(Px);
+			const float Cap = H * (0.13f * 348.f / 51.f);  // an end keeps the art's proportions
+			// The tail fills the outer half of an end; the words sit on the face, clear of the curl.
+			const float Side = Cap * 0.56f + 6.f;
+			auto End = [Cap](int32 Part) { return SNew(SBox).WidthOverride(Cap)[SNew(SImage).Image(RibbonPart(Part))]; };
+			return SNew(SBox).HeightOverride(H).MinDesiredWidth(MinWidth)
+				[
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth()[End(0)]
+						+ SHorizontalBox::Slot().FillWidth(1.f)[SNew(SBox).WidthOverride(0.f)[SNew(SImage).Image(RibbonPart(1))]]
+						+ SHorizontalBox::Slot().AutoWidth()[End(2)]
+					]
+					+ SOverlay::Slot().Padding(FMargin(Side, H * 0.08f, Side, H * 0.30f)).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					[
+						FitText(Text)
+					]
+				];
 		}
 
 		float Flicker(float Time, float Seed)
@@ -163,13 +233,13 @@ namespace HallKit
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(2)[Corner(-1, 1, HAlign_Right, VAlign_Top)]
 			+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(2)[Corner(1, -1, HAlign_Left, VAlign_Bottom)]
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(2)[Corner(-1, -1, HAlign_Right, VAlign_Bottom)]
-			+ SOverlay::Slot().Padding(Title.IsEmpty() ? Pad : FMargin(Pad.Left, Pad.Top + 22, Pad.Right, Pad.Bottom))
+			+ SOverlay::Slot().Padding(Title.IsEmpty() ? Pad : FMargin(Pad.Left, Pad.Top + 26, Pad.Right, Pad.Bottom))
 			[
 				Content
 			];
 		if (!Title.IsEmpty())
 		{
-			O->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0, -18, 0, 0))[Ribbon(Title, 18, 0.f)];
+			O->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0, -20, 0, 0))[Ribbon(Title, 20, 0.f)];
 		}
 		return O;
 	}
@@ -227,16 +297,23 @@ namespace HallKit
 	TSharedRef<SWidget> Ribbon(const FString& Text, float Px, float MinWidth, bool bTitle)
 	{
 		// The kit's ribbon-title art has its words baked in, so every ribbon uses the blank label ribbon.
-		const FString Image = TEXT("ornaments/ribbon-label");
-		const float Height = FMath::Max(40.f, Px * 2.0f);
-		return SNew(SBox).HeightOverride(Height).MinDesiredWidth(MinWidth)
-			[
-				SNew(SBorder).BorderImage(Hall::Box(Image, FMargin(0.13f, 0.35f, 0.13f, 0.35f))).Padding(FMargin(62.f + Px * 1.1f, 0, 62.f + Px * 1.1f, Height * 0.12f))
-				.HAlign(HAlign_Center).VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).Text(FText::FromString(Text)).Font(Hall::Label(Px)).ColorAndOpacity(C::Ink)
-				]
-			];
+		return RibbonPlate(SNew(STextBlock).Text(FText::FromString(Text)).Font(Hall::Label(Px)).ColorAndOpacity(C::Ink), Px, MinWidth);
+	}
+
+	TSharedRef<SWidget> FitText(TSharedRef<SWidget> Text)
+	{
+		return SNew(SScaleBox).Stretch(EStretch::ScaleToFit).StretchDirection(EStretchDirection::DownOnly).HAlign(HAlign_Left).VAlign(VAlign_Center)[Text];
+	}
+
+	TSharedRef<SWidget> Clickable(TSharedRef<SWidget> Content, TFunction<FReply()> OnClick, bool bRing)
+	{
+		TSharedRef<SHallButton> B = SNew(SHallButton)
+			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+			.ContentPadding(0)
+			.OnClicked_Lambda([OnClick = MoveTemp(OnClick)] { return OnClick(); })
+			[Content];
+		B->bRing = bRing;
+		return B;
 	}
 
 	TSharedRef<SWidget> Picture(const FString& Image, float Width, float Height)
@@ -305,7 +382,7 @@ namespace HallKit
 	TSharedRef<SWidget> Button(const FString& Label, TFunction<FReply()> OnClick, EButton Kind, bool bEnabled, TSharedPtr<SWidget>* OutButton, const FString& IconName, float Px)
 	{
 		const bool bSeal = Kind == EButton::Seal || Kind == EButton::SealOnDark;
-		const float Size = Px > 0 ? Px : (bSeal ? 22.f : Kind == EButton::Tab || Kind == EButton::TabOn ? 18.f : 19.f);
+		const float Size = Px > 0 ? Px : (bSeal ? 23.f : Kind == EButton::Tab || Kind == EButton::TabOn ? 20.f : 20.f);
 		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
 		if (bSeal)
 		{
@@ -335,9 +412,9 @@ namespace HallKit
 		}
 		// Every press has its sound (plan §4.7): wax stamps, brass clicks, wooden tabs, paper.
 		const TCHAR* Sound = bSeal || Kind == EButton::Primary ? TEXT("ui-seal")
-			: Kind == EButton::Tab || Kind == EButton::TabOn ? TEXT("ui-tab")
-			: Kind == EButton::Paper ? TEXT("click") : TEXT("ui-brass");
-		TSharedRef<SButton> B = SNew(SButton)
+			: Kind == EButton::Tab || Kind == EButton::TabOn || Kind == EButton::ChipOn ? TEXT("ui-tab")
+			: Kind == EButton::Paper || Kind == EButton::Chip ? TEXT("click") : TEXT("ui-brass");
+		TSharedRef<SButton> B = SNew(SHallButton)
 			.ButtonStyle(&Style(Kind))
 			.IsEnabled(bEnabled)
 			.HAlign(HAlign_Center)
@@ -352,25 +429,37 @@ namespace HallKit
 		return B;
 	}
 
-	TSharedRef<SWidget> Stepper(int32 Value, TFunction<void(int32)> OnChange, int32 Min, int32 Max, bool bOnDark)
+	TSharedRef<SWidget> Stepper(int32 Value, TFunction<void(int32)> OnChange, int32 Min, int32 Max, bool bOnDark, float Size)
 	{
-		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("–"), [OnChange, Value] { OnChange(Value - 1); return FReply::Handled(); }, EButton::Paper, Value > Min, nullptr, FString(), 18)]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8, 0)
-			[
-				SNew(SBox).WidthOverride(30).HAlign(HAlign_Center)
+		// Square keys, so the row has the same width whatever the value (and fits narrow columns).
+		auto Key = [&](const TCHAR* Sign, int32 Delta, bool bEnabled)
+		{
+			return SNew(SBox).WidthOverride(Size).HeightOverride(Size)
 				[
-					SNew(STextBlock).Text(FText::AsNumber(Value)).Font(Hall::Title(28)).ColorAndOpacity(bOnDark ? C::GoldLight : C::Ink)
+					Button(Sign, [OnChange, Value, Delta] { OnChange(Value + Delta); return FReply::Handled(); }, EButton::Chip, bEnabled, nullptr, FString(), Size * 0.58f)
+				];
+		};
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Key(TEXT("–"), -1, Value > Min)]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(3, 0)
+			[
+				SNew(SBox).WidthOverride(Size * 0.95f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).Text(FText::AsNumber(Value)).Font(Hall::Title(Size * 0.8f)).ColorAndOpacity(bOnDark ? C::GoldLight : C::Ink)
 				]
 			]
-			+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("+"), [OnChange, Value] { OnChange(Value + 1); return FReply::Handled(); }, EButton::Paper, Value < Max, nullptr, FString(), 18)];
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Key(TEXT("+"), 1, Value < Max)];
 	}
 
 	TSharedRef<SWidget> Decree(const FString& Title, TSharedRef<SWidget> Body, float Width, const FString& ArmsImage)
 	{
 		TSharedRef<SHorizontalBox> Head = SNew(SHorizontalBox);
 		if (!ArmsImage.IsEmpty()) Head->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 14, 0)[Picture(ArmsImage, 44)];
-		Head->AddSlot().FillWidth(1.f).VAlign(VAlign_Center)[Blackletter(Title, 42)];
+		// A long title wraps onto a second line in a narrow decree rather than running off the paper.
+		Head->AddSlot().FillWidth(1.f).VAlign(VAlign_Center)
+		[
+			SNew(STextBlock).Text(FText::FromString(Title)).Font(Hall::Title(Width < 500.f ? 38.f : 42.f)).ColorAndOpacity(C::RubricDark).AutoWrapText(true).LineHeightPercentage(0.9f)
+		];
 		return SNew(SBox).WidthOverride(Width)
 			[
 				Paper(SNew(SVerticalBox)
@@ -388,7 +477,7 @@ namespace HallKit
 			[
 				SNew(SBox).WidthOverride(12).HeightOverride(12)[SNew(SBorder).BorderImage(Rounded(Mark, 6, C::Ink, 1.f))]
 			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Ink(Text, 18, C::MapInk, false)],
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Ink(Text, 20, C::MapInk, false)],
 			EPaper::Letter, FMargin(16, 8));
 	}
 
@@ -529,24 +618,25 @@ namespace HallKit
 				.ColorAndOpacity(C::GoldLight).ShadowOffset(FVector2D(2, 2)).ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f))
 			];
 		}
-		// The label ribbon, wider than the cloth, at about 58 % of its height.
-		Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(-W * 0.45f, H * RibbonAt, -W * 0.45f, 0))
+		// The label ribbon, wider than the cloth, at about 58 % of its height. It is only as wide as the
+		// name needs; a name too long for its room shrinks rather than being cut (FitText).
+		const float Px = InArgs._LabelPx;
+		const float Reach = bShort ? 0.32f : 0.45f;  // player banners stand close together on the pole
+		Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(-W * Reach, H * RibbonAt, -W * Reach, 0))
 		[
-			SNew(SBox).HeightOverride(FMath::Max(36.f, InArgs._LabelPx * 1.9f))
-			[
-				SNew(SBorder).BorderImage(Hall::Box(TEXT("ornaments/ribbon-label"), FMargin(0.13f, 0.35f, 0.13f, 0.35f)))
-				.Padding(FMargin(56.f + InArgs._LabelPx * 0.8f, 0, 56.f + InArgs._LabelPx * 0.8f, 4)).HAlign(HAlign_Center).VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).Text_Lambda([Label] { return FText::FromString(Label.Get()); }).Font(Hall::Label(InArgs._LabelPx)).ColorAndOpacity(C::Ink)
-				]
-			]
+			RibbonPlate(SNew(STextBlock).Text_Lambda([Label] { return FText::FromString(Label.Get()); }).Font(Hall::Label(Px)).ColorAndOpacity(C::Ink), Px, 0.f)
 		];
 		if (Gloss.IsBound() || !Gloss.Get().IsEmpty())
 		{
-			Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(8, H * RibbonAt + InArgs._LabelPx * 2.1f, 8, 0))
+			// Under the ribbon. On the short player banners it falls over the swallowtail and the board
+			// behind, so it sits on a small dark plate there.
+			const float GlossPx = FMath::Max(16.f, Px * 0.8f);
+			TSharedRef<SWidget> GlossText = SNew(STextBlock).Text_Lambda([Gloss] { return FText::FromString(Gloss.Get()); }).Font(Hall::Italic(GlossPx))
+				.ColorAndOpacity(C::OnDark).ShadowOffset(FVector2D(1, 1)).ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)).Justification(ETextJustify::Center);
+			static const FSlateRoundedBoxBrush Plate(FLinearColor(0.02f, 0.015f, 0.01f, 0.7f), 9.f);
+			Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(bShort ? -W * 0.2f : 8.f, H * RibbonAt + RibbonHeight(Px) - (bShort ? 10.f : 6.f), bShort ? -W * 0.2f : 8.f, 0))
 			[
-				SNew(STextBlock).Text_Lambda([Gloss] { return FText::FromString(Gloss.Get()); }).Font(Hall::Italic(InArgs._LabelPx * 0.72f))
-				.ColorAndOpacity(C::OnDark).ShadowOffset(FVector2D(1, 1)).ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)).Justification(ETextJustify::Center)
+				bShort ? StaticCastSharedRef<SWidget>(SNew(SBorder).BorderImage(&Plate).Padding(FMargin(8, 0, 8, 2))[GlossText]) : GlossText
 			];
 		}
 
@@ -557,7 +647,8 @@ namespace HallKit
 		TSharedRef<SWidget> Content = Hanging;
 		if (InArgs._Clickable)
 		{
-			TSharedRef<SButton> B = SNew(SButton)
+			// No focus box: a focused banner lifts and glows instead (bHot).
+			TSharedRef<SHallButton> B = SNew(SHallButton)
 				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 				.ContentPadding(0)
 				.OnClicked_Lambda([Clicked = InArgs._OnClicked]
@@ -568,6 +659,7 @@ namespace HallKit
 				.OnHovered_Lambda([] { HallSound::Play(TEXT("ui-cloth"), 0.35f); })
 				.ToolTipText(InArgs._ToolTipText)
 				[Hanging];
+			B->bRing = false;
 			ButtonWidget = B;
 			Content = B;
 		}
@@ -620,16 +712,18 @@ namespace HallKit
 		const float LimitX = Limit * Cell;
 		FSlateDrawElement::MakeLines(Out, Layer + 1, G.ToPaintGeometry(), TArray<FVector2f>{{LimitX, -4}, {LimitX, BarH + 4}}, ESlateDrawEffect::None, C::Rubric, true, 2.5f);
 		const float X = FMath::Min<float>(Value, Max) * Cell;
-		FSlateDrawElement::MakeLines(Out, Layer + 2, G.ToPaintGeometry(), TArray<FVector2f>{{X - 6, -7}, {X + 6, -7}, {X, 1}, {X - 6, -7}}, ESlateDrawEffect::None, Value > Limit ? C::Rubric : C::Ink, true, 2.f);
+		// The marker in gold and the figures in light ink: the meter sits on the dark oak of the Treasury.
+		FSlateDrawElement::MakeLines(Out, Layer + 2, G.ToPaintGeometry(), TArray<FVector2f>{{X - 6, -7}, {X + 6, -7}, {X, 1}, {X - 6, -7}}, ESlateDrawEffect::None, Value > Limit ? C::OnDarkWarn : C::GoldLight, true, 2.f);
 		// Figures under the bar.
-		const FSlateFontInfo Font = Hall::Body(13);
+		const FSlateFontInfo Font = Hall::Body(16);
 		const TSharedRef<FSlateFontMeasure> Measure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		for (int32 N : {0, 3, 5, 7, 9, 12})
 		{
 			if (N > Max) continue;
 			const FString S = FString::FromInt(N);
 			const FVector2f Sz = Measure->Measure(S, Font);
-			FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(Sz, FSlateLayoutTransform(FVector2f(N * Cell - Sz.X * 0.5f, BarH + 1))), S, Font, ESlateDrawEffect::None, N == Limit ? C::Rubric : C::MapInk);
+			const float At = FMath::Clamp(N * Cell - Sz.X * 0.5f, 0.f, Size.X - Sz.X);
+			FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(Sz, FSlateLayoutTransform(FVector2f(At, BarH + 1))), S, Font, ESlateDrawEffect::None, N == Limit ? C::OnDarkWarn : C::OnDarkMuted);
 		}
 		return Layer + 3;
 	}

@@ -1,0 +1,248 @@
+# Catnight: the game built natively in Unreal
+
+Plan for turning Catan Night into **Catnight** (working title), a game that runs entirely in Unreal
+Engine and ships on Steam. Written 2026-11-21. Decision log entry: `docs/DECISIONS.md` #64.
+
+## 1. Where we are and where we're going
+
+**Today** the Unreal app (`apps/unreal`, `Maps/Table`) is a full-screen Chromium browser. It
+starts the web game's Node server as a child process and shows the web game: menus, 2D board,
+bots, online rooms and the three.js walk. All of that is TypeScript and React in `apps/web` and
+`packages/*`. Unreal-native code today is only:
+
+- `CatanTable` (the browser host, about 15 kB of C++);
+- the walkable island prototype (`Content/CatanNight/Maps/Island_*`, built by the Python in
+  `apps/unreal/Content/Python`);
+- the `CatanAnimation` plugin (chest, knight clips, grips, sparring; not connected to the game).
+
+**Goal:** one Unreal game with no browser and no Node inside it. The rules, bots, board, UI, online
+play, island walk and duels are all Unreal. It sells on Steam, plays with mouse and keyboard or a
+gamepad, and is Steam Deck Verified.
+
+**The web game stays until the Unreal game replaces it** (phase 6). Until then it is the rules
+reference that the C++ port is tested against, and the Unreal wrapper keeps working.
+
+## 2. Gate 0: name and identity (before any public step)
+
+Nothing goes public (store page, trailer, playtest) until this gate is closed.
+
+| Question | Status |
+|---|---|
+| Working title | **Catnight**, chosen by the owner on 2026-11-21 |
+| Is the name free? | **No.** *Catnight* is already a Steam game: a $4.99 third-person multiplayer shooter by Rubber Croc, app 1779070. Two games with one name hurts search and invites a dispute. Pick another name, or get advice before using it. |
+| Too close to Catan? | "Cat-night" sounds close to "Catan Night". The final name should not suggest the Catan brand. |
+| Terms | Replace every Catan-specific term (table below). Generic words (wood, brick, road, city) can stay. |
+| Rules | Keep the core trading game, and make sure the parts that are already original are what define it (section 3). |
+| Art | All art is original or the owner's (art pack sheets). Keep written proof that the owner holds the rights to the concept-art pack. |
+| Fonts | IM Fell, UnifrakturCook, Cinzel and Crimson Pro are SIL Open Font License: they can ship; include the licences. |
+| Legal review | A lawyer checks the name, terms, rules and store page before release. This plan is not legal advice. |
+
+**Terms to decide.** The engine keys are already original (`outpost`, `citadel`, `causeway`,
+`omen`, `wraith`), so this is a display-text change.
+
+| Today (player sees) | Engine key | Catnight term | Notes |
+|---|---|---|---|
+| Catan Night | — | **Catnight** (pending gate 0) | |
+| Settlement / City / Road | `outpost` `citadel` `causeway` | *to decide* | Generic words can stay; only the set as a whole should not copy Catan's |
+| Robber | `wraith` | *to decide* | |
+| Development card | `omen` | *to decide* | |
+| Knight / Victory Point / Road Building / Year of Plenty / Monopoly | `warden` `relic` `decree` `harvest` `tithe` | *to decide* | Year of Plenty, Road Building and Monopoly are the most recognisable |
+| Longest Road / Largest Army | `longestCauseway` `greatestHost` | *to decide* | |
+| Lumber, Brick, Wool, Grain, Ore | `wood` `clay` `wool` `grain` `ore` | can stay | Generic |
+| Forest, Hills, Pasture, Fields, Mountains, Desert | `witchwood` `ashen` `moors` `fields` `peaks` `waste` | can stay | Generic |
+
+If the cat in the name is meant literally (cats at night as the world's people), decide that now:
+it changes character models, card art and every heading.
+
+## 3. What makes it its own game
+
+These exist today and become the centre of the pitch:
+
+- **The island you walk.** Every road and building on the board stands on a walkable island
+  (enterable cottages, halls and mills, horses, docks).
+- **Arms and duels.** A weapon chest, bullets, swords and *Man up* fights that pause the board
+  (`rules/arms.ts`).
+- **Day and night** on the island and the board, and the Hall & Chart table look.
+
+Candidates to discuss (rule changes, each one tested by the bot simulation before keeping it):
+night production effects, island events found while walking, duel stakes tied to trades.
+
+## 4. Architecture
+
+### 4.1 Rules core: `CatnightRules` (C++)
+
+`packages/engine` is about 3,100 lines of TypeScript. It is pure and deterministic, so it ports
+cleanly.
+
+- **A plain C++20 library** in `apps/catnight/Plugins/CatnightRules/Source/CatnightRules`. No
+  `UObject`s and no Unreal types in the rules: plain structs and enums, standard-library
+  containers only, no exceptions (Unreal builds without them). A thin UE module wraps it. Also
+  compiled by `native/build.ps1` (MSVC) so the tests run in seconds outside the editor.
+- **Same contract:** `ApplyAction(const GameState&, const Action&) -> Result<{State, Events}, Error>`,
+  `LegalActions`, selectors, `DecideAction(State, Level, Salt)` for the three bot levels.
+- **Same RNG:** mulberry32 on `uint32_t` (matches `Math.imul` and `>>> 0`); the float step divides
+  by 4294967296.0 exactly as JS does.
+- **Ordering traps to copy exactly:** JavaScript object key order (insertion order, but integer-like
+  keys first), `Array.sort` stability, and any `Object.entries` iteration. Every place the TS code
+  iterates a `Record` is listed and mirrored with an ordered container.
+- **Topology:** the vertex and edge ids (`"3,-5"`, `"1,-1|2,-2"`) stay as the canonical ids in the
+  golden data, so states compare as JSON.
+
+**Golden testing (the gate for phase 1):**
+
+1. `pnpm golden` (`native/golden/export.ts`) plays games with the TypeScript engine and writes,
+   per game, the config and one entry per action: the action, whether it was accepted (or its
+   error code and message), and hashes of the canonical state and events after it.
+   - The 200 games of the engine's bot simulation test, seat for seat.
+   - 48 mixed games with scripted human seats: hot-seat hand-offs, trades and counter-offers,
+     weapons, duels, all three layouts, 8–14 target points, and deliberately illegal moves.
+     In every position of these games all three bot levels are also asked for their move.
+   - The data is regenerated, not committed (`native/golden/data/`, about 22 MB).
+2. `pnpm native:test` replays every game through the C++ rules and compares the state, the
+   events, the error code and message, and every bot decision after **each** action. At the
+   first difference it writes the C++ state and events to `native/golden/out/` and prints the
+   command that writes the TypeScript ones (`pnpm golden --dump <game> <step>`) for a diff.
+3. The C++ bots must choose the same action as the TypeScript bots in every recorded position.
+4. The Vitest suites stay the rules' specification in TypeScript. Their behaviours are covered
+   in C++ through the golden games (the runner fails if a rule never occurs: every card, all
+   bank rates, shortages, Longest Road and Largest Army changing hands, kills, duels, hand-offs).
+
+### 4.2 Game layer (Unreal)
+
+- `UCatnightMatchSubsystem` owns the authoritative state on the host and applies actions.
+- Actions travel as `USTRUCT`s through server RPCs; events drive the UI, sounds, effects and the
+  screen-reader text, as `advance()` does in the web store.
+- Hot-seat privacy (`handoff`, `viewer`) works as in the engine.
+- Undo follows the web rules (local games only; no randomness used).
+
+### 4.3 Online play and Steam
+
+- **Host-authoritative listen server** (the host's game is the referee, as the Node server is now).
+  No dedicated servers to pay for.
+- **Steam:** `OnlineSubsystemSteam` with Steam Sockets; lobbies, friend invites, rich presence,
+  join from the friends list. Room codes can stay for invites outside Steam friends.
+- **Secrets stay secret:** other players' hands and the deck order are never replicated to clients;
+  each player's private state replicates owner-only (`COND_OwnerOnly`). This replaces `redactFor`.
+- **Reconnect and autopilot:** a dropped player can rejoin the lobby session; after 45 s on their
+  turn a bot plays for them, as today. Duels: 90 s away yields.
+- **No cross-play with the web version.**
+
+### 4.4 Presentation
+
+- **Table:** the board in 3D on a war table in the hall, with the camera above it; a flat 2D view
+  for clarity. Board art direction stays (sunlit miniatures, DECISIONS #29–30).
+- **UI:** UMG with CommonUI (gamepad focus, input prompts, layers). Rebuild the Hall & Chart kit as
+  widgets: banner, coat of arms, decree, oak panel, map note, wax-seal button, scale-bar meter, bone
+  dice. Reuse the textures in `apps/web/src/ui/hall/tex` and the card art in `public/art/cards`.
+  `design/hall-chart/MIGRATION_CHECKLIST.md` is the screen list.
+- **Text:** a string table replaces `lexicon.ts` (and makes translation possible later).
+- **Accessibility carried over:** UI scale, colour plus sigil, reduced motion, rebindable keys,
+  readable at Steam Deck size (1280×800).
+
+### 4.5 The island, walk and duels
+
+- Merge the island prototype (`Island_*` maps and the Python builders) and the `CatanAnimation`
+  plugin (renamed `CatnightAnimation`) into the new project.
+- The island reads the live match state: buildings and roads appear where they are built.
+- Arms, chest and duels use the C++ rules; movement and hits are checked on the host (as the server
+  checks `Strike` today).
+- Horses, knight looks, My kingdom decor and the minimap port from `components/world/*`.
+
+### 4.6 Audio
+
+The music and sound effects are synthesized in WebAudio today. Render them once to WAV (headless
+Chrome, `OfflineAudioContext`) and import them as Sound Waves; move the ones that need variety to
+MetaSounds later. The music stays on menus and the table only.
+
+### 4.7 Saves
+
+`USaveGame` slots synced by Steam Cloud. Old browser saves are not imported.
+
+### 4.8 Project layout
+
+A **new, clean project** at `apps/catnight` (`Catnight.uproject`, game module `Catnight`), instead
+of renaming `apps/unreal` and `apps/unreal 5.8` in place:
+
+```
+apps/catnight/
+  Catnight.uproject
+  Source/Catnight/                 game module: subsystems, player controller, pawns, UI glue
+  Plugins/CatnightRules/           rules core (also built by native/CMakeLists.txt)
+  Plugins/CatnightAnimation/       moved from CatanAnimation
+  Content/Catnight/                maps, UI widgets, materials, migrated island assets
+native/
+  build.ps1                        builds CatnightRules + tests with MSVC outside Unreal
+  tests/main.cpp                   unit checks and the golden replay
+  golden/export.ts                 records reference games from the TypeScript engine
+```
+
+The old projects stay until phase 6 so nothing is lost. Island assets move with the editor's
+*Migrate*. Before large binary assets land, set up **Git LFS** for `*.uasset`, `*.umap`, `*.blend`,
+`*.glb`, `*.wav` (the repo has none today, and the old Unreal copy already commits 462 files).
+
+## 5. Phases
+
+Each phase ends with something you can play or check. Sizes are rough: S is days, M is one to two
+weeks, L is several weeks of focused work.
+
+| # | Phase | Size | Done when |
+|---|---|---|---|
+| 0 | **Identity** | S | Final name cleared, terms table filled, rule changes chosen, lawyer consulted |
+| 1 | **Rules core in C++** — *done 2026-11-21* | L | All golden games match step by step; the C++ bots pick the same moves; the 200-game simulation passes |
+| 2 | **Playable table** | L | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue |
+| 3 | **Online through Steam** | L | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand |
+| 4 | **Hall & Chart in Unreal** | L | Every screen in the migration checklist exists in UMG; 3D table; music and sounds; accessibility settings |
+| 5 | **The island and duels** | L | Walk the live island from a match, buildings and roads appear as built, chest and Man up fights work online |
+| 6 | **Steam release** | M | Steamworks app (Steam Direct fee), achievements, Steam Cloud, store page and capsule art, trailer, content survey and age rating, EULA and privacy text, crash reports, Steam Deck review, a closed playtest. Then: tag the web version, retire `apps/web`, `apps/server`, `packages/*` and the wrapper project |
+
+Phases 1 and 2 are the critical path. Phase 4's UI work can start beside phase 2 once the game
+layer's events are fixed.
+
+## 6. Risks
+
+| Risk | Answer |
+|---|---|
+| The C++ rules drift from TypeScript in rare cases (key order, sort, RNG floats) | Step-by-step golden comparison over many games; diff prints the first mismatching path |
+| Two games to maintain until phase 6 | Freeze rule changes in TypeScript once phase 1 starts, except bug fixes made in both |
+| The web/3D walk keeps changing in parallel sessions | Port the walk last (phase 5) from the state of `components/world` at that time |
+| Name refused or disputed | Gate 0 before any public step |
+| Unreal networking cheats (clients reading hidden data) | Hidden state never leaves the host; owner-only replication; host checks every action |
+| Repo size with binary assets | Git LFS before the first migration |
+| Steam Deck performance with the dense island | Per-platform scalability settings; measure on Deck in phase 5 |
+
+## 7. Phase 1 result (2026-11-21)
+
+The rules core is ported: `apps/catnight/Plugins/CatnightRules` (about 4,000 lines of C++).
+
+| Header | Port of |
+|---|---|
+| `Keys.h` | `lexicon-keys.ts`: resources, terrains, cards, costs, constants |
+| `Rng.h` | `rng.ts`: the seed hash and mulberry32, bit for bit |
+| `Board.h` | `board/*`: topology (ids kept, indices inside), generator, harbours, validator |
+| `State.h` | `state/types.ts`: config, state, phases, actions; events as JSON objects |
+| `Rules.h` | `state/setup.ts`, `state/selectors.ts`, `rules/*`: `CreateGame`, `ApplyAction`, `LegalActions` |
+| `Bots.h` | `ai/*`: `DecideAction` for Wanderer, Warlord and Archdemon (with its setup lookahead) |
+| `Serialize.h`, `Json.h` | the engine's JSON shapes: state, config, actions (records and saves) |
+
+```powershell
+pnpm golden
+pnpm native:test
+```
+
+**Result:** 248 of 248 games match: 116,078 actions (2,417 of them rejected with the same error
+code and message), 96,489 bot moves and 90,531 bot probes, in about 12 seconds. Changing one bot
+weight by 0.01 or the hand limit by one makes 227 of the 248 games fail, so the comparison is
+sensitive.
+
+**Not done yet:**
+- The plugin has not been compiled inside Unreal: `CatnightRules.Build.cs` and the module file
+  wait for the `apps/catnight` project in phase 2. The sources build with MSVC under `/W4 /WX`
+  without exceptions, as Unreal requires.
+- Events are JSON objects for now. Phase 2 may give the UI typed events.
+
+## 8. Next steps (phase 2)
+
+1. Owner: decide the name and terms (gate 0, section 2).
+2. Create `apps/catnight` (UE 5.8, C++), set up Git LFS, and compile `CatnightRules` in it.
+3. A match subsystem around `ApplyAction` and `DecideAction`, with bots on a timer.
+4. A plain playable table: board, hand, build, trade, and a full game against three bots.

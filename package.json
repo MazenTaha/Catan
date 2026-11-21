@@ -20,6 +20,8 @@
     "dev:web": "pnpm --filter @hexfall/web dev",
     "server": "pnpm --filter @hexfall/server start",
     "start": "pnpm build && pnpm server",
+    "golden": "pnpm --filter @hexfall/server exec tsx ../../native/golden/export.ts",
+    "native:test": "powershell -NoProfile -ExecutionPolicy Bypass -File native/build.ps1 -Test",
     "unreal:export": "pnpm --filter @hexfall/server exec tsx ../../apps/web/scripts/unreal/export-world.ts",
     "unreal:web": "pnpm build && node apps/unreal/stage-web-game.mjs",
     "unreal:open": "powershell -NoProfile -ExecutionPolicy Bypass -File apps/unreal/open-island.ps1",

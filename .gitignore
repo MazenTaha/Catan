@@ -24,3 +24,6 @@ apps/unreal*/WebGame/
 apps/unreal*/Packaged/
 apps/unreal*/*.sln
 .tools/
+native/golden/data/
+native/golden/out/
+native/build/

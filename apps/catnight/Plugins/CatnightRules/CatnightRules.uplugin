@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1",
+  "FriendlyName": "Catnight Rules",
+  "Description": "The game's rules, bots and record format in plain C++ (a port of packages/engine, proven against it by the golden tests in native/).",
+  "Category": "Catnight",
+  "CreatedBy": "Catnight",
+  "CanContainContent": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "CatnightRules",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

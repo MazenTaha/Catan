@@ -1,7 +1,7 @@
 # AGENTS.md — Catan Night (repo codename "Hexfall")
 
 Orientation for AI coding agents. Read this first, then `README.md` (player/run guide) and
-`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-11-20.
+`docs/DECISIONS.md` (why things are the way they are). Last updated 2026-11-21.
 
 ## 1. What this is
 
@@ -25,6 +25,10 @@ Key constraints that shape everything:
 - **Sound effects and synthesized classical music** (DECISIONS #40, the owner reversed the old
   music ban): public-domain pieces on a WebAudio piano (`audio/music.ts`), on the menus and the 2D
   board only, never in the 3D walk. No audio files.
+- **Going native: Catnight** (DECISIONS #64, `docs/UNREAL_NATIVE_PLAN.md`). The owner wants the
+  whole game rebuilt in Unreal, with no browser inside, for Steam, working title *Catnight*. Until
+  the Unreal game replaces it, the web game is the rules reference: from the start of the C++ port,
+  rule changes in `packages/engine` need the same change in `CatnightRules`.
 - **The 2D UI is "Hall & Chart"** (DECISIONS #54): a great hall at night (stone, torches, banners,
   wax seals, oak-and-iron panels) with island information drawn as an old sea chart. The board and
   every illustration stay as they are. The 3D walk's HUD keeps the older cool graphite look. See §8.
@@ -311,6 +315,7 @@ colorblind glyphs, hand privacy, bot speed, UI scale, turn timer, rookie tips, t
 | Change or add a 3D model | `assets/blender/*.py` then `blender -b -P assets/blender/build.py` (this PC: `D:\Blender\blender.exe`); register slots in `components/world/assets.ts`; see `docs/BLENDER_ASSET_PIPELINE.md` |
 | Change a building's room, door or furniture | `components/world/buildings.json` (one plan for the model and the collision), then rebuild the village (`-- village`); check with `/?scene=village` and `pnpm e2e buildings` |
 | Change the Unreal app's full game (table) | The game itself is the web app: change it there, then `pnpm unreal:web`. Native host: `apps/unreal/Source/CatanNight/CatanTable.*` (server child process, CEF page, Quit, Dive in mouse look); package with `apps/unreal/package-game.ps1`; see `apps/unreal/README.md` |
+| Work on the native Unreal game (Catnight) | `docs/UNREAL_NATIVE_PLAN.md` (phases, gate 0 on the name). Rules in C++: `apps/catnight/Plugins/CatnightRules`. After any change to it or to `packages/engine`, run `pnpm golden` then `pnpm native:test` (all golden games must match step by step) |
 | Change the native Unreal animation practice | `apps/unreal/Plugins/CatanAnimation` (C++, rebuild with `apps/unreal/build-native.ps1` while Unreal is closed), `apps/unreal/Content/Python/*animation*`; run `validate_animation_preview.py` on an `Island_Animations_*` map; see `docs/UNREAL_ANIMATION.md` |
 | Change the online protocol | `packages/net/src/index.ts` (types + lobby rules), then `apps/server/src/hub.ts` and `apps/web/src/state/net.ts` |
 | Add a setting | `Settings` and `DEFAULT_SETTINGS` in `state/persistence.ts`, UI in `components/modals/InfoModals.tsx`; apply it in `store.ts` |

@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Board/CatnightBoardActor.h"
+#include "Board/CatnightDaylightActor.h"
 #include "Board/CatnightHallActor.h"
 #include "Table/BoardView.h"
 #include "Ui/SCatnightRoot.h"
@@ -89,6 +90,9 @@ void ACatnightGameMode::BeginPlay()
 		// The hall round the table and the dice: their own actor, so the board stays as it is.
 		Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
 		if (Hall) Hall->Setup(Match);
+		// Sun, moon, sky and the lamps at night, following the game's clock.
+		Daylight = GetWorld()->SpawnActor<ACatnightDaylightActor>();
+		if (Daylight) Daylight->Setup(Match);
 	}
 
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())

@@ -414,7 +414,8 @@ FReply SCatnightBoard::OnMouseButtonUp(const FGeometry& MyGeometry, const FPoint
 FReply SCatnightBoard::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (!View->b3D || !View->MoveCamera) return FReply::Unhandled();
-	View->MoveCamera(0.f, 0.f, MouseEvent.GetWheelDelta() > 0 ? 0.88f : 1.12f);
+	// 12 % a notch; a trackpad's fractional steps zoom by as much as they scroll.
+	View->MoveCamera(0.f, 0.f, FMath::Pow(0.88f, FMath::Clamp(MouseEvent.GetWheelDelta(), -3.f, 3.f)));
 	return FReply::Handled();
 }
 
@@ -614,6 +615,21 @@ void STable::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 	if (Match->EventSerial != SeenSerial) Present();
+	// Held camera input, by time: 120°/s turning, 60°/s tilting, zoom ×2 per second at full press.
+	// Keys let go while the window was in the background never send their release: drop them.
+	if (!FSlateApplication::Get().IsActive()) KeyTurn = 0;
+	if (View->b3D && View->MoveCamera)
+	{
+		auto Dead = [](float V) { return FMath::Abs(V) < 0.2f ? 0.f : (V - FMath::Sign(V) * 0.2f) / 0.8f; };
+		const float Dt = FMath::Min(InDeltaTime, 0.1f);
+		const float Turn = Dead(StickTurn) + KeyTurn;
+		const float Tilt = Dead(StickTilt);
+		const float Zoom = Dead(TriggerOut) - Dead(TriggerIn);
+		if (Turn != 0.f || Tilt != 0.f || Zoom != 0.f)
+		{
+			View->MoveCamera(Turn * 120.f * Dt, Tilt * 60.f * Dt, FMath::Pow(2.f, Zoom * Dt));
+		}
+	}
 	// Prompts and hints follow the device in use.
 	if (bPadShown != Hall::bGamepad)
 	{
@@ -805,6 +821,18 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 		Board->CycleFocus(bNext ? 1 : -1);
 		return FReply::Handled().SetUserFocus(Board.ToSharedRef(), EFocusCause::Navigation);
 	}
+	// The 3D table's camera from the keys: Q / E turn it while held; Home or a right-stick click
+	// brings back the starting view.
+	if (View->b3D && (K == EKeys::Q || K == EKeys::E) && !InKeyEvent.IsControlDown())
+	{
+		KeyTurn = K == EKeys::Q ? -1 : 1;
+		return FReply::Handled();
+	}
+	if (View->b3D && View->MoveCamera && (K == EKeys::Home || K == EKeys::Gamepad_RightThumbstick))
+	{
+		View->MoveCamera(0.f, 0.f, 0.f);
+		return FReply::Handled();
+	}
 	// Space (Y on a pad) rolls or ends the turn, as on the web board.
 	if ((K == EKeys::SpaceBar || K == EKeys::Gamepad_FaceButton_Top) && Match->IsHumanToAct() && !Match->NeedsHandoff() && !bLeaving)
 	{
@@ -825,30 +853,27 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 
 FReply STable::OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent)
 {
-	// The right stick turns and tilts the 3D table.
+	// The right stick turns and tilts the 3D table, the triggers zoom (right in, left out). A pad
+	// reports an axis only when it changes, so the value is kept and applied every frame by time
+	// in Tick: holding the stick still keeps the table turning at a steady speed, at any frame rate.
 	const FKey K = InAnalogInputEvent.GetKey();
 	const float Value = InAnalogInputEvent.GetAnalogValue();
-	if (View->b3D && View->MoveCamera && FMath::Abs(Value) > 0.2f)
-	{
-		if (K == EKeys::Gamepad_RightX)
-		{
-			View->MoveCamera(Value * 2.5f, 0.f, 1.f);
-			return FReply::Handled();
-		}
-		if (K == EKeys::Gamepad_RightY)
-		{
-			View->MoveCamera(0.f, Value * 1.5f, 1.f);
-			return FReply::Handled();
-		}
-		// Triggers zoom: right in, left out.
-		if (K == EKeys::Gamepad_RightTriggerAxis || K == EKeys::Gamepad_LeftTriggerAxis)
-		{
-			const float Step = 1.f + 0.03f * Value;
-			View->MoveCamera(0.f, 0.f, K == EKeys::Gamepad_RightTriggerAxis ? 1.f / Step : Step);
-			return FReply::Handled();
-		}
-	}
+	if (K == EKeys::Gamepad_RightX) { StickTurn = Value; return FReply::Handled(); }
+	if (K == EKeys::Gamepad_RightY) { StickTilt = Value; return FReply::Handled(); }
+	if (K == EKeys::Gamepad_RightTriggerAxis) { TriggerIn = Value; return FReply::Handled(); }
+	if (K == EKeys::Gamepad_LeftTriggerAxis) { TriggerOut = Value; return FReply::Handled(); }
 	return SCompoundWidget::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
+}
+
+FReply STable::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey K = InKeyEvent.GetKey();
+	if ((K == EKeys::Q && KeyTurn < 0) || (K == EKeys::E && KeyTurn > 0))
+	{
+		KeyTurn = 0;
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 // The Hall & Chart presentation (panel, HUD, decrees, overlays) is in STableHud.cpp.

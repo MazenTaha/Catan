@@ -4,6 +4,7 @@
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "CatnightRules/Rules.h"
+#include "Daytime.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Lexicon.h"
 #include "Ui/HallKit.h"
@@ -47,32 +48,8 @@ namespace
 		return Out;
 	}
 
-	/** The island's time of day from the game (port of apps/web/src/components/world/daytime.ts). */
-	FString TimeOfDay(const GameState& S)
-	{
-		struct FStage { float Hour; const TCHAR* Name; };
-		static const FStage Stages[] = {{6.f, TEXT("Sunrise")}, {9.f, TEXT("Morning")}, {12.f, TEXT("Midday")}, {15.f, TEXT("Afternoon")},
-			{18.3f, TEXT("Sunset")}, {20.2f, TEXT("Dusk")}, {0.f, TEXT("Midnight")}, {3.5f, TEXT("Small hours")}};
-		float Hour = 9.f;
-		if (S.round > 0)
-		{
-			const int32 N = static_cast<int32>(S.players.size());
-			const float Within = static_cast<float>((S.currentPlayer - S.firstPlayer + N) % N) / N;
-			const int32 I = (S.round - 1) % 8;
-			const float A = Stages[I].Hour;
-			float B = Stages[(I + 1) % 8].Hour;
-			if (B < A) B += 24.f;
-			Hour = FMath::Fmod(A + (B - A) * Within, 24.f);
-		}
-		const TCHAR* Best = Stages[0].Name;
-		float BestD = 99.f;
-		for (const FStage& St : Stages)
-		{
-			const float D = FMath::Min(FMath::Abs(St.Hour - Hour), 24.f - FMath::Abs(St.Hour - Hour));
-			if (D < BestD) { BestD = D; Best = St.Name; }
-		}
-		return Best;
-	}
+	/** The island's time of day from the game (Daytime.h; the 3D table's light follows the same clock). */
+	FString TimeOfDay(const GameState& S) { return CatnightDay::StageName(CatnightDay::HourOf(S)); }
 
 	TSharedRef<SWidget> ArmsOf(const PlayerState& P, float H) { return Arms(P.color, P.sigil, H); }
 
@@ -288,7 +265,11 @@ TSharedRef<SWidget> STable::ListsBox()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)
 				[
 					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 10, 0)[InkItalic(FString::Printf(TEXT("First to %d"), S.config.targetVp), 18, C::MapInk)]
+					// One line (a wrapping block in an auto-width slot broke "First to / 10").
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 10, 0)
+					[
+						SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("First to %d"), S.config.targetVp))).Font(Hall::Italic(18)).ColorAndOpacity(C::MapInk)
+					]
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Meter(static_cast<float>(Lead) / S.config.targetVp, C::Gold)]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[Rule()]
@@ -414,7 +395,8 @@ TSharedRef<SWidget> STable::TreasuryBox()
 	const int32 Total = HandTotal(Mine);
 	const FString Limit = Total > kHandLimit ? FString::Printf(TEXT("A 7 would cost you %d cards"), Total / 2)
 		: FString::Printf(TEXT("%d to the limit"), kHandLimit - Total);
-	const FString Title = Match->HumanCount() > 1 ? FString::Printf(TEXT("%s's Treasury"), UTF8_TO_TCHAR(Mine.name.c_str())) : FString(TEXT("Thy Treasury"));
+	// The owner's name for the hand: "Materials" (hot-seat: whose materials they are).
+	const FString Title = Match->HumanCount() > 1 ? FString::Printf(TEXT("%s's Materials"), UTF8_TO_TCHAR(Mine.name.c_str())) : FString(TEXT("Materials"));
 	return Oak(SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[Cards]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)

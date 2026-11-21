@@ -29,6 +29,8 @@ public:
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	/** A drag that loses the mouse (released outside the window) must stop turning the table. */
+	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override { bDragging = false; }
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
@@ -78,6 +80,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
+	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 	/** The widget to focus first (keyboard and gamepad). */
 	TSharedPtr<SWidget> FirstFocus() const;
@@ -133,6 +136,10 @@ private:
 	/** The Treasury's five cards, where gained cards fly to. */
 	TSharedPtr<SWidget> HandCards[5];
 	uint32 SeenSerial = 0;
+	/** Camera input held between events, applied every frame by time (sticks report only changes):
+	 *  right stick X/Y, triggers (out, in), Q/E. */
+	float StickTurn = 0.f, StickTilt = 0.f, TriggerOut = 0.f, TriggerIn = 0.f;
+	int32 KeyTurn = 0;  // -1 Q, +1 E
 	bool bDecreeShown = false;
 	bool bPadShown = false;
 	FDelegateHandle ChangedHandle;

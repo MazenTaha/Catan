@@ -57,7 +57,7 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 - **Dice and the hall:** `Private/Board/CatnightHallActor.*`, spawned beside the board actor: the
   bone dice on every roll and the hall round the table (Settings → The hall; `-CatnightNoHall`).
   It casts no shadows and its lights stop short of the island, so the board looks as before.
-- **Card flights:** `Private/Table/SCardFlights.*` (gained cards fly into Thy Treasury).
+- **Card flights:** `Private/Table/SCardFlights.*` (gained cards fly into Materials (was Thy Treasury)).
 - The Blender hall with its own cameras, placement animation, music and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
   mouse/real-gamepad playthrough is still required.
 
@@ -123,7 +123,8 @@ bot's moves, and logs `CATNIGHT UIDRIVE done mode=… ui=… direct=… failed=�
 & 'E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe' 'E:/Catan/apps/catnight/Catnight.uproject' -game -windowed -ResX=1600 -ResY=900 -CatnightSeed=drive1 -CatnightNoSave -CatnightBotDelay=0.05 -CatnightUiDrive=mouse -CatnightShot=drive.png -CatnightShotOnWin -log=drive.log
 ```
 
-Add `-CatnightHotseat=2` to cover the curtain. Pad mode focuses the button it wants before pressing
+Add `-RenderOffscreen` (instead of `-windowed`) so the real mouse cannot disturb the simulated
+clicks while you use the computer. Add `-CatnightHotseat=2` to cover the curtain. Pad mode focuses the button it wants before pressing
 A, so it does not test D-pad navigation; neither mode replaces a hand playthrough.
 `-CatnightGamepad` starts (and keeps) the pad prompts for screenshots.
 
@@ -134,7 +135,17 @@ and picks them back, logging `CATNIGHT PICK n of m targets picked back (k legal)
 check requires `n == m == k > 0`; repeat from different camera angles. This is additional to the
 three rules/match automation tests, not a substitute for manual mouse/gamepad play.
 
-3D camera controls: right or middle mouse drag or the right stick turns/tilts; the wheel zooms.
+3D camera controls: right or middle mouse drag or the right stick turns/tilts; Q / E turn while held;
+the wheel or the triggers zoom; Home or a right-stick click brings back the starting view. Held
+sticks, triggers and keys move the camera by time (steady speed at any frame rate).
+
+Day and night on the 3D table: `ACatnightDaylightActor` lights the island from the game's clock
+(`Daytime.h`, the web game's `daytime.ts`): each round is a stretch of the day (sunrise, morning,
+midday, afternoon, sunset, dusk, midnight, the small hours) and each turn moves the clock on, the
+light easing to the new hour. Sun or moon, sky, fog, a fixed exposure per hour and a warm grade come
+from keyed looks; from dusk to dawn a lamp over the table and the windows of every settlement and city
+light up. Settings → Day and night: follow the game or always day. `-CatnightHour=<0..24>` holds an
+hour for screenshots (`-CatnightEV=<ev100>` overrides the day exposure while tuning).
 The camera hint appears below the instruction. **Flat view / 3D view** toggles the board renderer.
 
 Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space or Y rolls

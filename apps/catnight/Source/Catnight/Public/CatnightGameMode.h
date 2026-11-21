@@ -14,6 +14,7 @@
 //   -CatnightShot=<file.png>  save a screenshot after -CatnightShotAfter=<s> (default 6), then quit
 //   -CatnightShotOnWin       wait for victory before the screenshot (autoplay validation)
 //   -CatnightNoHall           no hall round the table (the dice stay)
+//   -CatnightHour=<0..24>     hold the 3D table's light at this hour (screenshots of the day cycle)
 //   -CatnightGamepad          start with gamepad prompts (screenshots)
 //   -CatnightUiDrive=mouse|pad  plays the person's seats through the UI with simulated input
 //                             (Table/UiDriver.cpp), logging CATNIGHT UIDRIVE lines
@@ -39,5 +40,6 @@ private:
 	TSharedPtr<struct FCatnightBoardView> View;
 	UPROPERTY() TObjectPtr<class ACatnightBoardActor> Board;
 	UPROPERTY() TObjectPtr<class ACatnightHallActor> Hall;
+	UPROPERTY() TObjectPtr<class ACatnightDaylightActor> Daylight;
 	FTSTicker::FDelegateHandle ShotHandle;
 };

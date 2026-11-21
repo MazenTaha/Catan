@@ -54,7 +54,7 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 | Legal targets on hover/click, keyboard focusable, show-why reasons | part: 3D hover/picking and glowing targets; projection/deprojection checked from three angles; keys/shoulders + Enter/A remain, real gamepad play pending | Glowing targets, gamepad cursor and stick snapping, reasons on hover | 2 → 3 |
 | Hex tooltip (terrain, number, odds, owners) | to do | Same, as a map note | 3 |
 | Zoom and pan | part: smoothed orbit/tilt by right or middle drag/right stick, wheel zoom and Flat view toggle; pan pending | Orbit, zoom, tilt the camera over the table; top-down 2D view kept for clarity | 3 |
-| Dice roll overlay, flying gains, production highlights | part: two bone dice thrown onto the sea beside the island on every roll, resting on the rolled faces (`ACatnightHallActor`); gained cards fly from the producing tiles into Thy Treasury (`SCardFlights`); tile highlights pending | Physical bone dice rolling on the table; cards flying to banners | 3 |
+| Dice roll overlay, flying gains, production highlights | part: two bone dice thrown onto the sea beside the island on every roll, resting on the rolled faces (`ACatnightHallActor`); gained cards fly from the producing tiles into Materials (was Thy Treasury) (`SCardFlights`); tile highlights pending | Physical bone dice rolling on the table; cards flying to banners | 3 |
 | Time of day wash and label (rounds → Sunrise … Small hours) | to do | Real sun and moon over the hall's windows and the table | 3 |
 | Walk layer: walkers and fights on the board | to do | Same markers in 3D | 4 / 5 |
 
@@ -79,7 +79,7 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 | Instruction ribbon above the board (also the live region) | done (below the island; button prompts under it follow mouse/keys or pad) | Same | 3 |
 | The Lists: round, time, first to N + leader meter, Claims | done | Same | 3 |
 | The Herald: recent log with arms and resource art, full Chronicle (search, filters, export) | part: Herald with More/Less (L / View); Chronicle pending | Same | 3 |
-| Thy Treasury: card art, +N seal, hold-to-reveal, hand-limit scale bar | part: card art, scale bar, cards flying in; hold-to-reveal pending | Real card art, cards fan in the hand | 3 |
+| Materials (was Thy Treasury): card art, +N seal, hold-to-reveal, hand-limit scale bar | part: card art, scale bar, cards flying in; hold-to-reveal pending | Real card art, cards fan in the hand | 3 |
 | Build / Cards / Trade tabs, costs, N left, status words, played-card fan | done | Same, gamepad tabs | 3 |
 | Trade: bank (rates, stock, stepper), players (counts, To, Offer), offer out + Withdraw | part: bank, targeted player offers and counters; visual treatment pending | Same plus targeted offers | 2 → 3 |
 | Dialogs: roll-off, discard, rob, offer arrives, counter, Year of Plenty, Monopoly, Man up target, card details | part: decrees in the right column (roll-off, Man up and card details pending) | Decree dialogs | 2 → 3 |

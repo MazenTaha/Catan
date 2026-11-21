@@ -28,6 +28,7 @@ void FHallSettings::Load()
 	GConfig->GetBool(Section, TEXT("Start3D"), bStart3D, GGameUserSettingsIni);
 	GConfig->GetInt(Section, TEXT("Volume"), Volume, GGameUserSettingsIni);
 	GConfig->GetBool(Section, TEXT("Hall"), bHall, GGameUserSettingsIni);
+	GConfig->GetBool(Section, TEXT("DayNight"), bDayNight, GGameUserSettingsIni);
 	BotSpeed = FMath::Clamp(BotSpeed, 0, 3);
 	Volume = FMath::Clamp(Volume, 0, 10);
 	Hall::bReduceMotion = bReduceMotion;
@@ -42,6 +43,7 @@ void FHallSettings::Save() const
 	GConfig->SetBool(Section, TEXT("Start3D"), bStart3D, GGameUserSettingsIni);
 	GConfig->SetInt(Section, TEXT("Volume"), Volume, GGameUserSettingsIni);
 	GConfig->SetBool(Section, TEXT("Hall"), bHall, GGameUserSettingsIni);
+	GConfig->SetBool(Section, TEXT("DayNight"), bDayNight, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 

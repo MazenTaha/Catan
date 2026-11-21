@@ -123,9 +123,19 @@ void ACatnightBoardActor::Setup(TSharedPtr<FCatnightMatch> InMatch, TSharedPtr<F
 	View->MoveCamera = [Weak](float DYaw, float DPitch, float Zoom)
 	{
 		if (!Weak.IsValid()) return;
+		// Zoom 0 asks for the starting view (Home / right-stick click), the nearest whole turn away.
+		if (Zoom <= 0.f)
+		{
+			Weak->GoalYaw = FMath::RoundToFloat(Weak->Yaw / 360.f) * 360.f;
+			Weak->GoalPitch = -56.f;
+			Weak->GoalDistance = 20.5f * R;
+			return;
+		}
 		Weak->GoalYaw += DYaw;
 		Weak->GoalPitch = FMath::Clamp(Weak->GoalPitch + DPitch, -86.f, -28.f);
-		Weak->GoalDistance = FMath::Clamp(Weak->GoalDistance * Zoom, 6.f * R, 26.f * R);
+		// The camera orbits the island's centre and cannot pan, so the closest view still shows a
+		// good part of the island (closer, it stared at two hexes with no way to look elsewhere).
+		Weak->GoalDistance = FMath::Clamp(Weak->GoalDistance * Zoom, 10.f * R, 26.f * R);
 	};
 	BuildRoom();
 	bPiecesDirty = true;
@@ -304,36 +314,7 @@ void ACatnightBoardActor::PaintOwner(UStaticMeshComponent* C, const FLinearColor
 void ACatnightBoardActor::BuildRoom()
 {
 	Clear(RoomParts);
-	UDirectionalLightComponent* Sun = NewObject<UDirectionalLightComponent>(this);
-	Sun->SetupAttachment(Root);
-	Sun->SetMobility(EComponentMobility::Movable);
-	Sun->SetWorldRotation(FRotator(-38.f, 28.f, 0.f));
-	Sun->SetIntensity(7.5f);
-	Sun->SetLightColor(FLinearColor(1.f, 0.9f, 0.78f));
-	Sun->SetAtmosphereSunLight(true);
-	Sun->SetDynamicShadowDistanceMovableLight(40.f * R);
-	Sun->RegisterComponent();
-	RoomParts.Add(Sun);
-
-	USkyAtmosphereComponent* Atmosphere = NewObject<USkyAtmosphereComponent>(this);
-	Atmosphere->SetupAttachment(Root);
-	Atmosphere->RegisterComponent();
-	RoomParts.Add(Atmosphere);
-
-	USkyLightComponent* Sky = NewObject<USkyLightComponent>(this);
-	Sky->SetupAttachment(Root);
-	Sky->SetMobility(EComponentMobility::Movable);
-	Sky->bRealTimeCapture = true;
-	Sky->SetIntensity(1.2f);
-	Sky->RegisterComponent();
-	RoomParts.Add(Sky);
-
-	UExponentialHeightFogComponent* Fog = NewObject<UExponentialHeightFogComponent>(this);
-	Fog->SetupAttachment(Root);
-	Fog->SetFogDensity(0.004f);
-	Fog->SetRelativeLocation(FVector(0, 0, -6.f * R));
-	Fog->RegisterComponent();
-	RoomParts.Add(Fog);
+	// Sun, moon, sky, fog and exposure follow the game's clock: ACatnightDaylightActor.
 
 	// The war table: an oak top with a raised rim round a sea tray.
 	UMaterialInterface* Oak = Tint(CatnightUi::Srgb(92, 60, 36), 0.55f);

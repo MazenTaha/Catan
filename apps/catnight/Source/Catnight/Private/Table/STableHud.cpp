@@ -2,10 +2,12 @@
 // board widget and the 3D board hookup stay in STable.cpp; this file only draws.
 #include "Table/STable.h"
 
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "CatnightRules/Rules.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Lexicon.h"
 #include "Ui/HallKit.h"
+#include "Ui/HallSound.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
@@ -122,7 +124,11 @@ namespace
 FString STable::Instruction() const
 {
 	const GameState& S = Match->State();
-	if (Match->IsEnded()) return FString::Printf(TEXT("%s wins!"), *CatnightText::Player(S, *S.winner));
+	if (Match->IsEnded())
+	{
+		const FString Who = CatnightText::Player(S, *S.winner);
+		return Who == TEXT("You") ? FString(TEXT("You win!")) : Who + TEXT(" wins!");
+	}
 	if (Match->NeedsHandoff()) return FString::Printf(TEXT("Pass the device to %s"), *CatnightText::Player(S, Match->Actor()));
 	if (S.phase.kind == PhaseKind::Trade && S.phase.offer.proposer == Me() && !Match->IsHumanToAct())
 	{
@@ -141,13 +147,13 @@ FString STable::Instruction() const
 		if (S.phase.stepCauseway) return TEXT("Build a Road from your new Settlement");
 		return Mine == 0 ? TEXT("Place your first Settlement") : TEXT("Place your second Settlement — it gives you resources at once");
 	}
-	case PhaseKind::Roll: return TEXT("Roll the dice (Space) — or play a Knight first");
+	case PhaseKind::Roll: return TEXT("Roll the dice — or play a Knight first");
 	case PhaseKind::Discard: return FString::Printf(TEXT("Discard %d cards"), S.phase.pending[Me()]);
 	case PhaseKind::MoveWraith: return TEXT("Move the robber — pick any other hex");
 	case PhaseKind::Steal: return TEXT("Choose whom to rob");
 	case PhaseKind::Decree: return FString::Printf(TEXT("Build %d free Road%s (Road Building)"), S.phase.remaining, S.phase.remaining == 1 ? TEXT("") : TEXT("s"));
 	case PhaseKind::Trade: return FString::Printf(TEXT("%s offers you a trade"), *CatnightText::Player(S, S.phase.offer.proposer));
-	case PhaseKind::Main: return Build == EBuild::None ? TEXT("Build & trade, then end your turn (Space)") : TEXT("Pick a glowing spot to build (Esc cancels)");
+	case PhaseKind::Main: return Build == EBuild::None ? TEXT("Build & trade, then end your turn") : TEXT("Pick a glowing spot to build");
 	default: return FString();
 	}
 }
@@ -163,10 +169,37 @@ TSharedRef<SWidget> STable::BuildHud()
 		Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 10)[Slip(Match->LastError, C::Rubric)];
 	}
 	Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center)[Ribbon(Instruction(), 23, 380.f, true)];
-	FString Hint;
-	if (Targets->Kind != FBoardTargets::EKind::None) Hint = TEXT("Click a glowing spot — or arrows / shoulder buttons, then Enter or A.");
-	if (View->b3D) Hint += Hint.IsEmpty() ? TEXT("Right-drag or right stick turns the table; the wheel zooms.") : TEXT("  Right-drag turns the table.");
-	if (!Hint.IsEmpty()) Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 6, 0, 0)[OnDark(Hint, 15, C::OnDarkMuted, false)];
+	// Button prompts for the device in use (plan §4.5, §9): glyphs, not key names in the text.
+	TSharedRef<SHorizontalBox> Hints = SNew(SHorizontalBox).Visibility(EVisibility::HitTestInvisible);
+	auto AddHint = [&Hints](Hall::EPrompt P, const FString& Label)
+	{
+		Hints->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(8, 0)[PromptHint(P, Label, 26.f)];
+	};
+	const bool bActing = Match->IsHumanToAct() && !Match->NeedsHandoff();
+	if (bActing && Targets->Kind != FBoardTargets::EKind::None)
+	{
+		AddHint(Hall::EPrompt::Cycle, TEXT("choose a spot"));
+		AddHint(Hall::EPrompt::Confirm, TEXT("place"));
+	}
+	const GameState& HS = Match->State();
+	if (bActing && HS.currentPlayer == Me() && (HS.phase.kind == PhaseKind::Roll || (HS.phase.kind == PhaseKind::Main && Build == EBuild::None)))
+	{
+		AddHint(Hall::EPrompt::Primary, HS.phase.kind == PhaseKind::Roll ? TEXT("roll") : TEXT("end turn"));
+	}
+	if (bActing && Build != EBuild::None) AddHint(Hall::EPrompt::Back, TEXT("cancel"));
+	if (View->b3D)
+	{
+		AddHint(Hall::EPrompt::Turn, TEXT("turn the table"));
+		AddHint(Hall::EPrompt::Zoom, TEXT("zoom"));
+	}
+	// On a soft dark plate so the prompts read over bright sea and meadows.
+	Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8, 0, 0)
+	[
+		SNew(SBorder).Visibility(EVisibility::HitTestInvisible)
+		.BorderImage([] { static const FSlateRoundedBoxBrush Plate(FLinearColor(0.02f, 0.015f, 0.01f, 0.62f), 14.f); return &Plate; }())
+		.Padding(FMargin(8, 4))
+		[Hints]
+	];
 
 	return SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(26, 22, 0, 0))[ListsBox()]
@@ -320,6 +353,10 @@ TSharedRef<SWidget> STable::BuildPanel()
 	{
 		Box->AddSlot().AutoHeight().Padding(0, 26, 0, 0)[TreasuryBox()];
 		const TSharedPtr<SWidget> Decision = DecreeBox();
+		// A decree for you to answer arrives with the rustle of parchment.
+		const bool bDecree = Decision.IsValid() && Match->IsHumanToAct();
+		if (bDecree && !bDecreeShown) HallSound::Play(TEXT("ui-parchment"));
+		bDecreeShown = bDecree;
 		Box->AddSlot().AutoHeight().Padding(0, 26, 0, 0)[Decision ? Decision.ToSharedRef() : OrdersBox()];
 		Box->AddSlot().AutoHeight().Padding(0, 18, 0, 0)[PrimaryBox()];
 	}
@@ -333,7 +370,9 @@ TSharedRef<SWidget> STable::TreasuryBox()
 	TSharedRef<SHorizontalBox> Cards = SNew(SHorizontalBox);
 	for (Resource R : kResources)
 	{
-		Cards->AddSlot().AutoWidth().Padding(0, 0, R == Resource::Ore ? 0 : 6, 0)[ResourceCard(R, Mine.hand[R], 56)];
+		TSharedRef<SWidget> Card = ResourceCard(R, Mine.hand[R], 56);
+		HandCards[static_cast<int32>(R)] = Card;
+		Cards->AddSlot().AutoWidth().Padding(0, 0, R == Resource::Ore ? 0 : 6, 0)[Card];
 	}
 	const int32 Total = HandTotal(Mine);
 	const FString Limit = Total > kHandLimit ? FString::Printf(TEXT("A 7 would cost you %d cards"), Total / 2)
@@ -371,7 +410,7 @@ TSharedRef<SWidget> STable::PrimaryBox()
 	}
 	if (bMyTurn && (S.phase.kind == PhaseKind::Roll || S.phase.kind == PhaseKind::Main))
 	{
-		Box->AddSlot().AutoHeight().HAlign(HAlign_Center)[OnDark(TEXT("Space"), 14, C::OnDarkMuted, false)];
+		Box->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 0)[Prompt(Hall::EPrompt::Primary, 26.f)];
 	}
 	const int32 N = static_cast<int32>(S.players.size());
 	const PlayerState& Next = S.players[(S.currentPlayer + 1) % N];
@@ -1006,7 +1045,7 @@ TSharedRef<SWidget> STable::BuildOverlay()
 		TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(940)
 			[
 				Paper(SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[Blackletter(FString::Printf(TEXT("%s wins!"), UTF8_TO_TCHAR(Champion.name.c_str())), 64)]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[Blackletter(Champion.name == "You" ? FString(TEXT("You win!")) : FString::Printf(TEXT("%s wins!"), UTF8_TO_TCHAR(Champion.name.c_str())), 64)]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[InkItalic(FString::Printf(TEXT("after %d rounds, with %d points"), S.round, VpBreakdownOf(S, Winner).total), 19, C::MapInk)]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[Rule()]
 					+ SVerticalBox::Slot().AutoHeight()[LabelText(TEXT("Final reckoning"), 22, C::RubricDark)]

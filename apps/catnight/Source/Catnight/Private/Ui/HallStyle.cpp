@@ -3,6 +3,8 @@
 #include "Brushes/SlateBoxBrush.h"
 #include "Brushes/SlateImageBrush.h"
 #include "Fonts/CompositeFont.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -88,9 +90,79 @@ namespace Hall
 		}
 	}
 
+	namespace
+	{
+		/** Watches every input to tell whether a gamepad or the mouse and keys are in use. */
+		class FDeviceSniffer : public IInputProcessor
+		{
+		public:
+			virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
+			virtual bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& E) override
+			{
+				Set(E.GetKey().IsGamepadKey());
+				return false;
+			}
+			virtual bool HandleAnalogInputEvent(FSlateApplication&, const FAnalogInputEvent& E) override
+			{
+				if (E.GetKey().IsGamepadKey() && FMath::Abs(E.GetAnalogValue()) > 0.35f) Set(true);
+				return false;
+			}
+			virtual bool HandleMouseMoveEvent(FSlateApplication&, const FPointerEvent& E) override
+			{
+				if (E.GetCursorDelta().SizeSquared() > 9.f) Set(false);
+				return false;
+			}
+			virtual bool HandleMouseButtonDownEvent(FSlateApplication&, const FPointerEvent&) override
+			{
+				Set(false);
+				return false;
+			}
+			virtual const TCHAR* GetDebugName() const override { return TEXT("CatnightDeviceSniffer"); }
+
+		private:
+		public:
+			/** -CatnightGamepad (screenshots): stay on pad prompts whatever the mouse does. */
+			static inline bool bLocked = false;
+
+		private:
+			static void Set(bool bPad)
+			{
+				if (bGamepad == bPad || bLocked) return;
+				bGamepad = bPad;
+				// Show the cursor only for the mouse.
+				if (FSlateApplication::IsInitialized()) FSlateApplication::Get().SetPlatformCursorVisibility(!bPad);
+			}
+		};
+	}
+
+	bool bGamepad = false;
+
 	void Init()
 	{
-		// Brushes are created on demand; nothing to preload. Kept as the place for future warm-up.
+		// Brushes are created on demand; the device sniffer is registered once.
+		static bool bDone = false;
+		if (bDone || !FSlateApplication::IsInitialized()) return;
+		bDone = true;
+		bGamepad = FDeviceSniffer::bLocked = FParse::Param(FCommandLine::Get(), TEXT("CatnightGamepad"));
+		FSlateApplication::Get().RegisterInputPreProcessor(MakeShared<FDeviceSniffer>());
+	}
+
+	TArray<FString> PromptGlyphs(EPrompt P)
+	{
+		const bool Pad = bGamepad;
+		switch (P)
+		{
+		case EPrompt::Confirm: return {Pad ? TEXT("glyphs/pad-a") : TEXT("glyphs/key-enter")};
+		case EPrompt::Back: return {Pad ? TEXT("glyphs/pad-b") : TEXT("glyphs/key-esc")};
+		case EPrompt::Primary: return {Pad ? TEXT("glyphs/pad-y") : TEXT("glyphs/key-space")};
+		case EPrompt::Cycle: return Pad ? TArray<FString>{TEXT("glyphs/pad-lb"), TEXT("glyphs/pad-rb")} : TArray<FString>{TEXT("glyphs/key-arrows")};
+		case EPrompt::Menu: return {Pad ? TEXT("glyphs/pad-menu") : TEXT("glyphs/key-esc")};
+		case EPrompt::Undo: return {Pad ? TEXT("glyphs/pad-x") : TEXT("glyphs/key-ctrlz")};
+		case EPrompt::Log: return {Pad ? TEXT("glyphs/pad-view") : TEXT("glyphs/key-l")};
+		case EPrompt::Turn: return {Pad ? TEXT("glyphs/pad-rs") : TEXT("glyphs/mouse-right")};
+		case EPrompt::Zoom: return Pad ? TArray<FString>{TEXT("glyphs/pad-lt"), TEXT("glyphs/pad-rt")} : TArray<FString>{TEXT("glyphs/mouse-wheel")};
+		}
+		return {};
 	}
 
 	FVector2D ImageSize(const FString& Name)

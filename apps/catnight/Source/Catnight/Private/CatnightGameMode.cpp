@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Board/CatnightBoardActor.h"
+#include "Board/CatnightHallActor.h"
 #include "Table/BoardView.h"
 #include "Ui/SCatnightRoot.h"
 #include "UnrealClient.h"
@@ -85,6 +86,9 @@ void ACatnightGameMode::BeginPlay()
 			Cam.ParseIntoArray(Parts, TEXT(","));
 			if (Parts.Num() == 3) View->MoveCamera(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
 		}
+		// The hall round the table and the dice: their own actor, so the board stays as it is.
+		Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
+		if (Hall) Hall->Setup(Match);
 	}
 
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())

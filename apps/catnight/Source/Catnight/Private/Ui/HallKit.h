@@ -48,6 +48,10 @@ namespace HallKit
 	TSharedRef<SWidget> Decree(const FString& Title, TSharedRef<SWidget> Body, float Width = 620.f, const FString& ArmsImage = FString());
 	/** A herald's slip (toast / note on paper). */
 	TSharedRef<SWidget> Slip(const FString& Text, const FLinearColor& Mark = Hall::Color::Gold);
+	/** A button prompt (e.g. the Y roundel or the Space keycap) that follows the device in use. */
+	TSharedRef<SWidget> Prompt(Hall::EPrompt P, float Height = 26.f);
+	/** A prompt with a short label after it ("Roll", "Cancel"), for hint rows. */
+	TSharedRef<SWidget> PromptHint(Hall::EPrompt P, const FString& Label, float Height = 24.f, bool bOnDark = true);
 
 	/** Torchlight: a flickering warm glow (behind a torch, a lit banner, the primary button). */
 	class SGlow : public SLeafWidget

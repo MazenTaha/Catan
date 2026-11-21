@@ -15,6 +15,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Ui/HallSound.h"
 
 using namespace catnight;
 namespace C = Hall::Color;
@@ -332,12 +333,20 @@ namespace HallKit
 				LabelText(Label, Size, LabelColor(Kind), Kind == EButton::SealOnDark || Kind == EButton::Primary || Kind == EButton::Tab || Kind == EButton::TabOn)
 			];
 		}
+		// Every press has its sound (plan §4.7): wax stamps, brass clicks, wooden tabs, paper.
+		const TCHAR* Sound = bSeal || Kind == EButton::Primary ? TEXT("ui-seal")
+			: Kind == EButton::Tab || Kind == EButton::TabOn ? TEXT("ui-tab")
+			: Kind == EButton::Paper ? TEXT("click") : TEXT("ui-brass");
 		TSharedRef<SButton> B = SNew(SButton)
 			.ButtonStyle(&Style(Kind))
 			.IsEnabled(bEnabled)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda(MoveTemp(OnClick))
+			.OnClicked_Lambda([OnClick = MoveTemp(OnClick), Sound]
+			{
+				HallSound::Play(Sound);
+				return OnClick();
+			})
 			[Row];
 		if (OutButton) *OutButton = B;
 		return B;
@@ -381,6 +390,62 @@ namespace HallKit
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Ink(Text, 18, C::MapInk, false)],
 			EPaper::Letter, FMargin(16, 8));
+	}
+
+	// ------------------------------------------------------------------ prompts
+
+	namespace
+	{
+		/** Rebuilds its glyphs when the player switches between pad and keys. */
+		class SPrompt : public SCompoundWidget
+		{
+		public:
+			SLATE_BEGIN_ARGS(SPrompt) {}
+			SLATE_END_ARGS()
+			void Construct(const FArguments&, Hall::EPrompt InPrompt, float InHeight)
+			{
+				Which = InPrompt;
+				Height = InHeight;
+				SetVisibility(EVisibility::HitTestInvisible);
+				Rebuild();
+			}
+			virtual void Tick(const FGeometry& G, const double Time, const float Dt) override
+			{
+				if (bPad != Hall::bGamepad) Rebuild();
+			}
+		private:
+			void Rebuild()
+			{
+				bPad = Hall::bGamepad;
+				TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+				for (const FString& Name : Hall::PromptGlyphs(Which))
+				{
+					const FVector2D Natural = Hall::ImageSize(Name);
+					// Keycaps are drawn a little taller than pad roundels to read the same size.
+					const float H = Height * (Name.Contains(TEXT("key-")) ? 0.92f : 1.f);
+					Row->AddSlot().AutoWidth().Padding(1, 0)[Picture(Name, H * Natural.X / FMath::Max(1.0, Natural.Y), H)];
+				}
+				ChildSlot[Row];
+			}
+			Hall::EPrompt Which = Hall::EPrompt::Confirm;
+			float Height = 26.f;
+			bool bPad = false;
+		};
+	}
+
+	TSharedRef<SWidget> Prompt(Hall::EPrompt P, float Height)
+	{
+		return SNew(SPrompt, P, Height);
+	}
+
+	TSharedRef<SWidget> PromptHint(Hall::EPrompt P, const FString& Label, float Height, bool bOnDark)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Prompt(P, Height)]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(6, 0, 0, 0)
+			[
+				LabelText(Label, Height * 0.68f, bOnDark ? C::OnDarkMuted : C::MapInkMuted, bOnDark)
+			];
 	}
 
 	// ------------------------------------------------------------------ glow and torches
@@ -495,7 +560,12 @@ namespace HallKit
 			TSharedRef<SButton> B = SNew(SButton)
 				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 				.ContentPadding(0)
-				.OnClicked(InArgs._OnClicked)
+				.OnClicked_Lambda([Clicked = InArgs._OnClicked]
+				{
+					HallSound::Play(TEXT("ui-cloth"));
+					return Clicked.IsBound() ? Clicked.Execute() : FReply::Handled();
+				})
+				.OnHovered_Lambda([] { HallSound::Play(TEXT("ui-cloth"), 0.35f); })
 				.ToolTipText(InArgs._ToolTipText)
 				[Hanging];
 			ButtonWidget = B;

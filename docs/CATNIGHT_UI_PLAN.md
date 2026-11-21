@@ -796,8 +796,39 @@ Deviations, on purpose: the instruction ribbon sits at the bottom of the island 
 it covered the island's top); Continue is the sealed letter rather than a fourth banner (the
 skyline stays at three); decrees live in the right column, never over the island.
 
-Next: the materials pass (§4.4), the 3D hall (UI-2), 3D dice and card flights (§4.6), toasts,
-hex map notes, the Chronicle scroll, gamepad glyphs and CommonUI, string table, sounds.
+### Second pass (2026-11-21)
+
+- **Sound (§4.7, UI-8 part):** `Tools/render_sfx.mjs` runs the web game's `synth.ts` recipes
+  unchanged on an OfflineAudioContext in the repo's Chromium and writes WAVs to
+  `Content/Slate/Sounds`, plus new UI foley in the same style (parchment, brass click, wax stamp,
+  cloth, wooden tab, a hunting horn for your turn). `Ui/HallSound` plays them as procedural waves
+  (no imported assets): every HallKit press by kind, banner hover/click, decrees arriving, and the
+  match events as the web's `SOUND_FOR`. Settings → Effects 0–10.
+- **Button prompts (§4.5, §9):** engraved glyphs rendered by `render_ui.mjs` (`glyphs/`: A/B/X/Y,
+  LB/RB/LT/RT, sticks, Menu/View, keycaps, the mouse with the button in use). An input pre-processor
+  tells pad from mouse and keys; `HallKit::Prompt`/`PromptHint` switch live. The hint row under the
+  ribbon shows only what applies now. Pad: Y rolls / ends the turn, X undoes, View opens the Herald,
+  triggers zoom (plus the existing shoulders, A, right stick, Menu).
+- **Dice and card flights (§4.6):** `ACatnightHallActor` throws two bone dice across the sea off the
+  island's lower right on every roll and leaves them on the rolled faces (reduce motion: placed);
+  `SCardFlights` flies gained cards from the producing tiles (projected from the 3D table or the
+  chart) into their places in Thy Treasury, turning face up.
+- **The hall (UI-2, first part):** the same actor dresses the space round the war table:
+  flagstones, a rug, oak legs, candles on the table's corners, stone walls with pillars, flickering
+  torches and banners in the players' colours. Nothing in it casts shadows or reaches the island
+  with its light, so the board looks exactly as before; Settings → The hall turns it off. Not yet:
+  the Blender architecture, windows with moonlight, per-screen cameras and the menu push-in.
+- **Torchlight on the column (§4.4, a first step):** a warm, flickering pool from above over the
+  right column and shade at its foot. Real UI materials (`M_UI_*`) remain to do.
+- **Playthrough by UI (§11.2 "focus" check, partly):** `-CatnightUiDrive=mouse|pad` plays the
+  person's seats through the real controls with simulated input (`Table/UiDriver.cpp`) and logs
+  what went through the UI. Mouse, one person and three bots: 137 of 137 moves through the UI (the
+  table was turned twice when a spot lay under the Herald or the Lists). Pad, two people in
+  hot-seat: 348 of 348, including 126 curtain reveals. In pad mode the driver puts focus on the
+  button it wants before pressing A, so D-pad navigation between buttons is not covered.
+
+Next: real UI materials, the Blender hall and per-screen cameras, toasts, hex map notes, the
+Chronicle scroll, CommonUI and focus navigation tests, string table, music.
 
 ## 13. Decisions for the owner
 

@@ -1,6 +1,18 @@
 #include "Table/STable.h"
 
 #include "CatnightRules/Rules.h"
+#include "Board/CatnightBoardActor.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+#include "Table/SCardFlights.h"
+#include "Table/UiDriver.h"
+#include "Widgets/Images/SImage.h"
+#include "Ui/HallSound.h"
+#include "UnrealClient.h"
+#include "Widgets/SViewport.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Lexicon.h"
@@ -174,6 +186,43 @@ int32 SCatnightBoard::HitTarget(const FLayout& L, FVector2f Local) const
 		}
 	}
 	return Best;
+}
+
+TOptional<FVector2D> SCatnightBoard::ScreenOf(FBoardTargets::EKind Kind, int32 Index) const
+{
+	const Topology& T = GetTopology();
+	FVector2f Lattice;
+	switch (Kind)
+	{
+	case FBoardTargets::EKind::Vertex: Lattice = VertexLattice[Index]; break;
+	case FBoardTargets::EKind::Edge: Lattice = (VertexLattice[T.edgeVertices[Index][0]] + VertexLattice[T.edgeVertices[Index][1]]) * 0.5f; break;
+	case FBoardTargets::EKind::Hex:
+	{
+		const Axial& A = T.hexes[Index];
+		Lattice = FVector2f(static_cast<float>(2 * A.q + A.r), static_cast<float>(3 * A.r));
+		break;
+	}
+	default: return {};
+	}
+	if (!View->b3D)
+	{
+		const FGeometry& G = GetCachedGeometry();
+		return FVector2D(G.LocalToAbsolute(Layout(G).Lattice(Lattice.X, Lattice.Y)));
+	}
+	// The 3D table: the same lattice in world space (ACatnightBoardActor::LatticeToWorld, actor at
+	// the origin), projected by the player's camera into the game viewport.
+	const float R = ACatnightBoardActor::R;
+	const FVector World(-Lattice.Y * 0.5f * R, Lattice.X * 0.8660254f * R, 0.f);
+	UGameViewportClient* Client = GEngine ? GEngine->GameViewport : nullptr;
+	APlayerController* PC = Client && Client->GetWorld() ? Client->GetWorld()->GetFirstPlayerController() : nullptr;
+	FVector2D Pixel;
+	if (!PC || !Client->Viewport || !UGameplayStatics::ProjectWorldToScreen(PC, World, Pixel, false)) return {};
+	const TSharedPtr<SViewport> Widget = Client->GetGameViewportWidget();
+	if (!Widget) return {};
+	const FGeometry& VG = Widget->GetCachedGeometry();
+	const FIntPoint Px = Client->Viewport->GetSizeXY();
+	if (Px.X <= 0 || Px.Y <= 0) return {};
+	return FVector2D(VG.GetAbsolutePosition()) + Pixel * (FVector2D(VG.GetAbsoluteSize()) / FVector2D(Px));
 }
 
 void SCatnightBoard::CycleFocus(int32 Step)
@@ -467,10 +516,26 @@ void STable::Construct(const FArguments& InArgs)
 					+ SOverlay::Slot()[HallKit::StoneWall()]
 					+ SOverlay::Slot()
 					[
-						SNew(SScrollBox)
+						SAssignNew(PanelScroll, SScrollBox)
 						+ SScrollBox::Slot().Padding(FMargin(20, 16, 20, 16))
 						[
 							SAssignNew(PanelSlot, SBox)
+						]
+					]
+					// Torchlight on the column (plan §4.4): a warm, flickering pool from a torch above
+					// that brass, oak and parchment catch, falling off into shade at the foot.
+					+ SOverlay::Slot().VAlign(VAlign_Top).Padding(FMargin(-260, -420, -260, 0))
+					[
+						SNew(SBox).HeightOverride(1100).Visibility(EVisibility::HitTestInvisible)
+						[
+							SNew(HallKit::SGlow).Seed(4.2f).Strength(0.2f).Color(FLinearColor(1.f, 0.66f, 0.32f))
+						]
+					]
+					+ SOverlay::Slot().VAlign(VAlign_Bottom)
+					[
+						SNew(SBox).HeightOverride(320).Visibility(EVisibility::HitTestInvisible)
+						[
+							SNew(SImage).Image(Hall::Image(TEXT("fx/shade-foot"))).ColorAndOpacity(FLinearColor(1, 1, 1, 0.75f))
 						]
 					]
 				]
@@ -480,8 +545,54 @@ void STable::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(OverlaySlot, SBox)
 		]
+		+ SOverlay::Slot()
+		[
+			SAssignNew(Flights, SCardFlights)
+		]
 	];
+	SeenSerial = Match->EventSerial;
+	bPadShown = Hall::bGamepad;
 	Refresh();
+	CatnightUiDriver::AttachIfRequested(SharedThis(this));
+}
+
+void STable::Present()
+{
+	SeenSerial = Match->EventSerial;
+	const GameState& S = Match->State();
+	const int32 Viewer = Me();
+	const bool bHumanViewer = S.players[Viewer].kind == SeatKind::Human;
+	HallSound::PlayEvents(Match->LastEvents, Viewer, bHumanViewer);
+	// No flights under a curtain or across the victory sheet.
+	if (!Flights || Match->NeedsHandoff() || Match->IsEnded()) return;
+	const Topology& T = GetTopology();
+	for (const GameEvent& E : Match->LastEvents)
+	{
+		const Json* Type = E.Get("type");
+		const Json* Roll = E.Get("roll");
+		if (!Type || !Type->IsStr() || Type->AsStr() != "ResourcesProduced" || !Roll || !Roll->IsInt()) continue;
+		// Each of the viewer's buildings on a producing tile sends its cards from that tile.
+		float Delay = 0.f;
+		for (const HexTile& H : S.board.hexes)
+		{
+			if (H.token != Roll->AsInt() || H.id == S.wraithHex) continue;
+			const std::optional<Resource> Res = TerrainResource(H.terrain);
+			if (!Res) continue;
+			int32 Count = 0;
+			for (int32 V : T.hexVertices[H.id])
+				if (const std::optional<Building>& B = S.buildings.at[V]; B && B->owner == Viewer) Count += B->kind == BuildingKind::Citadel ? 2 : 1;
+			const TSharedPtr<SWidget>& Card = HandCards[static_cast<int32>(*Res)];
+			const TOptional<FVector2D> From = Board ? Board->ScreenOf(FBoardTargets::EKind::Hex, H.id) : TOptional<FVector2D>();
+			if (!Count || !Card || !From) continue;
+			const FGeometry& CG = Card->GetCachedGeometry();
+			const FVector2D To = CG.GetAbsolutePosition() + CG.GetAbsoluteSize() * 0.5f;
+			for (int32 I = 0; I < Count; I++)
+			{
+				Flights->Launch(Hall::CardName(*Res), *From + FVector2D(I * 10.f, -I * 6.f), To, Delay + 0.35f);
+				Delay += 0.09f;
+			}
+		}
+	}
 }
 
 STable::~STable()
@@ -492,6 +603,13 @@ STable::~STable()
 void STable::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	if (Match->EventSerial != SeenSerial) Present();
+	// Prompts and hints follow the device in use.
+	if (bPadShown != Hall::bGamepad)
+	{
+		bPadShown = Hall::bGamepad;
+		bDirty = true;
+	}
 	if (bDirty)
 	{
 		bDirty = false;
@@ -534,8 +652,10 @@ void STable::Refresh()
 		if (!bOverlay) Primary = PanelPrimary;
 		OverlaySlot->SetContent(Over);
 		OverlaySlot->SetVisibility(bOverlay ? EVisibility::Visible : EVisibility::SelfHitTestInvisible);
-		// Full-screen decisions (curtain, leave, victory) stand alone: the island's HUD steps back.
+		// Full-screen decisions (curtain, leave, victory) stand alone: the island's HUD steps back,
+		// and no card still in the air crosses them.
 		if (HudSlot) HudSlot->SetVisibility(bOverlay ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible);
+		if (bOverlay && Flights) Flights->Clear();
 	}
 	if (Board) Board->Invalidate(EInvalidateWidgetReason::Paint);
 	// Keys and gamepads: the focused button was rebuilt, so hand focus to the new main one.
@@ -655,9 +775,16 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 		}
 		return Redraw();
 	}
-	if (K == EKeys::Z && InKeyEvent.IsControlDown())
+	if ((K == EKeys::Z && InKeyEvent.IsControlDown()) || K == EKeys::Gamepad_FaceButton_Left)
 	{
-		Match->Undo();
+		if (Match->Undo()) HallSound::Play(TEXT("ui-brass"));
+		return Redraw();
+	}
+	// The Herald: View on a pad, L on keys.
+	if (K == EKeys::Gamepad_Special_Left || K == EKeys::L)
+	{
+		bFullLog = !bFullLog;
+		HallSound::Play(TEXT("ui-parchment"));
 		return Redraw();
 	}
 	// Shoulders reach the board from anywhere when there is something to place.
@@ -668,12 +795,20 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 		Board->CycleFocus(bNext ? 1 : -1);
 		return FReply::Handled().SetUserFocus(Board.ToSharedRef(), EFocusCause::Navigation);
 	}
-	// Space rolls or ends the turn, as on the web board.
-	if (K == EKeys::SpaceBar && Match->IsHumanToAct() && !Match->NeedsHandoff() && !bLeaving)
+	// Space (Y on a pad) rolls or ends the turn, as on the web board.
+	if ((K == EKeys::SpaceBar || K == EKeys::Gamepad_FaceButton_Top) && Match->IsHumanToAct() && !Match->NeedsHandoff() && !bLeaving)
 	{
 		const GameState& S = Match->State();
-		if (S.phase.kind == PhaseKind::Roll && S.currentPlayer == Me()) return Do(Action::Make(ActionType::RollDice, Me()));
-		if (S.phase.kind == PhaseKind::Main && S.currentPlayer == Me() && Build == EBuild::None) return Do(Action::Make(ActionType::EndTurn, Me()));
+		if (S.phase.kind == PhaseKind::Roll && S.currentPlayer == Me())
+		{
+			HallSound::Play(TEXT("ui-seal"));
+			return Do(Action::Make(ActionType::RollDice, Me()));
+		}
+		if (S.phase.kind == PhaseKind::Main && S.currentPlayer == Me() && Build == EBuild::None)
+		{
+			HallSound::Play(TEXT("ui-seal"));
+			return Do(Action::Make(ActionType::EndTurn, Me()));
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -693,6 +828,13 @@ FReply STable::OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogIn
 		if (K == EKeys::Gamepad_RightY)
 		{
 			View->MoveCamera(0.f, Value * 1.5f, 1.f);
+			return FReply::Handled();
+		}
+		// Triggers zoom: right in, left out.
+		if (K == EKeys::Gamepad_RightTriggerAxis || K == EKeys::Gamepad_LeftTriggerAxis)
+		{
+			const float Step = 1.f + 0.03f * Value;
+			View->MoveCamera(0.f, 0.f, K == EKeys::Gamepad_RightTriggerAxis ? 1.f / Step : Step);
 			return FReply::Handled();
 		}
 	}

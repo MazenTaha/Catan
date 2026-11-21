@@ -44,8 +44,21 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
   ```
 
   `render_ui.mjs` reads `design/hall-chart/assets` (the owner's local design pack) and the web
-  game's card art; it uses the repo's Playwright Chromium.
-- The real 3D hall, animated dice/placement, audio and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
+  game's card art; it uses the repo's Playwright Chromium. `node apps/catnight/Tools/render_ui.mjs
+  glyphs/` re-renders only the images whose names start with that prefix.
+- **Sounds:** `node apps/catnight/Tools/render_sfx.mjs` renders the web game's synthesized effects
+  (`apps/web/src/audio/synth.ts`, run unchanged in Chromium) and the UI foley to
+  `Content/Slate/Sounds/*.wav` (committed). `Ui/HallSound.*` plays them as procedural waves on
+  presses and match events; Settings → Effects sets the volume. Automation runs (`-unattended`)
+  stay silent unless `-CatnightSound` is given.
+- **Button prompts:** `Ui/HallStyle.*` watches input and switches every prompt between pad glyphs
+  and keys/mouse (`HallKit::Prompt`). Pad: A confirm, B back, Y roll / end turn, X undo, LB/RB pick
+  a spot, right stick turns the table, triggers zoom, View the Herald, Menu leave.
+- **Dice and the hall:** `Private/Board/CatnightHallActor.*`, spawned beside the board actor: the
+  bone dice on every roll and the hall round the table (Settings → The hall; `-CatnightNoHall`).
+  It casts no shadows and its lights stop short of the island, so the board looks as before.
+- **Card flights:** `Private/Table/SCardFlights.*` (gained cards fly into Thy Treasury).
+- The Blender hall with its own cameras, placement animation, music and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
   mouse/real-gamepad playthrough is still required.
 
 ## Rebuild the board artwork
@@ -95,6 +108,18 @@ Settings; `-CatnightFixture=<moves>` with `-CatnightFixturePhase=main|roll|setup
 `-CatnightFixtureSeed=<seed>`) lets bots play a seeded game until the person's seat must act in that
 phase, then hands it over: real positions for screenshots (`validation/ui/`).
 
+Playthrough through the UI: `-CatnightUiDrive=mouse|pad` plays the person's seats with simulated
+input on the real controls (clicks on buttons and 3D board spots, or pad keys), using the Medium
+bot's moves, and logs `CATNIGHT UIDRIVE done mode=… ui=… direct=… failed=…`. For a full game:
+
+```powershell
+& 'E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe' 'E:/Catan/apps/catnight/Catnight.uproject' -game -windowed -ResX=1600 -ResY=900 -CatnightSeed=drive1 -CatnightNoSave -CatnightBotDelay=0.05 -CatnightUiDrive=mouse -CatnightShot=drive.png -CatnightShotOnWin -log=drive.log
+```
+
+Add `-CatnightHotseat=2` to cover the curtain. Pad mode focuses the button it wants before pressing
+A, so it does not test D-pad navigation; neither mode replaces a hand playthrough.
+`-CatnightGamepad` starts (and keeps) the pad prompts for screenshots.
+
 3D table options: `-CatnightFlat` starts with the 2D chart;
 `-CatnightCamera=<yawDelta>,<pitchDelta>,<zoomFactor>` adjusts the default camera (degrees and
 factor, e.g. `-CatnightCamera=40,12,0.9`); `-CatnightPickTest` projects legal targets to the screen
@@ -105,8 +130,9 @@ three rules/match automation tests, not a substitute for manual mouse/gamepad pl
 3D camera controls: right or middle mouse drag or the right stick turns/tilts; the wheel zooms.
 The camera hint appears below the instruction. **Flat view / 3D view** toggles the board renderer.
 
-Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space rolls or
-ends the turn, Esc cancels or opens the menu, Ctrl+Z undoes.
+Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space or Y rolls
+or ends the turn, Esc or Menu cancels or opens the menu, Ctrl+Z or X undoes, L or View opens the
+Herald, the wheel or the triggers zoom.
 
 Tests (run `pnpm golden` once first):
 

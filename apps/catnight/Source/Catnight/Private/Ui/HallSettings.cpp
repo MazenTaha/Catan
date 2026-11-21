@@ -26,7 +26,10 @@ void FHallSettings::Load()
 	GConfig->GetInt(Section, TEXT("BotSpeed"), BotSpeed, GGameUserSettingsIni);
 	GConfig->GetBool(Section, TEXT("ReduceMotion"), bReduceMotion, GGameUserSettingsIni);
 	GConfig->GetBool(Section, TEXT("Start3D"), bStart3D, GGameUserSettingsIni);
+	GConfig->GetInt(Section, TEXT("Volume"), Volume, GGameUserSettingsIni);
+	GConfig->GetBool(Section, TEXT("Hall"), bHall, GGameUserSettingsIni);
 	BotSpeed = FMath::Clamp(BotSpeed, 0, 3);
+	Volume = FMath::Clamp(Volume, 0, 10);
 	Hall::bReduceMotion = bReduceMotion;
 }
 
@@ -37,6 +40,8 @@ void FHallSettings::Save() const
 	GConfig->SetInt(Section, TEXT("BotSpeed"), BotSpeed, GGameUserSettingsIni);
 	GConfig->SetBool(Section, TEXT("ReduceMotion"), bReduceMotion, GGameUserSettingsIni);
 	GConfig->SetBool(Section, TEXT("Start3D"), bStart3D, GGameUserSettingsIni);
+	GConfig->SetInt(Section, TEXT("Volume"), Volume, GGameUserSettingsIni);
+	GConfig->SetBool(Section, TEXT("Hall"), bHall, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 

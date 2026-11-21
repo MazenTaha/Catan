@@ -34,6 +34,8 @@ public:
 
 	/** Moves the key/gamepad focus to the next (or previous) legal target, in reading order. */
 	void CycleFocus(int32 Step);
+	/** Where a hex, vertex or edge is on screen (absolute Slate coordinates), on the chart or the 3D table. */
+	TOptional<FVector2D> ScreenOf(FBoardTargets::EKind Kind, int32 Index) const;
 
 private:
 	struct FLayout
@@ -81,9 +83,12 @@ public:
 	TSharedPtr<SWidget> FirstFocus() const;
 
 private:
+	friend class FUiDriver;  // Table/UiDriver.cpp plays through this UI with simulated input
 	enum class EBuild : uint8 { None, Road, Settlement, City };
 
 	void Refresh();
+	/** Turns the match's newest events into sounds and card flights (the web's advance()). */
+	void Present();
 	void UpdateTargets();
 	void OnPick(FBoardTargets::EKind Kind, int32 Index);
 	FReply Do(const catnight::Action& A);
@@ -117,12 +122,19 @@ private:
 	TSharedPtr<FCatnightBoardView> View;
 	FBoardTargets* Targets = nullptr;  // View->Targets
 	TSharedPtr<class SBox> PanelSlot;
+	TSharedPtr<class SScrollBox> PanelScroll;
 	TSharedPtr<class SBox> HudSlot;
 	TSharedPtr<class SBox> OverlaySlot;
 	ETab Tab = ETab::Build;
 	bool bFullLog = false;
 	TSharedPtr<SCatnightBoard> Board;
 	TSharedPtr<SWidget> Primary;  // the main button of the current panel or dialog
+	TSharedPtr<class SCardFlights> Flights;
+	/** The Treasury's five cards, where gained cards fly to. */
+	TSharedPtr<SWidget> HandCards[5];
+	uint32 SeenSerial = 0;
+	bool bDecreeShown = false;
+	bool bPadShown = false;
 	FDelegateHandle ChangedHandle;
 	/** Set by the match's change event; the panel is rebuilt on the next tick (never inside a click). */
 	bool bDirty = true;

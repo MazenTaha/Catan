@@ -12,6 +12,7 @@
 #include "Table/STable.h"
 #include "Ui/HallKit.h"
 #include "Ui/HallSettings.h"
+#include "Ui/HallSound.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -487,7 +488,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildRules()
 		+ SVerticalBox::Slot().AutoHeight()[Cost(TEXT("Dev. card"), {R::Wool, R::Grain, R::Ore}, TEXT("25 in the deck"))]
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Trade"), TEXT("Only the player whose turn it is trades. Offer cards to everyone or to chosen players; they accept, decline or counter. The bank trades 4 for 1, or 3 for 1 at a general harbour and 2 for 1 at a harbour of that resource, when you have a building on it."))]
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Development cards"), TEXT("Knight (move the robber, steal, counts for Largest Army), Road Building (two free roads), Year of Plenty (two cards from the bank), Monopoly (everyone gives you all of one resource) and Victory Point. One per turn, never on the turn you bought it."))]
-		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Keys"), TEXT("Space rolls or ends the turn. Arrows or shoulder buttons choose a spot on the board; Enter or A places it. Esc cancels or opens the menu; Ctrl+Z undoes. Drag with the right mouse button or use the right stick to turn the table."))];
+		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Keys"), TEXT("Space (Y) rolls or ends the turn. Arrows (LB / RB) choose a spot on the board; Enter (A) places it. Esc (Menu) cancels or opens the menu; Ctrl+Z (X) undoes; L (View) opens the Herald. Drag with the right mouse button or use the right stick to turn the table; the wheel (triggers) zooms. The prompts on screen follow whichever you use."))];
 
 	TSharedPtr<SWidget> BackButton;
 	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(1320)
@@ -557,9 +558,19 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Rule()]
 				+ SVerticalBox::Slot().AutoHeight()[LabelText(TEXT("¶ Gameplay"), 22, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Bot speed"), TEXT("How long the bots think before each move."), Speeds)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Sound"), 22, C::RubricDark)]
+				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Effects"), TEXT("Dice, building, trading and the hall's own sounds (0 is silent)."),
+					Stepper(S.Volume, [Apply](int32 V)
+					{
+						FHallSettings::Get().Volume = FMath::Clamp(V, 0, 10);
+						Apply();
+						HallSound::Play(TEXT("ui-brass"));
+					}, 0, 10))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Board"), 22, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Start on"), TEXT("The 3D war table, or the flat chart (you can switch in the game)."),
 					Pair(S.bStart3D, TEXT("3D table"), TEXT("Flat chart"), [](bool b) { FHallSettings::Get().bStart3D = b; }))]
+				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("The hall"), TEXT("Stone walls, torches, banners and candles round the war table (from the next start)."),
+					Pair(S.bHall, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bHall = b; }))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Access"), 22, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Reduce motion"), TEXT("No swaying banners, flickering torches or travelling pieces. Results always stay visible."),
 					Pair(S.bReduceMotion, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bReduceMotion = b; }))]
@@ -623,6 +634,17 @@ TSharedRef<SWidget> SCatnightRoot::BuildGallery()
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Stepper(3, [](int32) {}, 0, 9, true)]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10)[Banners]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)
+			[
+				// The button prompts follow the device in use (move the mouse or touch a pad).
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()[PromptHint(Hall::EPrompt::Confirm, TEXT("confirm"), 30)]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0, 0, 0)[PromptHint(Hall::EPrompt::Back, TEXT("back"), 30)]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0, 0, 0)[PromptHint(Hall::EPrompt::Primary, TEXT("roll / end turn"), 30)]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0, 0, 0)[PromptHint(Hall::EPrompt::Cycle, TEXT("choose a spot"), 30)]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0, 0, 0)[PromptHint(Hall::EPrompt::Undo, TEXT("undo"), 30)]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0, 0, 0)[PromptHint(Hall::EPrompt::Log, TEXT("herald"), 30)]
+			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 20)
 			[
 				SNew(SHorizontalBox)

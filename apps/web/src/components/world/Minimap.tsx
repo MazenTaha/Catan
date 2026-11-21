@@ -18,7 +18,7 @@ const SIZE = 188;
 /** The nearby view's zoom over the whole-island view. */
 const ZOOM = 2.6;
 /** The island art is painted once at this multiple of the dial, so the nearby view stays sharp. */
-const DETAIL = ZOOM;
+const DETAIL = ZOOM * R / 14;
 
 interface Props {
   state: GameState;
@@ -87,7 +87,7 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
     const g = c.getContext('2d')!;
     const { cx, cz, span } = fit.current;
     const k = bp / span;
-    const u = k; // pixels per metre
+    const u = k * R / 14; // Keep symbols readable as the physical island grows
     const P = (x: number, z: number): [number, number] => [(x - cx) * k + bp / 2, (z - cz) * k + bp / 2];
     const V = (v: string) => P(topo.vertexPos[v].x * R, topo.vertexPos[v].y * R);
     const hexPath = (i: number) => {
@@ -181,7 +181,7 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
       g.fill();
       g.stroke();
       g.fillStyle = h.kind === 'any' ? '#2a2420' : '#ffffff';
-      g.font = `700 ${2.1 * u}px Cinzel, serif`;
+      g.font = `700 ${2.1 * u}px "IM Fell DW Pica", serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.fillText(h.kind === 'any' ? '3:1' : '2:1', ox, oy + 0.15 * u);
@@ -203,11 +203,27 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
       g.fill();
       g.stroke();
       g.fillStyle = hex.token === 6 || hex.token === 8 ? '#b0302a' : '#2a2420';
-      g.font = `700 ${3.4 * u}px Cinzel, serif`;
+      g.font = `700 ${3.4 * u}px "IM Fell DW Pica", serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.fillText(String(hex.token), x, y + 0.25 * u);
     });
+
+    // The actual loop trails and work yards stay legible in the nearby view too.
+    const features = read();
+    g.strokeStyle = '#cbb68a';
+    g.lineWidth = 0.6 * u;
+    g.beginPath();
+    for (const p of features?.paths ?? []) {
+      g.moveTo(...P(p.ax, p.az));
+      g.lineTo(...P(p.bx, p.bz));
+    }
+    g.stroke();
+    g.fillStyle = '#60462e';
+    for (const p of features?.sites ?? []) {
+      const [x, y] = P(p.x, p.z);
+      g.fillRect(x - u, y - u, u * 2, u * 2);
+    }
 
     // Roads: the owner's colour over a dark kerb.
     for (const [e, owner] of Object.entries(state.causeways)) {
@@ -277,7 +293,7 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
       g.stroke();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [piecesKey, bp, seat, state.board]);
+  }, [piecesKey, bp, seat, state.board, read]);
 
   // ---------------------------------------------------------------- moving marks and the dial
   useEffect(() => {
@@ -288,7 +304,7 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
       const g = c.getContext('2d')!;
       const { cx, cz, span } = fit.current;
       const nearby = mode === 'nearby';
-      const scale = (px / span) * (nearby ? ZOOM : 1);
+      const scale = (px / span) * (nearby ? ZOOM * R / 14 : 1);
       const ox = nearby ? m.x : cx;
       const oz = nearby ? m.z : cz;
       const rot = nearby ? m.yaw : 0;
@@ -437,7 +453,7 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
       g.fill();
       g.stroke();
       g.fillStyle = '#f3e6d6';
-      g.font = `700 ${8 * dpr}px Cinzel, serif`;
+      g.font = `700 ${8 * dpr}px "IM Fell DW Pica", serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.fillText('N', nx, ny + 0.5 * dpr);
@@ -462,9 +478,9 @@ export const Minimap = memo(function Minimap({ state, seat, read, foe }: Props) 
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => setMode((m) => (m === 'island' ? 'nearby' : 'island'))}
       />
-      <span className="pointer-events-none absolute bottom-[3px] left-1/2 -translate-x-1/2 rounded-full bg-abyss/90 px-2 font-display text-[9px] uppercase tracking-[0.16em] text-[rgb(var(--antique))]">
+      <button type="button" className="hc-plaque hc-plaque--sm world-minimap-toggle" onPointerDown={(e) => e.stopPropagation()} onClick={() => setMode((m) => m === 'island' ? 'nearby' : 'island')} aria-label="Switch minimap view">
         {mode === 'island' ? 'Island' : 'Nearby'} · M
-      </span>
+      </button>
     </div>
   );
 });

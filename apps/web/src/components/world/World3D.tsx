@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { TERRAIN_RESOURCE, getTopology, type GameState, type Weapon } from '@hexfall/engine';
+import { TERRAIN_RESOURCE, getTopology, type GameState } from '@hexfall/engine';
 import { DEFAULT_DECOR, DEFAULT_LOOK, cleanDecor, cleanLook, type KingdomDecor } from '@hexfall/net';
 import { audio } from '../../audio/engine';
 import { COLOR_HEX, COMBAT_TEXT, RESOURCE_NAME, TERRAIN_NAME } from '../../lexicon';
@@ -18,21 +18,12 @@ import { World, type RemoteInfo } from './world';
 import type { WeaponState } from './combat';
 import { hourOf, stageName, daylight } from './daytime';
 import { Minimap } from './Minimap';
+import { MOVE_KEYS, weaponForKey } from './controls';
+import { WeaponHUD } from './WeaponHUD';
+import { HallLoader } from '../../ui/hall/Surfaces';
+import './worldHUD.css';
 
 const topo = getTopology();
-const MOVE_KEYS = new Set([
-  'KeyW',
-  'KeyA',
-  'KeyS',
-  'KeyD',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-  'ShiftLeft',
-  'ShiftRight',
-]);
-const WEAPON_KEYS: Record<string, Weapon> = { Digit1: 'sword', Digit2: 'revolver', Digit3: 'fist' };
 /** Bullets for games that started before weapon chests existed (kept for this visit only). */
 const OLD_GAME_BULLETS = 5;
 
@@ -88,6 +79,7 @@ export default function World3D({ state, seat, onExit }: Props) {
   const [weapon, setWeapon] = useState<WeaponState>({ weapon: 'fist', ammo: 0, armed: false, blocking: false });
   const [diving, setDiving] = useState(false);
   const [riding, setRiding] = useState(false);
+  const [crouching, setCrouching] = useState(false);
   const [oldAmmo, setOldAmmo] = useState(OLD_GAME_BULLETS);
   const touch = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
   const [stick, setStick] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
@@ -184,6 +176,7 @@ export default function World3D({ state, seat, onExit }: Props) {
               }
             },
             onRide: setRiding,
+            onCrouch: setCrouching,
             reduceMotion: reduce,
             renderScale: renderScaleRef.current,
             adaptive: adaptiveRef.current,
@@ -207,7 +200,7 @@ export default function World3D({ state, seat, onExit }: Props) {
       // Dev and benchmark builds: lets inspection scripts place the camera and read the board.
       if (PERF_HOOKS) dev.__world3d = { world: w, state: () => stateRef.current };
       w.setDecor(decorRef.current);
-      w.setPieces(stateRef.current);
+      w.setPieces(stateRef.current, useStore.getState().fx.buildings);
       // Every visit starts at one of the seat's own settlements or cities, picked at random.
       const scene = sceneBuilding();
       const homes = homesOf(stateRef.current, seat);
@@ -275,7 +268,7 @@ export default function World3D({ state, seat, onExit }: Props) {
     const w = worldRef.current;
     if (!w) return;
     w.setDecor(decorRef.current);
-    w.setPieces(stateRef.current);
+    w.setPieces(stateRef.current, useStore.getState().fx.buildings);
   }, [piecesKey]);
 
   // ------------------------------------------------------------ online: share and show positions
@@ -335,7 +328,7 @@ export default function World3D({ state, seat, onExit }: Props) {
           } else if (e.type === 'Slain' && e.killer === seat) {
             setNotice(`You slew ${name(e.victim)}${e.resource ? ` and took 1 ${RESOURCE_NAME[e.resource]}` : '. They owe you a card'}.`);
           }
-          if (e.type === 'ChestOpened' && e.player === seat) setNotice('A sword and a revolver with 5 bullets. 1 sword · 2 revolver · 3 fists');
+          if (e.type === 'ChestOpened' && e.player === seat) setNotice(COMBAT_TEXT.chestOpened);
           if (e.type === 'DuelStarted' && (e.target === seat || e.challenger === seat))
             setNotice(`Duel! Find ${name(e.target === seat ? e.challenger : e.target)}: the red ring on your map.`);
         }
@@ -369,6 +362,9 @@ export default function World3D({ state, seat, onExit }: Props) {
     setDiving(false);
     unlockedAt.current = performance.now();
     worldRef.current?.setBlock(false);
+    worldRef.current?.stopMovement();
+    drags.current.clear();
+    setStick(null);
   }, [host]);
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -378,6 +374,9 @@ export default function World3D({ state, seat, onExit }: Props) {
       if (!on) {
         unlockedAt.current = performance.now();
         worldRef.current?.setBlock(false);
+        worldRef.current?.stopMovement();
+        drags.current.clear();
+        setStick(null);
       }
     };
     const onMove = (e: MouseEvent) => {
@@ -405,6 +404,9 @@ export default function World3D({ state, seat, onExit }: Props) {
   const diveIn = () => {
     const wrap = wrapRef.current;
     if (!wrap) return;
+    drags.current.clear();
+    setStick(null);
+    if (worldRef.current) worldRef.current.joy.x = worldRef.current.joy.y = 0;
     wrap.focus({ preventScroll: true });
     setShowHelp(false);
     if (host) {
@@ -426,10 +428,11 @@ export default function World3D({ state, seat, onExit }: Props) {
 
   const refocus = () => wrapRef.current?.focus({ preventScroll: true });
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (WEAPON_KEYS[e.code]) {
+    const selection = weaponForKey(e.code);
+    if (selection) {
       e.preventDefault();
       e.stopPropagation();
-      if (!e.repeat && !worldRef.current?.selectWeapon(WEAPON_KEYS[e.code]) && e.code !== 'Digit3' && !armed)
+      if (!e.repeat && !worldRef.current?.selectWeapon(selection) && selection !== 'fist' && !armed)
         setNotice('No weapons yet: find the chest in one of your first two settlements.');
       return;
     }
@@ -440,10 +443,14 @@ export default function World3D({ state, seat, onExit }: Props) {
       return;
     }
     // E: chests, horses and doors; it never reaches the game's own keys (Space still works).
-    if ((e.code === 'KeyE' || e.key === 'e' || e.key === 'E') && !e.repeat) {
+    if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
       e.preventDefault();
       e.stopPropagation();
-      worldRef.current?.interact();
+      const w = worldRef.current;
+      if (w && !e.repeat && !w.keys.has('KeyE')) {
+        w.keys.add('KeyE');
+        w.interact();
+      }
       return;
     }
     if (e.key === 'Escape') {
@@ -469,9 +476,30 @@ export default function World3D({ state, seat, onExit }: Props) {
   };
   const onKeyUp = (e: React.KeyboardEvent) => worldRef.current?.keys.delete(e.code);
   const clearKeys = () => {
-    worldRef.current?.keys.clear();
+    worldRef.current?.stopMovement();
     worldRef.current?.setBlock(false);
+    drags.current.clear();
+    setStick(null);
   };
+
+  useEffect(() => {
+    const stop = () => {
+      worldRef.current?.stopMovement();
+      worldRef.current?.setBlock(false);
+      drags.current.clear();
+      setStick(null);
+    };
+    const hidden = () => { if (document.hidden) stop(); };
+    const released = (e: KeyboardEvent) => worldRef.current?.keys.delete(e.code);
+    window.addEventListener('blur', stop);
+    window.addEventListener('keyup', released);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('blur', stop);
+      window.removeEventListener('keyup', released);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
 
   const drags = useRef(
     new Map<
@@ -512,6 +540,7 @@ export default function World3D({ state, seat, onExit }: Props) {
     setShowHelp(false);
   };
   const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (isLocked()) return;
     const d = drags.current.get(e.pointerId);
     const world = worldRef.current;
     if (!d || !world) return;
@@ -572,10 +601,10 @@ export default function World3D({ state, seat, onExit }: Props) {
       tabIndex={0}
       role="application"
       aria-label={COMBAT_TEXT.label}
-      className="relative h-full w-full touch-none select-none overflow-hidden rounded-lg outline-none ring-gold/60 focus-visible:ring-2"
+      className="world-hall hc-scope relative h-full w-full touch-none select-none overflow-hidden outline-none"
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
-      onBlur={clearKeys}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) clearKeys(); }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -587,13 +616,13 @@ export default function World3D({ state, seat, onExit }: Props) {
       <div className="run-rush" aria-hidden />
 
       {failed && (
-        <div className="absolute inset-0 grid place-items-center bg-abyss/90 p-6 text-center text-bone">
-          <div>
-            <p className="font-display text-lg text-gold">3D view unavailable</p>
-            <p className="mt-1 text-sm text-muted">
+        <div className="world-unavailable absolute inset-0 grid place-items-center p-6 text-center">
+          <div className="hc-parchment p-5">
+            <p className="hc-label text-xl">3D view unavailable</p>
+            <p className="mt-1 text-base hc-ink-muted">
               This browser couldn’t start WebGL. The 2D board still has everything you need.
             </p>
-            <button className="btn mt-3" onClick={onExit}>
+            <button className="hc-plaque mt-3" onClick={onExit}>
               Back to the 2D board
             </button>
           </div>
@@ -601,8 +630,8 @@ export default function World3D({ state, seat, onExit }: Props) {
       )}
 
       {!failed && !ready && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-1/60 font-display text-gold">
-          Building the island…
+        <div className="world-loading pointer-events-none absolute inset-0">
+          <HallLoader>Building the island…</HallLoader>
         </div>
       )}
 
@@ -612,22 +641,22 @@ export default function World3D({ state, seat, onExit }: Props) {
           <div className="pointer-events-none absolute left-2 top-2 flex max-w-[60%] flex-col items-start gap-1.5">
             <Minimap state={state} seat={seat} read={readMap} foe={foe} />
             <div
-              className="rounded-md bg-abyss/75 px-3 py-1.5 text-bone shadow-panel backdrop-blur-sm"
+              className="hc-parchment world-note world-location"
               aria-live="polite"
               data-testid="world-location"
             >
               {tile ? (
                 <>
-                  <div className="font-display text-[15px] tracking-wide text-gold">
+                  <div className="hc-label text-[17px]">
                     {TERRAIN_NAME[tile.terrain]}
-                    {tile.token !== null && <span className="num ml-2 text-bone">{tile.token}</span>}
+                    {tile.token !== null && <span className="hc-num ml-2 hc-rubric">{tile.token}</span>}
                   </div>
-                  <div className="text-[12px] text-muted">
+                  <div className="text-[14px] hc-ink-muted">
                     {res ? `Produces ${RESOURCE_NAME[res]}` : 'Produces nothing'}
-                    {state.wraithHex === hex && <span className="text-ember"> · The robber is here</span>}
+                    {state.wraithHex === hex && <span className="hc-rubric"> · The robber is here</span>}
                   </div>
                   {owners.length > 0 && (
-                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-[12px]">
+                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-[14px]">
                       {owners.map((o) => (
                         <span key={o} className="flex items-center gap-1">
                           <span
@@ -641,9 +670,9 @@ export default function World3D({ state, seat, onExit }: Props) {
                   )}
                 </>
               ) : (
-                <div className="font-display text-[15px] tracking-wide text-gold">The shore</div>
+                <div className="hc-label text-[17px]">The shore</div>
               )}
-              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted" data-testid="world-time">
+              <div className="mt-0.5 flex items-center gap-1 text-[13px] hc-ink-muted" data-testid="world-time">
                 <Icon name={night ? 'moon' : 'sun'} size={12} />
                 {stageName(hour)}
               </div>
@@ -653,7 +682,8 @@ export default function World3D({ state, seat, onExit }: Props) {
           {/* Top right: mouse look. The character is designed from the title menu. */}
           <div className="absolute right-2 top-2 flex gap-1.5">
             <button
-              className={`btn !px-3 !py-1 text-[12px] ${diving ? 'btn-primary' : ''}`}
+              className="hc-plaque hc-plaque--sm"
+              aria-pressed={diving}
               onClick={diveIn}
               title="Mouse look: move the mouse to turn, click to strike, hold the right button to guard. Esc to leave."
               data-testid="dive-in"
@@ -674,7 +704,7 @@ export default function World3D({ state, seat, onExit }: Props) {
           {/* A duel: who you face, and a way out. */}
           {duel && (
             <div
-              className="absolute inset-x-0 top-2 mx-auto flex w-fit max-w-[50%] items-center gap-3 rounded-md border border-blood bg-abyss/90 px-3 py-1.5 text-[13px] text-bone shadow-panel"
+              className="hc-parchment world-note world-duel absolute inset-x-0 top-2 mx-auto flex w-fit max-w-[50%] items-center gap-3"
               role="status"
               data-testid="duel-banner"
             >
@@ -682,7 +712,7 @@ export default function World3D({ state, seat, onExit }: Props) {
               <span>
                 {inDuel && foe !== null ? (
                   <>
-                    Duel with <b className="text-ember">{state.players[foe].name}</b>. The game waits until one of
+                    Duel with <b className="hc-rubric">{state.players[foe].name}</b>. The game waits until one of
                     you falls.
                   </>
                 ) : (
@@ -693,7 +723,7 @@ export default function World3D({ state, seat, onExit }: Props) {
               </span>
               {inDuel && (
                 <button
-                  className="btn btn-danger !px-2 !py-0.5 text-[12px]"
+                  className="hc-paper-btn hc-paper-btn--danger hc-paper-btn--sm"
                   onClick={() => dispatch({ type: 'YieldDuel', player: seat })}
                 >
                   Yield
@@ -704,13 +734,13 @@ export default function World3D({ state, seat, onExit }: Props) {
 
           {!duel && targetHealth !== null && (
             <div
-              className="pointer-events-none absolute left-1/2 top-3 w-40 -translate-x-1/2 rounded-md border border-iron bg-abyss/90 p-2 text-center text-[12px] text-bone"
+              className="hc-parchment world-note world-target pointer-events-none absolute left-1/2 top-3 w-40 -translate-x-1/2 text-center"
               data-testid="combat-target"
               aria-live="polite"
             >
-              <div className="font-display text-gold">{COMBAT_TEXT.target}</div>
+              <div className="hc-label">{COMBAT_TEXT.target}</div>
               <meter
-                className="mt-1 h-2 w-full accent-gold"
+                className="world-meter mt-1 h-2 w-full"
                 min={0}
                 max={100}
                 value={targetHealth}
@@ -722,73 +752,56 @@ export default function World3D({ state, seat, onExit }: Props) {
             </div>
           )}
 
-          {/* Bottom left: your health (live fights) and what you carry. */}
-          <div
-            className="pointer-events-none absolute bottom-3 left-2 rounded-md bg-abyss/80 px-3 py-1.5 text-[12px] text-bone shadow-panel"
-            data-testid="my-health"
-          >
-            {pvp && (
-              <div className="flex items-center gap-2">
-                <span className="font-display text-gold">Health</span>
-                <meter
-                  className="h-2 w-28"
-                  min={0}
-                  max={100}
-                  low={30}
-                  high={60}
-                  optimum={100}
-                  value={health}
-                  aria-label="Your health"
-                />
-                <span className="num">{health}</span>
-              </div>
-            )}
-            <div className="text-muted">
-              {riding
-                ? 'E to dismount'
-                : armed
-                  ? `Revolver: ${ammo} bullet${ammo === 1 ? '' : 's'} left this game`
-                  : 'No weapons yet: search your first settlements for the chest'}
-            </div>
-          </div>
-
-          <div className="absolute bottom-16 right-2 flex max-w-[95%] flex-wrap justify-end gap-2 rounded-md border border-iron bg-abyss/90 p-2">
-            <div className="flex items-center gap-1" role="group" aria-label={COMBAT_TEXT.weapon}>
-              {(['sword', 'revolver', 'fist'] as const).map((kind, i) => (
-                <button
-                  key={kind}
-                  className={`btn !px-2 !py-1 text-[12px] ${weapon.weapon === kind ? 'btn-primary' : ''}`}
-                  aria-pressed={weapon.weapon === kind}
-                  disabled={kind !== 'fist' && !armed}
-                  title={kind !== 'fist' && !armed ? 'Find your weapon chest first' : undefined}
-                  onClick={() => {
-                    worldRef.current?.selectWeapon(kind);
-                    refocus();
-                  }}
-                >
-                  {COMBAT_TEXT[kind]}
-                  {kind === 'revolver' && armed && <span className="num ml-1 text-[11px] opacity-80">{ammo}</span>}{' '}
-                  <kbd>{i + 1}</kbd>
-                </button>
-              ))}
-            </div>
-            <button
-              className="btn !px-3 !py-1 text-[12px]"
-              onClick={() => {
-                worldRef.current?.practice();
-                refocus();
-              }}
+          {/* Health and context stay separate from the equipped weapon and ammunition. */}
+          {(pvp || riding || !armed) && (
+            <div
+              className="hc-parchment world-note world-health pointer-events-none absolute bottom-3 left-2"
+              data-testid="my-health"
             >
-              {COMBAT_TEXT.practice}
-            </button>
-          </div>
+              {pvp && (
+                <div className="flex items-center gap-2">
+                  <span className="hc-label">Health</span>
+                  <meter
+                    className="world-meter h-2 w-28"
+                    min={0}
+                    max={100}
+                    low={30}
+                    high={60}
+                    optimum={100}
+                    value={health}
+                    aria-label="Your health"
+                  />
+                  <span className="hc-num">{health}</span>
+                </div>
+              )}
+              <div className="hc-ink-muted">
+                {riding
+                  ? 'E to dismount'
+                  : !armed ? 'No weapons yet: search your first settlements for the chest' : null}
+              </div>
+            </div>
+          )}
+
+          <WeaponHUD
+            weapon={weapon.weapon}
+            armed={armed}
+            ammo={ammo}
+            onSelect={(kind) => { worldRef.current?.selectWeapon(kind); refocus(); }}
+            onPractice={() => { worldRef.current?.practice(); refocus(); }}
+          />
+          {!riding && (
+            <div className="world-stance hc-parchment" data-crouching={crouching} data-testid="crouch-status" role="status">
+              <kbd>Ctrl</kbd>
+              {crouching ? COMBAT_TEXT.sneaking : COMBAT_TEXT.crouch}
+            </div>
+          )}
 
           {showHelp && (
-            <div className="pointer-events-none absolute right-2 top-12 w-fit max-w-[46%] rounded-md bg-abyss/75 px-3 py-1.5 text-right text-[12px] text-bone backdrop-blur-sm">
+            <div className="hc-parchment world-note world-help pointer-events-none absolute right-2 top-14 w-fit max-w-[46%] text-right">
               {touch ? (
                 <>
-                  Press and drag at the <b className="text-gold">bottom-left</b> to walk ·{' '}
-                  <b className="text-gold">drag</b> elsewhere to look
+                  Press and drag at the <b className="hc-rubric">bottom-left</b> to walk ·{' '}
+                  <b className="hc-rubric">drag</b> elsewhere to look
                 </>
               ) : (
                 COMBAT_TEXT.help
@@ -798,10 +811,10 @@ export default function World3D({ state, seat, onExit }: Props) {
 
           {hint && !showHelp && (
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-14 mx-auto flex w-fit items-center gap-2 rounded-md bg-abyss/80 px-3 py-1.5 text-[13px] text-bone shadow-panel backdrop-blur-sm"
+              className="hc-parchment world-note world-hint pointer-events-none absolute inset-x-0 bottom-14 mx-auto flex w-fit items-center gap-2"
               data-testid="world-hint"
             >
-              <kbd className="rounded border border-gold/70 bg-surface-2 px-1.5 font-display text-[12px] text-gold">
+              <kbd className="world-key">
                 E
               </kbd>
               {hint}
@@ -810,7 +823,7 @@ export default function World3D({ state, seat, onExit }: Props) {
 
           {notice && (
             <div
-              className="pointer-events-none absolute inset-x-0 top-24 mx-auto w-fit max-w-[50%] rounded-md bg-abyss/85 px-3 py-1.5 text-center text-[13px] text-bone shadow-panel"
+              className="hc-parchment world-note world-notice pointer-events-none absolute inset-x-0 top-24 mx-auto w-fit max-w-[50%] text-center"
               role="status"
               data-testid="world-notice"
             >

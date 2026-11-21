@@ -29,15 +29,13 @@ async function prepare(page: Page, name: string, color: string, problems: string
 
 /** Places a settlement or road if this page is being asked to. */
 async function placeIfAsked(page: Page): Promise<boolean> {
-  const spot = page.locator('[aria-label^="Place a Settlement"]').first();
-  if (await spot.isVisible().catch(() => false)) {
-    await spot.click({ force: true });
-    return true;
-  }
-  const road = page.locator('[aria-label^="Build a Road"]').first();
-  if (await road.isVisible().catch(() => false)) {
-    await road.click({ force: true });
-    return true;
+  for (const label of ['Place a Settlement', 'Build a Road']) {
+    const target = page.locator(`[aria-label^="${label}"]`).first();
+    if (await target.isVisible().catch(() => false)) {
+      // Server acknowledgement can remove the old targets before the next click.
+      const clicked = await target.click({ force: true, timeout: 1000 }).then(() => true, () => false);
+      if (clicked) return true;
+    }
   }
   return false;
 }
@@ -49,6 +47,17 @@ test('online: host shares a room code, a friend joins, and both play the opening
   const problems: string[] = [];
   const host = await (await browser.newContext()).newPage();
   const guest = await (await browser.newContext()).newPage();
+  // Hold settings acknowledgements until both edits are sent, as on a slower connection.
+  let holdLobby = false;
+  const lobbyReplies: (() => void)[] = [];
+  await host.routeWebSocket('**/ws', (route) => {
+    const server = route.connectToServer();
+    server.onMessage((message) => {
+      if (holdLobby && JSON.parse(message.toString()).t === 'lobby')
+        lobbyReplies.push(() => route.send(message));
+      else route.send(message);
+    });
+  });
   await prepare(host, 'Mazen', 'crimson', problems);
   await prepare(guest, 'Sara', 'crimson', problems);
 
@@ -59,8 +68,12 @@ test('online: host shares a room code, a friend joins, and both play the opening
   await expect(codeEl).toBeVisible();
   const code = (await codeEl.innerText()).trim();
   expect(code).toMatch(/^[A-Z]+-\d{2}$/);
+  holdLobby = true;
   await host.getByRole('button', { name: '3 players' }).click();
   await host.getByTestId('seed').fill('online-e2e-1');
+  await expect.poll(() => lobbyReplies.length).toBeGreaterThanOrEqual(2);
+  holdLobby = false;
+  for (const reply of lobbyReplies.splice(0)) reply();
   await host.getByRole('button', { name: 'Seat 1' }).click();
 
   // A wrong code is explained, then the right one gets the friend in.

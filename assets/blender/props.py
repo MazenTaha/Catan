@@ -305,13 +305,13 @@ def stump_body(k: Kit, r: float, h: float, seed: int, jag=0.0):
         top.normal_update()
         k.add(top, None, HEART, M_WOOD, cfn=lambda p, n: HEART if p.z < h + jag * 0.5 else RING)
     else:
-        fr = [0.96, 0.72, 0.5, 0.28, 0.0]
+        fr = [1.0, 0.72, 0.5, 0.28, 0.0]
         rs = []
         for s in fr:
             if s == 0:
-                rs.append([top.verts.new((0, 0, h + 0.005))] * 14)
+                rs.append([top.verts.new((0, 0, h))] * 14)
             else:
-                rs.append([top.verts.new((math.cos(TAU * i / 14) * r * s * wob[i], math.sin(TAU * i / 14) * r * s * wob[i], h + 0.005)) for i in range(14)])
+                rs.append([top.verts.new((math.cos(TAU * i / 14) * r * s * wob[i], math.sin(TAU * i / 14) * r * s * wob[i], h)) for i in range(14)])
         for j in range(4):
             for i in range(14):
                 q = [rs[j][i], rs[j][(i + 1) % 14], rs[j + 1][(i + 1) % 14], rs[j + 1][i]]
@@ -369,15 +369,17 @@ def log(k: Kit, M: Matrix, L: float, r: float, seed: int):
     for zc, sgn in ((-L / 2, -1), (L / 2, 1)):
         cap = bmesh.new()
         rs = []
+        end_r = r * (1.0 if sgn < 0 else 0.98)
         for s in (1.0, 0.66, 0.33, 0.0):
             if s == 0:
                 rs.append([cap.verts.new((0, 0, zc))] * 12)
             else:
-                rs.append([cap.verts.new((math.cos(TAU * i / 12) * r * s * wob[i], math.sin(TAU * i / 12) * r * s * wob[i], zc)) for i in range(12)])
+                rs.append([cap.verts.new((math.cos(TAU * i / 12) * end_r * s * wob[i], math.sin(TAU * i / 12) * end_r * s * wob[i], zc)) for i in range(12)])
         for j in range(3):
             for i in range(12):
                 q = list(dict.fromkeys([rs[j][i], rs[j][(i + 1) % 12], rs[j + 1][(i + 1) % 12], rs[j + 1][i]]))
-                cap.faces.new(q if sgn < 0 else list(reversed(q)))
+                # Outer-to-inner rings wind towards +Z; the two exposed cuts face out.
+                cap.faces.new(q if sgn > 0 else list(reversed(q)))
         cap.normal_update()
         k.add(cap, M, HEART, M_WOOD, jit=0.02,
               cfn=lambda p, n: RING if int(((M.inverted() @ p).xy.length) / r * 6) % 2 else HEART)
@@ -602,7 +604,8 @@ def build_farm(M):
     for x in (-0.95, 0.95):
         k.add(cube(0.2, 0.2, 1.45, 0.03), T((x, 0, 0)), WOOD, M_WOOD)
         k.add(lathe([(0.13, 1.45), (0.001, 1.6)], 4), T((x, 0, 0), (0, 0, math.pi / 4)), WOOD_LT, M_WOOD)
-    leaf = T((-0.82, 0, 0.18))
+    # The island's gate is open: its leaf folds beside the hinge, clear of the trail.
+    leaf = T((-0.82, 0, 0.18), (0, 0, math.radians(100)))
     for z in (0.05, 0.5, 0.95):
         k.add(cube(1.62, 0.07, 0.12, 0.015), leaf @ T((0.81, 0, z)), PLANK, M_WOOD)
     for x in (0.04, 1.58):

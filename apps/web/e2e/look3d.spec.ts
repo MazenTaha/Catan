@@ -38,6 +38,7 @@ interface View {
 async function views(page: Page): Promise<View[]> {
   return page.evaluate(() => {
     type W = {
+      radius: number;
       landHexes: { id: number; x: number; z: number }[];
       walkable: { ax: number; az: number; bx: number; bz: number }[];
       pieceColliders: { ax: number; az: number; r: number }[];
@@ -45,7 +46,7 @@ async function views(page: Page): Promise<View[]> {
     const dev = (window as unknown as { __world3d: { world: W; state: () => { board: { hexes: { terrain: string }[] } } } }).__world3d;
     const w = dev.world;
     const hexes = dev.state().board.hexes;
-    const R = 14;
+    const R = w.radius;
     const lookAt = (x: number, z: number, tx: number, tz: number) => Math.atan2(-(tx - x), -(tz - z));
     const first = (t: string) => w.landHexes.find((h) => hexes[h.id].terrain === t)!;
     const out: View[] = [];
@@ -189,7 +190,8 @@ test('3D walk look and cost', async ({ page }) => {
   const rows: string[] = [];
   for (const v of list) {
     await page.evaluate((v) => {
-      type W = { x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __ground?: (x: number, z: number) => number };
+      type W = {
+      radius: number; x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __ground?: (x: number, z: number) => number };
       const w = (window as unknown as { __world3d: { world: W } }).__world3d.world;
       w.__ground ??= w.groundAt.bind(w);
       const g = w.__ground;

@@ -36,7 +36,7 @@ import village  # noqa: E402
 for m in (common, textures, flora, rocks, village, horse, knight, props, concept_kit):
     importlib.reload(m)
 
-FAMILIES = ('textures', 'flora', 'rocks', 'village', 'horse', 'knight', 'props', 'concept_kit')
+FAMILIES = ('textures', 'flora', 'rocks', 'village', 'horse', 'knight', 'props', 'concept_kit', 'supplies')
 
 
 def image(name: str, png: str):
@@ -68,6 +68,8 @@ def main(which=FAMILIES):
         report['props'] = props.build()
     if 'concept_kit' in which:
         report['concept_kit'] = concept_kit.build()
+    if 'supplies' in which:
+        report['supplies'] = concept_kit.build_supplies()
     for family, stats in report.items():
         if family == 'textures':
             continue

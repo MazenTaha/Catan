@@ -1,0 +1,100 @@
+/* Hall controls and parchment textures, inset around the live world. */
+.world-hall {
+  font-family: var(--font-body);
+  color: var(--map-ink);
+  border: 3px solid var(--oak-deep);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px var(--hc-gold),
+    0 6px 18px #0006;
+}
+.world-hall .world-note {
+  padding: 8px 11px;
+  font-size: 15px;
+  line-height: 1.25;
+  text-shadow: none;
+}
+.world-location {
+  max-width: 230px;
+}
+.world-unavailable {
+  background: #1a120bd9;
+}
+.world-loading {
+  background: #1a120b80;
+}
+.world-duel {
+  border: 1px solid var(--rubric-dark);
+}
+.world-health {
+  max-width: 43%;
+}
+.world-hint {
+  max-width: 44%;
+}
+.world-hall .world-key,
+.world-stance kbd {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px 5px;
+  border: 1px solid var(--map-ink);
+  border-radius: 1px;
+  background: var(--paper-card);
+  color: var(--map-ink);
+  font: 15px/1 var(--font-label);
+}
+.world-stance {
+  position: absolute;
+  left: 12px;
+  bottom: 76px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  max-width: 43%;
+  color: var(--map-ink);
+  font: 15px/1.2 var(--font-body);
+}
+.world-stance[data-crouching='true'] {
+  color: var(--rubric-dark);
+}
+.world-minimap-toggle.hc-plaque {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 27px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.world-minimap-toggle.hc-plaque:active {
+  transform: translate(-50%, 2px);
+}
+.world-meter {
+  accent-color: var(--rubric);
+}
+.world-meter::-webkit-meter-bar {
+  background: var(--paper-card);
+  border: 1px solid var(--map-ink-muted);
+  border-radius: 0;
+}
+.world-meter::-webkit-meter-optimum-value {
+  background: var(--ok-ink);
+}
+.world-meter::-webkit-meter-suboptimum-value {
+  background: var(--brass);
+}
+.world-meter::-webkit-meter-even-less-good-value {
+  background: var(--rubric);
+}
+@media (max-height: 800px) {
+  .world-hall .world-note {
+    padding: 6px 9px;
+    font-size: 14px;
+  }
+  .world-stance {
+    bottom: 62px;
+    font-size: 14px;
+  }
+}

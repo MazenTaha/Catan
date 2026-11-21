@@ -57,3 +57,15 @@ modular furniture/storage in the Unreal asset library. These additions do not re
 browser's plan-driven enterable buildings or change their collision. Unbuilt variations,
 character looks, card UI and VFX remain open as listed in the manifest. See
 `apps/unreal/README.md` for the active project, foliage workflow and migration boundary.
+
+## Full-game island redesign (2026-11-21)
+
+The 24-sheet `E:/Catan_art_obj` pack now also guides the Windows full game's larger live island.
+Existing forestry, crop, farm, rock, clay and ruin assets form 38 work yards connected to biome
+trails. Furniture and storage from `concept_kit.py::furniture` are exported separately through
+`build.py -- supplies`: `CottageTable`, `Bench`, `StorageCrate`, `MillBin`, `BarrelA`, `BarrelB`
+and `GrainSack` in `supplies.glb`, with `supplies.blend` retained for editing. This roughly
+346 kB subset reuses the original procedural geometry/materials and avoids loading the 17 MB
+house library. Source-sheet paths and hashes remain in `assets/concepts/manifest.json`.
+Player-built cottages/halls retain their shared enterable room plans. The farm gate's braced
+leaf is authored open; bridge crossings use the existing original timber builder with side ramps.

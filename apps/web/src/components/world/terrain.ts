@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Terrain } from '@hexfall/engine';
+import { WORLD_RADIUS as R } from './worldMetrics';
 
 /**
  * The ground of the 3D walk: one gently shaped surface per land tile (pastures roll, hills
@@ -11,8 +12,8 @@ import type { Terrain } from '@hexfall/engine';
  * Everything is a pure function of the tile's own seed: no game RNG, no `Math.random`.
  */
 
-/** Hex circumradius in metres: a land tile is ~24 m across, a few seconds' walk. */
-export const R = 14;
+/** Hex circumradius in metres: ~59 m between edges, while props retain metre scale. */
+export { R };
 const APOTHEM = (R * Math.sqrt(3)) / 2;
 
 // ------------------------------------------------------------------ noise
@@ -71,6 +72,7 @@ export interface Flat {
   z: number;
   r: number;
   h?: number;
+  clearing?: boolean;
 }
 
 /** A worn path painted on the ground, tile-local. */
@@ -150,6 +152,8 @@ export function tileHeight(t: TileGround, x: number, z: number): number {
       h = h * k + target * (1 - k);
     }
   }
+  // Broad, level trail beds remain continuous at adjoining tile edges.
+  for (const p of t.paths) h *= smooth(p.w / 2, p.w / 2 + 1.2, segDist(x, z, p));
   return h;
 }
 
@@ -223,6 +227,8 @@ function groundColor(t: TileGround, x: number, z: number, h: number, slope: numb
       const d = Math.hypot(x - f.x, z - f.z);
       out.lerp(PIT, 1 - smooth(f.r * 0.6, f.r + 0.8, d));
     }
+  for (const f of t.flats)
+    if (f.clearing) out.lerp(p.path, (1 - smooth(f.r * 0.6, f.r + 0.8, Math.hypot(x - f.x, z - f.z))) * 0.65);
   let path = 0;
   for (const pth of t.paths) path = Math.max(path, 1 - smooth(pth.w * 0.3, pth.w * 0.55, segDist(x, z, pth)));
   if (path > 0) out.lerp(p.path, path * (0.75 + m * 0.15));

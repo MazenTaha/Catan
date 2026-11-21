@@ -53,6 +53,15 @@ Playwright is pinned to 1.62.1; run `pnpm --filter @hexfall/web exec playwright 
 
 **3D walk:** the **2D board / 3D walk** switch at the bottom-right of the board turns the island into a sunlit medieval countryside you can explore in third person — wheat moving in the wind round a windmill in the Fields, sheep grazing by a thatched byre on Pastures, oak and spruce woods, a brick kiln among the clay banks of the Hills, a mine at the foot of the Mountains, docks and boats in the harbours — with everyone's roads, settlements, cities and the robber in place. Settlements are timbered cottages, cities stone halls and windmills have a ground floor; all of them can be entered, and every road is a bridge flying its owner's pennants. You see your own character over the shoulder (design it with **Character**); **W A S D** or the arrows walk, drag to look or press **Dive in** for mouse look, **Shift** runs, **E** opens chests and doors and mounts or leaves a horse, **Esc** (or the **2D board** switch) returns to the 2D board. Each visit starts outside the door of one of your settlements or cities, with a horse waiting; a minimap sits top left, and the island's time of day follows the rounds.
 
+The exploration island is now about 294 m wide (34 m hex radius), with connected walking loops,
+clear routes between biomes, and two work yards per tile. Logging clearings, harvest stores,
+pasture rest yards, brick works, ore sorting camps and ruin stops use the original concept-based
+models. Bridge side ramps and open farm gates keep the trails usable on foot or horseback.
+The minimap shows trails and work yards; M switches to a nearby view. Buildings and characters
+retain their metre scale, and the 2D board, saved games and rules keep their original layout.
+
+**Movement and camera:** hold **Ctrl** or **C** for slow, silent crouching. The over-shoulder camera keeps a steady horizon while running and moves in around walls and low fences. Looking around at rest leaves the knight facing where you stopped. Leaving mouse look or switching away from the app releases held movement and guard.
+
 **Weapons and fights:** one of your first two settlements hides a chest with a sword and a revolver (5 bullets for the whole game). Until you find it you fight with your fists; **1 / 2 / 3** switch weapons, **F** or a click strikes, the right mouse button guards (a raised sword parries blows and bullets). Online, players on their own devices can fight in the walk: a kill takes a random resource card, or the loser owes one. The **Man up** development card (6 in online games) challenges another player to a duel; the board waits until one falls or yields.
 
 **My kingdom** (main menu) furnishes your settlements and cities inside; **Music** in Settings sets the classical music on the menus and the board. The game carries on while you explore: turn prompts and dialogs appear over the walk, and **Space** still rolls or ends your turn. Placing pieces still happens on the 2D board. The 3D walk is for desktop browsers only: on phones and tablets (including iPads) the switch is hidden and the game stays on the 2D board.
@@ -80,6 +89,26 @@ Unreal guide). A separate, validated animation practice island (hinged chest and
 exchange, isolated from game rules, inventory and online play) is described in
 [docs/UNREAL_ANIMATION.md](docs/UNREAL_ANIMATION.md).
 
+The full game's 3D knight now has raised armor detailing and longer, folded capes with gold
+edging and an original sun crest. Settlements and cities have richer roof and facade details.
+Newly confirmed settlements and city upgrades build upward over five seconds, with temporary
+scaffolding and restrained dust. Construction follows the real placement time across the
+2D/3D switch; existing buildings do not replay when you load a save. Reduced motion shows
+the finished building immediately. These shared game changes are included in the Windows
+app after staging with `pnpm unreal:web` (and packaging when distributing a fresh app).
+
+The 3D lighting takes early Fortnite Chapter 1, Season 2 as a visual reference: warm daylight,
+cool blue shade and lavender dusk, using original art. Sky reflections and ground bounce
+follow the game clock, including cool moonlight. Trees have folded leaf clusters and fuller,
+less regular conifer boughs. `LIGHT_LOOK=1 pnpm e2e lighting` captures fixed forest, field and
+cottage views at noon, sunset and midnight and checks clock transitions and texture reuse.
+
+Walking follows the rendered ground, sand and dock surfaces, with matched knight strides and steadier camera
+height. Horses steer through turns, carry the rider on the animated saddle, and require a clear
+dismount spot. Focus loss stops input immediately. Walk/run speeds are 2.4/6.2 m/s; riding is
+5.5/12 m/s. `pnpm e2e movement` checks ground and saddle contact, stops, wall corners,
+mounted turning, dismounting, and consistent travel at 30, 60 and 144 Hz.
+
 ```
 packages/engine   pure TypeScript rules — no DOM, deterministic, serializable
 packages/net      online lobby rules and the browser ⇄ server messages (shared by both)
@@ -105,6 +134,7 @@ Every state change emits typed `GameEvent`s; the web app derives the log, toasts
 
 ## Replacing art and audio
 
+- **Knight, horse and sheep:** the redesigned original models share the live walk and Windows app. `assets/blender/creatures.json` records their style, source files, rig contracts and mesh budgets. Rebuild with `blender -b -P assets/blender/build.py -- knight horse village`; run `python assets/blender/validate_creatures.py` for geometry/weight checks and `CREATURES=1 pnpm e2e creatures` for an in-game flock review. `preview_creatures.py` renders studio turnarounds from the editable `.blend` files.
 - **3D walk:** the island is laid out in `apps/web/src/components/world/` (`world.ts` for placement, controls and animals, `terrain.ts` for the ground, `field.ts` for wheat, grass and flowers, `shaders.ts` for wind, sky and ground) and draws Blender-made models from `apps/web/public/models/` (`assets.ts` lists them). Their sources are scripts in `assets/blender/`; rebuild with `blender -b -P assets/blender/build.py`. Every model has a procedural fallback (`models.ts`). It is lazy-loaded only when the 3D view is opened. See `docs/BLENDER_ASSET_PIPELINE.md`.
 - **Terrain art:** set image URLs in [`apps/web/src/art/manifest.ts`](apps/web/src/art/manifest.ts) (files go in `apps/web/public/art/`). Each image is drawn into a 174×200 box centred on the hex and clipped to it. Leave an entry `null` to keep the procedural art.
 - **Other art:** pieces, tokens, harbors and the Wraith live in `apps/web/src/art/pieces/Pieces.tsx`; icons in `apps/web/src/art/icons/Icon.tsx`; Omen cards in `apps/web/src/art/cards/OmenCard.tsx`. Each is a self-contained component.
@@ -117,4 +147,6 @@ Licenses and attributions: [docs/CREDITS.md](docs/CREDITS.md). Design decisions:
 
 **Combat prototype:** choose **Place training dummy** on open ground in 3D, then **F** or click without dragging to strike. Drag to orbit the camera. Four hits defeat the dummy; it recovers after two seconds. This is local practice, not networked combat: no resources, players, buildings or board rules are affected. Reduced motion removes impact shake, particles, recoil and hit stop. Checks: `pnpm e2e combat buildings world3d`.
 
-**Weapons:** **1** selects Sword and **2** selects Revolver (or use the weapon buttons). **F / click** attacks. The sword reaches 2.45 m; the six-shot revolver fires straight ahead up to 16 m and requires **R** to reload (1.4 s). Weapon switching and reload cannot interrupt an attack. Both currently affect only the local training dummy.
+**Weapons and stealth:** **1** selects Bare hands, **2** Sword and **3** Revolver (the number pad and the lower-right weapon slots also work). **F / click** attacks; hold right click to guard. New games keep the sword and revolver in your weapon chest, with five bullets for the whole game. Hold **Ctrl** or **C** to crouch on foot: a low stance with silent footsteps, no movement dust and a slower 1.1 m/s pace. Normal walking is 2.4 m/s; hold **Shift** to sprint at 6.2 m/s. Crouch takes priority when both are held. Releasing the key or leaving the game window clears crouch; mounted movement keeps its existing speeds.
+
+**Matching 3D HUD:** the island view uses the same Hall & Chart brass buttons, oak-and-iron equipment frame, parchment notes and lettering as the 2D table. Weapon slots stay vertical with 1 Bare hands, 2 Sword and 3 Revolver. The minimap has a brass Island/Nearby switch (M); location, interaction, health, duel, crouch and help notes share the table's parchment styling.

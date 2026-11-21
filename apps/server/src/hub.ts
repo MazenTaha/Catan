@@ -350,7 +350,8 @@ export class Hub {
       switch (msg.t) {
         case 'settings':
           if (!isHost || r.started) return;
-          r.lobby = { ...r.lobby, settings: clampSettings(msg.settings) };
+          // Merge each edited field against the referee's latest settings, not a stale client snapshot.
+          r.lobby = { ...r.lobby, settings: clampSettings({ ...r.lobby.settings, ...msg.settings }) };
           // Dropping to 3 players can't remove someone who joined.
           if (r.lobby.settings.players === 3 && r.lobby.seats[3].kind === 'remote') {
             r.lobby = { ...r.lobby, settings: { ...r.lobby.settings, players: 4 } };

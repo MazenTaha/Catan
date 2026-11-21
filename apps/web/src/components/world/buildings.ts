@@ -8,7 +8,7 @@ import plans from './buildings.json';
  * solid things outside (the hall's tower and buttresses, a log pile) are listed here from the
  * same dimensions the builder uses.
  *
- * Scale convention (metres, docs/BLENDER_ASSET_PIPELINE.md): a land tile is 14 m centre to
+ * Scale convention (metres, docs/BLENDER_ASSET_PIPELINE.md): a land tile is 34 m centre to
  * corner, the eye is 1.7 m above the floor, doors are 2.1-2.5 m high and 1.05-1.5 m wide,
  * rooms 2.6-3.6 m to the ceiling. A building stands on its board corner, front towards the
  * island's centre; the board itself is never stretched.

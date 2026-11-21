@@ -536,72 +536,9 @@ def build_robber(mats):
 
 
 def build_sheep(mats):
-    """Fleece body and a dark face; head, legs and tail are child nodes with joint origins."""
-    r = rng(607)
-    wool = C('#f3eee2')
-    face = C('#3a3330')
-    root = MeshBuilder()
-    # Fleece: a lumpy, curly ellipsoid.
-    bm = bmesh.new()
-    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.0)
-    seed = Vector((3.1, 7.7, 1.3))
-    verts = []
-    for v in bm.verts:
-        p = v.co.copy()
-        k = 1 + 0.09 * noise.noise(p * 3.2 + seed) + 0.05 * noise.noise(p * 7 + seed)
-        verts.append(Vector((p.x * 0.42 * k, p.y * 0.66 * k, p.z * 0.36 * k + 0.78)))
-    bm.verts.ensure_lookup_table()
-    for f in bm.faces:
-        idx = []
-        for v in f.verts:
-            p = verts[v.index]
-            n = (p - Vector((0, 0, 0.78)))
-            shade = 0.82 + 0.18 * smooth(-0.3, 0.35, n.z)
-            idx.append(root.vert(p, 0, n.normalized(), mul(wool, shade),
-                                 (V['wool'][0] + (V['wool'][2] - V['wool'][0]) * (p.y / 1.4 + 0.5), V['wool'][1] + (V['wool'][3] - V['wool'][1]) * ((p.z - 0.42) / 0.75))))
-        root.face(idx)
-    bm.free()
-    body = root.build('Sheep', mats)
-
-    def part(name, builder_fn, origin: Vector):
-        pb = MeshBuilder()
-        builder_fn(pb)
-        ob = pb.build(name, mats)
-        # Geometry was built in sheep space; move the origin to the joint.
-        ob.data.transform(Matrix.Translation(-origin))
-        ob.parent = body
-        ob.location = origin
-        return ob
-
-    def legs(pb, x, y):
-        tube(pb, [Vector((x, y, 0.62)), Vector((x, y, 0.3)), Vector((x, y, 0.06))], [0.075, 0.06, 0.055], 6,
-             lambda t, s: mul(face, 1.0))
-        tube(pb, [Vector((x, y, 0.06)), Vector((x, y - 0.02, 0.0))], [0.065, 0.06], 6, lambda t, s: C('#26201d'), cap=True)
-
-    for name, x, y in (('LegFL', -0.2, -0.38), ('LegFR', 0.2, -0.38), ('LegBL', -0.2, 0.36), ('LegBR', 0.2, 0.36)):
-        part(name, lambda pb, x=x, y=y: legs(pb, x, y), Vector((x, y, 0.62)))
-
-    def head(pb):
-        # A tapered face, wool cap, ears.
-        tube(pb, [Vector((0, -0.62, 0.98)), Vector((0, -0.76, 0.92)), Vector((0, -0.9, 0.8)), Vector((0, -0.98, 0.72))],
-             [0.13, 0.135, 0.11, 0.075], 8, lambda t, s: mul(face, 1.0 + 0.15 * (s in (1, 2, 3))), cap=True)
-        cap_c = Vector((0, -0.7, 1.06))
-        tube(pb, [cap_c + Vector((0, 0.06, -0.05)), cap_c + Vector((0, -0.02, 0.04)), cap_c + Vector((0, -0.08, 0.06))],
-             [0.13, 0.15, 0.06], 8, lambda t, s: wool, cap=True)
-        for s in (-1, 1):
-            e = Vector((s * 0.13, -0.68, 1.0))
-            pb.poly([e, e + Vector((s * 0.2, 0.02, -0.06)), e + Vector((s * 0.18, 0.1, -0.02))], mul(face, 1.2), mat=M_VILLAGE, smooth=False)
-            pb.poly([e + Vector((s * 0.18, 0.1, -0.02)), e + Vector((s * 0.2, 0.02, -0.06)), e], mul(face, 1.2), mat=M_VILLAGE, smooth=False)
-            eye = Vector((s * 0.105, -0.83, 0.92))
-            pb.poly([eye, eye + Vector((0, -0.02, 0.03)), eye + Vector((0, -0.05, 0.0)), eye + Vector((0, -0.02, -0.025))][::(1 if s > 0 else -1)],
-                    (0.04, 0.035, 0.03), mat=M_VILLAGE, smooth=False)
-    part('Head', head, Vector((0, -0.58, 0.96)))
-
-    def tail(pb):
-        tube(pb, [Vector((0, 0.62, 0.86)), Vector((0, 0.72, 0.76)), Vector((0, 0.74, 0.62))], [0.07, 0.07, 0.04], 6,
-             lambda t, s: wool, cap=True)
-    part('Tail', tail, Vector((0, 0.62, 0.86)))
-    return body
+    import sheep
+    importlib.reload(sheep)
+    return sheep.build()
 
 
 BRICK = C('#b2583c')
@@ -772,8 +709,10 @@ def build(atlas):
     import homes
     importlib.reload(homes)
     buildings = homes.build(mats)
+    flock = build_sheep(mats)
+    import sheep
     objs = [*buildings, build_dock(mats), build_boat(mats), build_boat(mats, 'BoatSloop', 'sloop', 606),
-            build_boat(mats, 'BoatStriped', 'striped', 607), build_road(mats), build_robber(mats), build_sheep(mats),
+            build_boat(mats, 'BoatStriped', 'striped', 607), build_road(mats), build_robber(mats), flock, sheep.build_far(flock),
             build_barn(mats), build_kiln(mats), build_haybale(mats), build_mine(mats)]
     layout_row(objs, gap=4.0)
     bake = [o for o in objs if o.name not in ('Road', *[b.name for b in buildings])]

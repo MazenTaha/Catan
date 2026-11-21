@@ -116,7 +116,14 @@ export function foliage<T extends THREE.Material>(m: T, o: FoliageOpts): T {
         reflectedLight.indirectSpecular *= 0.5;
         #if NUM_DIR_LIGHTS > 0
           float tlBack = max(dot(-normalize(vViewPosition), directionalLights[0].direction), 0.0);
-          reflectedLight.indirectDiffuse += diffuseColor.rgb * directionalLights[0].color * uTransl * (0.03 + pow(tlBack, 6.0) * 0.2);
+          float tlShade = 1.0;
+          #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+            DirectionalLightShadow leafShadow = directionalLightShadows[0];
+            if (receiveShadow) tlShade = getShadow(directionalShadowMap[0], leafShadow.shadowMapSize,
+              leafShadow.shadowIntensity, leafShadow.shadowBias, leafShadow.shadowRadius, vDirectionalShadowCoord[0]);
+          #endif
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * directionalLights[0].color * uTransl *
+            (0.02 + pow(tlBack, 6.0) * 0.18) * mix(0.15, 1.0, tlShade);
         #endif`,
       );
   };

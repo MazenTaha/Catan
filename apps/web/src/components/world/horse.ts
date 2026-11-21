@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { LoadedAsset } from './assets';
 import { RigBaker } from './rig';
+import { Reins, type HandPoints } from './reins';
+
+interface Model { root: THREE.Object3D }
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const ball = new THREE.SphereGeometry(1, 14, 10);
@@ -12,8 +14,8 @@ const COATS = ['#7a4a2a', '#4a2e1e', '#9a5a2e', '#c9c4bb', '#2c2725', '#d2a75c']
 const HAIR = ['#1b1512', '#141010', '#6e3a1c', '#e6e1d8', '#161313', '#f1e6cc'];
 
 /** The Blender horse (assets/blender/horse.py), handed over once the world has loaded it. */
-let template: LoadedAsset | null = null;
-export function setHorseModel(asset: LoadedAsset | null) {
+let template: Model | null = null;
+export function setHorseModel(asset: Model | null) {
   template = asset;
 }
 
@@ -36,13 +38,13 @@ const LEGS: Leg[] = ['FL', 'FR', 'HL', 'HR'];
  * trot's diagonal pairs, the gallop's lead).
  */
 const GAITS = {
-  walk: { stride: 1.7, duty: 0.62, swing: 0.3, flex: 0.85, phase: { HL: 0, FL: 0.25, HR: 0.5, FR: 0.75 } },
-  trot: { stride: 3.6, duty: 0.45, swing: 0.4, flex: 1.2, phase: { HL: 0, FR: 0, HR: 0.5, FL: 0.5 } },
-  gallop: { stride: 6.5, duty: 0.36, swing: 0.6, flex: 1.45, phase: { HR: 0, HL: 0.1, FR: 0.38, FL: 0.48 } },
+  walk: { stride: 1.6, duty: 0.62, swing: 0.45, flex: 0.85, phase: { HL: 0, FL: 0.25, HR: 0.5, FR: 0.75 } },
+  trot: { stride: 2.7, duty: 0.45, swing: 0.58, flex: 1.2, phase: { HL: 0, FR: 0, HR: 0.5, FL: 0.5 } },
+  gallop: { stride: 4.5, duty: 0.36, swing: 0.76, flex: 1.45, phase: { HR: 0, HL: 0.1, FR: 0.38, FL: 0.48 } },
 };
 
 /**
- * A saddled horse. The Blender model is one skinned mesh on 17 bones whose gait follows its
+ * A saddled horse. The Blender model uses 17 bones; its gait follows its
  * speed: a four-beat walk, a trot, then a gallop, the strides matched to the ground covered.
  * Without the model it is built from simple shapes merged per joint (`RigBaker`). Faces -z
  * like the walker; the saddle blanket shows the rider's seat colour.
@@ -56,28 +58,40 @@ export class Horse {
   private mats: THREE.Material[] = [];
   private blanket: THREE.MeshStandardMaterial;
   private t = Math.random() * 10;
+  private pace = 0;
+  private gait: keyof typeof GAITS = 'walk';
   // The Blender model.
   private joints = new Map<string, Joint>();
   private skins: THREE.SkinnedMesh[] = [];
   // The procedural fallback.
+  private saddle = new THREE.Object3D();
+  private seatPoint = new THREE.Vector3();
   private body = new THREE.Group();
   private neck = new THREE.Group();
   private tail = new THREE.Group();
   private legs: { hip: THREE.Group; knee: THREE.Group; phase: number }[] = [];
   private rig: RigBaker | null = null;
+  private restingReins: THREE.Object3D | undefined;
+  private readonly heldReins = new Reins();
+  private readonly bitAnchors = [new THREE.Object3D(), new THREE.Object3D()];
+  private readonly gripAnchors = [new THREE.Object3D(), new THREE.Object3D()];
+  private readonly grips: HandPoints = { left: new THREE.Vector3(), right: new THREE.Vector3() };
+  private readonly bits: HandPoints = { left: new THREE.Vector3(), right: new THREE.Vector3() };
+  private readonly hands: HandPoints = { left: new THREE.Vector3(), right: new THREE.Vector3() };
+  private readonly inverse = new THREE.Matrix4();
 
   constructor(color = '#b0364a', private reduce = false, coat = 0) {
     const hue = coat % COATS.length;
+    this.saddleHeight = template ? 1.65 : 1.72;
     if (template) {
       this.blanket = this.fromModel(template, color, hue);
-      this.saddleHeight = 1.65;
     } else {
       this.blanket = this.procedural(color, hue);
-      this.saddleHeight = 1.62;
     }
+    this.root.add(this.heldReins.mesh);
   }
 
-  private fromModel(asset: LoadedAsset, color: string, hue: number) {
+  private fromModel(asset: Model, color: string, hue: number) {
     const model = cloneRigged(asset.root);
     let blanket: THREE.MeshStandardMaterial | null = null;
     const tint = (m: THREE.Material) => {
@@ -94,7 +108,11 @@ export class Horse {
       if (!m.isMesh) return;
       m.castShadow = m.receiveShadow = true;
       m.material = Array.isArray(m.material) ? m.material.map(tint) : tint(m.material);
-      if (m.isSkinnedMesh) this.skins.push(m);
+      if (m.isSkinnedMesh) {
+        // Rest-pose bounds do not contain a running leg or a lifted cape.
+        m.frustumCulled = false;
+        this.skins.push(m);
+      }
     });
     // Each bone's side and up axes in its own frame, from the rest pose (model space: front +z).
     model.updateMatrixWorld(true);
@@ -113,6 +131,21 @@ export class Horse {
         yaw: 0,
       });
     });
+    const body = this.joints.get('Body')?.bone;
+    if (body) {
+      this.saddle.position.copy(body.worldToLocal(new THREE.Vector3(0, this.saddleHeight, 0)));
+      body.add(this.saddle);
+      for (let i = 0; i < 2; i++) {
+        this.gripAnchors[i].position.copy(body.worldToLocal(new THREE.Vector3(i ? -0.16 : 0.16, this.saddleHeight + 0.32, 0.39)));
+        body.add(this.gripAnchors[i]);
+      }
+    }
+    const head = this.joints.get('Head')?.bone;
+    if (head) for (let i = 0; i < 2; i++) {
+      this.bitAnchors[i].position.copy(head.worldToLocal(new THREE.Vector3((i ? -1 : 1) * 0.075 * 1.08, 1.4 * 1.08, 1.215 * 1.08)));
+      head.add(this.bitAnchors[i]);
+    }
+    this.restingReins = model.getObjectByName('Horse_Reins');
     model.rotation.y = Math.PI;
     this.root.add(model);
     return blanket ?? new THREE.MeshStandardMaterial();
@@ -129,6 +162,12 @@ export class Horse {
     const blanket = this.mat(color, 0.9);
     this.body.position.y = 1.32;
     this.root.add(this.body);
+    this.saddle.position.set(0, this.saddleHeight - 1.32, 0.02);
+    this.body.add(this.saddle);
+    for (let i = 0; i < 2; i++) {
+      this.gripAnchors[i].position.set(i ? 0.16 : -0.16, this.saddleHeight + 0.32 - 1.32, -0.39);
+      this.body.add(this.gripAnchors[i]);
+    }
     this.part(this.body, hide, 0, 0, 0, 0.62, 0.66, 1.72, ball);
     this.part(this.body, hide, 0, 0.04, 0.62, 0.58, 0.62, 0.62, ball);
     this.part(this.body, hide, 0, 0.06, -0.6, 0.56, 0.62, 0.6, ball);
@@ -151,6 +190,10 @@ export class Horse {
     const head = new THREE.Group();
     head.position.set(0, 0.78, -0.48);
     this.neck.add(head);
+    for (let i = 0; i < 2; i++) {
+      this.bitAnchors[i].position.set(i ? 0.12 : -0.12, -0.16, -0.42);
+      head.add(this.bitAnchors[i]);
+    }
     const skull = this.part(head, hide, 0, 0, -0.18, 0.28, 0.3, 0.62);
     skull.rotation.x = 0.55;
     this.part(head, hide, 0, -0.18, -0.42, 0.22, 0.2, 0.3, ball);
@@ -163,6 +206,8 @@ export class Horse {
     // Reins from the bit to the saddle.
     const rein = this.part(this.body, leather, 0, 0.55, -0.62, 0.02, 0.02, 0.9);
     rein.rotation.x = 0.55;
+    rein.userData.loose = true;
+    this.restingReins = rein;
     // Tail.
     this.tail.position.set(0, 0.2, 0.92);
     this.body.add(this.tail);
@@ -217,10 +262,42 @@ export class Horse {
     this.bake();
   }
 
+  /** The rider follows the animated saddle, including body bob and terrain tilt. */
+  get seatPosition(): THREE.Vector3 {
+    this.root.updateMatrixWorld(true);
+    return this.saddle.getWorldPosition(this.seatPoint);
+  }
+
+  get reinTargets(): HandPoints {
+    this.root.updateMatrixWorld(true);
+    this.gripAnchors[0].getWorldPosition(this.grips.left);
+    this.gripAnchors[1].getWorldPosition(this.grips.right);
+    return this.grips;
+  }
+
+  /** Null restores the loose loop when the rider dismounts. One hand can hold both reins. */
+  holdReins(left: THREE.Vector3 | null, right?: THREE.Vector3) {
+    if (this.restingReins) this.restingReins.visible = !left;
+    this.heldReins.mesh.visible = !!left;
+    if (!left) return;
+    this.root.updateMatrixWorld(true);
+    this.inverse.copy(this.root.matrixWorld).invert();
+    this.bitAnchors[0].getWorldPosition(this.bits.left).applyMatrix4(this.inverse);
+    this.bitAnchors[1].getWorldPosition(this.bits.right).applyMatrix4(this.inverse);
+    this.hands.left.copy(left).applyMatrix4(this.inverse);
+    this.hands.right.copy(right ?? left).applyMatrix4(this.inverse);
+    this.heldReins.update(this.bits, this.hands);
+  }
+
   /** Poses the horse for a speed (m/s): standing (grazing if left alone), walking, trotting, galloping. */
   update(dt: number, speed: number) {
-    if (this.joints.size) this.pose(dt, speed);
-    else this.poseProcedural(dt, speed);
+    this.pace += (speed - this.pace) * (1 - Math.exp(-dt * 16));
+    if (this.gait === 'walk' && this.pace > 4.4) this.gait = 'trot';
+    else if (this.gait === 'trot' && this.pace < 3.6) this.gait = 'walk';
+    else if (this.gait === 'trot' && this.pace > 9.5) this.gait = 'gallop';
+    else if (this.gait === 'gallop' && this.pace < 8.5) this.gait = 'trot';
+    if (this.joints.size) this.pose(dt, this.pace);
+    else this.poseProcedural(dt, this.pace);
   }
 
   private pose(dt: number, speed: number) {
@@ -228,7 +305,7 @@ export class Horse {
     const set = (name: string, pitch: number, yaw = 0) => target.set(name, [pitch, yaw]);
     const now = performance.now() / 1000;
     const grazing = this.grazing && speed < 0.1;
-    const g = this.reduce || speed < 0.1 ? null : speed < 4 ? GAITS.walk : speed < 9 ? GAITS.trot : GAITS.gallop;
+    const g = this.reduce || speed < 0.1 ? null : GAITS[this.gait];
     if (g) this.t += (dt * speed) / g.stride;
     for (const leg of LEGS) {
       let swing = 0;
@@ -262,7 +339,7 @@ export class Horse {
     const swish = this.reduce ? 0 : Math.sin(now * 1.6 + this.t) * 0.18 + Math.sin(now * 0.37) * 0.1;
     set('Tail', !g ? 0 : gallop ? 0.55 : g === GAITS.trot ? 0.25 : 0.05, swish);
     set('Tail2', g ? -0.15 : 0, swish * 0.8);
-    const k = this.reduce ? 1 : Math.min(1, dt * 14);
+    const k = this.reduce ? 1 : 1 - Math.exp(-dt * 28);
     const qa = new THREE.Quaternion();
     const qb = new THREE.Quaternion();
     for (const [name, j] of this.joints) {
@@ -294,6 +371,7 @@ export class Horse {
   }
 
   dispose() {
+    this.heldReins.dispose();
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
     for (const s of this.skins) s.skeleton.dispose();

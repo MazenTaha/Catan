@@ -492,7 +492,7 @@ def inset(rect, k: float = 0.03):
 
 def card(b: MeshBuilder, centre: Vector, normal: Vector, spin: float, w: float, h: float, rect, color,
          nrm_fn, flip: bool = False, mat: int = 0, bend: float = 0.0):
-    """A leaf card (quad) facing `normal`, spun about it, UV-mapped to an atlas rectangle."""
+    """A folded leaf cluster; its raised centre breaks up intersecting flat cards."""
     normal = normal.normalized()
     a = UP if abs(normal.dot(UP)) < 0.95 else Vector((1, 0, 0))
     u = normal.cross(a).normalized()
@@ -507,7 +507,14 @@ def card(b: MeshBuilder, centre: Vector, normal: Vector, spin: float, w: float, 
     for sx, sy, uu, vv in corners:
         p = centre + cu * (sx * w / 2) + cv * (sy * h / 2) + normal * (bend * (sx * sx))
         idx.append(b.vert(p, 0.0, nrm_fn(p), color(p) if callable(color) else color, (uu, vv)))
-    b.face(idx, mat=mat)
+    if bend:
+        p = centre + normal * (bend * 1.8)
+        mid = b.vert(p, 0.0, nrm_fn(p), color(p) if callable(color) else color,
+                     ((u0 + u1) / 2, (v0 + v1) / 2))
+        for i in range(4):
+            b.face([idx[i], idx[(i + 1) % 4], mid], mat=mat)
+    else:
+        b.face(idx, mat=mat)
 
 
 def build_broadleaf(name: str, seed: int, mats, height: float, trunk_h: float, crown_r: float, crown_h: float,
@@ -567,7 +574,7 @@ def build_broadleaf(name: str, seed: int, mats, height: float, trunk_h: float, c
         return mul(lerp(leaf_lo, leaf_hi, smooth(-0.6, 1.0, z)), k * tint)
 
     for ci, c in enumerate(centres):
-        tint = 0.92 + r.random() * 0.16
+        tint = 0.88 + r.random() * 0.22
         cr = crown_r * (0.36 + r.random() * 0.12)
         for k in range(cards):
             off = Vector((r.random() - 0.5, r.random() - 0.5, r.random() - 0.5)) * cr * 0.9
@@ -599,8 +606,8 @@ def build_conifer(name: str, seed: int, mats, height: float, base_r: float, trun
         t = (w // 2 + (0.5 if upper else 0)) / (whorls - 1)
         if t > 1:
             continue
-        z = first + (height - 0.6 - first) * t
-        L = (base_r * (1 - t) ** 0.85 + 0.4) * (0.78 if upper else 1.0)
+        z = first + (height - 0.6 - first) * t + (r.random() - 0.5) * 0.14
+        L = (base_r * (1 - t) ** 0.85 + 0.4) * (0.9 if upper else 1.0)
         rot = r.random() * math.tau
         n = max(4, int(per_whorl - t * 2))
         dark = (0.6 + 0.4 * t) * (1.06 if upper else 1.0)
@@ -608,7 +615,7 @@ def build_conifer(name: str, seed: int, mats, height: float, base_r: float, trun
             a = rot + k / n * math.tau + (r.random() - 0.5) * 0.45
             d = Vector((math.cos(a), math.sin(a), 0))
             perp = Vector((-d.y, d.x, 0))
-            dz = -droop * (0.6 + r.random() * 0.5) * (1 - 0.4 * t) + (0.35 if upper else 0.0)
+            dz = -droop * (0.6 + r.random() * 0.5) * (1 - 0.4 * t) + (0.08 if upper else 0.0)
             root = Vector((0, 0, z)) + d * 0.05
             mid = root + d * (L * 0.55) + UP * (dz * L * 0.35)
             tip = root + d * L + UP * (dz * L + upturn * L)
@@ -617,7 +624,7 @@ def build_conifer(name: str, seed: int, mats, height: float, base_r: float, trun
             um = (u0 + u1) / 2
             vm = v0 + (v1 - v0) * 0.55
             cl = lambda p, f: mul(lerp(leaf_lo, leaf_hi, f), dark)
-            tilt = UP * 0.12
+            tilt = UP * (0.16 + r.random() * 0.12)
             idx = [
                 b.vert(root - perp * w0 + tilt * 0, 0, nrm(root), cl(root, 0.0), (um - (u1 - u0) * 0.2, v0)),
                 b.vert(root + perp * w0, 0, nrm(root), cl(root, 0.0), (um + (u1 - u0) * 0.2, v0)),

@@ -168,7 +168,7 @@ rug's woven pattern, and every slot's fallback.
 
 | Topic | Rule |
 |---|---|
-| Units | 1 Blender unit = 1 m. A land tile is 14 m centre to corner; a road is one 14 m edge. Eye height 1.7 m above the floor (the walker is 0.7 m wide). Doors 2.1–2.5 m high, 1.05–1.5 m wide (≥ 0.35 m clear past the walker); rooms 2.6 m (cottage, mill) and 3.6 m (hall) to the ceiling; floors 0.24–0.36 m up on a stone plinth; walls 0.26–0.42 m thick. The board is never stretched: a building stands on its corner, its walls clear of the next corner's (≥ 24 m away), and roads stop at its walls. |
+| Units | 1 Blender unit = 1 m. A land tile is 34 m centre to corner; a road is one 34 m edge. Eye height 1.7 m above the floor (the walker is 0.7 m wide). Doors 2.1–2.5 m high, 1.05–1.5 m wide (≥ 0.35 m clear past the walker); rooms 2.6 m (cottage, mill) and 3.6 m (hall) to the ceiling; floors 0.24–0.36 m up on a stone plinth; walls 0.26–0.42 m thick. The board is never stretched: a building stands on its corner, its walls clear of the next corner's (≥ 59 m away), and roads stop at its walls. |
 | Axes | Model with Z up and the front facing −Y. The glTF exporter (+Y Up) turns that into the game's +Y up, front +Z. No corrective rotations. |
 | Origin | Ground contact, centre of the footprint (trees: trunk base; dock: shore end; boat: waterline; windmill `Sails`: hub). |
 | Transforms | Applied (`export_apply`); a root's own translation is ignored by the game. |

@@ -27,8 +27,9 @@ async function placeIfAsked(page: Page): Promise<boolean> {
   for (const label of ['Place a Settlement', 'Build a Road']) {
     const spot = page.locator(`[aria-label^="${label}"]`).first();
     if (await spot.isVisible().catch(() => false)) {
-      await spot.click({ force: true });
-      return true;
+      // The server can advance the setup phase between visibility and click.
+      const clicked = await spot.click({ force: true, timeout: 1000 }).then(() => true, () => false);
+      if (clicked) return true;
     }
   }
   return false;
@@ -40,7 +41,8 @@ type Dev = {
       x: number;
       z: number;
       yaw: number;
-      remotes: Map<number, { present: boolean; position: { x: number; z: number } }>;
+      combat: { player: { rotation: { y: number } } };
+      remotes: Map<number, { present: boolean; position: { x: number; z: number }; pose?: { crouching?: boolean; bodyYaw?: number; yaw: number }; avatar: { root: { rotation: { y: number } } } }>;
     };
   };
   __hexfall: {
@@ -98,6 +100,16 @@ test('online: players in the 3D walk see each other and a sword blow lands', asy
     .poll(() => guest.evaluate((s) => !!(window as unknown as Dev).__world3d.world.remotes.get(s)?.present, seats[0]))
     .toBe(true);
 
+  // Looking around at rest must not rotate the other player's body away from its feet.
+  const heading = await host.evaluate(() => {
+    const w = (window as unknown as Dev).__world3d.world;
+    w.yaw = w.combat.player.rotation.y + 1;
+    return w.combat.player.rotation.y;
+  });
+  await expect.poll(() => guest.evaluate((s) => (window as unknown as Dev).__world3d.world.remotes.get(s)?.pose?.bodyYaw, seats[0])).toBeCloseTo(heading, 2);
+  await expect.poll(() => guest.evaluate((s) => (window as unknown as Dev).__world3d.world.remotes.get(s)?.avatar.root.rotation.y, seats[0])).toBeCloseTo(heading, 1);
+  await expect.poll(() => guest.evaluate((s) => (window as unknown as Dev).__world3d.world.remotes.get(s)?.pose?.yaw, seats[0])).toBeCloseTo(heading + 1, 2);
+
   // The host finds the chest's weapons, steps up to the friend and strikes.
   await host.evaluate((me) => (window as unknown as Dev).__hexfall.getState().dispatch({ type: 'OpenChest', player: me }), seats[0]);
   await expect
@@ -118,7 +130,11 @@ test('online: players in the 3D walk see each other and a sword blow lands', asy
   }, seats[1]);
   await host.waitForTimeout(400);
   await host.locator('[data-world3d]').focus();
-  await host.keyboard.press('Digit1');
+  await host.keyboard.press('Digit2');
+  await host.keyboard.down('ControlLeft');
+  await expect.poll(() => guest.evaluate((them) => (window as unknown as Dev).__world3d.world.remotes.get(them)?.pose?.crouching, seats[0])).toBe(true);
+  await host.keyboard.up('ControlLeft');
+  await expect.poll(() => guest.evaluate((them) => (window as unknown as Dev).__world3d.world.remotes.get(them)?.pose?.crouching, seats[0])).toBe(false);
   await host.keyboard.press('KeyF');
   await expect
     .poll(() => guest.evaluate((me) => (window as unknown as Dev).__hexfall.getState().session.state.arms.health[me], seats[1]), {

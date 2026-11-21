@@ -2,7 +2,7 @@
  * Hall & Chart (DECISIONS #45): the 2D interface as a lord's great hall at night, with island
  * information drawn as an old sea chart. Tokens come from design/hall-chart/tokens.css; textures
  * are pre-rendered tiles (no runtime SVG noise on large or animated areas).
- * The 3D walk's HUD keeps the older shared classes in styles/index.css.
+ * The 3D walk shares these buttons, fonts and panel textures through worldHUD.css.
  */
 
 :root {

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { walkingGait, CROUCH_DROP } from './locomotion';
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Weapon } from '@hexfall/engine';
+import type { HandPoints } from './reins';
 
 /** A loaded model (an assets.ts LoadedAsset), typed by shape so tests can import this without Vite. */
 interface Model {
@@ -29,6 +31,8 @@ export interface KnightPose {
   side: number;
   block: boolean;
   riding: boolean;
+  crouch?: number;
+  aimTurn?: number;
 }
 
 /** A bone posed by angles about the knight's own side (x), up (y) and forward (z) axes. */
@@ -36,6 +40,7 @@ interface Joint {
   bone: THREE.Bone;
   rest: THREE.Quaternion;
   pos: THREE.Vector3;
+  scale: THREE.Vector3;
   axes: [THREE.Vector3, THREE.Vector3, THREE.Vector3];
   now: [number, number, number];
 }
@@ -62,6 +67,7 @@ export class KnightRig {
   readonly hand = new THREE.Group();
   /** The shield, on the left forearm. */
   readonly forearm = new THREE.Group();
+  readonly back = new THREE.Group();
   readonly steel: THREE.MeshStandardMaterial;
   readonly cloth: THREE.MeshStandardMaterial;
   readonly owner: THREE.MeshStandardMaterial;
@@ -70,8 +76,23 @@ export class KnightRig {
   private joints = new Map<string, Joint>();
   private skins: THREE.SkinnedMesh[] = [];
   private model: THREE.Object3D;
+  readonly seatHeight: number;
   private gait = 0;
   private time = Math.random() * 10;
+  private hipOffset = 0;
+  private readonly palms = { left: new THREE.Object3D(), right: new THREE.Object3D() };
+  private readonly gripPoints: HandPoints = { left: new THREE.Vector3(), right: new THREE.Vector3() };
+  private readonly shoulderPoint = new THREE.Vector3();
+  private readonly elbowPoint = new THREE.Vector3();
+  private readonly handPoint = new THREE.Vector3();
+  private readonly direction = new THREE.Vector3();
+  private readonly pole = new THREE.Vector3();
+  private readonly desiredElbow = new THREE.Vector3();
+  private readonly from = new THREE.Vector3();
+  private readonly to = new THREE.Vector3();
+  private readonly swing = new THREE.Quaternion();
+  private readonly worldRotation = new THREE.Quaternion();
+  private readonly parentRotation = new THREE.Quaternion();
 
   constructor(asset: Model) {
     const model = cloneRigged(asset.root);
@@ -95,7 +116,11 @@ export class KnightRig {
       // Posed by its bones, not merged by RigBaker.
       m.userData.loose = true;
       m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-      if (m.isSkinnedMesh) this.skins.push(m);
+      if (m.isSkinnedMesh) {
+        // Rest-pose bounds do not contain a running leg or a lifted cape.
+        m.frustumCulled = false;
+        this.skins.push(m);
+      }
     });
     const fallback = () => {
       const m = new THREE.MeshStandardMaterial();
@@ -117,19 +142,26 @@ export class KnightRig {
         bone,
         rest: bone.quaternion.clone(),
         pos: bone.position.clone(),
+        scale: bone.scale.clone(),
         axes: [new THREE.Vector3(1, 0, 0).applyQuaternion(inv), new THREE.Vector3(0, 1, 0).applyQuaternion(inv), new THREE.Vector3(0, 0, 1).applyQuaternion(inv)],
         now: [0, 0, 0],
       });
     });
+    this.seatHeight = this.joints.get('Hips')!.bone.getWorldPosition(new THREE.Vector3()).y;
     // Slots, placed at rest in model space and turned to the walker's frame (facing -z).
     this.attach(this.head, 'Head', new THREE.Vector3(0, 1.665, 0.005), 0.55);
     this.attach(this.hand, 'HandR', new THREE.Vector3(-0.252, 0.865, 0.005), 1);
     this.attach(this.forearm, 'ForeArmL', new THREE.Vector3(0.243, 1.04, -0.01), 1);
+    this.attach(this.back, 'Spine', new THREE.Vector3(0.26, 1.12, -0.23), 1);
+    this.palms.left.name = 'ReinGripL';
+    this.palms.right.name = 'ReinGripR';
+    this.attach(this.palms.left, 'HandL', new THREE.Vector3(0.252, 0.865, 0.005), 1);
+    this.attach(this.palms.right, 'HandR', new THREE.Vector3(-0.252, 0.865, 0.005), 1);
     model.rotation.y = Math.PI;
     this.root.add(model);
   }
 
-  private attach(slot: THREE.Group, bone: string, at: THREE.Vector3, scale: number) {
+  private attach(slot: THREE.Object3D, bone: string, at: THREE.Vector3, scale: number) {
     const b = this.joints.get(bone)?.bone;
     if (!b) return;
     const want = new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI), new THREE.Vector3(scale, scale, scale));
@@ -152,32 +184,84 @@ export class KnightRig {
     if (o) o.visible = on;
   }
 
+  /** Analytic arm IK: hands stay on the moving tack instead of hovering in a fixed pose. */
+  holdReins(targets: HandPoints, both: boolean): HandPoints {
+    this.root.updateWorldMatrix(true, true);
+    for (const [key, side] of [['left', 'L'], ['right', 'R']] as const) {
+      if (key === 'right' && !both) continue;
+      const arm = this.joints.get(`Arm${side}`)!.bone;
+      const fore = this.joints.get(`ForeArm${side}`)!.bone;
+      const palm = this.palms[key];
+      arm.getWorldPosition(this.shoulderPoint);
+      fore.getWorldPosition(this.elbowPoint);
+      palm.getWorldPosition(this.handPoint);
+      const upper = this.shoulderPoint.distanceTo(this.elbowPoint);
+      const lower = this.elbowPoint.distanceTo(this.handPoint);
+      this.direction.subVectors(targets[key], this.shoulderPoint);
+      const distance = THREE.MathUtils.clamp(this.direction.length(), Math.abs(upper - lower) + 0.001, upper + lower - 0.001);
+      this.direction.normalize();
+      // Elbows bend down and out, consistently through turns and all horse gaits.
+      this.pole.set(key === 'left' ? -0.7 : 0.7, -1, 0.15).applyQuaternion(this.root.getWorldQuaternion(this.worldRotation));
+      this.pole.addScaledVector(this.direction, -this.pole.dot(this.direction)).normalize();
+      const along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
+      this.desiredElbow.copy(this.shoulderPoint).addScaledVector(this.direction, along).addScaledVector(this.pole, Math.sqrt(Math.max(0, upper * upper - along * along)));
+      this.pointBone(arm, this.elbowPoint, this.desiredElbow);
+      fore.getWorldPosition(this.elbowPoint);
+      palm.getWorldPosition(this.handPoint);
+      this.pointBone(fore, this.handPoint, targets[key]);
+    }
+    this.palms.left.getWorldPosition(this.gripPoints.left);
+    this.palms.right.getWorldPosition(this.gripPoints.right);
+    return this.gripPoints;
+  }
+
+  private pointBone(bone: THREE.Bone, end: THREE.Vector3, target: THREE.Vector3) {
+    bone.getWorldPosition(this.shoulderPoint);
+    this.from.subVectors(end, this.shoulderPoint).normalize();
+    this.to.subVectors(target, this.shoulderPoint).normalize();
+    this.swing.setFromUnitVectors(this.from, this.to);
+    bone.getWorldQuaternion(this.worldRotation).premultiply(this.swing);
+    bone.parent!.getWorldQuaternion(this.parentRotation).invert();
+    bone.quaternion.copy(this.parentRotation).multiply(this.worldRotation);
+    bone.updateWorldMatrix(false, true);
+  }
+
   pose(dt: number, p: KnightPose, reduce: boolean) {
     this.time += dt;
-    const step = 0.6 + p.speed * 0.16;
+    const crouch = p.riding ? 0 : p.crouch ?? 0;
+    const motion = walkingGait(p.speed, crouch);
+    const step = motion.step;
     // One stride (two footfalls) per 2π; the local player follows the world's footfalls.
     if (p.stride !== undefined) this.gait = p.stride * Math.PI;
     else this.gait += (p.speed * dt * Math.PI) / step;
-    const moving = reduce || p.riding ? 0 : Math.min(1, p.speed / 4);
-    const run = reduce || p.riding ? 0 : Math.min(1, Math.max(0, (p.speed - 5.5) / 4));
+    const moving = reduce || p.riding ? 0 : motion.moving;
+    const run = reduce || p.riding ? 0 : motion.run;
     const g = this.gait;
     const want = new Map<string, Angles>();
     const set = (name: string, x: number, y = 0, z = 0) => want.set(name, [x, y, z]);
 
     // Legs: the leading leg is fully forward as its foot lands (cos = 1 at a footfall); the
     // knee folds through the swing, high at a run.
-    const swing = 0.42 * moving + 0.33 * run;
-    const fold = 0.7 * moving + 0.9 * run;
+    const swing = reduce || p.riding ? 0 : motion.swing;
+    const upper = this.joints.get('ShinL')!.pos.length();
+    const lower = this.joints.get('FootL')!.pos.length();
+    const reach = upper + lower;
+    const stride = reach * Math.sin(swing) * Math.cos(g);
+    // Follow the stance leg's arc with the pelvis, so its foot can reach the floor.
+    // Use the same solve while rising: switching from IK to a different gait caused a pop.
+    const hipArc = reach - Math.sqrt(Math.max(0, reach * reach - stride * stride));
     const leg: Record<string, number> = {};
     SIDES.forEach((s, i) => {
       const c = Math.cos(g + i * Math.PI);
       const back = Math.max(0, -Math.sin(g + i * Math.PI));
       leg[s] = c;
-      const thigh = -swing * c - run * 0.25 * back;
-      const knee = fold * back * back + 0.12 * run;
+      const forward = 0.08 * crouch + reach * Math.sin(swing) * c;
+      const down = reach - hipArc - CROUCH_DROP * crouch - (0.04 * moving + 0.16 * run) * back * back;
+      const knee = Math.acos(THREE.MathUtils.clamp((forward * forward + down * down - upper * upper - lower * lower) / (2 * upper * lower), -1, 1));
+      const thigh = -Math.atan2(forward, down) - Math.atan2(lower * Math.sin(knee), upper + lower * Math.cos(knee));
       set(`Thigh${s}`, thigh, 0, s === 'L' ? 0.02 : -0.02);
       set(`Shin${s}`, knee);
-      set(`Foot${s}`, -(thigh + knee) * 0.55 + 0.25 * run * Math.max(0, -c));
+      set(`Foot${s}`, -(thigh + knee) * (0.55 + 0.45 * crouch) + 0.25 * run * Math.max(0, -c));
     });
     // Arms pump against the legs, elbows bent more the faster the pace.
     const pump = 0.32 * moving + 0.55 * run;
@@ -189,7 +273,7 @@ export class KnightRig {
       arms[s] = [-pump * opp, 0, s === 'L' ? 0.1 : -0.1];
       fore[s] = -elbow - 0.35 * run * Math.max(0, opp);
     });
-    let lean = 0.04 * moving + 0.2 * run;
+    let lean = 0.04 * moving + 0.2 * run + 0.25 * crouch;
     let twist = 0.14 * run * leg.L;
     const hipTwist = -0.1 * run * leg.L;
 
@@ -197,7 +281,8 @@ export class KnightRig {
     const t = p.attackAge;
     const live = t < p.attackTime && !reduce;
     if (p.riding) {
-      arms.L = arms.R = [-0.55, 0, 0];
+      arms.L = [-0.55, 0, 0.12];
+      arms.R = [-0.55, 0, -0.12];
       fore.L = fore.R = -0.85;
       arms.L[2] = 0.12;
       arms.R[2] = -0.12;
@@ -256,22 +341,30 @@ export class KnightRig {
         set(`Foot${s}`, -0.15);
       }
     }
+    if (p.riding && (p.weapon !== 'fist' || live || p.block)) twist += THREE.MathUtils.clamp(p.aimTurn ?? 0, -0.65, 0.65);
     set('Spine', lean, twist);
     set('Hips', 0, hipTwist);
     set('Head', -lean * 0.6, -twist * 0.5);
     // The cape lifts with the pace and flutters at a run.
     const flow = reduce ? 0 : Math.min(1, p.speed / 10);
-    const flutter = reduce ? 0 : Math.sin(this.time * 9) * 0.05 * run + Math.sin(this.time * 1.3) * 0.02;
-    set('Cape', 0.08 + flow * 0.65 + lean * 0.5 + flutter);
-    set('Cape2', flow * 0.35 + flutter * 1.5);
+    const flutter = reduce ? 0 : Math.sin(this.time * 2.4) * 0.012 * (0.3 + flow);
+    // Counter the torso lean; gather the lower cloth instead of kicking the whole cape up.
+    set('Cape', (p.riding ? 0.75 : 0.12) + flow * 0.25 - lean * 0.8 + flutter);
+    set('Cape2', (p.riding ? -0.3 : crouch * 0.1) + flow * 0.12 + flutter * 0.6);
+    const lowerCape = this.joints.get('Cape2');
+    if (lowerCape) {
+      lowerCape.bone.scale.copy(lowerCape.scale);
+      lowerCape.bone.scale.y *= 1 - crouch * 0.38;
+    }
 
     // Up between footfalls at a run, a slight dip as each foot takes the weight.
+    const k = reduce ? 1 : 1 - Math.exp(-dt * 32);
     const hips = this.joints.get('Hips');
     if (hips) {
-      const lift = Math.abs(Math.sin(g)) * (0.012 * moving + 0.045 * run) - 0.02 * run;
-      hips.bone.position.set(hips.pos.x, hips.pos.y + lift, hips.pos.z);
+      const lift = p.riding ? 0 : -hipArc;
+      this.hipOffset = p.riding ? 0 : this.hipOffset + (lift - crouch * CROUCH_DROP - this.hipOffset) * k;
+      hips.bone.position.set(hips.pos.x, hips.pos.y + this.hipOffset, hips.pos.z - crouch * 0.08);
     }
-    const k = reduce ? 1 : Math.min(1, dt * 18);
     for (const [name, j] of this.joints) {
       const a = want.get(name) ?? [0, 0, 0];
       for (let i = 0; i < 3; i++) j.now[i] += (a[i] - j.now[i]) * k;

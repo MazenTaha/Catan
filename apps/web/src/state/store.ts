@@ -60,6 +60,7 @@ export interface Session {
 }
 
 export interface Fx {
+  buildings: { vertex: string; kind: string; at: number }[];
   roll: { seq: number; dice: [number, number]; total: number; player: number } | null;
   production: {
     seq: number;
@@ -263,7 +264,7 @@ const initialSettings = loadSettings();
 applyVolumes(initialSettings);
 applyDocumentSettings(initialSettings);
 
-const emptyFx: Fx = { roll: null, production: null, placed: null, wraith: null };
+const emptyFx: Fx = { roll: null, production: null, placed: null, wraith: null, buildings: [] };
 
 /**
  * Everything that follows a move, whoever made it (this device or the server): +N badges,
@@ -300,6 +301,11 @@ function advance(
     if (e.type === 'CausewayBuilt') fx.placed = { seq: ++fxSeq, key: e.edge };
     if (e.type === 'OutpostBuilt' || e.type === 'CitadelBuilt' || e.type === 'SetupOutpostPlaced') {
       fx.placed = { seq: ++fxSeq, key: e.vertex };
+      const at = Date.now();
+      fx.buildings = [
+        ...fx.buildings.filter((b) => at - b.at < 5000 && b.vertex !== e.vertex),
+        { vertex: e.vertex, kind: e.type === 'CitadelBuilt' ? 'citadel' : 'outpost', at },
+      ].slice(-32);
     }
     if (e.type === 'WraithMoved') fx.wraith = { seq: ++fxSeq, from: e.from, to: e.to };
     if (e.type === 'TurnStarted') fx.production = null;

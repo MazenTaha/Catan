@@ -430,6 +430,8 @@ export interface Pose {
   y: number;
   z: number;
   yaw: number;
+  /** Optional visual heading, separate from aim when strafing or steering a horse. */
+  bodyYaw?: number;
   /** Walking speed (m/s), for the gait. */
   speed: number;
   weapon: Weapon;
@@ -438,6 +440,8 @@ export interface Pose {
   /** Holding the right mouse button: a sword parries blows and bullets from the front. */
   block: boolean;
   riding: boolean;
+  /** Optional for older clients; presentation only, never changes the authoritative rules. */
+  crouching?: boolean;
 }
 
 /** Reach of each weapon (m), used by the browser to aim and by the server to check hits. */
@@ -454,11 +458,13 @@ export function cleanPose(p: Partial<Pose> | null | undefined): Pose | null {
     y: n(p.y, 100),
     z: n(p.z, 500),
     yaw: n(p.yaw, 1e4),
+    bodyYaw: p.bodyYaw === undefined ? n(p.yaw, 1e4) : n(p.bodyYaw, 1e4),
     speed: n(p.speed, 40),
     weapon: WEAPONS.includes(p.weapon as Weapon) ? (p.weapon as Weapon) : 'fist',
     attacks: Math.max(0, Math.floor(n(p.attacks, 1e9))),
     block: !!p.block,
     riding: !!p.riding,
+    crouching: !!p.crouching && !p.riding,
   };
 }
 
@@ -480,7 +486,7 @@ export type ClientMsg =
   | { t: 'host'; profile: Profile; settings: LobbySettings }
   | { t: 'join'; code: string; profile: Profile }
   | { t: 'resume'; code: string; token: string }
-  | { t: 'settings'; settings: LobbySettings }
+  | { t: 'settings'; settings: Partial<LobbySettings> }
   | { t: 'seat'; index: number; choice: SeatChoice }
   | { t: 'fill-bots' }
   | { t: 'kick'; index: number }

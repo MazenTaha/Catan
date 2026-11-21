@@ -40,6 +40,8 @@ async function handleInterrupts(page: Page): Promise<boolean> {
         return ph?.kind === 'trade' ? (ph.offer?.id ?? null) : null;
       });
     const before = await offerId();
+    // The instant bot may have withdrawn the offer while its dialog was still painted.
+    if (before === null) return false;
     await offer.getByRole('button', { name: /Decline/ }).click({ timeout: 2000 }).catch(() => undefined);
     // A bot may make a fresh (even identical) offer straight away: done once this one is gone.
     await expect.poll(offerId).not.toBe(before);

@@ -4,6 +4,7 @@ import { COLOR_HEX } from '../../lexicon';
 import { usePresence } from '../../state/presence';
 import { Icon } from '../../art/icons/Icon';
 import { hourOf } from '../world/daytime';
+import { WORLD_RADIUS } from '../world/worldMetrics';
 import { toPercent } from './geometry';
 
 /** The sea's soft edge (Board.tsx SEA_MASK), so the wash never shows as a rectangle. */
@@ -12,8 +13,8 @@ const FADE = {
   WebkitMaskImage: 'radial-gradient(ellipse 72% 72% at 50% 50%, #000 80%, transparent 100%)',
 };
 
-/** World metres (the 3D walk) to board units: the walk's hex radius is 14 m, the board's 100. */
-const TO_BOARD = 100 / 14;
+/** World metres to the board's 100-unit hex radius, without loading the renderer. */
+const TO_BOARD = 100 / WORLD_RADIUS;
 
 /**
  * The time of day over the board: a wash of colour at sunrise and sunset and a blue night,

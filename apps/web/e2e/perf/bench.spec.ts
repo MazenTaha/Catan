@@ -180,6 +180,7 @@ interface View {
 async function views(page: Page): Promise<View[]> {
   return page.evaluate(() => {
     type W = {
+      radius: number;
       landHexes: { id: number; x: number; z: number }[];
       walkable: { ax: number; az: number; bx: number; bz: number }[];
       fields: { group: { name: string }; items: { m: { elements: number[] } }[] }[];
@@ -188,7 +189,7 @@ async function views(page: Page): Promise<View[]> {
     const dev = (window as unknown as { __world3d: { world: W; state: () => S } }).__world3d;
     const w = dev.world;
     const s = dev.state();
-    const R = 14;
+    const R = w.radius;
     const lookAt = (x: number, z: number, tx: number, tz: number) => Math.atan2(-(tx - x), -(tz - z));
     const first = (t: string) => w.landHexes.find((h) => s.board.hexes[h.id].terrain === t)!;
     const out: View[] = [];
@@ -255,7 +256,8 @@ async function views(page: Page): Promise<View[]> {
 
 async function place(page: Page, v: View) {
   await page.evaluate((v) => {
-    type W = { x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __ground?: (x: number, z: number) => number };
+    type W = {
+      radius: number; x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __ground?: (x: number, z: number) => number };
     const w = (window as unknown as { __world3d: { world: W } }).__world3d.world;
     w.__ground ??= w.groundAt.bind(w);
     const g = w.__ground;
@@ -273,6 +275,7 @@ async function place(page: Page, v: View) {
 async function startRoute(page: Page, speed = 5): Promise<{ length: number; secs: number; legs: string[] }> {
   return page.evaluate((speed) => {
     type W = {
+      radius: number;
       x: number;
       z: number;
       yaw: number;
@@ -287,7 +290,7 @@ async function startRoute(page: Page, speed = 5): Promise<{ length: number; secs
     const w = win.__world3d.world;
     if (w.__ground) w.groundAt = w.__ground;
     const s = win.__world3d.state();
-    const R = 14;
+    const R = w.radius;
     const of = (t: string) => w.landHexes.filter((h) => s.board.hexes[h.id].terrain === t);
     const near = <T extends { x: number; z: number }>(list: T[], p: { x: number; z: number }) =>
       list.reduce((a, b) => (Math.hypot(b.x - p.x, b.z - p.z) < Math.hypot(a.x - p.x, a.z - p.z) ? b : a));
@@ -490,7 +493,8 @@ async function classify(page: Page): Promise<Record<string, number>> {
       count?: number;
       userData: Record<string, unknown>;
     };
-    type W = { scene: O; fields: { group: O }[]; pieces: O; sheep: { rig: { root: O } }[] };
+    type W = {
+      radius: number; scene: O; fields: { group: O }[]; pieces: O; sheep: { rig: { root: O } }[] };
     const w = (window as unknown as { __world3d: { world: W } }).__world3d.world;
     const within = (o: O, root: O) => {
       for (let p: O | null = o; p; p = p.parent) if (p === root) return true;
@@ -1000,7 +1004,8 @@ test('3D walk: the village prototype (cottage, hall, windmill)', async ({ page }
   log(`village render ${JSON.stringify(await info(page))}`);
   await page.evaluate(() => {
     type H = { key: string; x: number; z: number; y: number; rot: number; doors: { target: number; t: number; base: number; spec: { sign: number; open: number }; node: { rotation: { y: number } } | null }[] };
-    type W = { homes: H[]; mills: H[]; x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __g?: (x: number, z: number) => number };
+    type W = {
+      radius: number; homes: H[]; mills: H[]; x: number; z: number; yaw: number; pitch: number; camY: number; groundAt(x: number, z: number): number; __g?: (x: number, z: number) => number };
     const W = () => (window as unknown as { __world3d: { world: W } }).__world3d.world;
     const find = (key: string) => [...W().homes, ...W().mills].find((x) => x.key === key)!;
     const local = (h: H, x: number, z: number) => [h.x + x * Math.cos(h.rot) + z * Math.sin(h.rot), h.z - x * Math.sin(h.rot) + z * Math.cos(h.rot)];

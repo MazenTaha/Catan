@@ -27,8 +27,8 @@ Measured 2026-10-25 against `main` at `e23202c`.
 
 Metres; 1 Blender unit = 1 m (`docs/BLENDER_ASSET_PIPELINE.md` §5).
 
-- A land tile is 14 m centre to corner and a road is one 14 m edge. Settlements stand on board
-  corners at least 24 m apart. The board is never stretched and the placement rules are unchanged.
+- A land tile is 34 m centre to corner and a road is one 34 m edge. Settlements stand on board
+  corners at least 59 m apart. The board is never stretched and the placement rules are unchanged.
 - The walker's eye is 1.7 m above the floor, and the walker is 0.7 m wide.
 - **Doors:** 2.15 m (cottage), 2.1 m (mill) and 2.5 m (hall) high, and 1.05–1.5 m wide. That
   leaves at least 0.35 m of slack past the walker.

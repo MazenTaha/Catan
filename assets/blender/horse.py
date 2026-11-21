@@ -1,6 +1,6 @@
 """The saddled horse for the 3D walk -> apps/web/public/models/horse.glb
 
-  Horse        armature (root node) with one skinned mesh: a sculpted body (metaballs, so the
+  Horse        armature (root node) with a skinned body and separate resting rein loop: a sculpted body (metaballs, so the
                neck, shoulders, haunches and legs flow into each other), ears, mane, forelock
                and tail hair, hooves and eyes, a saddle on its blanket, girth, stirrups, bridle
                and reins. Bones: Body, Neck, Head, Tail, Tail2 and, per leg (FL FR HL HR),
@@ -49,7 +49,7 @@ class Sculpt:
 
     def __init__(self, name: str):
         self.mb = bpy.data.metaballs.new(name)
-        self.mb.resolution = self.mb.render_resolution = 0.011 * S
+        self.mb.resolution = self.mb.render_resolution = 0.009 * S
         self.mb.threshold = 0.6
         self.ob = bpy.data.objects.new(name, self.mb)
         bpy.context.scene.collection.objects.link(self.ob)
@@ -105,8 +105,8 @@ HIND = [(0.16, 'L'), (-0.16, 'R')]
 def sculpt_body() -> bpy.types.Object:
     s = Sculpt('HorseSculpt')
     # Barrel, chest and belly.
-    s.ell((0, -0.06, 1.13), (0.27, 0.5, 0.3))
-    s.ell((0, -0.47, 1.08), (0.21, 0.19, 0.27))
+    s.ell((0, -0.06, 1.13), (0.26, 0.5, 0.27))
+    s.ell((0, -0.47, 1.08), (0.195, 0.18, 0.245))
     s.ell((0, 0.0, 0.96), (0.235, 0.4, 0.15))
     # Shoulders slope from the point of the shoulder up to the withers.
     for x, _ in FRONT:
@@ -116,7 +116,7 @@ def sculpt_body() -> bpy.types.Object:
     s.cap((0, -0.22, 1.37), (0, 0.3, 1.37), 0.11)
     s.ell((0, 0.46, 1.37), (0.19, 0.25, 0.11))
     # Hindquarters and the thigh muscles.
-    s.ell((0, 0.5, 1.19), (0.25, 0.29, 0.26))
+    s.ell((0, 0.5, 1.19), (0.27, 0.29, 0.255))
     for x, _ in HIND:
         s.ell((x * 0.85, 0.57, 1.06), (0.13, 0.2, 0.25), (8, 0, 0))
         s.ball((x * 0.95, 0.38, 0.95), 0.09)
@@ -129,13 +129,13 @@ def sculpt_body() -> bpy.types.Object:
     s.cap((0, -0.66, 1.72), (0, -0.88, 1.86), 0.055)
     s.ball((0, -0.9, 1.68), 0.085)
     # Head: broad forehead, round jowls, a tapering face and a soft muzzle.
-    s.ell((0, -0.98, 1.81), (0.1, 0.11, 0.095), (-40, 0, 0))
+    s.ell((0, -0.98, 1.81), (0.108, 0.13, 0.10), (-40, 0, 0))
     for sx in (1, -1):
-        s.ball((sx * 0.045, -0.955, 1.665), 0.085)
+        s.ball((sx * 0.045, -0.955, 1.665), 0.075)
         s.ball((sx * 0.04, -1.285, 1.485), 0.03)
     s.ell((0, -0.95, 1.7), (0.08, 0.1, 0.1), (-30, 0, 0))
     s.cap((0, -1.04, 1.75), (0, -1.22, 1.52), 0.064)
-    s.ell((0, -1.255, 1.46), (0.074, 0.076, 0.084), (-40, 0, 0))
+    s.ell((0, -1.255, 1.46), (0.087, 0.081, 0.082), (-40, 0, 0))
     s.ball((0, -1.21, 1.395), 0.04)
     # Forelegs: forearm, flat knee, slim cannon, fetlock, pastern.
     for x, _ in FRONT:
@@ -157,7 +157,7 @@ def sculpt_body() -> bpy.types.Object:
         s.cap((x, 0.62, 0.15), (x, 0.59, 0.075), 0.036)
     # Dock of the tail.
     s.cap((0, 0.76, 1.36), (0, 0.87, 1.17), 0.048)
-    return s.mesh('HorseBody', 7500)
+    return s.mesh('HorseBody', 11500)
 
 
 def paint_body(ob: bpy.types.Object):
@@ -180,8 +180,8 @@ def paint_body(ob: bpy.types.Object):
             c *= lerp(1.0, 0.75, smooth(0.06 * S, 0.02 * S, (p - e).length))
         if p.z < 1.0 * S and abs(p.y) < 0.4 * S and p.z > 0.75 * S:
             c = min(1.0, c * 1.07)
-        c *= 1 + 0.035 * noise.noise(p * 7 + seed)
-        col.data[loop.index].color = (c, c, c, 1.0)
+        c *= 1 + 0.055 * noise.noise(p * 9 + seed) + 0.018 * noise.noise(p * 31 + seed)
+        col.data[loop.index].color = (min(1,c*1.025), c, c*0.955, 1.0)
     me.color_attributes.active_color = col
     me.color_attributes.render_color_index = 0
 
@@ -259,14 +259,26 @@ def band(b: MeshBuilder, surf: Surface, centre_fn, axis: Vector, angles, width: 
 
 
 def ribbon(b: MeshBuilder, pts, widths, side: Vector, color_fn, mat=M_HAIR):
-    """A flat, tapering strip of hair along `pts`, `side` setting its width direction."""
-    ids = []
-    for i, p in enumerate(pts):
-        t = i / (len(pts) - 1)
-        c = color_fn(t)
-        ids.append((b.vert(p - side * widths[i] / 2, color=c), b.vert(p + side * widths[i] / 2, color=c)))
-    for i in range(len(pts) - 1):
-        b.face([ids[i][0], ids[i][1], ids[i + 1][1], ids[i + 1][0]], mat=mat)
+    """A rounded lock of hair with thickness, a raised spine and a tapered tip."""
+    ids=[]
+    side=side.normalized()
+    for i,p in enumerate(pts):
+        t=i/(len(pts)-1)
+        tangent=(pts[min(i+1,len(pts)-1)]-pts[max(0,i-1)]).normalized()
+        n=tangent.cross(side).normalized()
+        u=n.cross(tangent).normalized()
+        row=[]
+        for j in range(6):
+            a=j*math.tau/6
+            off=u*math.cos(a)*widths[i]*.5+n*math.sin(a)*widths[i]*.23
+            normal=(u*math.cos(a)+n*math.sin(a)*1.8).normalized()
+            row.append(b.vert(p+off,normal=normal,color=mul(color_fn(t),.82+.18*max(0,math.sin(a)))))
+        ids.append(row)
+    for i in range(len(ids)-1):
+        for j in range(6):
+            b.face([ids[i][j],ids[i+1][j],ids[i+1][(j+1)%6],ids[i][(j+1)%6]],mat=mat)
+    b.face(list(reversed(ids[0])),mat=mat)
+    b.face(ids[-1],mat=mat)
 
 
 def build_parts(surf: Surface):
@@ -296,6 +308,30 @@ def build_parts(surf: Surface):
         tube(eye, [c - nrm * 0.02 * S, c, c + nrm * 0.014 * S], [0.012 * S, 0.026 * S, 0.004 * S], 10,
              lambda t, s: EYE, mat=M_TACK, cap=True)
         on('Head').merge(eye)
+    # Sculpted lids and nostril rims; small highlights keep the eye readable in a game camera.
+    for sx in (-1,1):
+        loc,nrm=surf.hit(P(0,-1.02,1.76),Vector((sx,-.25,.1)).normalized(),.4*S)
+        if loc is not None:
+            u=Vector((0,1,0));v=nrm.cross(u).normalized()
+            pts=[loc+nrm*.006*S+u*(math.cos(a)*.029*S)+v*(math.sin(a)*.022*S) for a in [k*math.tau/14 for k in range(15)]]
+            tube(on('Head'),pts,[.0045*S]*len(pts),5,lambda t,s:(.64,.64,.64),mat=M_COAT)
+            tube(on('Head'),[loc+nrm*.017*S+v*.006*S,loc+nrm*.021*S+v*.006*S],[.004*S,.002*S],7,lambda t,s:C('#fff1d4'),mat=M_TACK,cap=True)
+        loc,nrm=surf.hit(P(0,-1.275,1.47),Vector((sx,-.5,.05)).normalized(),.35*S)
+        if loc is not None:
+            u=Vector((0,0,1));v=nrm.cross(u).normalized()
+            centre=loc+nrm*.002*S
+            tube(on('Head'),[centre-nrm*.006*S,centre,centre+nrm*.003*S],[.012*S,.022*S,.014*S],10,lambda t,s:C('#201b19'),mat=M_TACK,cap=True)
+    # A narrow irregular ivory blaze, conformed to the forehead and nose bridge.
+    rows=[]
+    for i in range(9):
+        t=i/8
+        c=P(0,lerp(-1.025,-1.22,t),lerp(1.82,1.55,t))
+        loc,nrm=surf.hit(c,Vector((0,-.78,.62)).normalized(),.4*S)
+        if loc is None: continue
+        width=(.012+.012*math.sin(t*math.pi)+.004*math.sin(t*11))*S
+        rows.append([on('Head').vert(loc+Vector((sx*width,0,0))+nrm*.002*S,normal=nrm,color=C('#eee0c4')) for sx in (-1,1)])
+    for a,b in zip(rows,rows[1:]): on('Head').face([a[0],a[1],b[1],b[0]],mat=M_TACK)
+
     # Hooves: a flared horn wall, darker at the coronet.
     for x, side in FRONT:
         h = MeshBuilder()
@@ -313,9 +349,9 @@ def build_parts(surf: Surface):
     # Mane: strands from poll to withers falling to the right side, with the forelock.
     poll, withers = P(0, -0.9, 1.9), P(0, -0.38, 1.5)
     neck_axis = (withers - poll).normalized()
-    n = 40
+    n = 32
     for i in range(n):
-        t = (i % 20) / 19 + (0.025 if i >= 20 else 0)
+        t = (i % 16) / 15 + (0.025 if i >= 16 else 0)
         root = poll.lerp(withers, t) + Vector((0, 0, 0.02 * S * math.sin(math.pi * t)))
         loc, nrm = surf.hit(root - Vector((0, 0, 0.15)) * S, Vector((0, 0.3, 1)).normalized(), 0.4 * S)
         if loc is not None:
@@ -323,7 +359,7 @@ def build_parts(surf: Surface):
         length = (0.2 + 0.08 * math.sin(math.pi * t) + r.random() * 0.05) * S
         fall = Vector((-0.55 - r.random() * 0.25, 0.1, -1)).normalized()
         out = Vector((-1, 0, 0.35)).normalized()
-        if i >= 20:
+        if i >= 16:
             length *= 0.7
         up = Vector((0.012, 0, 1))
         pts = [root - up * 0.01 * S, root + up * 0.035 * S + out * 0.01 * S, root + out * 0.06 * S + fall * length * 0.3,
@@ -339,22 +375,22 @@ def build_parts(surf: Surface):
                lambda u: (0.9 * (0.75 + 0.25 * u),) * 3)
 
     # Tail: a fall of hair from the dock, flaring and swept back a little.
-    for k in range(28):
-        a = (k % 14) / 13 - 0.5
+    for k in range(20):
+        a = (k % 10) / 9 - 0.5
         u = r.random()
         root = P(0, 0.775, 1.345).lerp(P(0, 0.87, 1.17), u) + P(a * 0.05, 0.02, 0)
         drop = 0.62 + 0.12 * r.random() - 0.25 * u
         pts = [root, root + P(a * 0.04, 0.09 + 0.04 * (1 - u), -0.12), root + P(a * 0.1, 0.13, -0.4 * drop / 0.62),
                root + P(a * 0.14, 0.1 + 0.05 * r.random(), -drop - 0.15 * (1 - u))]
-        side = Vector((1, 0, 0.3 * a)) if k < 14 else Vector((0.3 * a, 1, 0.4))
+        side = Vector((1, 0, 0.3 * a)) if k < 10 else Vector((0.3 * a, 1, 0.4))
         shade = 0.8 + 0.2 * r.random()
         ribbon(on('Tail2'), pts, [0.05 * S, 0.085 * S, 0.08 * S, 0.01 * S], side.normalized(),
                lambda u: (shade * (0.75 + 0.25 * u),) * 3)
 
     body = on('Body')
     # Saddle blanket (the rider's colour), a padded leather seat with pommel and cantle, and flaps.
-    ys = [lerp(-0.3, 0.24, i / 10) for i in range(11)]
-    patch(body, surf, ys, [lerp(-64, 64, j / 16) for j in range(17)], lambda y, th: 0.012, (0.9, 0.9, 0.9), M_BLANKET, rim=-0.008)
+    ys = [lerp(-0.32, 0.5, i / 14) for i in range(15)]
+    patch(body, surf, ys, [lerp(-103, 103, j / 22) for j in range(23)], lambda y, th: 0.012, (0.9, 0.9, 0.9), M_BLANKET, rim=-0.008)
     ys = [lerp(-0.22, 0.17, i / 12) for i in range(13)]
 
     def seat(y, th):
@@ -366,6 +402,46 @@ def build_parts(surf: Surface):
         th = [sx * lerp(40, 82, j / 6) for j in range(7)]
         patch(body, surf, [lerp(-0.17, 0.08, i / 5) for i in range(6)], th if sx > 0 else th[::-1],
               lambda y, t: 0.03, LEATHER_DK, M_TACK, rim=-0.008)
+    # Blanket piping and quilt seams follow the barrel surface, sharing the existing tack draw.
+    for yy in (-.31,.49):
+        pts=[]
+        for k in range(25):
+            th=-102+k*204/24
+            loc,nrm=surf.hit(P(0,yy,1.1),barrel_dir(th))
+            if loc is not None: pts.append(loc+nrm*.023*S)
+        if len(pts)>1: tube(body,pts,[.0045*S]*len(pts),5,lambda t,s:C('#c8a66a'),mat=M_TACK)
+    for j in range(5):
+        pts=[]
+        for k in range(15):
+            th=-60+k*120/14
+            yy=-.24+j*.105+(th/120)*.04
+            loc,nrm=surf.hit(P(0,yy,1.1),barrel_dir(th))
+            if loc is not None: pts.append(loc+nrm*.017*S)
+        if len(pts)>1: tube(body,pts,[.0022*S]*len(pts),4,lambda t,s:C('#c1a17b'),mat=M_TACK)
+
+    # Embroidered side devices and a shaped breastcollar distinguish the riding tack at a distance.
+    gold=C('#d5b779')
+    for sx in (-1,1):
+        loc,nrm=surf.hit(P(0,.30,1.13),Vector((sx,0,0)))
+        if loc is not None:
+            c=loc+nrm*.025*S
+            u=Vector((0,1,0));v=Vector((0,0,1))
+            for k in range(16):
+                a=k*math.tau/16;aa=(k+1)*math.tau/16
+                ra=.075*S if k%2==0 else .036*S
+                rb=.036*S if k%2==0 else .075*S
+                pts=[c,c+u*math.cos(a)*ra+v*math.sin(a)*ra,c+u*math.cos(aa)*rb+v*math.sin(aa)*rb]
+                if sx<0:pts.reverse()
+                body.poly(pts,gold,mat=M_TACK)
+        pts=[]
+        for j in range(12):
+            t=j/11
+            origin=P(0,lerp(-.3,-.68,t),lerp(1.32,1.15,t))
+            out=Vector((sx*lerp(1,.1,t),-.8,0)).normalized()
+            loc,nrm=surf.hit(origin,out)
+            if loc is not None:pts.append(loc+nrm*.012*S)
+        if len(pts)>1:tube(body,pts,[.016*S]*len(pts),6,lambda t,s: LEATHER_DK,mat=M_TACK)
+
     # Girth under the belly.
     band(body, surf, lambda t: P(0, -0.27 + 0.065 * t, 1.1), Vector((0, 1, 0)), [lerp(60, 300, k / 24) for k in range(25)],
          0.065, 0.012, LEATHER_DK)
@@ -467,7 +543,7 @@ def assign(ob, weights_fn):
 def build():
     sc = new_scene('Horse')
     mats = [
-        material('Coat', rough=0.72),
+        material('Coat', rough=0.63),
         material('Hair', rough=0.82, double=True),
         material('Tack', rough=0.6, double=True),
         material('Owner_Blanket', rough=0.92, double=True),
@@ -499,7 +575,13 @@ def build():
         else:
             assign(ob, lambda p, bone=bone: {bone: 1.0})
     bpy.ops.object.select_all(action='DESELECT')
-    for ob in extras.values():
+    # Keep the resting rein loop separate; the runtime swaps it for hand-held straps.
+    resting_reins = extras['Reins']
+    resting_reins.parent = arm
+    resting_reins.modifiers.new('Armature', 'ARMATURE').object = arm
+    for bone, ob in extras.items():
+        if bone == 'Reins':
+            continue
         ob.select_set(True)
     body.select_set(True)
     bpy.context.view_layer.objects.active = body

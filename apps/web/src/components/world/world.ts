@@ -4,6 +4,7 @@ import { getTopology, type Board, type GameState, type HarborKind, type Terrain 
 import { COLOR_HEX } from '../../lexicon';
 import { SLOTS, cloneAsset, type AssetSlot, type GroundKind, type LoadedAsset, type WorldAssets } from './assets';
 import { Clearings, Field, variantAt, type Circle, type PlantVisual } from './field';
+import { islandLayout, type IslandSite } from './islandLayout';
 import {
   Kit,
   STONE,
@@ -40,6 +41,10 @@ import {
 import { DETAIL_KIND, R, buildGround, detailTexture, edgeDistance, fbm, onPath, tileHeight, type TileGround } from './terrain';
 import { foliage, foliageDepth, groundDetail, makeSky, noiseTexture } from './shaders';
 import { AdaptiveScale } from './adaptive';
+import { GroundSurface } from './groundSurface';
+import { WALK_SPEED, RUN_SPEED, CROUCH_SPEED, CROUCH_DROP } from './locomotion';
+import { CROUCH_KEYS } from './controls';
+import { Construction, CONSTRUCTION_MS, type BuildingStart } from './construction';
 import { buildingShape, toLocal, toWorld, type BuildingKind, type BuildingShape, type DoorSpec } from './buildings';
 import { NO_STRESS, type Stress } from './stress';
 import { wheatClumpGeometry } from './wheat';
@@ -54,8 +59,8 @@ import { lightAt } from './daylight';
 import { DEFAULT_LOOK, type CharacterLook, type KingdomDecor, type Pose } from '@hexfall/net';
 
 /** Riding speeds (m/s): a walk and, with Shift, a gallop. */
-const HORSE_WALK = 7;
-const HORSE_RUN = 17;
+const HORSE_WALK = 5.5;
+const HORSE_RUN = 12;
 /** Where the weapon chest stands in each room (plan frame: front wall towards +z). */
 const CHEST_SPOT = { cottage: { x: -1.62, z: 0.5 }, hall: { x: -3.05, z: 0.4 } } as const;
 
@@ -75,6 +80,8 @@ export interface MapState {
   yaw: number;
   horses: { x: number; z: number }[];
   others: { seat: number; x: number; z: number }[];
+  paths?: readonly { ax: number; az: number; bx: number; bz: number }[];
+  sites?: readonly { x: number; z: number }[];
   /** Weapon chests still to search (the real one and the decoy look alike). */
   chests: { x: number; z: number }[];
 }
@@ -83,8 +90,8 @@ export { R };
 /** Eye height above the ground, metres. */
 const EYE = 1.7;
 const PLAYER_R = 0.35;
-const WALK = 5;
-const RUN = 10;
+const WALK = WALK_SPEED;
+const RUN = RUN_SPEED;
 /** Procedural houses are modelled small; this brings doors to ~2 m next to a 1.7 m eye. */
 const PIECE_SCALE = 1.4;
 /** Grass and flowers shrink away between these distances (metres); cells past them aren't drawn. */
@@ -203,7 +210,8 @@ interface Sheep {
  */
 interface Flock {
   rigs: SheepRig[];
-  parts: { mesh: THREE.InstancedMesh; src: THREE.Mesh[] }[];
+  near: boolean;
+  parts: { mesh: THREE.InstancedMesh; src: THREE.Mesh[]; near: THREE.BufferGeometry; far: THREE.BufferGeometry }[];
 }
 
 interface Spawn {
@@ -226,6 +234,7 @@ export interface WorldOptions {
   onChestSound?(sound: ChestSound): void;
   /** A foot landed (on foot only), on this surface. */
   onStep?(surface: Surface): void;
+  onCrouch?(crouching: boolean): void;
   /** How close to a full run the walker is (0 to 1), every frame. */
   onSprint?(sprint: number): void;
   /** Mounted or dismounted a horse. */
@@ -272,16 +281,6 @@ const SKY = {
   cloudShade: new THREE.Color('#9fb0c8'),
 };
 
-/**
- * The fill light's sky: softer and less blue than the visible one, with a warm green bounce
- * from the meadows below, so shade keeps its colour instead of turning teal.
- */
-const FILL = {
-  zenith: new THREE.Color('#7aa6d6'),
-  horizon: new THREE.Color('#e6e4da'),
-  ground: new THREE.Color('#7d7a4c'),
-};
-
 function mulberry(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -311,6 +310,9 @@ function inHex(x: number, z: number, cx: number, cz: number, r: number): boolean
 const dir = (a: number) => ({ x: Math.sin(a), z: Math.cos(a) });
 
 export class World {
+  readonly radius = R;
+  private mapPaths: { ax: number; az: number; bx: number; bz: number }[] = [];
+  private mapSites: { x: number; z: number }[] = [];
   private combat: Combat | null = null;
   private cameraNear: Collider[] = [];
   private cameraFocus = new THREE.Vector3();
@@ -334,7 +336,7 @@ export class World {
   /** Furnishings by owner seat (My kingdom); the owner's buildings show them inside. */
   private decor = new Map<number, KingdomDecor>();
   /** Bridges (the roads): centre, direction along, half length, for standing on the deck. */
-  private bridges: { x: number; z: number; ux: number; uz: number; half: number }[] = [];
+  private bridges: { x: number; z: number; ux: number; uz: number; half: number; crossing: number }[] = [];
   private stars: THREE.Points | null = null;
   private skyColours = {
     zenith: SKY.zenith.clone(),
@@ -364,6 +366,8 @@ export class World {
     shaders: THREE.Group;
     flat: THREE.OrthographicCamera;
   } | null = null;
+  /** Retained for clock changes; filtering happens once per changed hour, never per frame. */
+  private envSource: World['envPending'] = null;
   private uTime = { value: 0 };
   private last = performance.now();
   private disposed = false;
@@ -378,6 +382,9 @@ export class World {
   /** Enterable buildings: the windmills (fixed) and the settlements and cities (from the game). */
   private mills: House[] = [];
   private homes: House[] = [];
+  private construction: Construction[] = [];
+  private buildingStarts = new Map<string, { kind: string; at: number }>();
+  private piecesInitialized = false;
   /** Which doors were left open, by building and door, so a rebuild of the pieces keeps them. */
   private doorOpen = new Map<string, number>();
   private hint: string | null = null;
@@ -424,14 +431,20 @@ export class World {
   /** Walking speed this frame (m/s). */
   private speed = 0;
   /** The walker's velocity (m/s): it builds up and eases off rather than snapping. */
+  private surfaces = new Map<number, GroundSurface>();
+  private beachSurface: GroundSurface | null = null;
+  private dockFloors: { x: number; z: number; ux: number; uz: number; length: number; y: number }[] = [];
   private vx = 0;
   private vz = 0;
   private strafe = 0;
   private lastYaw = 0;
+  private moveFacing = 0;
   private run: RunFeel;
   private hexTerrain: string[] = [];
   private pitch = -0.08;
   private camY = EYE;
+  private crouch = 0;
+  private wasCrouching = false;
   private hex: number | null = -2;
   private nextBleat = 3;
   private stress: Stress;
@@ -461,6 +474,7 @@ export class World {
       antialias: !opts.lite,
       powerPreference: 'high-performance',
     });
+    this.renderer.localClippingEnabled = true;
     this.renderScale = opts.renderScale ?? 1;
     if (opts.adaptive) this.adaptive = new AdaptiveScale();
     this.renderer.setPixelRatio(this.pixelRatio());
@@ -548,9 +562,29 @@ export class World {
     return cap * this.renderScale * (this.adaptive?.scale ?? 1) * this.stress.scale;
   }
 
+  /** Lost focus must stop motion immediately, even when a keyup never arrives from CEF. */
+  stopMovement(clearInput = true): void {
+    if (clearInput) {
+      this.keys.clear();
+      this.joy.x = this.joy.y = 0;
+    }
+    this.vx = this.vz = this.speed = 0;
+    this.strafe = 0;
+    this.lastYaw = this.yaw;
+    this.run.reset();
+  }
+
   look(dx: number, dy: number): void {
     this.yaw -= dx * 0.004;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.004, -1.2, 1.1);
+    // Match the orbit's actual range: excess input must not accumulate beyond its stops.
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.004, this.combat ? -0.65 : -1.2, this.combat ? 0.55 : 1.1);
+  }
+
+  private resetView(): void {
+    this.lastYaw = this.moveFacing = this.yaw;
+    this.camY = this.groundAt(this.x, this.z) + EYE;
+    this.cameraDistance = this.mount >= 0 ? 4.6 : 3.4;
+    if (this.combat) this.combat.player.rotation.y = this.moveFacing;
   }
 
   attack(): boolean {
@@ -598,6 +632,10 @@ export class World {
     return this.mount >= 0;
   }
 
+  get crouching(): boolean {
+    return this.mount < 0 && CROUCH_KEYS.some((key) => this.keys.has(key));
+  }
+
   /** Where we are, for the server to relay to the other players. */
   pose(): Pose {
     const c = this.combat;
@@ -606,11 +644,13 @@ export class World {
       y: this.groundAt(this.x, this.z),
       z: this.z,
       yaw: this.yaw,
+      bodyYaw: this.mount >= 0 ? this.horses[this.mount].yaw : c?.player.rotation.y ?? this.yaw,
       speed: this.speed,
       weapon: c?.weapon ?? 'fist',
       attacks: c?.attackCount ?? 0,
       block: !!c?.blocking,
       riding: this.mount >= 0,
+      crouching: this.crouching,
     };
   }
 
@@ -644,6 +684,8 @@ export class World {
       yaw: this.yaw,
       horses: this.horses.filter((_, i) => i !== this.mount).map((h) => ({ x: h.x, z: h.z })),
       others: [...this.remotes.values()].filter((f) => f.present).map((f) => ({ seat: f.seat, ...f.position })),
+      paths: this.mapPaths,
+      sites: this.mapSites,
       chests: this.chestInfo.opened ? [] : [...this.chests.values()].map((c) => ({ x: c.x, z: c.z })),
     };
   }
@@ -708,6 +750,8 @@ export class World {
 
   /** Lights the island for an hour of the day: sun or moon, sky, fog, fill and stars. */
   setHour(hour: number): void {
+    hour = ((hour % 24) + 24) % 24;
+    const changed = this.hour !== hour;
     this.hour = hour;
     const l = lightAt(hour);
     this.sunDir.copy(l.dir);
@@ -724,6 +768,7 @@ export class World {
     (this.scene.background as THREE.Color).copy(l.horizon);
     this.scene.fog?.color.copy(l.horizon);
     this.scene.environmentIntensity = l.env;
+    if (changed && this.envSource) this.refreshEnvironment();
     this.renderer.toneMappingExposure = l.exposure;
     if (this.stars) (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - l.day * 1.6);
     if (this.stars) this.stars.visible = l.day < 0.6;
@@ -773,6 +818,16 @@ export class World {
   }
 
   private addHorse(x: number, z: number, yaw: number, coat: number) {
+    if (z > -300) {
+      // Old pasture viewpoints could place a horse through the pen fence or over the shore.
+      search: for (let r = 0; r <= 6; r += 0.75) for (let i = 0; i < 12; i++) {
+        const nx = x + Math.cos(i * Math.PI / 6) * r;
+        const nz = z + Math.sin(i * Math.PI / 6) * r;
+        if (!this.isWalkable(nx, nz) || this.houseAt(nx, nz) || this.blockedAt(nx, nz, 1.05)) continue;
+        x = nx; z = nz;
+        break search;
+      }
+    }
     const horse = new Horse(this.opts.playerColor ?? '#b0364a', this.opts.reduceMotion, coat);
     horse.grazing = true;
     horse.root.position.set(x, this.groundAt(x, z), z);
@@ -810,10 +865,12 @@ export class World {
 
   private mountHorse(i: number) {
     const h = this.horses[i];
+    this.stopMovement(false);
     this.mount = i;
     this.x = h.x;
     this.z = h.z;
     this.yaw = h.yaw;
+    this.resetView();
     h.horse.grazing = false;
     h.horse.setColor(this.opts.playerColor ?? '#b0364a');
     if (this.combat) this.combat.riding = true;
@@ -821,26 +878,36 @@ export class World {
     this.opts.onRide?.(true);
   }
 
-  private dismount() {
+  private dismount(): boolean {
+    if (this.mount < 0) return true;
     const h = this.horses[this.mount];
-    h.x = this.x;
-    h.z = this.z;
-    h.yaw = this.yaw;
-    h.horse.grazing = true;
-    this.mount = -1;
-    if (this.combat) this.combat.riding = false;
-    // Step off to the left, or the right, wherever there's room.
-    for (const side of [1, -1, 0]) {
-      const a = this.yaw + (side * Math.PI) / 2;
-      const nx = h.x - Math.sin(a) * (side ? 1.3 : 0);
-      const nz = h.z - Math.cos(a) * (side ? 1.3 : 0);
-      if (side === 0 || (this.isWalkable(nx, nz) && !this.blockedAt(nx, nz, 0.4))) {
-        this.x = nx;
-        this.z = nz;
-        break;
+    // Find a clear exit before changing modes; never fall back to the horse's own centre.
+    for (const radius of [1, 1.3, 1.7, 2.1]) for (const offset of [Math.PI / 2, -Math.PI / 2, Math.PI * 0.75, -Math.PI * 0.75, Math.PI / 4, -Math.PI / 4, Math.PI, 0]) {
+      const a = h.yaw + offset;
+      const nx = h.x - Math.sin(a) * radius;
+      const nz = h.z - Math.cos(a) * radius;
+      const hx = Math.sin(h.yaw) * 0.55, hz = Math.cos(h.yaw) * 0.55;
+      if (segDist(nx, nz, { ax: h.x - hx, az: h.z - hz, bx: h.x + hx, bz: h.z + hz, r: 0.48 }) < 0.48 + PLAYER_R + 0.03) continue;
+      if (!this.isWalkable(nx, nz) || this.blockedAt(nx, nz, PLAYER_R + 0.05)) continue;
+      if (Math.abs(this.groundAt(nx, nz) - this.groundAt(h.x, h.z)) > 0.5) continue;
+      let clear = true;
+      for (let t = 0.2; t <= 1; t += 0.2) {
+        if (this.blockedAt(h.x + (nx - h.x) * t, h.z + (nz - h.z) * t, PLAYER_R)) clear = false;
       }
+      if (!clear) continue;
+      h.horse.grazing = true;
+      h.horse.root.visible = true;
+      this.mount = -1;
+      if (this.combat) this.combat.riding = false;
+      this.x = nx;
+      this.z = nz;
+      this.stopMovement(false);
+      this.resetView();
+      this.opts.onRide?.(false);
+      return true;
     }
-    this.opts.onRide?.(false);
+    this.opts.onNotice?.('Find clear, level ground to dismount.');
+    return false;
   }
 
   /** Place one reusable practice dummy in clear reachable ground, never inside a building. */
@@ -885,45 +952,82 @@ export class World {
 
   private thirdPersonCamera(dt: number): void {
     const pitch = THREE.MathUtils.clamp(this.pitch - 0.2, -0.85, 0.35);
-    const ground = this.groundAt(this.x, this.z);
     // Over the right shoulder, like a third-person shooter: the character stands left of centre.
     const riding = this.mount >= 0;
     const shoulder = riding ? 0.75 : 0.62;
     const rx = Math.cos(this.yaw) * shoulder;
     const rz = -Math.sin(this.yaw) * shoulder;
-    let fx = this.x + rx;
-    let fz = this.z + rz;
-    if (this.touchesSolid(this.nearbySolids(fx, fz, 0.6), fx, fz, 0.2)) {
-      fx = this.x;
-      fz = this.z;
+    let fx = this.x, fz = this.z;
+    const focusY = this.camY - EYE + (riding ? 2.45 : 1.55) - this.crouch * CROUCH_DROP;
+    const sideObstacles = this.nearbySolids(this.x, this.z, shoulder + 0.3);
+    const sideBlocked = (t: number) => {
+      const x = this.x + rx * t, z = this.z + rz * t;
+      const floor = this.groundAt(x, z);
+      const house = this.houseAt(x, z);
+      return this.touchesSolid(sideObstacles, x, z, 0.2, focusY - floor > 1.3) ||
+        focusY < floor + 0.2 || !!(house && focusY > house.y + house.shape.ceiling - 0.2);
+    };
+    let side = 0;
+    for (let i = 1; i <= 20; i++) {
+      const t = i / 20;
+      if (sideBlocked(t)) {
+        let blocked = t;
+        for (let j = 0; j < 7; j++) {
+          const mid = (side + blocked) / 2;
+          if (sideBlocked(mid)) blocked = mid;
+          else side = mid;
+        }
+        break;
+      }
+      side = t;
     }
-    this.cameraFocus.set(fx, ground + (riding ? 2.45 : 1.55), fz);
+    fx += rx * side; fz += rz * side;
+    this.cameraFocus.set(fx, focusY, fz);
     this.cameraOffset.set(Math.sin(this.yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(this.yaw) * Math.cos(pitch));
     const far = (riding ? 4.6 : 3.4) + this.run.pullBack;
     let distance = far;
     const obstacles = this.nearbySolids(fx, fz, far + 0.3);
     // A small swept proxy, rather than raycasting thousands of foliage triangles.
-    for (let d = 0.2; d <= far; d += 0.15) {
+    const blockedAt = (d: number) => {
       const x = fx + this.cameraOffset.x * d,
         z = fz + this.cameraOffset.z * d;
       const y = this.cameraFocus.y + this.cameraOffset.y * d;
       const house = this.houseAt(x, z);
       const below = this.groundAt(x, z);
-      if (
+      return (
         this.touchesSolid(obstacles, x, z, 0.18, y - below > 1.3) ||
         y < below + 0.2 ||
         (house && y > house.y + house.shape.ceiling - 0.2)
-      ) {
-        distance = Math.max(0.15, d - 0.2);
+      );
+    };
+    let safe = 0;
+    for (let d = 0.15; ; d += 0.15) {
+      const end = Math.min(d, far);
+      if (blockedAt(end)) {
+        let blocked = end;
+        // Refine contact rather than snapping between 15 cm probe steps.
+        for (let i = 0; i < 8; i++) {
+          const mid = (safe + blocked) / 2;
+          if (blockedAt(mid)) blocked = mid;
+          else safe = mid;
+        }
+        distance = safe;
         break;
       }
+      safe = end;
+      if (end === far) break;
     }
     // Retract immediately; ease back out. Never interpolate through an obstruction.
-    this.cameraDistance = Math.min(distance, this.cameraDistance + dt * 5);
+    this.cameraDistance = distance < this.cameraDistance ? distance : this.cameraDistance + (distance - this.cameraDistance) * (1 - Math.exp(-dt * 8));
     this.camera.position.copy(this.cameraFocus).addScaledVector(this.cameraOffset, this.cameraDistance);
     this.camera.lookAt(this.cameraFocus);
     if (this.combat) {
-      this.combat.player.visible = this.cameraDistance > 0.8;
+      const visible = this.combat.player.visible ? this.cameraDistance > 0.65 : this.cameraDistance > 0.95;
+      this.combat.player.visible = visible;
+      if (riding) {
+        const horse = this.horses[this.mount].horse.root;
+        horse.visible = this.cameraDistance > (horse.visible ? 1.1 : 1.4);
+      }
       let shake = this.combat.shake;
       for (const c of this.chests.values()) shake = Math.max(shake, c.chest.shake * 0.03);
       this.camera.rotation.z += Math.sin(this.last * 0.09) * shake;
@@ -934,6 +1038,7 @@ export class World {
   goTo(hex: number): void {
     const s = this.spawns.get(hex);
     if (!s) return;
+    this.stopMovement();
     this.x = s.x;
     this.z = s.z;
     this.tryMove(s.x, s.z);
@@ -941,7 +1046,7 @@ export class World {
     this.pitch = -0.12;
     const inside = this.houseAt(this.x, this.z);
     if (inside) this.stepOutside(inside);
-    this.camY = this.groundAt(this.x, this.z) + EYE;
+    this.resetView();
   }
 
   /**
@@ -949,7 +1054,8 @@ export class World {
    * otherwise a few metres out towards the tile it faces.
    */
   spawnAt(v: string): boolean {
-    if (this.mount >= 0) this.dismount();
+    if (this.mount >= 0 && !this.dismount()) return false;
+    this.stopMovement();
     if (this.goToBuilding(v)) {
       this.tetherHorse();
       return true;
@@ -962,7 +1068,7 @@ export class World {
     this.tryMove(this.x, this.z);
     this.yaw = Math.atan2(-(spot.x - this.x), -(spot.z - this.z));
     this.pitch = -0.08;
-    this.camY = this.groundAt(this.x, this.z) + EYE;
+    this.resetView();
     this.tetherHorse();
     return true;
   }
@@ -988,15 +1094,18 @@ export class World {
   goToBuilding(vertex: string): boolean {
     const h = this.homes.find((x) => x.key === vertex);
     if (!h) return false;
+    this.stopMovement();
     this.stepOutside(h);
     this.pitch = -0.05;
     return true;
   }
 
   /** Rebuilds settlements, cities, roads and the robber from the game state. */
-  setPieces(state: GameState): void {
+  setPieces(state: GameState, starts: readonly BuildingStart[] = []): void {
     if (this.stress.pieces) state = fullBoard(state);
     this.shadowDirty = true;
+    for (const effect of this.construction) effect.dispose();
+    this.construction = [];
     for (const c of [...this.pieces.children]) this.pieces.remove(c);
     this.pieceColliders = [];
     this.bridges = [];
@@ -1011,13 +1120,15 @@ export class World {
       const pb = center(b);
       const color = COLOR_HEX[state.players[owner].color];
       // Every road is a bridge over a brook (DECISIONS #40): unmistakable from anywhere.
-      const road = makeBridge(this.kit, R, color);
+
       // A road stops at the walls of an enterable building at either end instead of running
       // through its doorway and across the floor.
       const ta = this.roadTrim(state, a);
       const tb = this.roadTrim(state, b);
       const k = (R - ta - tb) / R;
       const m = (ta + (R - ta - tb) / 2) / R;
+      const crossing = (tb - ta) / 2;
+      const road = makeBridge(this.kit, R, color, crossing / k, 1.8 / k);
       const cx = pa.x + (pb.x - pa.x) * m;
       const cz = pa.z + (pb.z - pa.z) * m;
       road.position.set(cx, -0.04, cz);
@@ -1028,19 +1139,19 @@ export class World {
       const ux = (pb.x - pa.x) / R;
       const uz = (pb.z - pa.z) / R;
       const half = (R * k) / 2;
-      this.bridges.push({ x: cx, z: cz, ux, uz, half });
+      this.bridges.push({ x: cx, z: cz, ux, uz, half, crossing });
       const rail = half * 0.84;
       for (const side of [-1, 1]) {
         const ox = -uz * side * (BRIDGE_WIDTH / 2 + 0.05);
         const oz = ux * side * (BRIDGE_WIDTH / 2 + 0.05);
-        this.pieceColliders.push({
-          ax: cx - ux * rail + ox,
-          az: cz - uz * rail + oz,
-          bx: cx + ux * rail + ox,
-          bz: cz + uz * rail + oz,
-          r: 0.12,
-          low: true,
-        });
+        for (const [from, to] of [[-rail, crossing - 1.8], [crossing + 1.8, rail]]) {
+          if (to <= from) continue;
+          this.pieceColliders.push({
+            ax: cx + ux * from + ox, az: cz + uz * from + oz,
+            bx: cx + ux * to + ox, bz: cz + uz * to + oz,
+            r: 0.12, low: true,
+          });
+        }
       }
     }
     for (const [v, b] of Object.entries(state.buildings)) {
@@ -1048,6 +1159,12 @@ export class World {
       const color = COLOR_HEX[state.players[b.owner].color];
       const slot: AssetSlot = b.kind === 'citadel' ? 'building.city' : 'building.settlement';
       const obj = this.piece(slot, color);
+      const furnishings: THREE.Object3D[] = [];
+      const previous = this.buildingStarts.get(v);
+      const recent = starts.find((s) => s.vertex === v && s.kind === b.kind);
+      const changed = this.piecesInitialized && before.get(v) !== (b.kind === 'citadel' ? 'hall' : 'cottage');
+      const at = previous?.kind === b.kind ? previous.at : recent?.at ?? (changed ? Date.now() : 0);
+      this.buildingStarts.set(v, { kind: b.kind, at });
       const rot = this.facing(v, state, p);
       obj.position.set(p.x, 0, p.z);
       obj.rotation.y = rot;
@@ -1065,6 +1182,7 @@ export class World {
           group.position.set(p.x, 0, p.z);
           group.rotation.y = rot;
           this.pieces.add(group);
+          furnishings.push(group);
           for (const sd of solids) {
             const [sx, sz] = toWorld(sd.x, sd.z, p.x, p.z, rot);
             this.pieceColliders.push({ ax: sx, az: sz, bx: sx, bz: sz, r: sd.r });
@@ -1072,6 +1190,9 @@ export class World {
         }
       } else {
         this.pieceColliders.push({ ax: p.x, az: p.z, bx: p.x, bz: p.z, r: SLOTS[slot].footprint });
+      }
+      if (!this.opts.reduceMotion && at > 0 && Date.now() - at < CONSTRUCTION_MS) {
+        this.construction.push(new Construction(obj, at, this.opts.lite, furnishings));
       }
     }
 
@@ -1094,6 +1215,8 @@ export class World {
       this.pieceColliders.push({ ax: c.x - ax, az: c.z - az, bx: c.x + ax, bz: c.z + az, r: 0.3 });
     }
     this.pieceGrid = new ColliderGrid(this.pieceColliders);
+    this.piecesInitialized = true;
+    for (const key of this.buildingStarts.keys()) if (!state.buildings[key]) this.buildingStarts.delete(key);
     // Wheat, grass, flowers, trees and rocks give way where a building stands.
     this.clearings = [
       ...this.homes.map((h) => ({ x: h.x, z: h.z, r: h.kind === 'hall' ? 6.2 : 4.2 })),
@@ -1178,13 +1301,14 @@ export class World {
 
   /** Puts the walker just outside a building's (first) door, facing it. */
   private stepOutside(h: House) {
+    this.stopMovement();
     const d = h.doors[0].spec;
     const [cx, cz] = toWorld(d.cx, d.cz, h.x, h.z, h.rot);
     const [ox, oz] = toWorld(d.cx + d.nx * 2.6, d.cz + d.nz * 2.6, h.x, h.z, h.rot);
     this.x = ox;
     this.z = oz;
     this.yaw = Math.atan2(-(cx - ox), -(cz - oz));
-    this.camY = this.groundAt(ox, oz) + EYE;
+    this.resetView();
   }
 
   /** The door the walker is close to and looking at (or standing in), if any. */
@@ -1348,6 +1472,8 @@ export class World {
   }
 
   private release(): void {
+    for (const effect of this.construction) effect.dispose();
+    this.construction = [];
     // Frees everything this renderer uploaded, cached models included: dispose() only drops
     // the GPU copies, and the page cache keeps the data for the next world to upload again.
     const geos = new Set<THREE.BufferGeometry>();
@@ -1358,6 +1484,7 @@ export class World {
       if (m.geometry) geos.add(m.geometry);
       if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => mats.add(x));
     });
+    for (const f of this.flocks) for (const p of f.parts) { geos.add(p.near); geos.add(p.far); }
     geos.forEach((g) => g.dispose());
     mats.forEach((m) => {
       for (const v of Object.values(m)) if ((v as THREE.Texture | null)?.isTexture) (v as THREE.Texture).dispose();
@@ -1366,6 +1493,7 @@ export class World {
     noiseTexture().dispose();
     this.kit.dispose();
     if (this.envPending) this.disposeEnvHelpers(this.envPending);
+    if (this.envSource) this.disposeEnvHelpers(this.envSource);
     this.envRT?.dispose();
     this.renderer.dispose();
     // dispose() leaves the WebGL context alive; Chrome keeps 16 and warns past that, so every
@@ -1542,18 +1670,20 @@ export class World {
       return list;
     };
     const all = rigs.map(meshesOf);
+    const distant = this.model('sheep.far')?.[0].root;
     const bounds = new THREE.Sphere(new THREE.Vector3(cx, 0.6, cz), r + 1.5);
     const parts = all[0].map((m, k) => {
-      const mesh = new THREE.InstancedMesh(m.geometry, m.material, rigs.length);
+      const far = (distant?.getObjectByName(`${m.name}Far`) as THREE.Mesh | undefined)?.geometry ?? m.geometry;
+      const mesh = new THREE.InstancedMesh(far, m.material, rigs.length);
       mesh.name = 'flock';
       mesh.castShadow = SLOTS.sheep.castShadow && !this.opts.lite;
       mesh.receiveShadow = true;
       mesh.boundingSphere = bounds;
       this.scene.add(mesh);
-      return { mesh, src: all.map((list) => list[k]) };
+      return { mesh, src: all.map((list) => list[k]), near: m.geometry, far };
     });
-    const f = { rigs, parts };
-    syncFlock(f);
+    const f = { rigs, parts, near: false };
+    syncFlock(f, this.camera.position);
     return f;
   }
 
@@ -1588,8 +1718,21 @@ export class World {
     if (house) return house.y + house.shape.floor;
     const deck = this.deckAt(x, z);
     if (deck !== null) return deck;
-    for (const h of this.landHexes) if (inHex(x, z, h.x, h.z, R)) return tileHeight(this.tiles.get(h.id)!, x - h.x, z - h.z);
-    return 0;
+    for (const d of this.dockFloors) {
+      const dx = x - d.x, dz = z - d.z;
+      const along = dx * d.ux + dz * d.uz;
+      if (along >= 0 && along <= d.length && Math.abs(-dx * d.uz + dz * d.ux) <= 1.1) return d.y;
+    }
+    let sand = -Infinity;
+    for (const h of this.landHexes) if (inHex(x, z, h.x, h.z, R)) {
+      sand = this.surfaces.get(h.id)?.height(x - h.x, z - h.z) ?? tileHeight(this.tiles.get(h.id)!, x - h.x, z - h.z);
+      break;
+    }
+    for (const h of this.landHexes) {
+      const y = this.beachSurface?.height(x - h.x, z - h.z);
+      if (y !== undefined) sand = Math.max(sand, y - 0.32);
+    }
+    return Number.isFinite(sand) ? sand : 0;
   }
 
   /** Height of a bridge deck under (x, z), if there is one. */
@@ -1598,8 +1741,12 @@ export class World {
       const dx = x - b.x;
       const dz = z - b.z;
       const along = dx * b.ux + dz * b.uz;
-      if (Math.abs(along) > b.half || Math.abs(-dx * b.uz + dz * b.ux) > BRIDGE_WIDTH / 2 + 0.1) continue;
-      return bridgeDeck(along, b.half * 2) + 0.06;
+      if (Math.abs(along) > b.half) continue;
+      const across = Math.abs(-dx * b.uz + dz * b.ux);
+      const height = bridgeDeck(along, b.half * 2) + 0.06;
+      if (across <= BRIDGE_WIDTH / 2 + 0.1) return height;
+      if (Math.abs(along - b.crossing) <= 1.8 && across < BRIDGE_WIDTH / 2 + 3.6)
+        return height * (1 - (across - BRIDGE_WIDTH / 2) / 3.6);
     }
     return null;
   }
@@ -1614,14 +1761,15 @@ export class World {
   }
 
   /**
-   * Image-based fill light from a small sky: cool blue from above, warm green bounce from
-   * below. It gives shaded faces colour and lets metal and water reflect the sky.
+   * Image-based fill from a small sky: blue above, meadow bounce below, cool bounce at night.
+   * It gives shaded faces colour and lets metal and water reflect the current time of day.
    *
    * Prefiltering it (PMREM) needs three's GGX filter shader, whose Direct3D compile takes about
    * 0.4 s. So this only prepares: the filter materials join the parallel compile in
    * `startWhenCompiled`, the scene compiles against a stand-in of the same size and layout
    * (so no material needs recompiling later), and `finishEnvironment` renders the real one
-   * once every program is linked. Uses PMREMGenerator internals; three is pinned (0.186.1).
+   * once every program is linked. Later clock changes reuse the linked prefilter and replace
+   * its one output target. Uses PMREMGenerator internals; three is pinned (0.186.1).
    */
   private buildEnvironment() {
     const env = new THREE.Scene();
@@ -1630,10 +1778,11 @@ export class World {
     const v = new THREE.Vector3();
     const c = new THREE.Color();
     const pos = geo.attributes.position;
+    const fill = lightAt(this.hour);
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).normalize();
-      if (v.y >= 0) c.copy(FILL.horizon).lerp(FILL.zenith, Math.pow(v.y, 0.6));
-      else c.copy(FILL.horizon).lerp(FILL.ground, Math.min(1, -v.y * 3));
+      if (v.y >= 0) c.copy(fill.fillHorizon).lerp(fill.fillSky, Math.pow(v.y, 0.6));
+      else c.copy(fill.fillHorizon).lerp(fill.fillGround, Math.min(1, -v.y * 3));
       cols.push(c.r, c.g, c.b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
@@ -1663,18 +1812,42 @@ export class World {
     this.scene.environmentIntensity = 0.85;
   }
 
-  /** Renders the prefiltered environment (its shaders are linked by now) and frees the helpers. */
+  /** The prefilter's shaders are linked now; keep its source for later clock changes. */
   private finishEnvironment() {
-    const p = this.envPending;
-    if (!p) return;
+    if (!this.envPending) return;
+    this.envSource = this.envPending;
     this.envPending = null;
-    // Direct3D's shader compiler notes a harmless constant-folding precision issue in three's
-    // own PMREM shaders; skip the log check for these one-off programs only.
+    this.refreshEnvironment();
+    this.envSource.standIn.dispose();
+  }
+
+  private refreshEnvironment() {
+    const p = this.envSource;
+    if (!p) return;
+    const l = lightAt(this.hour);
+    const geo = p.sky.geometry;
+    const pos = geo.attributes.position;
+    const cols = geo.attributes.color;
+    const v = new THREE.Vector3();
+    const c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).normalize();
+      if (v.y >= 0) c.copy(l.fillHorizon).lerp(l.fillSky, Math.pow(v.y, 0.6));
+      else c.copy(l.fillHorizon).lerp(l.fillGround, Math.min(1, -v.y * 3));
+      cols.setXYZ(i, c.r, c.g, c.b);
+    }
+    cols.needsUpdate = true;
+    // PMREM's own D3D constant-folding warning is harmless. Preserve the caller's debug mode.
+    const check = this.renderer.debug.checkShaderErrors;
     this.renderer.debug.checkShaderErrors = false;
-    this.envRT = p.pmrem.fromScene(p.env, 0.04);
-    this.renderer.debug.checkShaderErrors = true;
-    this.scene.environment = this.envRT.texture;
-    this.disposeEnvHelpers(p);
+    try {
+      const next = p.pmrem.fromScene(p.env, 0.04);
+      this.scene.environment = next.texture;
+      this.envRT?.dispose();
+      this.envRT = next;
+    } finally {
+      this.renderer.debug.checkShaderErrors = check;
+    }
   }
 
   private disposeEnvHelpers(p: NonNullable<World['envPending']>) {
@@ -1731,6 +1904,7 @@ export class World {
     this.buildSea();
 
     const beachGeo = kit.geo('beach', beachRing);
+    this.beachSurface = new GroundSurface(beachGeo);
     const sandTex = this.assets.ground.get('sand');
     const sand = kit.ownMat(
       new THREE.MeshStandardMaterial({
@@ -1781,8 +1955,9 @@ export class World {
       wheatFar ? { parts: this.partsFor('wheat.clump.far', wheatFar) } : fallbackWheat('far'),
       7,
       (wheatMid ? 7 : 16) * far,
-      Infinity,
+      68 * far,
       wheatMid ? { visual: { parts: this.partsFor('wheat.clump.mid', wheatMid) }, dist: 22 * far } : null,
+      3,
     );
     const grass = this.model('grass.clump');
     const grassTo = this.grassFade[1] + 9;
@@ -1820,20 +1995,21 @@ export class World {
       const s = Math.PI / 6 + Math.floor(rnd() * 6) * (Math.PI / 3);
       const sd = dir(s);
       this.spawns.set(i, { x: cx + sd.x * R * 0.74, z: cz + sd.z * R * 0.74, yaw: s });
+      const layout = islandLayout(R, s, i * 2.4 + (seed & 1023) / 100);
       const tile: TileGround = {
         terrain: hex.terrain,
         cx,
         cz,
         seed: (seed ^ Math.imul(i + 7, 0x85ebca6b)) >>> 0,
         grain: rnd() * Math.PI,
-        flats: [],
-        paths: [],
+        flats: layout.sites.map((p) => ({ x: p.x, z: p.z, r: 4.8, clearing: true })),
+        paths: layout.paths,
         shade: [],
       };
       this.tiles.set(i, tile);
       const g = new THREE.Group();
       g.position.set(cx, 0, cz);
-      const ctx: HexCtx = { g, cx, cz, rnd, spawnAngle: s, tile };
+      const ctx: HexCtx = { g, cx, cz, rnd, spawnAngle: s, tile, sites: layout.sites };
       const firstCollider = this.colliders.length;
 
       if (hex.token !== null) {
@@ -1866,25 +2042,32 @@ export class World {
           this.buildDesert(ctx);
           break;
       }
+      this.mapPaths.push(...tile.paths.slice(0, 45).map((p) => ({ ax: cx + p.ax, az: cz + p.az, bx: cx + p.bx, bz: cz + p.bz })));
+      this.mapSites.push(...ctx.sites.map((p) => ({ x: cx + p.x, z: cz + p.z })));
+      this.buildSites(ctx);
       this.scatterGround(ctx, this.colliders.slice(firstCollider));
 
       // Seat every prop on the finished ground (big props sit on their own level patch).
       for (const c of g.children) c.position.y += tileHeight(tile, c.position.x, c.position.z);
       // The tile's windmill stands on the same ground its model was just seated on.
       for (const m of this.mills) if (Math.hypot(m.x - cx, m.z - cz) < R) m.y = tileHeight(tile, m.x - cx, m.z - cz);
-      const ground = mesh(kit.own(buildGround(tile, lite ? 14 : 22)), groundMat(hex.terrain), cx, 0, cz, false);
+      const geometry = kit.own(buildGround(tile, lite ? 30 : 48));
+      this.surfaces.set(hex.id, new GroundSurface(geometry));
+      const ground = mesh(geometry, groundMat(hex.terrain), cx, 0, cz, false);
       ground.receiveShadow = true;
       this.scene.add(ground);
       const b = mesh(beachGeo, sand, cx, -0.32, cz, false);
       b.receiveShadow = true;
       this.scene.add(b);
+      bake(g, kit);
       statics.add(g);
     });
     for (const h of board.harbors) this.buildHarbor(h.edge, h.hex, h.kind);
 
     // Everything static across the island merges into one mesh per material.
     this.scene.add(statics);
-    bake(statics, kit);
+    // Tile-sized batches let the larger island cull off-screen scenery.
+
 
     const rnd = mulberry(seed ^ 0x51ed);
     // A far-off ring of hazy ranges gives the horizon depth.
@@ -2017,7 +2200,7 @@ export class World {
   /** Grass tufts and wild flowers in patches, kept off paths, props and the centre sign. */
   private scatterGround(ctx: HexCtx, blockers: Collider[]) {
     const spec = GRASS[ctx.tile.terrain];
-    const n = Math.round(spec.n * (this.opts.lite ? 0.35 : 1) * this.stress.density);
+    const n = Math.round(spec.n * 2.5 * (this.opts.lite ? 0.35 : 1) * this.stress.density);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -2048,7 +2231,7 @@ export class World {
       this.grass.add(variant, m.clone(), new THREE.Color(color));
     }
     // Flowers grow in drifts of one kind each.
-    const drifts = Math.round((this.opts.lite ? Math.ceil(spec.drifts / 2) : spec.drifts) * this.stress.density);
+    const drifts = Math.round((this.opts.lite ? Math.ceil(spec.drifts / 2) : spec.drifts) * 2.5 * this.stress.density);
     for (let d = 0; d < drifts; d++) {
       const pick = ctx.rnd();
       const kind = this.flowers ? weighted(FLOWER_WEIGHTS, pick) : Math.floor(pick * FLOWERS.length);
@@ -2094,7 +2277,8 @@ export class World {
       if (!inHex(x, z, 0, 0, R * maxR)) continue;
       if (Math.hypot(x, z) < 2.6 + r) continue;
       if (Math.hypot(x - sp.x * R * 0.74, z - sp.z * R * 0.74) < 3 + r) continue;
-      if (onPath(ctx.tile, x, z, r * 0.6)) continue;
+      if (onPath(ctx.tile, x, z, r + 0.6)) continue;
+      if (ctx.sites.some((p) => Math.hypot(x - p.x, z - p.z) < 5.1 + r)) continue;
       if (taken.some((t) => Math.hypot(x - t.x, z - t.z) < t.r + r)) continue;
       taken.push({ x, z, r });
       return { x, z };
@@ -2112,6 +2296,91 @@ export class World {
       bz: sp.z * 1.2,
       w,
     });
+  }
+
+  /** Authored work yards from the concept pack; their open centres meet the trail spurs. */
+  private buildSites(ctx: HexCtx) {
+    for (const site of ctx.sites) {
+      const d = dir(site.angle), side = { x: d.z, z: -d.x };
+      const put = (slot: AssetSlot, lateral: number, back: number, turn = 0, scale = 1) => {
+        const x = site.x + side.x * lateral - d.x * back;
+        const z = site.z + side.z * lateral - d.z * back;
+        const r = SLOTS[slot].footprint * scale;
+        if (r && (onPath(ctx.tile, x, z, r + 0.15) || this.colliders.some((c) =>
+          segDist(ctx.cx + x, ctx.cz + z, c) < c.r + r + 0.2))) return;
+        const o = this.propVariant(slot, site.index, () => {
+          const size = SLOTS[slot].size;
+          const g = new THREE.Group();
+          g.add(mesh(this.kit.rbox(size[0], size[1], size[2], 0.04), this.kit.mat('#a77343', WOOD), 0, size[1] / 2, 0));
+          return g;
+        });
+        o.position.set(x, 0, z);
+        o.rotation.y = site.angle + turn;
+        o.scale.setScalar(scale);
+        ctx.g.add(o);
+        if (r) this.addCircle(ctx.cx + x, ctx.cz + z, r);
+      };
+      this.mark(`${ctx.tile.terrain}-worksite`, ctx.cx + site.x, ctx.cz + site.z);
+      switch (ctx.tile.terrain) {
+        case 'witchwood':
+          put('prop.logpile', 0, 3.4);
+          put('prop.axestump', 2.7, 1.5);
+          put('prop.chips', 2.7, 1.5);
+          put('prop.log', -2.7, -0.8, Math.PI / 2);
+          put('prop.crate', -2.7, 2.4);
+          put('prop.stakes', 3.3, -0.8);
+          break;
+        case 'fields':
+          put('prop.bin', -2.7, 1.6);
+          put('prop.haybale', 2.8, 2.0, Math.PI / 2);
+          put('prop.sack', -2.6, -0.6);
+          put('prop.sack', -3.4, -1.2);
+          put('prop.crate', 1.3, 3.4);
+          put('prop.barrel', -1.1, 3.4);
+          put('prop.stook', 3.2, -0.9);
+          break;
+        case 'moors':
+          put('prop.worktable', -2.8, 1.3);
+          put('prop.bench', 0, 3.1);
+          put('prop.crate', 2.8, 2.0);
+          put('prop.sack', 3.0, 0.7);
+          put('prop.barrel', -2.8, -0.7);
+          put('prop.haybale', 2.9, -1.1);
+          break;
+        case 'ashen':
+          put('prop.bricks', -2.9, 1.7);
+          put('prop.bricks', 2.9, 1.7, Math.PI / 2, 0.8);
+          put('prop.worktable', 0, 3.1);
+          put('prop.barrel', -2.8, -0.6);
+          put('prop.crate', 2.8, -0.6);
+          put('prop.sack', 1.6, 3.4);
+          break;
+        case 'peaks':
+          put('prop.worktable', 0, 3.1);
+          put('prop.crate', -2.8, 1.5);
+          put('prop.crate', -2.9, -0.2);
+          put('prop.barrel', 2.8, 1.8);
+          put('prop.bench', 2.9, -0.5, Math.PI / 2);
+          put('rock.ore', -1.8, 3.6, 0, 0.65);
+          break;
+        case 'waste':
+          put('prop.column', -2.8, 2.0);
+          put('prop.drums', 2.9, 1.8);
+          put('prop.crate', -2.8, -0.4);
+          put('prop.barrel', 2.8, -0.5);
+          put('prop.bench', 0, 3.1);
+          put('prop.lintel', 1.3, 3.8, Math.PI / 2, 0.8);
+          break;
+      }
+      // Small groves frame the pasture rest yards without closing the trail mouth.
+      if (ctx.tile.terrain === 'moors') for (const offset of [-1, 1]) {
+        const x = site.x + side.x * offset * 4.0 - d.x * 3.1;
+        const z = site.z + side.z * offset * 4.0 - d.z * 3.1;
+        if (onPath(ctx.tile, x, z, 2) || this.colliders.some((c) => segDist(ctx.cx + x, ctx.cz + z, c) < c.r + 0.8)) continue;
+        this.inst.tree(ctx.cx + x, ctx.cz + z, ctx.rnd, 'tree.broadleaf', 0.85 + ctx.rnd() * 0.3);
+        this.addCircle(ctx.cx + x, ctx.cz + z, 0.6);
+      }
+    }
   }
 
   private buildPasture(ctx: HexCtx) {
@@ -2139,6 +2408,7 @@ export class World {
     const avoid: { x: number; z: number; r: number }[] = [
       { x: cx + bx, z: cz + bz, r: 4.0 },
       { x: cx, z: cz, r: 0.9 },
+      ...ctx.sites.map((p) => ({ x: cx + p.x, z: cz + p.z, r: 5.1 })),
     ];
     for (const k of [-1, 1]) {
       const hx = bx - d.x * 3.9 + side.x * k * 3.3;
@@ -2171,14 +2441,14 @@ export class World {
 
     // A round fence with a gate facing the path in.
     const F = R * 0.62;
-    const n = 26;
+    const n = Math.ceil(2 * Math.PI * F / 2.5);
     const gate = ctx.spawnAngle;
     const posts: { x: number; z: number; open: boolean }[] = [];
     for (let i = 0; i < n; i++) {
       const t = (i / n) * Math.PI * 2;
       const diff = Math.abs(Math.atan2(Math.sin(t - gate), Math.cos(t - gate)));
       const pd = dir(t);
-      posts.push({ x: pd.x * F, z: pd.z * F, open: diff < 0.2 });
+      posts.push({ x: pd.x * F, z: pd.z * F, open: diff < 0.2 || onPath(ctx.tile, pd.x * F, pd.z * F, 0.7) });
     }
     posts.forEach((p, i) => {
       const q = posts[(i + 1) % n];
@@ -2214,19 +2484,20 @@ export class World {
         const gz = gd.z * F;
         const gt = cloneAsset(gateModel, SLOTS['prop.gate']);
         gt.position.set(gx, 0, gz);
+        gt.scale.x = 1.8;
         gt.rotation.y = Math.atan2(gd.x, gd.z) + Math.PI;
         g.add(gt);
         this.mark('gate', cx + gx, cz + gz);
         const tx = -gd.z;
         const tz = gd.x;
-        for (const s of [-1, 1]) this.addCircle(cx + gx + tx * s * 1.05, cz + gz + tz * s * 1.05, 0.2);
+        for (const s of [-1, 1]) this.addCircle(cx + gx + tx * s * 1.71, cz + gz + tz * s * 1.71, 0.2);
         break;
       }
       this.addCircle(cx + p.x, cz + p.z, 0.2);
     }
 
     // The flock.
-    const flock = Math.round((7 + Math.floor(rnd() * 3)) * this.stress.sheep);
+    const flock = Math.round((12 + Math.floor(rnd() * 4)) * this.stress.sheep);
     const sheepModel = this.model('sheep')?.[0];
     const rigs: SheepRig[] = [];
     for (let i = 0; i < flock; i++) {
@@ -2271,7 +2542,7 @@ export class World {
       const pd = dir(t);
       const x = pd.x * (F + 2.2);
       const z = pd.z * (F + 2.2);
-      if (!inHex(x, z, 0, 0, R * 0.84) || taken.some((o) => Math.hypot(o.x - x, o.z - z) < 4)) continue;
+      if (!inHex(x, z, 0, 0, R * 0.84) || onPath(ctx.tile, x, z, 1.1) || taken.some((o) => Math.hypot(o.x - x, o.z - z) < 4)) continue;
       taken.push({ x, z, r: 2 });
       this.inst.tree(cx + x, cz + z, rnd, 'tree.broadleaf', 0.9 + rnd() * 0.5);
       ctx.tile.shade.push({ x, z, r: 2.6 });
@@ -2344,7 +2615,7 @@ export class World {
       }
       this.addCircle(ctx.cx + sx, ctx.cz + sz, 0.6);
     }
-    for (let i = 0; i < 3 && this.model('prop.stump'); i++) {
+    for (let i = 0; i < 9 && this.model('prop.stump'); i++) {
       const p = this.scatter(ctx, taken, 0.8, 0.8);
       if (!p) continue;
       const o = i === 2 ? this.prop('prop.log', () => new THREE.Group()) : this.propVariant('prop.stump', i, () => new THREE.Group());
@@ -2354,7 +2625,7 @@ export class World {
       ctx.g.add(o);
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, i === 2 ? 0.7 : 0.5);
     }
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 22; i++) {
       const p = this.scatter(ctx, taken, 0.3, 0.8);
       if (!p) continue;
       if (this.model('prop.mushroom')) {
@@ -2393,7 +2664,7 @@ export class World {
     // Trees in groves: mostly broadleaf, conifers gathering on one side, heights varied.
     const pineSide = ctx.rnd() * Math.PI * 2;
     const dense = this.stress.density;
-    for (let i = 0; i < 34 * dense; i++) {
+    for (let i = 0; i < (this.opts.lite ? 80 : 125) * dense; i++) {
       const p = this.scatter(ctx, taken, 1.45 / Math.sqrt(dense), 0.86);
       if (!p) continue;
       const toward = Math.cos(Math.atan2(p.x, p.z) - pineSide);
@@ -2403,13 +2674,13 @@ export class World {
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, 0.55);
     }
     // Undergrowth between the trunks, and young trees where light reaches the ground.
-    for (let i = 0; i < 26 * dense; i++) {
+    for (let i = 0; i < 78 * dense; i++) {
       const p = this.scatter(ctx, taken, 0.5, 0.86);
       if (!p) continue;
       this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.5 + ctx.rnd() * 0.5);
     }
     if (this.model('tree.sapling'))
-      for (let i = 0; i < 6 * dense; i++) {
+      for (let i = 0; i < 18 * dense; i++) {
         const p = this.scatter(ctx, taken, 0.6, 0.7);
         if (!p) continue;
         this.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 'tree.sapling', 0.8 + ctx.rnd() * 0.5);
@@ -2492,11 +2763,11 @@ export class World {
     const angles = [0, 1, 2, 3].map(() => rnd() * Math.PI);
     const harvested = rnd() < 0.35 ? Math.floor(rnd() * 4) : -1;
     tile.plot = plot;
-    tile.plotTone = [0, 1, 2, 3].map((k) => (k === harvested ? '#c9ab64' : k % 2 ? '#8f6a2c' : '#9c7631'));
+    tile.plotTone = [0, 1, 2, 3].map((k) => (k === harvested ? '#b6944d' : k % 2 ? '#b5964e' : '#c3a45b'));
 
     const thin = Math.sqrt(this.stress.density);
-    const rowGap = (this.opts.lite ? 0.62 : 0.42) / thin;
-    const step = (this.opts.lite ? 0.48 : 0.31) / thin;
+    const rowGap = (this.opts.lite ? 0.78 : 0.55) / thin;
+    const step = (this.opts.lite ? 0.62 : 0.43) / thin;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -2574,7 +2845,7 @@ export class World {
       }
     }
     // Clay banks: low terraced mounds of exposed earth with grass on top.
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 8; i++) {
       const r = 2 + ctx.rnd() * 1.6;
       const p = this.scatter(ctx, taken, r + 0.6, 0.82);
       if (!p) continue;
@@ -2590,12 +2861,12 @@ export class World {
       this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.85);
       this.flat(ctx, p.x, p.z, r * 0.8);
     }
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 20; i++) {
       const p = this.scatter(ctx, taken, 0.7, 0.84);
       if (!p) continue;
       this.inst.rock(ctx.cx + p.x, ctx.cz + p.z, 0.35 + ctx.rnd() * 0.4, ctx.rnd() < 0.5 ? '#9a6a52' : '#8a8580', ctx.rnd);
     }
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 28; i++) {
       const p = this.scatter(ctx, taken, 0.5, 0.86);
       if (!p) continue;
       this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.4 + ctx.rnd() * 0.35);
@@ -2609,11 +2880,11 @@ export class World {
     const base = ctx.spawnAngle + Math.PI;
     const taken: { x: number; z: number; r: number }[] = [];
     for (let i = 0; i < 3; i++) {
-      const a = base + (i - 1) * 1.15;
+      const a = base + (i - 1) * 0.65;
       const d = dir(a);
       const r = (i === 1 ? 4.6 : 3.5) + ctx.rnd() * 0.8;
       const h = (i === 1 ? 15 : 10.5) + ctx.rnd() * 4;
-      const dist = R * 0.54;
+      const dist = R * 0.48;
       const sa = a + (ctx.rnd() < 0.5 ? -0.45 : 0.45);
       const sd = dir(sa);
       if (this.model('rock.crag')) {
@@ -2677,14 +2948,14 @@ export class World {
       this.flat(ctx, d.x * dist, d.z * dist, 1.3);
       taken.push({ x: d.x * dist, z: d.z * dist, r: 1.6 });
     }
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 25; i++) {
       const r = 0.5 + ctx.rnd() * 0.8;
       const p = this.scatter(ctx, taken, r + 0.4, 0.84);
       if (!p) continue;
       this.inst.rock(ctx.cx + p.x, ctx.cz + p.z, r, ctx.rnd() < 0.5 ? '#7d8994' : '#9aa3aa', ctx.rnd);
       if (r > 0.9) this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.8);
     }
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 18; i++) {
       const p = this.scatter(ctx, taken, 1.2, 0.86);
       if (!p) continue;
       this.inst.tree(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 'tree.conifer', 0.6 + ctx.rnd() * 0.35);
@@ -2765,7 +3036,7 @@ export class World {
       if (block) this.addCircle(ctx.cx + p.x, ctx.cz + p.z, block);
       else this.flat(ctx, p.x, p.z, 2.4);
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 24; i++) {
       const p = this.scatter(ctx, taken, 0.8, 0.82);
       if (!p) continue;
       const r = 0.35 + ctx.rnd() * 0.55;
@@ -2773,7 +3044,7 @@ export class World {
       if (r > 0.6) this.addCircle(ctx.cx + p.x, ctx.cz + p.z, r * 0.8);
     }
     // Hardy scrub in the hollows between the dunes.
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 24; i++) {
       const p = this.scatter(ctx, taken, 0.6, 0.84);
       if (!p) continue;
       this.inst.bush(ctx.cx + p.x, ctx.cz + p.z, ctx.rnd, 0.25 + ctx.rnd() * 0.2, true);
@@ -2795,11 +3066,13 @@ export class World {
     const len = 8;
     const dockModel = this.model('harbor.dock')?.[0];
     const dock = dockModel ? cloneAsset(dockModel, SLOTS['harbor.dock']) : makeDock(this.kit, len);
+    dock.name = 'walkable-dock';
     dock.position.set(mx + nx * 1.5, dockModel ? -0.12 : -0.2, mz + nz * 1.5);
     dock.rotation.y = Math.atan2(nx, nz);
     this.scene.add(this.place(dock));
     const sx = mx + nx * 1.5;
     const sz = mz + nz * 1.5;
+    this.dockFloors.push({ x: sx, z: sz, ux: nx, uz: nz, length: len - 0.1, y: dockModel ? -0.12 : -0.13 });
     const reeds = this.model('plant.reeds')?.[0];
     if (reeds)
       for (const s of [-1, 1]) {
@@ -2848,7 +3121,13 @@ export class World {
 
   private frame() {
     const now = performance.now();
-    const dt = Math.min((now - this.last) / 1000, 0.1);
+    // Movement is already substepped at 120 Hz. Preserve elapsed time down to 10 fps,
+    // while still capping a tab resume or long stall so it cannot launch the player.
+    const dt = Math.max(0, Math.min((now - this.last) / 1000, 0.1));
+    if (this.construction.length) {
+      this.construction = this.construction.filter((effect) => effect.update(Date.now()));
+      this.shadowDirty = true;
+    }
     if (this.adaptive?.sample(now, now - this.last)) this.renderer.setPixelRatio(this.pixelRatio());
     this.last = now;
     const animate = !this.opts.reduceMotion;
@@ -2858,11 +3137,17 @@ export class World {
     const oldX = this.x,
       oldZ = this.z;
     this.movePlayer(dt);
+    const crouching = this.crouching;
+    this.crouch = this.mount >= 0 ? 0 : this.crouch + ((crouching ? 1 : 0) - this.crouch) * (1 - Math.exp(-dt * 14));
+    if (crouching !== this.wasCrouching) {
+      this.wasCrouching = crouching;
+      this.opts.onCrouch?.(crouching);
+    }
     this.speed = Math.hypot(this.x - oldX, this.z - oldZ) / Math.max(dt, 0.001);
     const ground = this.groundAt(this.x, this.z);
-    const turn = (this.yaw - this.lastYaw) / Math.max(dt, 0.001);
+    const turn = Math.atan2(Math.sin(this.yaw - this.lastYaw), Math.cos(this.yaw - this.lastYaw)) / Math.max(dt, 0.001);
     this.lastYaw = this.yaw;
-    if (this.run.update(dt, this.speed, WALK, RUN, this.mount >= 0, turn, this.strafe)) {
+    if (this.run.update(dt, this.speed, WALK, RUN, this.mount >= 0, turn, this.strafe, crouching || this.crouch > 0.1)) {
       const surface = this.surfaceAt(this.x, this.z);
       this.run.footfall(this.x, ground, this.z, this.yaw, surface);
       this.opts.onStep?.(surface);
@@ -2873,25 +3158,36 @@ export class World {
       if (i === this.mount) {
         h.x = this.x;
         h.z = this.z;
-        h.yaw = this.yaw;
       }
       h.horse.root.position.set(h.x, i === this.mount ? ground : this.groundAt(h.x, h.z), h.z);
-      h.horse.root.rotation.y = h.yaw;
+      const sy = Math.sin(h.yaw), cy = Math.cos(h.yaw);
+      const front = this.groundAt(h.x - sy * 0.7, h.z - cy * 0.7);
+      const back = this.groundAt(h.x + sy * 0.7, h.z + cy * 0.7);
+      const tilt = THREE.MathUtils.clamp(Math.atan2(front - back, 1.4), -0.35, 0.35);
+      const root = h.horse.root;
+      root.rotation.order = 'YXZ';
+      root.rotation.y = h.yaw;
+      root.rotation.x += (tilt - root.rotation.x) * (1 - Math.exp(-dt * 12));
       h.horse.update(dt, i === this.mount ? this.speed : 0);
+      if (i !== this.mount) h.horse.holdReins(null);
     });
     if (this.combat) {
       const targets = this.combat.targets;
       targets.length = 0;
       if (this.pvp) for (const f of this.remotes.values()) if (f.present) targets.push({ seat: f.seat, ...f.position });
     }
-    const seat = this.mount >= 0 ? this.horses[this.mount].horse.saddleHeight - 0.78 : 0;
+    const saddle = this.mount >= 0 ? this.horses[this.mount].horse.seatPosition : null;
+    const seat = saddle && this.combat ? saddle.y - ground - this.combat.me.seatHeight : 0;
     if (this.combat) this.combat.stride = this.mount >= 0 ? undefined : this.run.phase;
-    this.combat?.update(dt, this.x, ground + seat, this.z, this.yaw, this.speed, this.clearForCombat);
+    if (this.combat) this.combat.crouch = this.mount >= 0 ? 0 : this.crouch;
+    if (this.mount >= 0) this.moveFacing = this.horses[this.mount].yaw;
+    else if (this.speed > 0.15) this.moveFacing = Math.atan2(oldX - this.x, oldZ - this.z);
+    this.combat?.update(dt, saddle?.x ?? this.x, ground + seat, saddle?.z ?? this.z, this.yaw, this.speed, this.clearForCombat, this.moveFacing);
+    if (this.combat && this.mount >= 0) this.combat.me.holdReins(this.horses[this.mount].horse);
     for (const f of this.remotes.values()) f.update(dt, (x, z) => this.groundAt(x, z));
     for (const c of this.chests.values()) c.chest.update(dt);
     if (animate) {
       for (const s of this.sheep) this.updateSheep(s, dt);
-      for (const f of this.flocks) syncFlock(f);
       for (const sp of this.spinners) sp.rotation.z -= dt * 0.7;
       for (const b of this.boats) {
         b.obj.position.y = b.y + Math.sin(t * 1.4 + b.phase) * 0.1;
@@ -2899,6 +3195,7 @@ export class World {
       }
       if (this.robber?.userData.hover) this.robber.position.y = (this.robber.userData.y ?? 0) + 0.1 + Math.sin(t * 2) * 0.08;
     }
+    for (const f of this.flocks) syncFlock(f, this.camera.position, animate);
     this.maybeBleat(dt);
     this.updateHouses(dt);
     for (const f of this.fields) f.update(this.x, this.z);
@@ -2920,11 +3217,11 @@ export class World {
     this.renderer.shadowMap.needsUpdate = moved || this.shadowDirty || (animate && this.shadowTick % 3 === 0);
     this.shadowDirty = false;
 
-    this.camY += (this.groundAt(this.x, this.z) + EYE - this.camY) * Math.min(1, dt * 10);
-    this.camera.position.set(this.x, this.camY, this.z);
+    this.camY += (ground + EYE - this.camY) * (1 - Math.exp(-dt * 12));
+    this.camera.position.set(this.x, this.camY - this.crouch * CROUCH_DROP, this.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     if (this.combat) this.thirdPersonCamera(dt);
-    this.run.apply(this.camera, 68);
+    this.run.apply(this.camera, 68, !!this.combat);
     this.sky.position.copy(this.camera.position);
     this.stars?.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);
@@ -2939,38 +3236,55 @@ export class World {
   private movePlayer(dt: number) {
     const k = this.keys;
     const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0);
-    this.yaw += turn * 1.9 * dt;
     let fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - this.joy.y;
     let str = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.joy.x;
     const mag = Math.hypot(fwd, str);
-    if (mag > 1) {
-      fwd /= mag;
-      str /= mag;
-    }
+    if (mag > 1) { fwd /= mag; str /= mag; }
     const running = k.has('ShiftLeft') || k.has('ShiftRight') || Math.hypot(this.joy.x, this.joy.y) > 0.92;
     const riding = this.mount >= 0;
-    const speed = this.combat?.blocking ? 2.2 : riding ? (running ? HORSE_RUN : HORSE_WALK) : running ? RUN : WALK;
-    const sy = Math.sin(this.yaw);
-    const cy = Math.cos(this.yaw);
+    const speed = this.crouching ? CROUCH_SPEED : this.combat?.blocking ? 1.5 : riding ? (running ? HORSE_RUN : HORSE_WALK) : running ? RUN : WALK;
+    // Entering stealth cannot carry a sprint's momentum through the first crouched steps.
+    const pace = Math.hypot(this.vx, this.vz);
+    if (this.crouching && pace > CROUCH_SPEED) {
+      this.vx *= CROUCH_SPEED / pace;
+      this.vz *= CROUCH_SPEED / pace;
+    }
     this.strafe = str;
-    // Momentum: speed builds over a few strides and bleeds off on stopping (a horse more slowly).
-    const tx = (-sy * fwd + cy * str) * speed;
-    const tz = (-cy * fwd - sy * str) * speed;
-    const speeding = tx * tx + tz * tz > this.vx * this.vx + this.vz * this.vz;
-    const rate = (riding ? (speeding ? 2.2 : 3.2) : speeding ? 6.5 : 11) * dt;
-    this.vx += (tx - this.vx) * Math.min(1, rate);
-    this.vz += (tz - this.vz) * Math.min(1, rate);
-    if (Math.abs(this.vx) + Math.abs(this.vz) < 0.02 && !tx && !tz) this.vx = this.vz = 0;
-    const dx = this.vx * dt;
-    const dz = this.vz * dt;
-    if (Math.abs(dx) + Math.abs(dz) > 1e-5) {
-      // In steps of at most 15 cm, so a slow frame can't carry the walker through a wall.
-      const n = Math.ceil(Math.hypot(dx, dz) / 0.15);
-      const sx = dx / n;
-      const sz = dz / n;
-      for (let i = 0; i < n; i++) {
-        // Try the full step, then slide along each axis.
-        if (!this.tryMove(this.x + sx, this.z + sz) && !this.tryMove(this.x + sx, this.z)) this.tryMove(this.x, this.z + sz);
+    // Bounded integration and exact exponential damping: the same travel at 30 or 144 Hz.
+    const n = Math.max(1, Math.ceil(dt * 120));
+    const step = dt / n;
+    for (let i = 0; i < n; i++) {
+      this.yaw += turn * 1.9 * step;
+      const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+      let tx = (-sy * fwd + cy * str) * speed;
+      let tz = (-cy * fwd - sy * str) * speed;
+      if (riding) {
+        const h = this.horses[this.mount];
+        const target = Math.atan2(-tx, -tz);
+        const angle = Math.atan2(Math.sin(target - h.yaw), Math.cos(target - h.yaw));
+        if (mag > 0.01) h.yaw += THREE.MathUtils.clamp(angle, -2.6 * step, 2.6 * step);
+        const pace = Math.hypot(tx, tz) * Math.max(0, Math.cos(angle));
+        // Keep inertia along the horse's body; turning rotates the motion as well as the mesh.
+        const current = Math.hypot(this.vx, this.vz);
+        this.vx = -Math.sin(h.yaw) * current;
+        this.vz = -Math.cos(h.yaw) * current;
+        tx = -Math.sin(h.yaw) * pace;
+        tz = -Math.cos(h.yaw) * pace;
+      }
+      const speeding = tx * tx + tz * tz > this.vx * this.vx + this.vz * this.vz;
+      const rate = riding ? (speeding ? 3.5 : 6) : speeding ? 9 : 16;
+      const decay = Math.exp(-rate * step);
+      const dx = tx * step + (this.vx - tx) * (1 - decay) / rate;
+      const dz = tz * step + (this.vz - tz) * (1 - decay) / rate;
+      this.vx = tx + (this.vx - tx) * decay;
+      this.vz = tz + (this.vz - tz) * decay;
+      if (Math.abs(this.vx) + Math.abs(this.vz) < 0.02 && !tx && !tz) this.vx = this.vz = 0;
+      if (Math.abs(dx) + Math.abs(dz) < 1e-6) continue;
+      if (!this.tryMove(this.x + dx, this.z + dz)) {
+        const mx = this.tryMove(this.x + dx, this.z);
+        const mz = this.tryMove(this.x, this.z + dz);
+        if (!mx) this.vx = 0;
+        if (!mz) this.vz = 0;
       }
     }
   }
@@ -2991,14 +3305,23 @@ export class World {
     let z = nz;
     const near = this.near;
     near.length = 0;
-    if (this.grid) this.grid.near(nx, nz, PLAYER_R + 0.5, near);
+    const riding = this.mount >= 0;
+    const queryRadius = riding ? 1.1 : PLAYER_R + 0.5;
+    if (this.grid) this.grid.near(nx, nz, queryRadius, near);
     else near.push(...this.colliders);
-    this.pieceGrid.near(nx, nz, PLAYER_R + 0.5, near);
+    this.pieceGrid.near(nx, nz, queryRadius, near);
     this.doorColliders(near);
-    for (const c of near) {
-      // A tree or rock hidden by a building's clearing doesn't block either.
+    const radius = riding ? 0.48 : PLAYER_R;
+    // Resolve overlapping contacts together, not alternating pushes on successive frames.
+    for (let pass = 0; pass < 3; pass++) for (const c of near) {
       if (c.ax === c.bx && c.az === c.bz && this.cleared(c.ax, c.az)) continue;
-      [x, z] = pushOut(x, z, c, PLAYER_R);
+      const offsets = riding ? [-0.55, 0, 0.55] : [0];
+      const yaw = riding ? this.horses[this.mount].yaw : 0;
+      for (const d of offsets) {
+        const ox = Math.sin(yaw) * d, oz = Math.cos(yaw) * d;
+        const [px, pz] = pushOut(x + ox, z + oz, c, radius);
+        x = px - ox; z = pz - oz;
+      }
     }
     for (const s of this.sheep) [x, z] = pushOut(x, z, { ax: s.x, az: s.z, bx: s.x, bz: s.z, r: 0.5 }, PLAYER_R);
     // Horses are solid along their length; other players are solid too.
@@ -3017,7 +3340,18 @@ export class World {
       const p = this.combat.dummy.position;
       [x, z] = pushOut(x, z, { ax: p.x, az: p.z, bx: p.x, bz: p.z, r: 0.4 }, PLAYER_R);
     }
-    if (!this.isWalkable(x, z)) return false;
+    if (!this.isWalkable(x, z) || (riding && this.houseAt(x, z))) return false;
+    if (Math.abs(this.groundAt(x, z) - this.groundAt(this.x, this.z)) > 0.38) return false;
+    const dx = nx - this.x, dz = nz - this.z;
+    const mx = x - this.x, mz = z - this.z;
+    if (dx * dx + dz * dz > 1e-10) {
+      // Contact correction cannot launch the character backwards or count as a running step.
+      if (mx * dx + mz * dz < -1e-8 || Math.hypot(mx, mz) > Math.hypot(dx, dz) + 0.025) return false;
+    }
+    const yaw = riding ? this.horses[this.mount].yaw : 0;
+    for (const d of (riding ? [-0.55, 0, 0.55] : [0])) {
+      if (this.touchesSolid(near, x + Math.sin(yaw) * d, z + Math.cos(yaw) * d, radius - 0.002)) return false;
+    }
     this.x = x;
     this.z = z;
     return true;
@@ -3163,6 +3497,7 @@ interface HexCtx {
   rnd: () => number;
   spawnAngle: number;
   tile: TileGround;
+  sites: IslandSite[];
 }
 
 /**
@@ -3250,7 +3585,16 @@ function beachRing(): THREE.BufferGeometry {
 }
 
 /** Copies each sheep's posed parts into its flock's instanced meshes. */
-function syncFlock(f: Flock) {
+function syncFlock(f: Flock, camera: THREE.Vector3, animate = true) {
+  // Choose by the closest sheep, with hysteresis; never simplify an animal beside the player.
+  let distance = Infinity;
+  for (const rig of f.rigs) distance = Math.min(distance, rig.root.position.distanceToSquared(camera));
+  const near = distance < (f.near ? 20 * 20 : 16 * 16);
+  if (near !== f.near) {
+    f.near = near;
+    for (const p of f.parts) p.mesh.geometry = near ? p.near : p.far;
+  }
+  if (!animate) return;
   f.rigs.forEach((rig, i) => {
     rig.root.updateMatrixWorld(true);
     for (const p of f.parts) p.mesh.setMatrixAt(i, p.src[i].matrixWorld);

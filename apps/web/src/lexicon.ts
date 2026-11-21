@@ -138,12 +138,18 @@ export const COMBAT_TEXT = {
   weapon: 'Weapon',
   sword: 'Sword',
   revolver: 'Revolver',
-  fist: 'Fists',
+  fist: 'Bare hands',
+  crouch: 'Crouch',
+  sneaking: 'Crouching · silent footsteps',
+  rounds: 'Rounds left',
+  empty: 'Empty',
+  locked: 'Find your weapon chest first',
+  chestOpened: 'A sword and a revolver with 5 bullets. 1 bare hands · 2 sword · 3 revolver',
   target: 'Training dummy',
   reset: 'Recovering…',
-  help: 'W A S D to move · Shift to run · drag to look, or Dive in · F or click to strike · hold right click to guard · 1 2 3 weapons · E for chests, horses and doors · Esc back to the board',
+  help: 'W A S D to move · Shift to sprint · hold Ctrl or C to crouch silently · drag to look, or Dive in · F or click to strike · hold right click to guard · 1 hands · 2 sword · 3 revolver · E for chests, horses and doors · Esc back to the board',
   label:
-    'Third-person island. W A S D to move, drag to look or Dive in for mouse look, F or click to attack, right button to guard, 1 2 3 for weapons, E for chests, horses and doors.',
+    'Third-person island. W A S D to move, drag to look or Dive in for mouse look, F or click to attack, right button to guard, Shift to sprint, hold Ctrl or C to crouch silently, 1 for bare hands, 2 for sword, 3 for revolver, E for chests, horses and doors.',
   hit: 'Hit',
 } as const;
 

@@ -161,7 +161,7 @@ test('third-person practice in a game from before weapon chests: armed, five loc
   expect(view.cameraDistance).toBeGreaterThan(0.1);
   // Five bullets for the visit; a shot spends one.
   await page.waitForTimeout(800);
-  await page.keyboard.press('Digit2');
+  await page.keyboard.press('Digit3');
   await expect(page.getByRole('button', { name: /^Revolver 5/ })).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('KeyF');
   await expect(page.getByRole('button', { name: /^Revolver 4/ })).toBeVisible();

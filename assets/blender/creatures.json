@@ -1,0 +1,55 @@
+{
+  "direction": "Stylized medieval countryside: faceted forged plate, warm leather, tailored heraldic cloth, soft ivory fleece and natural animal anatomy.",
+  "authoring": "Original deterministic Python meshes in Blender 5.2.3 LTS. No downloaded models or textures.",
+  "license": "Original project artwork; same private fan-project use as the game.",
+  "runtime": "Shared three.js GLB assets, also shipped inside the Windows Unreal host. Metres; GLB Y up. Existing analytic gameplay collision is independent of render meshes.",
+  "assets": [
+    {
+      "name": "Knight",
+      "source": "knight.py",
+      "editable": "knight.blend",
+      "runtime": "apps/web/public/models/knight.glb",
+      "maxTriangles": 12000,
+      "bones": 17,
+      "variants": [
+        "HelmGreat",
+        "HelmArmet",
+        "HelmBascinet",
+        "HelmCrowned",
+        "CapeShort",
+        "CapeLong",
+        "KnightFace"
+      ],
+      "locks": "Rest skeleton, gauntlet weapon grip, hips at 0.9 m, profile choices and owner/outfit tint. Cape weights retain the mounted pose. Budget includes every mutually exclusive cosmetic."
+    },
+    {
+      "name": "Horse",
+      "source": "horse.py",
+      "editable": "horse.blend",
+      "runtime": "apps/web/public/models/horse.glb",
+      "maxTriangles": 28000,
+      "bones": 17,
+      "parts": ["HorseBody", "Horse_Reins"],
+      "locks": "Rest skeleton and Body-relative saddle reference at world height 1.65 m. Existing six coat choices, owner blanket tint, walk/trot/gallop and tail joints. Four shared materials; no added texture. The separate resting rein loop is replaced by one dynamic held-rein draw while mounted."
+    },
+    {
+      "name": "Sheep",
+      "source": "sheep.py",
+      "editable": "village.blend",
+      "runtime": "apps/web/public/models/village.glb",
+      "maxTriangles": 14000,
+      "parts": ["Sheep", "Head", "LegFL", "LegFR", "LegBL", "LegBR", "Tail"],
+      "locks": "Existing six animated part pivots, seven instanced draws per pasture. One fleece material shared by every part, procedural vertex colours and no new textures."
+    },
+    {
+      "name": "SheepFar",
+      "source": "sheep.py",
+      "editable": "village.blend",
+      "runtime": "apps/web/public/models/village.glb",
+      "maxTriangles": 3000,
+      "parts": ["SheepFar", "HeadFar", "LegFLFar", "LegFRFar", "LegBLFar", "LegBRFar", "TailFar"],
+      "locks": "22% decimation of each near part, identical pivots/material. Entire pasture changes geometry by nearest animal distance: full detail within 16 m, far beyond 20 m, with hysteresis. No extra draws."
+    }
+  ],
+  "validation": "python assets/blender/validate_creatures.py; pnpm verify; CREATURES=1 pnpm e2e creatures; pnpm e2e movement construction buildings world3d combat pvp. Studio turnarounds: blender -b -P assets/blender/preview_creatures.py."
+}

@@ -62,6 +62,25 @@ describe('hub', () => {
     expect(h.last('error')?.message).toMatch(/Waiting for 2 more/);
   });
 
+  it('keeps independent lobby edits when the host changes settings before an acknowledgement', () => {
+    const h = client(hub);
+    h.send({ t: 'host', profile: me, settings: defaultSettings('original') });
+    h.send({ t: 'settings', settings: { players: 3 } });
+    h.send({ t: 'settings', settings: { seed: 'next-board' } });
+    h.send({ t: 'settings', settings: { rollOff: false } });
+    expect(h.last('lobby')!.lobby.settings).toEqual({
+      ...defaultSettings('next-board'), players: 3, rollOff: false,
+    });
+    h.send({ t: 'fill-bots' });
+    h.send({ t: 'start' });
+    expect(h.last('game')!.state.players).toHaveLength(3);
+    // Full settings messages from older clients remain valid.
+    const legacy = client(hub);
+    legacy.send({ t: 'host', profile: me, settings: defaultSettings('legacy') });
+    legacy.send({ t: 'settings', settings: { ...defaultSettings('full'), targetVp: 12 } });
+    expect(legacy.last('lobby')!.lobby.settings).toEqual({ ...defaultSettings('full'), targetVp: 12 });
+  });
+
   it('plays a game: checks whose move it is, hides cards, runs the bots', () => {
     const h = client(hub);
     h.send({

@@ -3,6 +3,7 @@ import type { DecorItem } from '@hexfall/net';
 import { DECOR_TINT } from './looks';
 import { cloneGear } from './gear';
 import { RigBaker } from './rig';
+import plans from './buildings.json';
 
 type Room = 'cottage' | 'hall';
 
@@ -26,7 +27,7 @@ const SPOTS: Record<Room, Partial<Record<DecorItem, Spot[]>>> = {
     banner: [{ x: -2.06, y: 1.55, z: 0.95, ry: Math.PI / 2 }],
     tapestry: [{ x: -1.62, y: 1.65, z: -1.86, ry: 0 }],
     antlers: [{ x: 2.06, y: 2.15, z: 1.35, ry: -Math.PI / 2 }],
-    chandelier: [{ x: 0.3, y: 2.45, z: 0.1, ry: 0 }],
+    chandelier: [{ x: 0.3, y: 0, z: 0.1, ry: 0, scale: 0.65 }],
     bookshelf: [{ x: -1.75, y: 0, z: 1.68, ry: Math.PI }],
     plants: [
       { x: 1.84, y: 0, z: -1.6, ry: 0 },
@@ -35,7 +36,7 @@ const SPOTS: Record<Room, Partial<Record<DecorItem, Spot[]>>> = {
     armor: [{ x: -0.45, y: 0, z: -1.5, ry: 0 }],
     candles: [
       { x: 0.95, y: 0.76, z: 0.2, ry: 0 },
-      { x: 1.86, y: 1.5, z: -0.62, ry: 0 },
+      { x: 1.76, y: 0.8, z: -0.62, ry: Math.PI / 2 },
     ],
     shield: [{ x: 2.06, y: 1.65, z: -1.5, ry: -Math.PI / 2 }],
   },
@@ -48,8 +49,8 @@ const SPOTS: Record<Room, Partial<Record<DecorItem, Spot[]>>> = {
     tapestry: [{ x: -0.4, y: 2.75, z: -2.46, ry: 0, scale: 1.3 }],
     antlers: [{ x: -3.46, y: 2.7, z: -2.0, ry: Math.PI / 2 }],
     chandelier: [
-      { x: -1.0, y: 3.4, z: -0.35, ry: 0, scale: 1.2 },
-      { x: 1.0, y: 3.4, z: -0.35, ry: 0, scale: 1.2 },
+      { x: -2.0, y: 0, z: -0.35, ry: 0, scale: 1.2 },
+      { x: 2.0, y: 0, z: -0.35, ry: 0, scale: 1.2 },
     ],
     bookshelf: [{ x: 3.25, y: 0, z: 2.1, ry: -Math.PI / 2 }],
     plants: [
@@ -59,7 +60,7 @@ const SPOTS: Record<Room, Partial<Record<DecorItem, Spot[]>>> = {
     armor: [{ x: -3.1, y: 0, z: -0.95, ry: Math.PI / 2 }],
     candles: [
       { x: -1.2, y: 0.78, z: -0.35, ry: 0 },
-      { x: 0, y: 0.78, z: -0.35, ry: 0 },
+      { x: 0, y: 0.82, z: -0.35, ry: 0 },
       { x: 1.2, y: 0.78, z: -0.35, ry: 0 },
     ],
     shield: [{ x: 2.2, y: 2.4, z: -2.46, ry: 0 }],
@@ -322,6 +323,12 @@ export class DecorBuilder {
         o.position.set(s.x, floor + s.y, s.z);
         o.rotation.y = s.ry;
         o.scale.setScalar(s.scale ?? 1);
+        if (kind === 'chandelier') {
+          // Mount the actual hook at the ceiling, including the procedural fallback's height.
+          o.position.y = 0;
+          const hook = new THREE.Box3().setFromObject(o).max.y;
+          o.position.y = floor + plans[room].ceiling - hook;
+        }
         group.add(o);
         const r = DECOR_SOLID[kind];
         if (r && s.y === 0) solids.push({ x: s.x, z: s.z, r: r * (s.scale ?? 1) });

@@ -5,6 +5,8 @@ import { HAIR_COLOR, OUTFIT, SKIN } from './looks';
 import { HELM_FACE, HELM_HAIR, KnightRig, knightModel } from './knight';
 import { cloneGear } from './gear';
 import { RigBaker } from './rig';
+import type { Horse } from './horse';
+import type { HandPoints } from './reins';
 
 export interface AvatarPose {
   /** Walking speed (m/s). */
@@ -18,6 +20,9 @@ export interface AvatarPose {
   riding: boolean;
   /** Footfalls so far from the world's stride (the local player), so the feet land on the sound. */
   stride?: number;
+  /** Blended crouch amount (0 standing, 1 crouched). Ground origin stays fixed. */
+  crouch?: number;
+  aimTurn?: number;
 }
 
 /** How long each attack plays (s). */
@@ -58,6 +63,9 @@ export class Avatar {
   private flash = 0;
   private rig = new RigBaker();
   private knight: KnightRig | null = null;
+  private gripBoth = false;
+  private readonly palms = { left: new THREE.Object3D(), right: new THREE.Object3D() };
+  private readonly handPoints: HandPoints = { left: new THREE.Vector3(), right: new THREE.Vector3() };
 
   constructor(
     look: CharacterLook = DEFAULT_LOOK,
@@ -83,7 +91,13 @@ export class Avatar {
       this.seat = this.knight.owner;
       this.seat.color.set(seatColor);
       this.knight.head.add(this.styled);
-    } else this.shapes(leather, boot, dark);
+    } else {
+      this.shapes(leather, boot, dark);
+      this.palms.left.position.set(0, -0.56, -0.01);
+      this.palms.right.position.set(0, -0.56, -0.01);
+      this.offArm.add(this.palms.left);
+      this.arm.add(this.palms.right);
+    }
 
     // Sword: blade, fuller, guard, grip and pommel, held point-forward in the right hand.
     const hand = new THREE.Group();
@@ -295,6 +309,10 @@ export class Avatar {
     this.bake();
   }
 
+  get seatHeight(): number {
+    return this.knight?.seatHeight ?? 0.78;
+  }
+
   setWeapon(w: Weapon) {
     this.sword.visible = this.shield.visible = w === 'sword';
     this.revolver.visible = w === 'revolver';
@@ -307,6 +325,18 @@ export class Avatar {
 
   update(dt: number, p: AvatarPose) {
     this.setWeapon(p.weapon);
+    this.gripBoth = p.riding && p.weapon === 'fist' && p.attackAge >= ATTACK_TIME.fist && !p.block;
+    const holder = p.riding ? this.knight?.back ?? this.body : this.knight?.forearm ?? this.offArm;
+    if (this.shield.parent !== holder) {
+      holder.add(this.shield);
+      if (p.riding) {
+        this.shield.position.set(this.knight ? 0 : -0.28, this.knight ? 0 : 0.1, this.knight ? 0 : 0.2);
+        this.shield.rotation.set(0, Math.PI / 2, 0);
+      } else {
+        this.shield.position.set(this.knight ? -0.075 : -0.06, this.knight ? 0 : -0.38, this.knight ? -0.03 : -0.06);
+        this.shield.rotation.set(0, -0.2, 0);
+      }
+    }
     if (this.knight) {
       this.knight.pose(dt, { ...p, attackTime: ATTACK_TIME[p.weapon] }, this.reduce);
       if (this.flash > 0) {
@@ -316,12 +346,15 @@ export class Avatar {
       return;
     }
     this.gait += p.speed * dt * (p.riding ? 0 : 2.3);
+    this.arm.scale.y = this.offArm.scale.y = 1;
     const walk = this.reduce || p.riding ? 0 : Math.min(p.speed / 10, 0.6);
     this.legs.forEach((leg, i) => {
       leg.rotation.x = p.riding ? -1.25 : Math.sin(this.gait + i * Math.PI) * walk;
       leg.rotation.z = p.riding ? (i ? -0.32 : 0.32) : 0;
     });
-    this.body.position.y = 0.78 + (p.riding ? 0 : Math.abs(Math.sin(this.gait)) * walk * 0.05);
+    const crouch = p.riding ? 0 : p.crouch ?? 0;
+    this.body.position.y = 0.78 - crouch * 0.25 + (p.riding ? 0 : Math.abs(Math.sin(this.gait)) * walk * 0.05);
+    this.legs.forEach((leg) => { leg.position.y = 0.8 - crouch * 0.25; leg.scale.y = 1 - crouch * 0.3; });
     const t = p.attackAge;
     const dur = ATTACK_TIME[p.weapon];
     const live = t < dur;
@@ -332,7 +365,7 @@ export class Avatar {
     let az = 0.06;
     let ox = -sway * 0.6;
     let oz = -0.06;
-    let lean = 0;
+    let lean = crouch * 0.22;
     let twist = 0;
     if (p.weapon === 'sword') {
       ax = -0.35;
@@ -383,5 +416,27 @@ export class Avatar {
     for (const m of this.mats) m.dispose();
     this.rig.dispose();
     this.knight?.dispose();
+  }
+
+  /** Left hand steers during attacks and weapon use; bare hands take both straps. */
+  holdReins(horse: Horse) {
+    const targets = horse.reinTargets;
+    let points: HandPoints;
+    if (this.knight) points = this.knight.holdReins(targets, this.gripBoth);
+    else {
+      this.root.updateWorldMatrix(true, true);
+      for (const key of ['left', 'right'] as const) {
+        if (key === 'right' && !this.gripBoth) continue;
+        const arm = key === 'left' ? this.offArm : this.arm;
+        const to = arm.parent!.worldToLocal(targets[key].clone()).sub(arm.position);
+        arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), to.clone().normalize());
+        arm.scale.y = to.length() / 0.56;
+      }
+      this.root.updateWorldMatrix(true, true);
+      this.palms.left.getWorldPosition(this.handPoints.left);
+      this.palms.right.getWorldPosition(this.handPoints.right);
+      points = this.handPoints;
+    }
+    horse.holdReins(points.left, this.gripBoth ? points.right : undefined);
   }
 }

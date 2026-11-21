@@ -97,6 +97,7 @@ export class Field {
     private nearDist: number,
     private maxDist = Infinity,
     private mid: MidTier | null = null,
+    private farStride = 1,
   ) {
     this.group.name = name;
   }
@@ -142,17 +143,21 @@ export class Field {
           }
         }
       });
-      const tier = (vis: PlantVisual | null) => {
+      const tier = (vis: PlantVisual | null, items = list) => {
         if (!vis) return null;
         const g = new THREE.Group();
-        for (const part of vis.parts) g.add(instanced(part, list, clearings));
+        for (const part of vis.parts) g.add(instanced(part, items, clearings));
         g.visible = false;
         this.group.add(g);
         return g;
       };
       this.group.add(near);
       const mid = tier(this.mid?.visual ?? null);
-      const far = tier(this.far);
+      // Wider distant clumps retain coverage without drawing every individual crop row.
+      const distant = this.farStride > 1 ? list.filter((_, i) => i % this.farStride === 0).map((it) => ({
+        ...it, m: it.m.clone().scale(new THREE.Vector3(Math.sqrt(this.farStride), 1, Math.sqrt(this.farStride))),
+      })) : list;
+      const far = tier(this.far, distant);
       this.cells.push({ cx: (i + 0.5) * this.cell, cz: (j + 0.5) * this.cell, near, mid, far });
     }
     scene.add(this.group);

@@ -1576,8 +1576,8 @@ export function bridgeDeck(x: number, len: number): number {
  * painted in the owner's colour, and tall corner posts flying the owner's pennants, so every
  * road reads from across the island.
  */
-export function makeBridge(kit: Kit, len: number, color: string): THREE.Object3D {
-  return kit.template(`bridge${color}${len.toFixed(2)}`, () => {
+export function makeBridge(kit: Kit, len: number, color: string, crossing = 0, crossingHalf = 1.8): THREE.Object3D {
+  return kit.template(`bridge${color}${len.toFixed(2)}-${crossing.toFixed(2)}-${crossingHalf.toFixed(2)}`, () => {
     const g = new THREE.Group();
     const rnd = mulberry(47);
     const half = BRIDGE_WIDTH / 2;
@@ -1652,14 +1652,17 @@ export function makeBridge(kit: Kit, len: number, color: string): THREE.Object3D
     const posts: number[] = [];
     const span = len * 0.84;
     for (let i = 0; i <= 6; i++) posts.push(-span / 2 + (span * i) / 6);
+    const ends = [crossing - crossingHalf, crossing + crossingHalf];
+    const rails = [...posts.filter((x) => Math.abs(x - crossing) > crossingHalf && ends.every((e) => Math.abs(x - e) > 0.25)), ...ends].sort((a, b) => a - b);
     for (const z of [-half, half]) {
-      for (const x of posts) {
+      for (const x of rails) {
         g.add(mesh(kit.rbox(0.16, 1.05, 0.16, 0.04), beam, x, deckAt(x) + 0.55, z));
         g.add(mesh(kit.rbox(0.22, 0.08, 0.22, 0.03), paint, x, deckAt(x) + 1.1, z, false));
       }
-      for (let i = 0; i < posts.length - 1; i++) {
-        const a = posts[i];
-        const b = posts[i + 1];
+      for (let i = 0; i < rails.length - 1; i++) {
+        const a = rails[i];
+        const b = rails[i + 1];
+        if (Math.abs((a + b) / 2 - crossing) < crossingHalf) continue;
         const ya = deckAt(a);
         const yb = deckAt(b);
         const l = Math.hypot(b - a, yb - ya);
@@ -1671,6 +1674,14 @@ export function makeBridge(kit: Kit, len: number, color: string): THREE.Object3D
         mid.rotation.z = ang;
         g.add(mid);
       }
+    }
+    // Side approaches keep the island trail connected across a player's raised road.
+    for (const side of [-1, 1]) for (let i = 0; i < 18; i++) {
+      const distance = (i + 0.5) * 3.6 / 18;
+      const y = (deckAt(crossing) + 0.06) * (1 - distance / 3.6);
+      const slat = mesh(kit.rbox(crossingHalf * 2, 0.08, 3.6 / 18 + 0.012, 0.018), timber[i % timber.length], crossing, y, side * (half + distance));
+      slat.rotation.x = side * Math.atan2(deckAt(crossing) + 0.06, 3.6);
+      g.add(slat);
     }
     // Tall corner posts flying the owner's pennants: the bridge's signal from far away.
     const pole = kit.mat('#4e3520', WOOD);

@@ -37,6 +37,7 @@ export type AssetSlot =
   | 'rock.crag'
   | 'rock.clay'
   | 'sheep'
+  | 'sheep.far'
   | 'animal.horse'
   | 'character.knight'
   | 'building.settlement'
@@ -71,7 +72,13 @@ export type AssetSlot =
   | 'shrub.dry'
   | 'plant.reeds'
   | 'rock.ore'
-  | 'rock.ledge';
+  | 'rock.ledge'
+  | 'prop.crate'
+  | 'prop.barrel'
+  | 'prop.sack'
+  | 'prop.worktable'
+  | 'prop.bench'
+  | 'prop.bin';
 
 export interface SlotSpec {
   /** Approximate size at scale 1 (width x, height y, depth z), metres. */
@@ -86,6 +93,13 @@ export interface SlotSpec {
 }
 
 export const SLOTS: Record<AssetSlot, SlotSpec> = {
+  'prop.crate': { size: [0.8, 0.65, 0.7], footprint: 0.55, mode: 'object', castShadow: true },
+  'prop.barrel': { size: [0.7, 1, 0.7], footprint: 0.45, mode: 'object', castShadow: true },
+  'prop.sack': { size: [0.55, 0.75, 0.55], footprint: 0.35, mode: 'object', castShadow: true },
+  'prop.worktable': { size: [1.3, 0.76, 0.8], footprint: 0.8, mode: 'object', castShadow: true },
+  'prop.bench': { size: [1.2, 0.45, 0.36], footprint: 0.65, mode: 'object', castShadow: true },
+  'prop.bin': { size: [1.1, 0.85, 0.8], footprint: 0.7, mode: 'object', castShadow: true },
+
   'tree.broadleaf': { size: [5, 6.5, 5], footprint: 0.55, mode: 'instanced', castShadow: true },
   'tree.conifer': { size: [3.6, 8, 3.6], footprint: 0.55, mode: 'instanced', castShadow: true },
   'tree.sapling': { size: [1.8, 2.6, 1.8], footprint: 0.3, mode: 'instanced', castShadow: true },
@@ -103,6 +117,7 @@ export const SLOTS: Record<AssetSlot, SlotSpec> = {
   'rock.crag': { size: [10, 12, 9], footprint: 4.5, mode: 'instanced', castShadow: true },
   'rock.clay': { size: [5, 2, 4.5], footprint: 2.4, mode: 'instanced', castShadow: true },
   sheep: { size: [0.8, 1.1, 1.4], footprint: 0.5, mode: 'object', castShadow: true },
+  'sheep.far': { size: [0.8, 1.1, 1.4], footprint: 0.5, mode: 'object', castShadow: true },
   // Skinned: `horse.ts` clones and poses it (one per pasture, plus riders' mounts).
   'animal.horse': { size: [0.8, 2.2, 2.6], footprint: 0, mode: 'object', owner: true, castShadow: true },
   // Skinned: `knight.ts` clones and poses it for every player in the walk and the Character preview.
@@ -161,6 +176,13 @@ const PROPS = 'models/props.glb';
  * to the procedural model for that slot.
  */
 export const ASSET_FILES: Partial<Record<AssetSlot, AssetRef>> = {
+  'prop.crate': { file: 'models/supplies.glb', nodes: ['StorageCrate'] },
+  'prop.barrel': { file: 'models/supplies.glb', nodes: ['BarrelA', 'BarrelB'] },
+  'prop.sack': { file: 'models/supplies.glb', nodes: ['GrainSack'] },
+  'prop.worktable': { file: 'models/supplies.glb', nodes: ['CottageTable'] },
+  'prop.bench': { file: 'models/supplies.glb', nodes: ['Bench'] },
+  'prop.bin': { file: 'models/supplies.glb', nodes: ['MillBin'] },
+
   'wheat.clump': { file: FLORA, nodes: ['WheatA', 'WheatB', 'WheatC'] },
   'wheat.clump.mid': { file: FLORA, nodes: ['WheatMid'] },
   'wheat.clump.far': { file: FLORA, nodes: ['WheatFar'] },
@@ -185,6 +207,7 @@ export const ASSET_FILES: Partial<Record<AssetSlot, AssetRef>> = {
   'harbor.dock': { file: VILLAGE, nodes: ['Dock'] },
   'harbor.boat': { file: VILLAGE, nodes: ['Boat', 'BoatSloop', 'BoatStriped'] },
   sheep: { file: VILLAGE, nodes: ['Sheep'] },
+  'sheep.far': { file: VILLAGE, nodes: ['SheepFar'] },
   'animal.horse': { file: HORSE, nodes: ['Horse'] },
   'character.knight': { file: KNIGHT, nodes: ['Knight'] },
   'prop.barn': { file: VILLAGE, nodes: ['Barn'] },

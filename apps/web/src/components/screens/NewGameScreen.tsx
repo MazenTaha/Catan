@@ -263,7 +263,7 @@ function ProfileEditor({ profile, onChange }: { profile: PlayerProfile; onChange
 
 /** Changes the host can make, applied locally when there is no server. */
 function applyLocal(l: Lobby, msg: ClientMsg): Lobby {
-  if (msg.t === 'settings') return { ...l, settings: clampSettings(msg.settings) };
+  if (msg.t === 'settings') return { ...l, settings: clampSettings({ ...l.settings, ...msg.settings }) };
   if (msg.t === 'seat') return setSeat(l, msg.index, msg.choice);
   if (msg.t === 'fill-bots') return fillWithBots(l);
   return l;
@@ -305,7 +305,7 @@ function HostLobby({ profile }: { profile: PlayerProfile }) {
     } else setLocal((l) => applyLocal(l, msg));
   };
   const settings = lobby.settings;
-  const setSettings = (patch: Partial<LobbySettings>) => apply({ t: 'settings', settings: { ...settings, ...patch } });
+  const setSettings = (patch: Partial<LobbySettings>) => apply({ t: 'settings', settings: patch });
   const problem = startProblem(lobby);
 
   const start = () => {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CROUCH_DROP } from './locomotion';
 import { cloneGear } from './gear';
 import type { Weapon } from '@hexfall/engine';
 import { DEFAULT_LOOK, REACH, type CharacterLook } from '@hexfall/net';
@@ -26,8 +27,8 @@ export interface Target {
 const DAMAGE_PRACTICE: Record<Weapon, number> = { fist: 10, sword: 25, revolver: 50 };
 
 /**
- * The walker's own fighting: fists until the weapon chest is opened, then sword (1) or
- * revolver (2), fists (3). F or a click attacks; the right mouse button holds a guard, and a
+ * The walker's own fighting: bare hands (1), then sword (2) or revolver (3) after the chest.
+ * F or a click attacks; the right mouse button holds a guard, and a
  * raised sword parries blows and bullets from the front. Hits on other players are reported
  * (the server checks them and the engine applies the damage); the straw dummy is local.
  */
@@ -45,6 +46,7 @@ export class Combat {
   /** The world's footfall count, so the character's feet land with the footstep sounds. */
   stride: number | undefined = undefined;
   riding = false;
+  crouch = 0;
   private shotFlash = 0;
   health = 100;
   hits = 0;
@@ -249,7 +251,7 @@ export class Combat {
     return aligned && this.clearLine(x, z, tx, tz, clear);
   }
 
-  update(dt: number, x: number, y: number, z: number, yaw: number, speed: number, clear: (x: number, z: number) => boolean) {
+  update(dt: number, x: number, y: number, z: number, yaw: number, speed: number, clear: (x: number, z: number) => boolean, facing = yaw) {
     this.shotFlash = Math.max(0, this.shotFlash - dt);
     const gun = this.weapon === 'revolver';
     this.flashMesh.visible = this.tracer.visible = gun && this.shotFlash > 0 && !this.reduce;
@@ -259,7 +261,10 @@ export class Combat {
     if (!pause) this.age += dt;
     const root = this.me.root;
     root.position.set(x, y, z);
-    root.rotation.y = this.attacking || this.blocking ? this.aim : yaw;
+    // The pelvis stays on the saddle; mounted aiming belongs to the upper body.
+    const targetYaw = this.riding ? facing : this.attacking || this.blocking ? this.aim : facing;
+    const turn = Math.atan2(Math.sin(targetYaw - root.rotation.y), Math.cos(targetYaw - root.rotation.y));
+    root.rotation.y += turn * (this.riding ? 1 : 1 - Math.exp(-dt * 20));
     if (this.blocking) this.aim = yaw;
     this.me.update(dt, {
       speed,
@@ -269,13 +274,15 @@ export class Combat {
       block: this.blocking,
       riding: this.riding,
       stride: this.stride,
+      crouch: this.crouch,
+      aimTurn: this.riding ? Math.atan2(Math.sin(yaw - facing), Math.cos(yaw - facing)) : 0,
     });
     // The moment of contact: a sword at 210 ms into its swing, a fist at 120 ms, a shot at once.
     const contact = gun ? 0 : this.weapon === 'sword' ? 0.21 : 0.12;
     if (!this.struck && this.age >= contact && this.attacking) {
       this.struck = true;
       this.count++;
-      const eye = y + 1.3;
+      const eye = y + 1.3 - this.crouch * CROUCH_DROP;
       let length = REACH.revolver;
       // The nearest other player the blow lands on, if any.
       let best: Target | null = null;

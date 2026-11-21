@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+import { walkingGait } from './locomotion';
 
 /** What a foot lands on, for the step's sound and dust. */
 export type Surface = 'grass' | 'soil' | 'sand' | 'wood' | 'stone';
 
 /** Metres per footfall at a speed (m/s): longer strides as the pace rises, as people run. */
-export const stepLength = (speed: number) => 0.6 + speed * 0.16;
+export const stepLength = (speed: number, crouch = 0) => walkingGait(speed, crouch).step;
 
 const DUST: Record<Surface, [number, number, number] | null> = {
   grass: [0.72, 0.7, 0.55],
@@ -41,26 +42,31 @@ export class RunFeel {
     this.dust = reduce || lite ? null : new Dust(scene);
   }
 
+  reset() {
+    this.sprint = this.dip = this.kick = this.roll = 0;
+    this.wasRunning = false;
+  }
+
   /**
    * Advances the stride by the distance covered. Returns true when a foot lands (on foot only).
    * `walk` and `run` are the walker's two speeds; `turn` is the yaw rate (rad/s); `strafe` -1..1.
    */
-  update(dt: number, speed: number, walk: number, run: number, riding: boolean, turn: number, strafe: number): boolean {
-    const target = riding ? Math.min(1, Math.max(0, (speed - 9) / 8)) : Math.min(1, Math.max(0, (speed - walk * 0.9) / (run - walk * 0.9)));
-    this.sprint += (target - this.sprint) * Math.min(1, dt * (target > this.sprint ? 3.5 : 5));
+  update(dt: number, speed: number, walk: number, run: number, riding: boolean, turn: number, strafe: number, silent = false): boolean {
+    const target = silent ? 0 : riding ? Math.min(1, Math.max(0, (speed - 5.5) / 6.5)) : Math.min(1, Math.max(0, (speed - walk * 0.9) / (run - walk * 0.9)));
+    this.sprint += (target - this.sprint) * (1 - Math.exp(-dt * (target > this.sprint ? 3.5 : 5)));
     const running = this.sprint > 0.5;
     if (running && !this.wasRunning) this.kick = 1;
     this.wasRunning = running;
     this.kick = Math.max(0, this.kick - dt * 2.2);
     this.dip = Math.max(0, this.dip - dt * 7);
-    this.roll += (THREE.MathUtils.clamp(-turn * 0.012 - strafe * 0.025, -0.05, 0.05) * Math.max(this.sprint, speed > 0.5 ? 0.35 : 0) - this.roll) * Math.min(1, dt * 6);
+    this.roll += (THREE.MathUtils.clamp(-turn * 0.012 - strafe * 0.025, -0.05, 0.05) * Math.max(this.sprint, speed > 0.5 ? 0.35 : 0) - this.roll) * (1 - Math.exp(-dt * 6));
     this.dust?.update(dt);
     if (riding || speed < 0.3) {
-      if (speed < 0.3) this.phase = Math.ceil(this.phase);
       return false;
     }
     const before = Math.floor(this.phase);
-    this.phase += (speed * dt) / stepLength(speed);
+    this.phase += (speed * dt) / stepLength(speed, silent ? 1 : 0);
+    if (silent) { this.dip = this.kick = 0; return false; }
     if (Math.floor(this.phase) === before) return false;
     this.dip = 1;
     return true;
@@ -80,13 +86,19 @@ export class RunFeel {
     return this.reduce ? 0 : this.sprint * 0.55;
   }
 
-  /** Applies the bob, sway, landing dip, lean and field of view to a placed camera. */
-  apply(camera: THREE.PerspectiveCamera, baseFov: number) {
+  /** First-person head motion, or a stable third-person orbit with a wider sprint FOV. */
+  apply(camera: THREE.PerspectiveCamera, baseFov: number, thirdPerson = false) {
     if (this.reduce) {
       this.setFov(camera, baseFov);
       return;
     }
-    const s = Math.max(this.sprint, this.phase % 1 === 0 ? 0 : 0.25);
+    // The orbit has already resolved walls. Keep its position and horizon stable;
+    // first-person head bob must not move a third-person camera back into geometry.
+    if (thirdPerson) {
+      this.setFov(camera, baseFov + this.sprint * 9);
+      return;
+    }
+    const s = this.sprint;
     const a = this.phase * Math.PI;
     const bob = Math.cos(a * 2) * (0.018 + 0.05 * this.sprint) * s;
     const sway = Math.sin(a) * 0.035 * this.sprint;

@@ -571,6 +571,38 @@ def owner_ridge(b, W: float, z: float, thick: float):
          0.3, 0.14, (0.92, 0.92, 0.92), M_TRIM, normal=UP)
 
 
+def facade_finish(b, W, D, eaves, rise, floor, city=False):
+    """Crafted silhouettes, roof verges and stone quoins; all stay outside the shared room plan."""
+    cream = C('#e9d1a0')
+    for sx in (-1, 1):
+        x = sx * (W / 2 + 0.29)
+        for sy in (-1, 1):
+            a = Vector((x, sy * (D / 2 + .49), eaves - .49 * rise / (D / 2)))
+            c = Vector((x, 0, eaves + rise + .07))
+            beam(b, a, c, .19, .19, TIMBER, normal=X)
+            beam(b, a + Vector((sx * .04, 0, .025)), c + Vector((sx * .04, 0, .025)), .07, .22, cream, normal=X)
+        # Closed attic window, with a deep projecting sill and cross mullions.
+        z = eaves + rise * .34
+        p = Vector((sx * (W / 2 + .045), 0, z))
+        u = Vector((0, sx, 0)); n = Vector((sx, 0, 0))
+        face(b, p - u * .32, u, .64, .72, n, V['window'], (.64, .72), WHITE, M_VILLAGE)
+        for side in (-1, 1):
+            beam(b, p + u * side * .36, p + u * side * .36 + UP * .8, .09, .12, TIMBER, normal=n)
+        beam(b, p - u * .44 + UP * .8, p + u * .44 + UP * .8, .12, .16, cream, normal=n)
+        beam(b, p - u * .43 - UP * .035, p + u * .43 - UP * .035, .14, .24, cream, normal=n)
+        beam(b, p, p + UP * .72, .045, .10, TIMBER, normal=n)
+    # Corbels beneath both long eaves, and pale alternating corner stones.
+    for sy in (-1, 1):
+        for k in range(max(4, int(W / .8))):
+            x = -W / 2 + .25 + k * (W - .5) / (max(4, int(W / .8)) - 1)
+            beam(b, Vector((x, sy * (D / 2 + .03), eaves - .36)),
+                 Vector((x, sy * (D / 2 + .32), eaves - .12)), .13, .13, TIMBER_LT)
+        for sx in (-1, 1):
+            for k in range(6 if city else 3):
+                box(b, Vector((sx * (W / 2 + .02), sy * (D / 2 + .02), floor + k * .43)),
+                    (.35 if k % 2 else .48, .48 if k % 2 else .35, .24), V['stone'], (.7, .4), cream)
+
+
 def owner_banner(b, at: Vector, out: Vector):
     """An owner's banner on an iron bracket out from the wall at `at` (the wall's outer face),
     hanging edge-on to the wall: a swallowtailed cloth with a dark border (so a white one reads)."""
@@ -607,6 +639,7 @@ def build_cottage(mats, plan):
     # owner's colour; gables of plaster with a timber king post.
     gable_roof(b, Vector((0, 0, 0)), W, D, H, H + 2.55, 0.5, M_VILLAGE, V['tiles'], TERRACOTTA, thick=0.16, r=r)
     owner_ridge(b, W, H + 2.55, 0.16)
+    facade_finish(b, W, D, H, 2.55, floor)
     dr0 = plan['doors'][0]
     side = 1 if dr0['at'] < 0 else -1
     owner_banner(b, P(dr0['at'] + side * (dr0['w'] / 2 + 0.5), d / 2 + t, H + 0.05), -Y)
@@ -629,8 +662,10 @@ def build_cottage(mats, plan):
         row = 0 if k < 3 else 1
         zz = -0.3 + 0.3 * (k % 3) + (0.15 if row else 0.0)
         y = 0.13 + 0.24 * row
-        tube(b, [P(lx, zz - 0.5, y), P(lx, zz + 0.5, y)], [0.12, 0.12], 7,
+        rings = tube(b, [P(lx, zz - 0.5, y), P(lx, zz + 0.5, y)], [0.12, 0.12], 7,
              lambda t_, s_: mul(TIMBER_LT, 0.9 + 0.1 * (s_ % 2)), mat=M_VILLAGE, cap=True)
+        # The opposite cut end is visible from behind the cottage too.
+        b.face(list(reversed(rings[0])), mat=M_VILLAGE, smooth=False)
     bt = P(w / 2 + t + 0.4, d / 2 - 0.2, 0)
     tube(b, [bt, bt + UP * 0.4, bt + UP * 0.8], [0.3, 0.34, 0.31], 10, lambda t_, s_: mul(PLANK, 0.9 + 0.12 * (s_ % 2)), mat=M_VILLAGE, cap=True)
     shell = b.build('Cottage', mats)
@@ -709,6 +744,7 @@ def build_hall(mats, plan):
                 beam(b, p + UP * 0.1, oo + ux * (ww * (k + 1) / n_posts) + UP * (up_h - 0.12), 0.1, 0.07, TIMBER, normal=out)
     gable_roof(b, Vector((0, 0, 0)), W, D, z2 + up_h, z2 + up_h + 3.0, 0.55, M_VILLAGE, V['tiles'], TERRACOTTA, thick=0.18, r=r)
     owner_ridge(b, W, z2 + up_h + 3.0, 0.18)
+    facade_finish(b, W, D, z2 + up_h, 3.0, floor, city=True)
     # Corner tower at the back left with a banner; a chimney above the hearth.
     tower(b, r, P(-W / 2 - 0.9, -D / 2 - 0.7, 0), 1.35, H + up_h + 1.6, 2.8, sides=10)
     hf = next(f for f in plan['furniture'] if f['kind'] == 'hearth')
@@ -853,6 +889,14 @@ def build_mill(mats, plan):
     tube(b, [UP * (H - 0.05), UP * (H + 0.15)], [R0 + 0.12, R0 + 0.08], 16, lambda t_, s_: TIMBER, mat=M_VILLAGE, cap=False)
     top = H + T
     tube(b, [UP * (top - 0.05), UP * (top + 0.2)], [R1 + 0.45, R1 + 0.45], 12, lambda t_, s_: TIMBER, mat=M_VILLAGE, cap=True)
+    # Close the overhang underneath. The tube's end cap faces up, so without a soffit
+    # a ground-level camera sees sky between the tower and the roof's eave.
+    for i in range(12):
+        a0, a1 = i * math.tau / 12, (i + 1) * math.tau / 12
+        inner, outer = R1 * 0.89, R1 + 0.45
+        pts = [Vector((math.cos(a) * rad, math.sin(a) * rad, top - 0.05))
+               for a, rad in ((a0, inner), (a0, outer), (a1, outer), (a1, inner))]
+        quad(b, pts, -UP, V['planks'], TIMBER_LT, M_VILLAGE)
     cap_pts = [UP * (top + 0.2), UP * (top + 1.0), UP * (top + 1.8), UP * (top + 2.5)]
     tube(b, cap_pts, [R1 + 0.35, R1 + 0.12, 0.8, 0.05], 12, lambda t_, s_: mul(THATCH, 0.95 + 0.08 * (s_ % 2)),
          mat=M_VILLAGE, uv_rect=V['thatch'], uv_repeat=(1.0, 1.0))

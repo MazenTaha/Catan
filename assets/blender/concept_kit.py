@@ -312,3 +312,21 @@ def build():
     from pathlib import Path
     Path(__file__).with_name('concept_kit.stats.json').write_text(json.dumps(result, indent=2))
     return result
+
+
+def build_supplies():
+    """Small shared subset for live island worksites; avoids loading the full house library."""
+    scene = new_scene('IslandSupplies')
+    materials = mats()
+    specs = [('CottageTable', 'table', 1.3, 0.8, 0.76),
+             ('Bench', 'bench', 1.2, 0.36, 0.45),
+             ('StorageCrate', 'crate', 0.8, 0.7, 0.65),
+             ('MillBin', 'bin', 1.1, 0.8, 0.85),
+             ('BarrelA', 'barrel', 0.7, 0.7, 1.0),
+             ('BarrelB', 'barrel', 0.55, 0.55, 0.72),
+             ('GrainSack', 'sack', 0.55, 0.55, 0.75)]
+    roots = [furniture(name, materials, kind, w, d, h) for name, kind, w, d, h in specs]
+    layout_row(roots, gap=3.0)
+    export_glb(roots, 'supplies.glb')
+    save_blend(scene, 'supplies.blend')
+    return stats(roots)

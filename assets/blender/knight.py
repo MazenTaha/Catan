@@ -28,9 +28,9 @@ from common import MeshBuilder, bake_ao, export_glb, material, mul, new_scene, r
 C = srgb
 M_STEEL, M_DARK, M_CLOTH, M_OWNER, M_SKIN = range(5)
 
-STEEL = C('#c4cacd')
-STEEL_DK = C('#8b9398')
-BRASS = C('#c09a52')
+STEEL = C('#879eac')
+STEEL_DK = C('#435c70')
+BRASS = C('#c9a65d')
 LEATHER = C('#3b2a1f')
 MAIL = C('#5d6266')
 SLIT = C('#0c0c0d')
@@ -136,23 +136,33 @@ def body_pieces():
     # Torso: one shell from the waist to the collar, a keel down the breastplate.
     torso = MeshBuilder()
     shell(torso, [ring(0.98, 0.165, 0.12, 0.115), ring(1.05, 0.17, 0.125, 0.12), ring(1.15, 0.186, 0.142, 0.126, cy=-0.005),
-                  ring(1.27, 0.2, 0.158, 0.13, cy=-0.01, keel=0.016), ring(1.37, 0.205, 0.15, 0.126, cy=-0.01, keel=0.01),
-                  ring(1.45, 0.172, 0.12, 0.11), ring(1.5, 0.105, 0.088, 0.082)], sides=32, edge_dark=0.15)
+                  ring(1.27, 0.211, 0.175, 0.138, cy=-0.01, keel=0.016), ring(1.37, 0.218, 0.169, 0.132, cy=-0.01, keel=0.01),
+                  ring(1.45, 0.172, 0.12, 0.11), ring(1.5, 0.105, 0.088, 0.082)], sides=20, edge_dark=0.1)
     band(torso, V(0, -0.002, 1.495), V(0, -0.002, 1.505), 0.108)
     # Gorget round the neck.
     shell(torso, [ring(1.47, 0.1, 0.095, 0.09), ring(1.53, 0.085, 0.082, 0.08), ring(1.575, 0.074, 0.07, 0.07)], sides=22)
     # Fluting fanning up the breastplate (00-knight-turnaround), the brass sprig medallion.
     for k in range(-3, 4):
         a = math.radians(k * 11)
-        lo = V(math.sin(a) * 0.09, -0.136 - 0.008 * math.cos(a), 1.12)
-        hi = V(math.sin(a * 1.25) * 0.19, -0.152 * math.cos(a * 1.25) - 0.012, 1.36)
+        lo = V(math.sin(a) * 0.09, -0.150 - 0.008 * math.cos(a), 1.12)
+        hi = V(math.sin(a * 1.25) * 0.19, -0.175 * math.cos(a * 1.25) - 0.028, 1.36)
         mid = lo.lerp(hi, 0.5) + V(0, -0.016, 0)
         tube(torso, [lo, mid, hi], [0.004, 0.006, 0.004], 5, lambda t, s: STEEL_DK, mat=M_STEEL)
     tube(torso, [V(0.075, -0.15, 1.41), V(0.077, -0.168, 1.412)], [0.03, 0.03], 14, lambda t, s: BRASS, mat=M_STEEL, cap=True)
+    # Raised collar edging and a small heraldic sun: readable without a noisy texture map.
+    for sx in (-1, 1):
+        tube(torso, [V(sx * .03, -.112, 1.48), V(sx * .14, -.143, 1.4), V(sx * .17, -.147, 1.32)],
+             [.008, .009, .006], 6, lambda t, s: BRASS, mat=M_STEEL)
+    centre = V(0, -.216, 1.29)
+    tube(torso, [centre, centre + V(0, -.012, 0)], [.033, .029], 12, lambda t, s: BRASS, cap=True)
+    for k in range(8):
+        a = k * math.pi / 4
+        direction = V(math.sin(a), 0, math.cos(a))
+        tube(torso, [centre + direction * .043, centre + direction * .059], [.006, .003], 5, lambda t, s: BRASS, cap=True)
     pieces.append((torso, rigid('Spine')))
     # A cloth cowl draped round the gorget, lower at the front.
     cowl = MeshBuilder()
-    shell(cowl, [ring(1.4, 0.215, 0.165, 0.15), ring(1.44, 0.2, 0.15, 0.142), ring(1.5, 0.165, 0.128, 0.13),
+    shell(cowl, [ring(1.46, 0.185, 0.13, 0.13), ring(1.47, 0.17, 0.13, 0.13), ring(1.5, 0.165, 0.128, 0.13),
                  ring(1.555, 0.118, 0.1, 0.105)], mat=M_CLOTH, color=C('#e6e6e6'), sides=26, edge_dark=0.2)
     pieces.append((cowl, rigid('Spine')))
 
@@ -186,35 +196,43 @@ def body_pieces():
     tube(hips, [top + V(0.03, -0.01, -0.09), top + V(0.05, -0.02, -0.2)], [0.008, 0.004], 4, lambda t, s: C('#a83a32'), mat=M_DARK)
     pieces.append((hips, rigid('Hips')))
 
-    # Mail skirt, and the arming coat's hem below it in the outfit colour: they follow the
-    # thighs more the lower they hang, so a stride doesn't push a leg through them.
-    for mat, color, rings in ((M_DARK, MAIL, [ring(0.9, 0.176, 0.138, 0.13), ring(0.8, 0.19, 0.15, 0.15)]),
-                              (M_CLOTH, WHITE, [ring(0.8, 0.185, 0.145, 0.145), ring(0.74, 0.196, 0.155, 0.16), ring(0.67, 0.205, 0.16, 0.175),
-                                                ring(0.58, 0.212, 0.165, 0.185)])):
-        sk = MeshBuilder()
-        ids = shell(sk, rings, mat=mat, color=color, sides=32, edge_dark=0)
-        if mat == M_CLOTH:
-            # A worn, tattered hem: a darker band whose lower edge is torn into points.
-            band_ids = shell(sk, [ring(0.58, 0.212, 0.165, 0.185), ring(0.5, 0.216, 0.168, 0.19)], mat=M_CLOTH,
-                             color=C('#9c8a5c'), sides=32, edge_dark=0)
-            r = rng(77)
-            for s_ in range(32):
-                v = sk.verts[band_ids[1][s_]]
-                v.z += (0.045 if s_ % 3 == 0 else 0.0) + r.uniform(-0.012, 0.012)
-            _ = ids
-
-        def skirt(p):
-            t = smooth(0.92, 0.66, p.z) * 0.75
-            side = 'L' if p.x > 0 else 'R'
-            k = min(1.0, abs(p.x) / 0.08)
-            return {'Hips': 1 - t * k, f'Thigh{side}': t * k}
-        pieces.append((sk, skirt))
+    # Close mail skirt and split tailored tabard: legs and hip plates remain legible in a run.
+    mail = MeshBuilder()
+    shell(mail, [ring(.9,.18,.14,.135), ring(.78,.19,.15,.15)], mat=M_DARK, color=MAIL, sides=24, edge_dark=0)
+    pieces.append((mail, rigid('Hips')))
+    for rear in (False, True):
+        for sx in (-1, 1):
+            cloth = MeshBuilder()
+            ids=[]
+            for i in range(6):
+                t=i/5
+                z=mix(.91,.56,t)
+                row=[]
+                for j in range(9):
+                    u=j/8
+                    x=sx*(.018+u*mix(.115,.15,t))
+                    y=(1 if rear else -1)*(.153+.018*t+math.sin(u*math.pi)*.018)
+                    row.append(cloth.vert(V(x,y,z+.025*math.sin(u*math.pi)*t*t), color=mul(WHITE,.9+.1*math.sin(u*math.pi))))
+                ids.append(row)
+            for i in range(5):
+                for j in range(8):
+                    border=j==7 or i==4
+                    cloth.face([ids[i][j],ids[i+1][j],ids[i+1][j+1],ids[i][j+1]], mat=M_DARK if border else M_CLOTH, colors=BRASS if border else None)
+            def skirt(p):
+                t=smooth(.93,.55,p.z)*.55
+                return {'Hips':1-t, f'Thigh{"L" if p.x>0 else "R"}':t}
+            pieces.append((cloth,skirt))
 
     for sx, side in ((1, 'L'), (-1, 'R')):
         # Pauldron: a dome over the shoulder, a brass rim and two lames down the arm.
         arm = MeshBuilder()
         sh = J('shoulder', sx)
-        dome(arm, sh + V(sx * 0.02, 0, 0.01), 0.15, 0.155, 0.125, down=108)
+        shell(arm, [ring(sh.z-.035,.153,.154,.14,cx=sh.x+sx*.035),
+                    ring(sh.z+.035,.178,.154,.145,cx=sh.x+sx*.035),
+                    ring(sh.z+.105,.115,.112,.105,cx=sh.x+sx*.015)], sides=12,cap_top=True,edge_dark=.12)
+        for j in range(3):
+            c=sh+V(sx*(.08+j*.025),-.13, .018-j*.018)
+            tube(arm,[c,c+V(0,-.008,0)],[.009,.009],8,lambda t,s: BRASS,cap=True)
         band(arm, sh + V(sx * 0.035, 0, -0.03), sh + V(sx * 0.035, 0, -0.021), 0.146)
         for k, (z, r) in enumerate(((-0.07, 0.112), (-0.11, 0.1), (-0.15, 0.088))):
             c = sh + V(sx * 0.02, 0, z)
@@ -226,7 +244,7 @@ def body_pieces():
         pieces.append((arm, rigid(f'Arm{side}')))
         fore = MeshBuilder()
         wr = J('wrist', sx)
-        limb(fore, el + V(0, 0, -0.02), wr + V(0, 0, 0.02), [0.05, 0.05, 0.044])
+        limb(fore, el + V(0, 0, -0.02), wr + V(0, 0, 0.02), [0.058, 0.064, 0.047])
         pieces.append((fore, rigid(f'ForeArm{side}')))
         hand = MeshBuilder()
         hd = J('hand', sx)
@@ -238,7 +256,7 @@ def body_pieces():
         # Cuisse, poleyn, greave and sabaton.
         thigh = MeshBuilder()
         hp, kn = J('hip', sx), J('knee', sx)
-        limb(thigh, hp + V(0, 0, 0.02), kn + V(0, 0, 0.04), [0.086, 0.084, 0.074, 0.062], sides=16)
+        limb(thigh, hp + V(0, 0, 0.02), kn + V(0, 0, 0.04), [0.092, 0.098, 0.083, 0.066], sides=16)
         dome(thigh, kn + V(0, -0.025, 0.0), 0.066, 0.06, 0.07, down=150, sides=16, rows=7)
         # The poleyn's side wing.
         wing = kn + V(sx * 0.055, -0.01, 0.0)
@@ -247,7 +265,7 @@ def body_pieces():
         pieces.append((thigh, rigid(f'Thigh{side}')))
         shin = MeshBuilder()
         an = J('ankle', sx)
-        limb(shin, kn + V(0, 0, -0.03), an + V(0, 0, 0.03), [0.056, 0.062, 0.058, 0.05, 0.045], sides=16)
+        limb(shin, kn + V(0, 0, -0.03), an + V(0, 0, 0.03), [0.06, 0.078, 0.07, 0.052, 0.046], sides=16)
         pieces.append((shin, rigid(f'Shin{side}')))
         foot = MeshBuilder()
         to = J('toe', sx)
@@ -289,52 +307,44 @@ def face_pieces():
 
 
 def plume(b: MeshBuilder, top: Vector, r):
-    """A crest of feathers in the seat colour, rising and falling back."""
-    for k in range(7):
-        a = (k / 6 - 0.5)
-        root = top + V(a * 0.04, 0.02 + abs(a) * 0.02, 0)
-        pts = [root, root + V(a * 0.05, -0.03, 0.09), root + V(a * 0.1, 0.07, 0.15), root + V(a * 0.14, 0.2, 0.11 - 0.02 * r.random()),
-               root + V(a * 0.16, 0.3, 0.02)]
-        side = Vector((1, 0, 0))
-        ids = []
-        widths = [0.03, 0.055, 0.06, 0.045, 0.008]
-        for i, p in enumerate(pts):
-            c = (0.95 - 0.15 * (i / 4),) * 3
-            ids.append((b.vert(p - side * widths[i] / 2, color=c), b.vert(p + side * widths[i] / 2, color=c)))
-        for i in range(len(pts) - 1):
-            b.face([ids[i][0], ids[i][1], ids[i + 1][1], ids[i + 1][0]], mat=M_OWNER)
-    tube(b, [top + V(0, 0, -0.01), top + V(0, 0, 0.03)], [0.016, 0.012], 8, lambda t, s: BRASS)
+    # A swept, thick feather crest; readable from the third-person camera behind it.
+    tube(b,[top,top+V(0,0,.035)],[.022,.018],10,lambda t,s: BRASS,cap=True)
+    for k in range(9):
+        u=k/8
+        base=top+V((u-.5)*.07,0,.02)
+        points=[base,base+V(0,.015,.095),base+V((u-.5)*.02,.10,.18),base+V((u-.5)*.04,.22,.15)]
+        tube(b,points,[.018,.025,.022,.0015],7,lambda t,s: mul(WHITE,.7+.25*t),mat=M_OWNER,cap=True)
 
 
 def great_helm(r, crowned=False):
-    b = MeshBuilder()
-    rings = [ring(1.53, 0.118, 0.13, 0.127), ring(1.6, 0.12, 0.132, 0.128, keel=0.012), ring(1.7, 0.12, 0.133, 0.128, keel=0.014),
-             ring(1.78, 0.116, 0.128, 0.124, keel=0.01), ring(1.83, 0.108, 0.118, 0.115)]
-    shell(b, rings, sides=30, edge_dark=0.12)
-    # The flat top, slightly domed.
-    shell(b, [ring(1.83, 0.108, 0.118, 0.115), ring(1.85, 0.07, 0.078, 0.076), ring(1.857, 0.001, 0.001, 0.001)], sides=30, edge_dark=0)
-    # Eye slits either side of the brass cross, and breaths on the right cheek.
-    for lo, hi in ((-62, -6), (6, 62)):
-        shell(b, [ring(1.698, 0.122, 0.137, 0.13, keel=0.014), ring(1.716, 0.122, 0.137, 0.13, keel=0.014)], mat=M_DARK, color=SLIT, sides=10, arc=(lo, hi), edge_dark=0)
-    shell(b, [ring(1.56, 0.123, 0.138, 0.13, keel=0.014), ring(1.8, 0.12, 0.134, 0.126, keel=0.012)], color=BRASS, sides=2, arc=(-3.5, 3.5), edge_dark=0)
-    shell(b, [ring(1.722, 0.123, 0.138, 0.131, keel=0.014), ring(1.735, 0.123, 0.138, 0.131, keel=0.014)], color=BRASS, sides=24, arc=(-80, 80), edge_dark=0)
-    for k in range(6):
-        for j in range(2):
-            a = math.radians(-40 - k * 7)
-            p = V(math.sin(a) * 0.121, -math.cos(a) * 0.134, 1.6 + j * 0.035)
-            n = V(math.sin(a), -math.cos(a), 0)
-            tube(b, [p - n * 0.002, p + n * 0.004], [0.006, 0.006], 6, lambda t, s: SLIT, mat=M_DARK, cap=True)
-    band(b, V(0, 0, 1.528), V(0, 0, 1.54), 0.125)
+    b=MeshBuilder()
+    # Faceted cheek plates, a proud brow, a vaulted crown and a tapered chin.
+    rings=[ring(1.535,.09,.105,.10),ring(1.59,.112,.12,.115,keel=.025),
+           ring(1.665,.13,.131,.129,keel=.035),ring(1.735,.133,.139,.134,keel=.018),
+           ring(1.805,.122,.115,.13),ring(1.867,.078,.073,.09),ring(1.899,.008,.01,.012)]
+    shell(b,rings,sides=16,cap_top=True,edge_dark=.1)
+    # Deep sight beneath the projecting brow and a sculpted visor ridge.
+    shell(b,[ring(1.697,.134,.14,.134,keel=.037),ring(1.724,.136,.145,.134,keel=.03)],mat=M_DARK,color=SLIT,sides=14,arc=(-72,72),edge_dark=0)
+    shell(b,[ring(1.726,.138,.149,.136,keel=.026),ring(1.743,.136,.144,.135,keel=.02)],color=C('#d5e2e9'),sides=16,arc=(-82,82),edge_dark=0)
+    shell(b,[ring(1.545,.094,.113,.104),ring(1.56,.102,.118,.11)],color=BRASS,sides=16,edge_dark=0)
+    # Comb and rear flutes make the helmet distinct even when viewed from behind.
+    tube(b,[V(0,-.13,1.75),V(0,-.08,1.85),V(0,.01,1.905),V(0,.11,1.83),V(0,.137,1.7)],
+         [.009,.011,.012,.01,.007],6,lambda t,s: BRASS,cap=True)
+    for sx in (-1,1):
+        for k in range(3):
+            c=V(sx*(.045+k*.021),-.13+(k*.011),1.63)
+            tube(b,[c,c+V(0,-.018,0)],[.006,.006],6,lambda t,s: SLIT,mat=M_DARK,cap=True)
+        c=V(sx*.134,0,1.716)
+        tube(b,[c,c+V(sx*.01,0,0)],[.019,.016],10,lambda t,s: BRASS,cap=True)
+        tube(b,[V(sx*.075,.107,1.77),V(sx*.055,.13,1.66)],[.006,.004],5,lambda t,s: STEEL_DK)
     if crowned:
-        # A gold crown with five points round the top.
-        shell(b, [ring(1.8, 0.121, 0.131, 0.128), ring(1.835, 0.122, 0.132, 0.129)], color=BRASS, sides=30, edge_dark=0)
+        shell(b,[ring(1.81,.125,.121,.136),ring(1.84,.116,.11,.12)],color=BRASS,sides=16,edge_dark=0)
         for k in range(5):
-            a = 2 * math.pi * k / 5
-            base = V(math.sin(a) * 0.12, -math.cos(a) * 0.13, 1.835)
-            out = V(math.sin(a), -math.cos(a), 0)
-            tube(b, [base, base + V(0, 0, 0.045) + out * 0.004], [0.022, 0.002], 6, lambda t, s: BRASS, cap=True)
+            a=k*math.tau/5
+            c=V(math.sin(a)*.12,-math.cos(a)*.12,1.835)
+            tube(b,[c,c+V(0,0,.05)],[.018,.003],6,lambda t,s: BRASS,cap=True)
     else:
-        plume(b, V(0, 0.0, 1.856), r)
+        plume(b,V(0,.015,1.902),r)
     return b
 
 
@@ -370,29 +380,46 @@ def bascinet():
 
 def cape(long: bool):
     b = MeshBuilder()
-    bottom = 0.5 if long else 0.95
-    rows, cols = 10, 14
+    bottom = 0.20 if long else 0.53
+    rows, cols = 22, 20
     ids = []
     for i in range(rows + 1):
         t = i / rows
         z = mix(1.47, bottom, t)
-        half = mix(0.19, 0.3 if long else 0.25, t)
+        half = mix(0.225, 0.39 if long else 0.33, smooth(0, 1, t))
         row = []
         for j in range(cols + 1):
             u = j / cols * 2 - 1
             # Wrapped round the back; deeper folds lower down.
-            y = 0.135 + 0.03 * t - 0.07 * u * u * (1 - 0.5 * t) + 0.018 * math.sin(u * 7.5) * t
-            row.append(b.vert(V(u * half, y + 0.02 * t, z), color=(0.92 - 0.12 * t,) * 3))
+            fold = math.cos(u * math.pi * 4) * (0.008 + 0.025 * t)
+            y = 0.195 + 0.13 * t - 0.07 * u * u * (1 - 0.5 * t) + fold
+            hem = 0.045 * abs(u) ** 1.5 * t ** 9
+            row.append(b.vert(V(u * half, y, z + hem), color=(0.97 - 0.16 * t + fold * 1.2,) * 3))
         ids.append(row)
     for i in range(rows):
         for j in range(cols):
-            b.face([ids[i][j], ids[i][j + 1], ids[i + 1][j + 1], ids[i + 1][j]], mat=M_OWNER)
+            border = j in (0, cols - 1) or i == rows - 1
+            b.face([ids[i][j], ids[i][j + 1], ids[i + 1][j + 1], ids[i + 1][j]],
+                   colors=BRASS if border else None, mat=M_DARK if border else M_OWNER)
     for sx in (1, -1):
         tube(b, [V(sx * 0.15, 0.06, 1.47), V(sx * 0.15, 0.03, 1.47)], [0.022, 0.022], 10, lambda t, s: BRASS, cap=True)
     span = 1.47 - bottom
+    # Sewn heraldic sun on the outside, following the same folds as the cloth beneath it.
+    def surface(x, z):
+        t = (1.47 - z) / span
+        half = mix(.225, .39 if long else .33, smooth(0, 1, t))
+        u = x / half
+        y = .195 + .13 * t - .07 * u * u * (1 - .5 * t) + math.cos(u * math.pi * 4) * (.008 + .025 * t)
+        return V(x, y + .007, z)
+    centre = surface(0, 1.13)
+    for k in range(16):
+        a, c = k * math.pi / 8, (k + 1) * math.pi / 8
+        r0, r1 = (.09 if k % 2 == 0 else .045), (.045 if k % 2 == 0 else .09)
+        b.poly([centre, surface(math.sin(a) * r0, 1.13 + math.cos(a) * r0),
+                surface(math.sin(c) * r1, 1.13 + math.cos(c) * r1)], BRASS, mat=M_DARK)
 
     def weights(p):
-        t = (1.47 - p.z) / span
+        t = max(0.0, min(1.0, (1.47 - p.z) / span))
         return {'Spine': max(0.0, 1 - t * 6), 'Cape': min(1.0, t * 6) * (1 - smooth(0.4, 1.0, t)), 'Cape2': smooth(0.4, 1.0, t)}
     return [(b, weights)]
 
@@ -459,7 +486,7 @@ def build():
     sc = new_scene('Knight')
     r = rng(1415)
     mats = [
-        material('Steel', rough=0.3, metal=0.88),
+        material('Steel', rough=0.38, metal=0.78),
         material('Dark', rough=0.75),
         material('Cloth', rough=0.92, double=True),
         material('Owner', rough=0.85, double=True),

@@ -189,7 +189,7 @@ weeks, L is several weeks of focused work.
 |---|---|---|---|
 | 0 | **Identity** | S | Final name cleared, terms table filled, rule changes chosen, lawyer consulted |
 | 1 | **Rules core in C++** — *done 2026-11-21* | L | All golden games match step by step; the C++ bots pick the same moves; the 200-game simulation passes |
-| 2 | **Playable table** | L | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue |
+| 2 | **Playable table** — *first part done 2026-11-21 (§8)* | L | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue |
 | 3 | **Online through Steam** | L | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand |
 | 4 | **Hall & Chart in Unreal** | L | Every screen in the migration checklist exists in UMG; 3D table; music and sounds; accessibility settings |
 | 5 | **The island and duels** | L | Walk the live island from a match, buildings and roads appear as built, chest and Man up fights work online |
@@ -234,15 +234,41 @@ code and message), 96,489 bot moves and 90,531 bot probes, in about 12 seconds. 
 weight by 0.01 or the hand limit by one makes 227 of the 248 games fail, so the comparison is
 sensitive.
 
-**Not done yet:**
-- The plugin has not been compiled inside Unreal: `CatnightRules.Build.cs` and the module file
-  wait for the `apps/catnight` project in phase 2. The sources build with MSVC under `/W4 /WX`
-  without exceptions, as Unreal requires.
-- Events are JSON objects for now. Phase 2 may give the UI typed events.
+Events are JSON objects for now; the UI may get typed events later.
 
-## 8. Next steps (phase 2)
+## 8. Phase 2, first part (2026-11-21)
+
+`apps/catnight` is a new Unreal 5.8 C++ project; its README covers building, playing, testing and
+packaging.
+
+- **The rules compile inside Unreal.** `CatnightRules.Build.cs` sets `FPSemantics = Precise`.
+  Unreal builds game modules with `/fp:fast` by default, which would change how the bots' scores
+  round. It also turns unity builds off and exports the public API (`CATNIGHTRULES_API`).
+- **The golden replay runs inside Unreal** as the automation test `Catnight.Rules.Golden`: 248 of
+  248 games match under Unreal's own compiler settings. `pnpm catnight:test` runs it.
+- **A match layer.** `FCatnightMatch` holds one local game: state, action record, log, and the
+  bots on a timer. `UCatnightMatchSubsystem` ticks it. `Catnight.Match.FullGames` plays 12 games
+  (3 and 4 players, all three bot levels) to a win through it.
+- **A plain playable table** (`STable`, Slate drawn from code, no assets yet):
+  - the board with terrain, number tokens, harbours, roads, settlements, cities and the robber;
+  - legal spots highlighted on hover and click;
+  - an action panel with roll, build, buy, bank and harbour trades, offers to all players,
+    accepting or declining bot offers, discarding, robbing, and all development cards;
+  - your hand, the players (points, cards, knights, road length, Longest Road and Largest Army),
+    and a log.
+  - It runs as `-game` on the engine's `Entry` map; with `-CatnightAutoplay` the bots finish a
+    whole game in about 25 seconds.
+
+**Not done yet in phase 2:**
+- A title menu, hot-seat with the privacy curtain, save and continue, gamepad play.
+- Counter-offers and choosing whom to offer to (the table offers to everyone).
+- Git LFS (still no binary assets).
+- I checked board clicks by reading the code and with screenshots, not by clicking in the game
+  with a mouse. The actions they send are the ones the tests play.
+
+## 9. Next steps
 
 1. Owner: decide the name and terms (gate 0, section 2).
-2. Create `apps/catnight` (UE 5.8, C++), set up Git LFS, and compile `CatnightRules` in it.
-3. A match subsystem around `ApplyAction` and `DecideAction`, with bots on a timer.
-4. A plain playable table: board, hand, build, trade, and a full game against three bots.
+2. Finish phase 2: title menu, hot-seat, save and continue, gamepad focus, the packaged build as
+   the test target.
+3. Phase 3: Steam lobbies and the host as referee.

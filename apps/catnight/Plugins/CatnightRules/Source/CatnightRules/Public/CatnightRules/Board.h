@@ -6,6 +6,8 @@
 // indices in ascending order matches iterating those lists.
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <array>
 #include <optional>
 #include <string>
@@ -23,7 +25,7 @@ struct Axial {
   int r = 0;
 };
 
-struct Topology {
+struct CATNIGHTRULES_API Topology {
   std::vector<Axial> hexes;
   std::vector<std::string> vertexIds;
   std::vector<std::string> edgeIds;
@@ -46,7 +48,7 @@ struct Topology {
 };
 
 /** The standard 19-hex island (built once). */
-const Topology& GetTopology();
+CATNIGHTRULES_API const Topology& GetTopology();
 
 struct HexTile {
   int id = 0;
@@ -71,16 +73,16 @@ struct Board {
   std::vector<Harbor> harbors;
 };
 
-Board GenerateBoard(const std::string& seed, LayoutMode mode);
-std::vector<Harbor> GenerateHarbors(Rng& rng);
-bool HasRedAdjacency(const std::vector<HexTile>& hexes);
-bool HasIdenticalAdjacency(const std::vector<HexTile>& hexes);
+CATNIGHTRULES_API Board GenerateBoard(const std::string& seed, LayoutMode mode);
+CATNIGHTRULES_API std::vector<Harbor> GenerateHarbors(Rng& rng);
+CATNIGHTRULES_API bool HasRedAdjacency(const std::vector<HexTile>& hexes);
+CATNIGHTRULES_API bool HasIdenticalAdjacency(const std::vector<HexTile>& hexes);
 
 struct ValidationReport {
   bool ok = true;
   std::vector<std::string> issues;
   std::vector<std::string> warnings;
 };
-ValidationReport ValidateBoard(const Board& board);
+CATNIGHTRULES_API ValidationReport ValidateBoard(const Board& board);
 
 }  // namespace catnight

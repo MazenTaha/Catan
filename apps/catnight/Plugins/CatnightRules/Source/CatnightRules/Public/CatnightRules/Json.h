@@ -3,6 +3,8 @@
 // unless the object is marked `keepOrder` (the state's buildings and causeways).
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -11,7 +13,7 @@
 
 namespace catnight {
 
-class Json {
+class CATNIGHTRULES_API Json {
  public:
   enum class Kind : uint8_t { Null, Bool, Int, Str, Arr, Obj };
 
@@ -81,6 +83,6 @@ class Json {
 };
 
 /** Two 32-bit hashes as 16 hex digits (mirrors `hash` in native/golden/export.ts). */
-std::string GoldenHash(std::string_view text);
+CATNIGHTRULES_API std::string GoldenHash(std::string_view text);
 
 }  // namespace catnight

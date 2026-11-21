@@ -24,6 +24,15 @@ apps/unreal*/WebGame/
 apps/unreal*/Packaged/
 apps/unreal*/*.sln
 .tools/
+apps/catnight/Binaries/
+apps/catnight/Plugins/**/Binaries/
+apps/catnight/Plugins/**/Intermediate/
+apps/catnight/DerivedDataCache/
+apps/catnight/Intermediate/
+apps/catnight/Saved/
+apps/catnight/Packaged/
+apps/catnight/.vs/
+apps/catnight/*.sln
 native/golden/data/
 native/golden/out/
 native/build/

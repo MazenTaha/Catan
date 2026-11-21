@@ -1,6 +1,8 @@
 // Game state, actions, events and errors (mirrors packages/engine/src/state/types.ts).
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <array>
 #include <optional>
 #include <string>
@@ -205,8 +207,8 @@ enum class ActionType : uint8_t {
   Strike,
   YieldDuel,
 };
-std::string_view Name(ActionType t);
-bool Parse(std::string_view s, ActionType& out);
+CATNIGHTRULES_API std::string_view Name(ActionType t);
+CATNIGHTRULES_API bool Parse(std::string_view s, ActionType& out);
 
 enum class TradeResponse : uint8_t { Accept, Decline, Counter };
 

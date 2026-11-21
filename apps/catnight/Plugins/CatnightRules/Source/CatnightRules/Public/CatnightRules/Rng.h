@@ -1,6 +1,8 @@
 // Seeded, serializable RNG (mirrors packages/engine/src/rng.ts bit for bit).
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <cstdint>
 #include <string_view>
 #include <utility>
@@ -9,12 +11,12 @@
 namespace catnight {
 
 /** cyrb53-style string hash folded to uint32 (over the string's bytes; seeds are ASCII). */
-uint32_t HashSeed(std::string_view seed);
+CATNIGHTRULES_API uint32_t HashSeed(std::string_view seed);
 
 /** One mulberry32 step: the next state and a float in [0, 1). */
-std::pair<uint32_t, double> Mulberry32(uint32_t state);
+CATNIGHTRULES_API std::pair<uint32_t, double> Mulberry32(uint32_t state);
 
-class Rng {
+class CATNIGHTRULES_API Rng {
  public:
   explicit Rng(uint32_t state) : state(state) {}
   static Rng FromSeed(std::string_view seed) { return Rng(HashSeed(seed)); }

@@ -2,6 +2,8 @@
 // Plain C++20, no Unreal types and no exceptions, so it builds inside Unreal and in native/.
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -32,36 +34,36 @@ enum class LayoutMode : uint8_t { Balanced, Random, Beginner };
 enum class CostKey : uint8_t { Causeway, Outpost, Citadel, Omen };
 
 // Names exactly as the TypeScript engine writes them (saves, records, golden files).
-std::string_view Name(Resource r);
-std::string_view Name(Terrain t);
-std::string_view Name(OmenType o);
-std::string_view Name(Weapon w);
-std::string_view Name(PlayerColor c);
-std::string_view Name(Sigil s);
-std::string_view Name(SeatKind k);
-std::string_view Name(BotLevel b);
-std::string_view Name(LayoutMode m);
+CATNIGHTRULES_API std::string_view Name(Resource r);
+CATNIGHTRULES_API std::string_view Name(Terrain t);
+CATNIGHTRULES_API std::string_view Name(OmenType o);
+CATNIGHTRULES_API std::string_view Name(Weapon w);
+CATNIGHTRULES_API std::string_view Name(PlayerColor c);
+CATNIGHTRULES_API std::string_view Name(Sigil s);
+CATNIGHTRULES_API std::string_view Name(SeatKind k);
+CATNIGHTRULES_API std::string_view Name(BotLevel b);
+CATNIGHTRULES_API std::string_view Name(LayoutMode m);
 
-bool Parse(std::string_view s, Resource& out);
-bool Parse(std::string_view s, Terrain& out);
-bool Parse(std::string_view s, OmenType& out);
-bool Parse(std::string_view s, Weapon& out);
-bool Parse(std::string_view s, PlayerColor& out);
-bool Parse(std::string_view s, Sigil& out);
-bool Parse(std::string_view s, SeatKind& out);
-bool Parse(std::string_view s, BotLevel& out);
-bool Parse(std::string_view s, LayoutMode& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, Resource& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, Terrain& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, OmenType& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, Weapon& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, PlayerColor& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, Sigil& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, SeatKind& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, BotLevel& out);
+CATNIGHTRULES_API bool Parse(std::string_view s, LayoutMode& out);
 
 /** Production of a terrain, or nullopt for the desert. */
-std::optional<Resource> TerrainResource(Terrain t);
-int TerrainCount(Terrain t);
-int OmenDeckCount(OmenType o);
+CATNIGHTRULES_API std::optional<Resource> TerrainResource(Terrain t);
+CATNIGHTRULES_API int TerrainCount(Terrain t);
+CATNIGHTRULES_API int OmenDeckCount(OmenType o);
 
 inline constexpr std::array<int, 18> kNumberTokens = {2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12};
 inline constexpr int kManupCards = 6;
 inline constexpr int kMaxHealth = 100;
 inline constexpr int kBullets = 5;
-int Damage(Weapon w);
+CATNIGHTRULES_API int Damage(Weapon w);
 
 inline constexpr int kBankStart = 19;
 inline constexpr int kSupplyCauseways = 15;
@@ -87,7 +89,7 @@ struct Counts {
  * serialization (a bot's `{ wool: 1 }` is not `{ wood: 0, ..., wool: 1 }`). `invalid` marks a
  * value the TypeScript `validCounts` would reject (unknown key, non-integer).
  */
-struct PartialCounts {
+struct CATNIGHTRULES_API PartialCounts {
   std::array<int, 5> v{};
   std::array<bool, 5> has{};
   bool invalid = false;
@@ -103,11 +105,11 @@ struct PartialCounts {
   bool operator==(const PartialCounts&) const = default;
 };
 
-const PartialCounts& Cost(CostKey k);
-bool HasAtLeast(const Counts& have, const PartialCounts& need);
-bool HasAtLeast(const Counts& have, const Counts& need);
-Counts AddCounts(const Counts& a, const PartialCounts& b, int sign = 1);
+CATNIGHTRULES_API const PartialCounts& Cost(CostKey k);
+CATNIGHTRULES_API bool HasAtLeast(const Counts& have, const PartialCounts& need);
+CATNIGHTRULES_API bool HasAtLeast(const Counts& have, const Counts& need);
+CATNIGHTRULES_API Counts AddCounts(const Counts& a, const PartialCounts& b, int sign = 1);
 /** Pips: the ways to roll `n` with two dice (0 for none, 7 or the desert). */
-int Pips(int token);
+CATNIGHTRULES_API int Pips(int token);
 
 }  // namespace catnight

@@ -1,0 +1,19 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "Games",
+	"Description": "Catnight (working title): the game built natively in Unreal. See docs/UNREAL_NATIVE_PLAN.md.",
+	"Modules": [
+		{
+			"Name": "Catnight",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "CatnightRules",
+			"Enabled": true
+		}
+	]
+}

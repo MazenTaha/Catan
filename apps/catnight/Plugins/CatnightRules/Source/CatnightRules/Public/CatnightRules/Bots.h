@@ -2,6 +2,8 @@
 // A bot's randomness comes from the state, so the same position always gives the same move.
 #pragma once
 
+#include "CatnightRules/Api.h"
+
 #include <optional>
 #include <string>
 
@@ -14,7 +16,7 @@ namespace catnight {
  * else Warlord). Returns nullopt where the engine would throw (no move during a duel or after
  * the game, or no legal action).
  */
-std::optional<Action> DecideAction(const GameState& state, std::optional<BotLevel> level = std::nullopt,
+CATNIGHTRULES_API std::optional<Action> DecideAction(const GameState& state, std::optional<BotLevel> level = std::nullopt,
                                    const std::string& salt = "");
 
 }  // namespace catnight

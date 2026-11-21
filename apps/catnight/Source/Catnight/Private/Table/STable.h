@@ -88,14 +88,26 @@ private:
 	void OnPick(FBoardTargets::EKind Kind, int32 Index);
 	FReply Do(const catnight::Action& A);
 	FReply Redraw();
+	// Hall & Chart presentation (STableHud.cpp, docs/CATNIGHT_UI_PLAN.md §5–8).
+	enum class ETab : uint8 { Build, Cards, Trade };
+	/** The right column on the hall wall: toolbar, Treasury, orders or a decree, the primary seal. */
 	TSharedRef<SWidget> BuildPanel();
+	/** Over the island (see-through): the Lists, the player banners, the Herald, the instruction ribbon. */
+	TSharedRef<SWidget> BuildHud();
+	/** Full-screen: leave decree, hot-seat curtain, victory. */
 	TSharedRef<SWidget> BuildOverlay();
-	TSharedRef<SWidget> PlayersBox();
-	TSharedRef<SWidget> HandBox();
-	TSharedRef<SWidget> ActionsBox();
+	TSharedRef<SWidget> ListsBox();
+	TSharedRef<SWidget> BannersRow();
+	TSharedRef<SWidget> HeraldBox();
+	TSharedRef<SWidget> TreasuryBox();
+	/** A forced or chosen decision as a decree in the column; null when there is none. */
+	TSharedPtr<SWidget> DecreeBox();
+	TSharedRef<SWidget> OrdersBox();
+	TSharedRef<SWidget> BuildTab();
+	TSharedRef<SWidget> CardsTab();
 	TSharedRef<SWidget> TradeBox();
+	TSharedRef<SWidget> PrimaryBox();
 	TSharedRef<SWidget> TermsEditor(catnight::Counts& Give, catnight::Counts& Want, const catnight::Counts& Hand);
-	TSharedRef<SWidget> LogBox();
 	FString Instruction() const;
 	int32 Me() const { return Match->Viewer(); }
 
@@ -105,7 +117,10 @@ private:
 	TSharedPtr<FCatnightBoardView> View;
 	FBoardTargets* Targets = nullptr;  // View->Targets
 	TSharedPtr<class SBox> PanelSlot;
+	TSharedPtr<class SBox> HudSlot;
 	TSharedPtr<class SBox> OverlaySlot;
+	ETab Tab = ETab::Build;
+	bool bFullLog = false;
 	TSharedPtr<SCatnightBoard> Board;
 	TSharedPtr<SWidget> Primary;  // the main button of the current panel or dialog
 	FDelegateHandle ChangedHandle;

@@ -218,3 +218,45 @@ Next work remains: finish Hall & Chart UI/hall/audio, bridge roads and owner sig
 water/foam/boat motion, time of day, flying resource cards, physics dice, full settings/input
 accessibility, full manual/physical-gamepad acceptance, native island walking, Steam online and
 release. No game rules changed, and no push is authorized.
+
+## Native knight and riding foundation (2026-11-22, isolated branch)
+
+The owner requested rebuilding the knight, horse and movements with Blender and Unreal and
+specifically asked to use `E:/Catan_art_obj`. Work continues in this same isolated branch;
+the shared `E:/Catan` checkout is untouched. Read `docs/CATNIGHT_HEROES.md` for implementation,
+controls, regeneration and the remaining island gates. DECISIONS #68 records the choices.
+
+- The title's **Knight & riding yard** opens a 120 m local practice area. Esc returns to the
+  hall; bots pause while practising. This is phase 4's character foundation, not the live island.
+- Original Blender knight: peaked armet, layered plate, articulated fingers, olive cloth and
+  a long gold-edged crimson cape on four controlled segments. Anatomical bay horse: painted
+  coat, blaze, fitted bridle/saddle/blanket/stirrups. Reference sheets 00/17/19 are hashed.
+- Two skeletal meshes, eleven loops, native pose blending, distance-driven gait phase,
+  CharacterMovement collision/crouch, late swept camera, supported safe dismount, and visible
+  animated hand-to-bit reins. No rule changes or browser asset replacements.
+- `pnpm catnight:heroes` builds ignored editable blends/FBXs in `SourceArt/Heroes`, then imports
+  `/Game/Generated/Heroes`. It is also part of `catnight:import`. **Both** model and animation
+  FBX settings need scene-unit conversion; otherwise the import is 100 times too small.
+  Export vertex colours as linear: Unreal's skeletal importer does not decode Blender's
+  default sRGB values. Keep this explicit or the cloth and coat wash out.
+- `pnpm catnight:test-heroes` checks the cooked meshes/clips, thirteen physical scenarios at
+  fixed 10/60/144 Hz simulation steps, six movement modes and a rear riding view. `-Editor` uses the editor game;
+  `-Quick` is a two-pose visual iteration only. Results and scope belong in
+  `apps/catnight/validation/heroes.json`; detailed logs remain ignored under `Saved`.
+- Physical daylight uses manual EV13 exposure and cached-light pre-exposure 8, covering both
+  this yard and the table. Default 4 clips the daylight Lumen cache in UE 5.8. Do not hide the
+  resulting warning or compensate with a blanket colour filter.
+
+Next: connect this character foundation to the actual live island/rooms, add weapons/combat,
+customization, minimap, terrain foot IK, LOD/performance work and full controller acceptance.
+The yard alone does not close those parity rows. Stage named files only; no push is authorized.
+
+Completed validation: five editor tests (248/248 golden games), final cooked hero asset/clip
+checks, and 7,910 route checks with zero failures across fixed 10/60/144 Hz steps. All seven
+packaged views were reviewed, including front gallop and rear riding after lowering the aim
+point so the feet remain in frame. Interactive title/yard, mount/dismount, mouse/wheel input,
+Esc return and Enter menu focus passed in an isolated UserDir; the test app closed cleanly.
+The table regression passed all 181 cooked assets, three match/board tests, 50/50 picks at
+each of three angles and a rendered 694-action victory. `pnpm verify` passed (132 tests).
+Exact run scope/timing, art hashes, remaining gates and four captures are recorded in
+`apps/catnight/validation/heroes.json`. Generated blends/assets/binaries remain ignored.

@@ -19,6 +19,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FCatnightMatch>, Match)
 		SLATE_ARGUMENT(TSharedPtr<struct FCatnightBoardView>, View)
 		SLATE_ARGUMENT(EScreen, Screen)
+		SLATE_EVENT(FSimpleDelegate, OnHeroYard)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -43,6 +44,7 @@ private:
 	void FocusLater() { bFocusPending = true; }
 	void StartGame(FCatnightMatchSetup Setup);
 
+	FSimpleDelegate OnHeroYard;
 	TSharedPtr<FCatnightMatch> Match;
 	TSharedPtr<struct FCatnightBoardView> View;
 	TSharedPtr<SBox> Content;

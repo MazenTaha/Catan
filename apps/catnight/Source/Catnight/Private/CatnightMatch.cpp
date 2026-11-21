@@ -205,7 +205,7 @@ FString FCatnightMatch::Apply(const Action& A)
 
 bool FCatnightMatch::StepBot()
 {
-	if (!bStarted || IsEnded() || IsHumanToAct()) return false;
+	if (bPresentationPaused || !bStarted || IsEnded() || IsHumanToAct()) return false;
 	const std::optional<Action> A = DecideAction(S);
 	if (!A) return false;
 	const FString Error = Apply(*A);
@@ -215,7 +215,7 @@ bool FCatnightMatch::StepBot()
 
 bool FCatnightMatch::Tick(float DeltaSeconds)
 {
-	if (!bStarted || IsEnded() || IsHumanToAct()) return false;
+	if (bPresentationPaused || !bStarted || IsEnded() || IsHumanToAct()) return false;
 	Waited += DeltaSeconds;
 	if (Waited < BotDelay) return false;
 	return StepBot();

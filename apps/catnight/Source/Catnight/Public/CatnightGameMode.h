@@ -31,9 +31,14 @@ public:
 	ACatnightGameMode();
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	void EnterHeroYard();
+	void LeaveHeroYard();
 
 private:
 	TSharedPtr<class SCatnightRoot> Root;
+	TSharedPtr<class SWidget> HeroHud;
+	UPROPERTY() TObjectPtr<class ACatnightHero> Hero;
+	UPROPERTY() TObjectPtr<class ACatnightHeroYard> HeroYard;
 	TSharedPtr<struct FCatnightBoardView> View;
 	UPROPERTY() TObjectPtr<class ACatnightBoardActor> Board;
 	FTSTicker::FDelegateHandle ShotHandle;

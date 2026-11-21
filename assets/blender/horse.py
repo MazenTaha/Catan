@@ -281,7 +281,7 @@ def ribbon(b: MeshBuilder, pts, widths, side: Vector, color_fn, mat=M_HAIR):
     b.face(ids[-1],mat=mat)
 
 
-def build_parts(surf: Surface):
+def build_parts(surf: Surface, stirrup_height=0.82):
     """Everything that isn't the sculpted body, grouped by the bone it rides on."""
     r = rng(1742)
     parts: dict[str, MeshBuilder] = {}
@@ -449,7 +449,7 @@ def build_parts(surf: Surface):
     for sx in (1, -1):
         loc, nrm = surf.hit(P(0, -0.04, 1.13), barrel_dir(sx * 78))
         top = (loc if loc is not None else P(sx * 0.27, -0.04, 1.2)) + Vector((sx * 0.035 * S, 0, 0))
-        bottom = Vector((top.x + sx * 0.06 * S, top.y, 0.82 * S))
+        bottom = Vector((top.x + sx * 0.06 * S, top.y, stirrup_height * S))
         tube(body, [top, top.lerp(bottom, 0.5), bottom], [0.012 * S] * 3, 4, lambda t, s: LEATHER_DK, mat=M_TACK)
         ring = [bottom + P(0, 0.07 * math.cos(a), -0.05 - 0.055 * math.sin(a)) * 1 for a in
                 [math.radians(d) for d in range(90, 451, 30)]]

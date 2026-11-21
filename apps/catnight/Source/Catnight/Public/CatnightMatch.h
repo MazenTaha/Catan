@@ -80,6 +80,7 @@ public:
 	void DeleteSave() const;
 
 	float BotDelay = 0.7f;
+	bool bPresentationPaused = false;
 	TArray<FString> Log;
 	FString LastError;
 	FSimpleMulticastDelegate OnChanged;

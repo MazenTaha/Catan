@@ -1,0 +1,282 @@
+{
+  "schema": 1,
+  "date": "2026-11-22",
+  "scope": "Native Catnight character/riding foundation in a title-accessible practice yard; full live-island migration remains open.",
+  "tools": {
+    "unreal": "5.8.4",
+    "blender": "5.2.3 LTS",
+    "configuration": "Windows Development"
+  },
+  "models": {
+    "Knight": {
+      "triangles": 6304,
+      "vertices": 4337,
+      "bones": 22,
+      "materials": 5,
+      "clips": {
+        "Idle": {
+          "seconds": 2.0,
+          "frames": 121,
+          "max_stance_ankle_error_m": 0
+        },
+        "Walk": {
+          "seconds": 0.75,
+          "frames": 46,
+          "max_stance_ankle_error_m": 0.0
+        },
+        "Run": {
+          "seconds": 0.5166666666666667,
+          "frames": 32,
+          "max_stance_ankle_error_m": 0.0
+        },
+        "CrouchIdle": {
+          "seconds": 2.0,
+          "frames": 121,
+          "max_stance_ankle_error_m": 0
+        },
+        "CrouchWalk": {
+          "seconds": 1.0,
+          "frames": 61,
+          "max_stance_ankle_error_m": 0.0
+        },
+        "RideIdle": {
+          "seconds": 2.0,
+          "frames": 121,
+          "max_stance_ankle_error_m": 0
+        },
+        "RideWalk": {
+          "seconds": 1.0,
+          "frames": 61,
+          "max_stance_ankle_error_m": 0
+        },
+        "RideGallop": {
+          "seconds": 0.6,
+          "frames": 37,
+          "max_stance_ankle_error_m": 0
+        }
+      },
+      "anchors": {
+        "Hips": [
+          0.0,
+          0.0,
+          0.9
+        ],
+        "GripL": [
+          0.253,
+          -0.008,
+          0.836
+        ],
+        "GripR": [
+          -0.253,
+          -0.008,
+          0.836
+        ]
+      }
+    },
+    "Horse": {
+      "triangles": 26300,
+      "vertices": 13841,
+      "bones": 21,
+      "materials": 4,
+      "clips": {
+        "Idle": {
+          "seconds": 2.0,
+          "frames": 121,
+          "max_stance_ankle_error_m": 0
+        },
+        "Walk": {
+          "seconds": 1.0,
+          "frames": 61,
+          "max_stance_ankle_error_m": 0.009184
+        },
+        "Gallop": {
+          "seconds": 0.6,
+          "frames": 37,
+          "max_stance_ankle_error_m": 0.013492
+        }
+      },
+      "anchors": {
+        "BitL": [
+          0.0756,
+          -1.3176,
+          1.512
+        ],
+        "BitR": [
+          -0.0756,
+          -1.3176,
+          1.512
+        ],
+        "Seat": [
+          0.0,
+          0.0,
+          1.67076
+        ]
+      }
+    }
+  },
+  "references": [
+    {
+      "file": "assets/concepts/references/00-knight.png",
+      "sha256": "e1cf7148268b88c76c9a6aee61906fd8227e71ee511d533569047d06c448dabf"
+    },
+    {
+      "file": "assets/concepts/references/17-animals.png",
+      "sha256": "0b6bc6bd7464bd15812444b3714621ac91f33f8f317288ed44131e9f20ef754e"
+    },
+    {
+      "file": "assets/concepts/references/19-customization.png",
+      "sha256": "e38419e10f8d915e06fff14cc1bba6294e6c64530e0dbf0693a9de6b64ca41b1"
+    }
+  ],
+  "pipeline": {
+    "fbxVertexColors": "LINEAR",
+    "sceneUnitConversion": "enabled for meshes and animations",
+    "rootMotion": false,
+    "generatedContentTracked": false
+  },
+  "validation": {
+    "nativeEditor": {
+      "automationTestsPassed": 5,
+      "goldenGamesMatched": 248,
+      "goldenActions": 116078,
+      "note": "Editor suite ran during implementation; final imported clips also passed in the cooked executable."
+    },
+    "packagedHeroes": {
+      "assetTestsPassed": 1,
+      "nativeClips": 11,
+      "movement": [
+        {
+          "simulationHz": 10,
+          "checks": 367,
+          "failures": 0,
+          "physicalScenarios": 13
+        },
+        {
+          "simulationHz": 60,
+          "checks": 2215,
+          "failures": 0,
+          "physicalScenarios": 13
+        },
+        {
+          "simulationHz": 144,
+          "checks": 5328,
+          "failures": 0,
+          "physicalScenarios": 13
+        }
+      ],
+      "totalMovementChecks": 7910,
+      "capturedModes": [
+        "idle",
+        "walk",
+        "run",
+        "crouch",
+        "ride",
+        "gallop",
+        "riding-rear"
+      ],
+      "run": "Saved/HeroValidation/20261122-014933-935",
+      "visualReview": "All seven reviewed; poses, cloth, tack, reins, material colours and front/rear riding framing."
+    },
+    "packagedTableRegression": {
+      "results": [
+        {
+          "scenario": "cooked-artwork",
+          "basicShapes": 3,
+          "assets": 181
+        },
+        {
+          "scenario": "matches",
+          "passed": 3
+        },
+        {
+          "scenario": "setup-0",
+          "camera": "0,0,1",
+          "picked": 50
+        },
+        {
+          "scenario": "setup-1",
+          "camera": "40,12,0.9",
+          "picked": 50
+        },
+        {
+          "scenario": "setup-2",
+          "camera": "-55,-18,1.1",
+          "picked": 50
+        },
+        {
+          "scenario": "title",
+          "screenshot": "title.png"
+        },
+        {
+          "scenario": "new",
+          "screenshot": "new.png"
+        },
+        {
+          "scenario": "flat",
+          "screenshot": "flat.png"
+        },
+        {
+          "scenario": "autoplay",
+          "screenshot": "autoplay.png",
+          "actions": 694,
+          "requiresVisualVictoryReview": true
+        }
+      ],
+      "run": "Saved/PackageValidation/20261122-011821-156",
+      "note": "Passed after final art import, before later yard-only camera/focus corrections. Board, rules and imported artwork were unchanged afterward. Victory capture reviewed."
+    },
+    "interactive": {
+      "isolatedUserDir": "Saved/HeroManual",
+      "passed": [
+        "title button opens yard",
+        "E mounts nearby horse",
+        "E safely dismounts",
+        "mouse look and wheel input respond",
+        "Escape returns to hall",
+        "Enter activates Play after return",
+        "test app closes normally"
+      ],
+      "note": "Completed before the final camera aim-only correction; control and menu code unchanged afterward. W was tapped but was not used as proof of movement speeds. Physical gamepad not tested."
+    },
+    "pnpmVerify": {
+      "passed": true,
+      "unitTests": 132,
+      "checks": [
+        "typecheck",
+        "zero-warning lint",
+        "tests",
+        "production web build"
+      ]
+    }
+  },
+  "captures": {
+    "idle": {
+      "file": "heroes-knight.png",
+      "sha256": "6cefdb0e4604a3b2e2517fb573d6e45f45c022cbce5fc17f1926652f265af80c"
+    },
+    "ride": {
+      "file": "heroes-mounted.png",
+      "sha256": "094c2afc0f12f20e3fca5af94e7f1e08f20f1faa4bacb9d4d177917401e3d4a3"
+    },
+    "crouch": {
+      "file": "heroes-crouch.png",
+      "sha256": "837b0fd8f073b636d401f83b6a0a1a8207698ed176070ddb830f0dda8d59e030"
+    },
+    "riding-rear": {
+      "file": "heroes-riding-rear.png",
+      "sha256": "c1151d119cdffedf9ae98e925851128812218051684e630324086e88586aa20f"
+    }
+  },
+  "remaining": [
+    "full live island and building interiors",
+    "weapons, chest, combat and duels",
+    "customization, minimap and kingdom furnishings",
+    "terrain foot IK on arbitrary slopes",
+    "LOD/performance work",
+    "input rebinding and physical-gamepad acceptance"
+  ],
+  "git": {
+    "branch": "codex/native-table-feedback",
+    "pushAuthorized": false
+  }
+}

@@ -94,14 +94,14 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
 | The live island: approximately 294 m wide, 38 work yards and connected trails; every building and road from the match stands there | to do in Catnight; a static island prototype exists in `apps/unreal 5.8` (`Island_*` maps, 424 files) | Nanite and Lumen: real global light, far more vegetation, proper shadows, volumetric fog | 4 |
-| Third-person knight over the shoulder, walk 2.4 / sprint 6.2 m/s, silent crouch 1.1 m/s, momentum, footfalls and dust | to do | Motion-matched or blended locomotion, camera collision, controller support | 4 |
-| Horses: graze, mount with E, walk/gallop 5.5/12 m/s with matched rider grip and reins | to do (Blender horse exists) | Proper animation blueprints | 4 |
+| Third-person knight over the shoulder, walk 2.4 / sprint 6.2 m/s, silent crouch 1.1 m/s, momentum, footfalls and dust | part: original rebuilt Blender knight, blended native loops, 2.4/6.2/1.1 m/s CharacterMovement, crouch clearance and swept camera in the title's practice yard; full island, footfalls/dust pending | Blended locomotion, camera collision, controller support | 4 |
+| Horses: graze, mount with E, walk/gallop 5.5/12 m/s with matched rider grip and reins | part: rebuilt skeletal bay horse, synchronized rider/saddle, visible hand-to-bit reins, fitted stirrups, safe mount/dismount and 2.5/8 m/s practice gaits; grazing/live island pending | Native pose blending and physical clearance | 4 |
 | Enterable cottage, hall, mill with furnished rooms and hinged doors | to do (room plans in `buildings.json`) | Lit interiors with Lumen; doors with physics | 4 |
 | Trees, shrubs, grass, flowers, wheat with wind; boulders, crags, clay banks, ruin | prototype island has foliage | Dense foliage with wind, distance fields, no pop-in | 4 |
 | Sheep that graze, look, bleat; pasture horses | to do | Same, with real animation | 4 |
 | Sky, clouds, sun/moon, stars, day stages from game progress | to do | Sky atmosphere, volumetric clouds, moonlight | 4 |
 | Minimap (island / nearby, M), view cone, markers | to do | Same | 4 |
-| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword / 3 revolver, E, M, Esc | to do | Plus gamepad, rebindable keys | 4 |
+| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword / 3 revolver, E, M, Esc | part: WASD/arrows, mouse orbit, Shift, Ctrl/C, E, wheel and Esc in the practice yard; combat/minimap/rebinding pending | Plus gamepad, rebindable keys | 4 |
 | Training dummy | to do | Same | 4 |
 | Graphics Auto / Full / Lite, 3D resolution 100/75/50 % | to do | Unreal scalability, TSR/DLSS/FSR upscaling, Steam Deck preset | 4 |
 

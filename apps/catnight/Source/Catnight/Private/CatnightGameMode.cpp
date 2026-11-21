@@ -15,6 +15,14 @@
 #include "Ui/HallSettings.h"
 #include "Ui/HallStyle.h"
 #include "UnrealClient.h"
+#include "Hero/HeroPawn.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Hero/HeroYard.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Ui/HallKit.h"
+#include "Framework/Application/SlateApplication.h"
 
 ACatnightGameMode::ACatnightGameMode()
 {
@@ -101,7 +109,7 @@ void ACatnightGameMode::BeginPlay()
 
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
 	{
-		Root = SNew(SCatnightRoot).Match(Match).View(View).Screen(First);
+		Root = SNew(SCatnightRoot).Match(Match).View(View).Screen(First).OnHeroYard(FSimpleDelegate::CreateUObject(this, &ACatnightGameMode::EnterHeroYard));
 		Viewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
 	}
 	// QA flags override both table and Hall motion without writing player preferences.
@@ -113,6 +121,13 @@ void ACatnightGameMode::BeginPlay()
 		if (Root) Mode.SetWidgetToFocus(Root->FocusTarget());
 		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(Mode);
+	}
+
+	FString HeroReview;
+	if (FParse::Value(Cmd, TEXT("CatnightHero="), HeroReview))
+	{
+		EnterHeroYard();
+		if (Hero) Hero->ReviewMode = HeroReview;
 	}
 
 	if (bReview)
@@ -171,9 +186,69 @@ void ACatnightGameMode::BeginPlay()
 	}
 }
 
+void ACatnightGameMode::EnterHeroYard()
+{
+	if (Hero || !Root) return;
+	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = true;
+	Root->SetVisibility(EVisibility::Collapsed);
+	if (Board) Board->SetActorHiddenInGame(true);
+	const FVector Origin(500000, 0, 0);
+	HeroYard = GetWorld()->SpawnActor<ACatnightHeroYard>(Origin, FRotator::ZeroRotator);
+	Hero = GetWorld()->SpawnActor<ACatnightHero>(Origin + FVector(0, 0, 98), FRotator::ZeroRotator);
+	if (auto* PC = GetWorld()->GetFirstPlayerController())
+	{
+		PC->Possess(Hero);
+		PC->SetViewTarget(Hero);
+		PC->bShowMouseCursor = false;
+		PC->PlayerCameraManager->ViewPitchMin = -65;
+		PC->PlayerCameraManager->ViewPitchMax = 35;
+		float Angle = 0;
+		FParse::Value(FCommandLine::Get(), TEXT("CatnightHeroAngle="), Angle);
+		PC->SetControlRotation(FRotator(-12, Angle, 0));
+		PC->SetInputMode(FInputModeGameOnly());
+	}
+	HeroHud = SNew(SOverlay).Visibility(EVisibility::HitTestInvisible)
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(24)
+		[
+			HallKit::Paper(SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(TEXT("Knight & riding yard"), 23)]
+				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Hall::Body(18)).ColorAndOpacity(Hall::Color::MapInk)
+					.Text_Lambda([Weak = TWeakObjectPtr<ACatnightHero>(Hero)] { return FText::FromString(Weak.IsValid() ? Weak->Status() : FString()); })]
+				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(TEXT("Mouse / right stick: look / Wheel: camera distance / Esc: hall"), 17)], HallKit::EPaper::Vellum)
+		];
+	GetWorld()->GetGameViewport()->AddViewportWidgetContent(HeroHud.ToSharedRef(), 20);
+}
+
+void ACatnightGameMode::LeaveHeroYard()
+{
+	if (!Hero) return;
+	// Restore the visible widget path before Slate receives keyboard focus.
+	Root->SetVisibility(EVisibility::Visible);
+	if (Board) Board->SetActorHiddenInGame(false);
+	if (auto* PC = GetWorld()->GetFirstPlayerController())
+	{
+		PC->UnPossess();
+		PC->bShowMouseCursor = true;
+		if (Board) PC->SetViewTarget(Board);
+		FInputModeUIOnly Mode;
+		Mode.SetWidgetToFocus(Root->FocusTarget());
+		PC->SetInputMode(Mode);
+	}
+	Hero->Destroy(); Hero = nullptr;
+	if (HeroYard) { HeroYard->Destroy(); HeroYard = nullptr; }
+	if (HeroHud) { GetWorld()->GetGameViewport()->RemoveViewportWidgetContent(HeroHud.ToSharedRef()); HeroHud.Reset(); }
+	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = false;
+}
+
 void ACatnightGameMode::EndPlay(const EEndPlayReason::Type Reason)
 {
-	FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
+	if (HeroHud)
+    {
+        if (auto* Viewport = GetWorld()->GetGameViewport()) Viewport->RemoveViewportWidgetContent(HeroHud.ToSharedRef());
+        HeroHud.Reset();
+    }
+    if (GetGameInstance()) if (auto* Subsystem = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()) Subsystem->Match()->bPresentationPaused = false;
+    FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ReviewHandle);
 	if (Root)
 	{

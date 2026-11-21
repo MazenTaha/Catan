@@ -92,6 +92,7 @@ namespace
 void SCatnightRoot::Construct(const FArguments& InArgs)
 {
 	Match = InArgs._Match;
+	OnHeroYard = InArgs._OnHeroYard;
 	View = InArgs._View;
 	Hall::Init();
 	const FHallSettings& Settings = FHallSettings::Get();
@@ -327,6 +328,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildTitle()
 		Center->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 16, 0, 0)[Slip(FString::Printf(TEXT("Could not continue: %s"), *TitleError), C::Rubric)];
 	}
 
+	Center->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 20, 0, 0)[Button(TEXT("Knight & riding yard"), [this] { OnHeroYard.ExecuteIfBound(); return FReply::Handled(); }, EButton::Plaque)];
 	return InHall(SNew(SOverlay)
 		+ SOverlay::Slot()[Center]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 150, 40))

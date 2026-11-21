@@ -173,6 +173,13 @@ existing Continue record.
 
 ## Things to know
 
+The title screen's **Knight & riding yard** opens the native character/riding foundation.
+Rebuild it with `pnpm catnight:heroes`; `pnpm catnight:import` now includes that skeletal art
+pipeline too. `pnpm catnight:test-heroes` checks imported rigs, physical movement and rendered
+poses in the packaged executable. Editable Blender files are generated in `SourceArt/Heroes`.
+See [`docs/CATNIGHT_HEROES.md`](../../docs/CATNIGHT_HEROES.md) for controls and scope. This yard
+prepares the knight and horse for phase 4; the complete live-island walk is still pending.
+
 - `CatnightRules.Build.cs` sets `FPSemantics = Precise` and turns unity builds off. Unreal compiles
   game modules with `/fp:fast` by default, which would let the bots' scores round differently from
   TypeScript. The golden test inside Unreal is what proves this setting works.

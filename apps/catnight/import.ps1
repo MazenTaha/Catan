@@ -21,3 +21,6 @@ $log = "$here/Saved/Logs/catnight-import.log"
 $code = $LASTEXITCODE
 Select-String -Path $log -Pattern 'Catnight import|Error' | Select-Object -Last 20 | ForEach-Object { $_.Line }
 if ($code -ne 0) { throw "Unreal import failed ($code), see $log" }
+
+# Native characters use a separate skeletal FBX pipeline; the board import never joins their rigs.
+& "$PSScriptRoot/import-heroes.ps1" -Engine $Engine -Blender $Blender

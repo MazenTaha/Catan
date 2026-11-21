@@ -355,3 +355,16 @@ Remaining phase 3 work: the real hall, the remaining Hall & Chart/CommonUI work,
 board polish (bridge roads, sigils, crop wind, water/foam/boats, time of day, flying gains and
 physics dice), settings/accessibility and the full manual/gamepad acceptance. Phase 4 is the
 native island walk; phase 5 is Steam online and duels; phase 6 is release.
+
+## 12. Character and riding foundation (2026-11-22)
+
+At the owner's request, the knight/horse part of phase 4 now begins alongside the remaining
+phase 3 work. `docs/CATNIGHT_HEROES.md` describes the original Blender rebuild, native skeletal
+import and eleven baked motion clips. The app title offers a physical character/riding yard
+for walking, sprinting, crouching, mounting and dismounting, with rider/rein contact and a
+collision-aware camera. It uses the owner's `E:/Catan_art_obj` art sheets and contains no
+browser. Local practice preserves the running table and pauses its bot clock.
+
+This does not complete phase 4: connecting the hero to the match's live terrain and buildings,
+rooms/chest/combat, minimap, Character/My kingdom, arbitrary-terrain foot placement and wider
+controller/performance acceptance remain. The packaged hero check records the verified scope.

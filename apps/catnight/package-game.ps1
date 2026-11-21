@@ -29,6 +29,16 @@ foreach ($family in @('village', 'flora', 'rocks', 'props', 'supplies')) {
 }
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missing.Count) { throw "Imported artwork is incomplete. Rerun pnpm catnight:import. Missing: $($missing -join ', ')" }
+$heroManifest=Join-Path $PSScriptRoot 'SourceArt/Heroes/manifest.json'
+if(-not(Test-Path -LiteralPath $heroManifest)){throw 'Native heroes are missing. Run pnpm catnight:heroes.'}
+$heroes=[IO.File]::ReadAllText($heroManifest) | ConvertFrom-Json
+foreach($family in $heroes.models.PSObject.Properties){
+  $heroFiles=@("SK_$($family.Name)")
+  foreach($mode in $family.Value.clips.PSObject.Properties){$heroFiles+="A_$($family.Name)_$($mode.Name)"}
+  foreach($name in $heroFiles){
+    if(-not(Test-Path -LiteralPath (Join-Path $PSScriptRoot "Content/Generated/Heroes/$name.uasset"))){throw "Native hero asset missing: $name. Run pnpm catnight:heroes."}
+  }
+}
 Write-Host "Artwork preflight: $modelCount meshes and 7 base materials present."
 
 & $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Configuration" `

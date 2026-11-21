@@ -114,7 +114,8 @@ namespace
 void SCatnightBoard::Construct(const FArguments& InArgs)
 {
 	Match = InArgs._Match;
-	Targets = InArgs._Targets;
+	View = InArgs._View;
+	Targets = &View->Targets;
 	OnPick = InArgs._OnPick;
 	const Topology& T = GetTopology();
 	for (const std::string& Id : T.vertexIds)
@@ -190,12 +191,14 @@ void SCatnightBoard::CycleFocus(int32 Step)
 	const int32 At = Order.Find(Targets->Focus);
 	const int32 Next = At == INDEX_NONE ? (Step > 0 ? 0 : Order.Num() - 1) : (At + Step + Order.Num()) % Order.Num();
 	Targets->Focus = Order[Next];
+	View->Revision++;
 	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
 int32 SCatnightBoard::OnPaint(const FPaintArgs& Args, const FGeometry& G, const FSlateRect& MyCullingRect,
 	FSlateWindowElementList& Out, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+	if (View->b3D) return LayerId;  // the 3D table shows through; this widget only takes input
 	FSlateDrawElement::MakeBox(Out, LayerId, G.ToPaintGeometry(), WhiteBox(), ESlateDrawEffect::None, Sea);
 	if (!Match || !Match->HasGame()) return LayerId + 1;
 	const GameState& S = Match->State();
@@ -331,15 +334,57 @@ int32 SCatnightBoard::OnPaint(const FPaintArgs& Args, const FGeometry& G, const 
 
 FReply SCatnightBoard::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	if (View->b3D && (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton || MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton))
+	{
+		// Turn the table: drag with the right (or middle) button.
+		bDragging = true;
+		DragFrom = MouseEvent.GetScreenSpacePosition();
+		return FReply::Handled().CaptureMouse(SharedThis(this));
+	}
 	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton || !Targets) return FReply::Unhandled();
-	const FVector2f Local = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	const int32 Hit = HitTarget(Layout(MyGeometry), Local);
+	int32 Hit = INDEX_NONE;
+	if (View->b3D) Hit = View->PickUnderMouse ? View->PickUnderMouse() : INDEX_NONE;
+	else Hit = HitTarget(Layout(MyGeometry), MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 	if (Hit != INDEX_NONE) OnPick.ExecuteIfBound(Targets->Kind, Hit);
+	return FReply::Handled();
+}
+
+FReply SCatnightBoard::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (bDragging && (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton || MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton))
+	{
+		bDragging = false;
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+	return FReply::Unhandled();
+}
+
+FReply SCatnightBoard::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (!View->b3D || !View->MoveCamera) return FReply::Unhandled();
+	View->MoveCamera(0.f, 0.f, MouseEvent.GetWheelDelta() > 0 ? 0.88f : 1.12f);
 	return FReply::Handled();
 }
 
 FReply SCatnightBoard::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	if (View->b3D)
+	{
+		if (bDragging && View->MoveCamera)
+		{
+			const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - DragFrom;
+			DragFrom = MouseEvent.GetScreenSpacePosition();
+			View->MoveCamera(static_cast<float>(Delta.X) * 0.3f, static_cast<float>(-Delta.Y) * 0.2f, 1.f);
+			return FReply::Handled();
+		}
+		const int32 Hover = View->PickUnderMouse ? View->PickUnderMouse() : INDEX_NONE;
+		if (Hover != Targets->Hover)
+		{
+			Targets->Hover = Hover;
+			View->Revision++;
+		}
+		return FReply::Unhandled();
+	}
 	Mouse = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	Invalidate(EInvalidateWidgetReason::Paint);
 	return FReply::Unhandled();
@@ -348,6 +393,11 @@ FReply SCatnightBoard::OnMouseMove(const FGeometry& MyGeometry, const FPointerEv
 void SCatnightBoard::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	Mouse = FVector2f(-1e6f, -1e6f);
+	if (Targets->Hover != INDEX_NONE)
+	{
+		Targets->Hover = INDEX_NONE;
+		View->Revision++;
+	}
 	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
@@ -380,27 +430,29 @@ void STable::Construct(const FArguments& InArgs)
 	Match = InArgs._Match;
 	OnMainMenu = InArgs._OnMainMenu;
 	OnNewGame = InArgs._OnNewGame;
-	Targets = MakeShared<FBoardTargets>();
+	View = InArgs._View ? InArgs._View : MakeShared<FCatnightBoardView>();
+	if (!InArgs._View) View->b3D = false;  // no 3D board behind this table
+	Targets = &View->Targets;
 	ChangedHandle = Match->OnChanged.AddLambda([this] { bDirty = true; });
 	ChildSlot
 	[
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
-			SNew(SBorder)
-			.BorderImage(WhiteBox())
-			.BorderBackgroundColor(PanelBg)
-			.Padding(0)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f)
-				[
-					SAssignNew(Board, SCatnightBoard)
-					.Match(Match)
-					.Targets(Targets)
-					.OnPick(FOnBoardPick::CreateSP(this, &STable::OnPick))
-				]
-				+ SHorizontalBox::Slot().AutoWidth()
+				SAssignNew(Board, SCatnightBoard)
+				.Match(Match)
+				.View(View)
+				.OnPick(FOnBoardPick::CreateSP(this, &STable::OnPick))
+			]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SBorder)
+				.BorderImage(WhiteBox())
+				.BorderBackgroundColor(FLinearColor(PanelBg.R, PanelBg.G, PanelBg.B, 0.94f))
+				.Padding(0)
 				[
 					SNew(SBox)
 					.WidthOverride(420.f)
@@ -449,8 +501,14 @@ void STable::Refresh()
 	const bool bBoardFocus = Board && Board->HasKeyboardFocus();
 	const bool bHadFocus = HasKeyboardFocus() || (PanelSlot && PanelSlot->HasFocusedDescendants()) || (OverlaySlot && OverlaySlot->HasFocusedDescendants());
 	UpdateTargets();
+	View->Revision++;
 	Primary.Reset();
-	if (PanelSlot) PanelSlot->SetContent(BuildPanel());
+	if (PanelSlot)
+	{
+		PanelSlot->SetContent(BuildPanel());
+		// Measure the new widgets now, so the frame after a rebuild never shows them unsized.
+		PanelSlot->SlatePrepass(FSlateApplication::Get().GetApplicationScale());
+	}
 	bool bOverlay = false;
 	if (OverlaySlot)
 	{
@@ -467,7 +525,8 @@ void STable::Refresh()
 	const bool bKeepBoard = bBoardFocus && Targets->Kind != FBoardTargets::EKind::None && !bOverlay;
 	if ((bHadFocus || bBoardFocus) && !bKeepBoard && FSlateApplication::IsInitialized())
 	{
-		if (TSharedPtr<SWidget> F = FirstFocus()) FSlateApplication::Get().SetAllUserFocus(F, EFocusCause::Navigation);
+		// Only a button shows a focus ring; the board shows its chosen spot itself.
+		if (TSharedPtr<SWidget> F = FirstFocus()) FSlateApplication::Get().SetAllUserFocus(F, F == Primary ? EFocusCause::Navigation : EFocusCause::SetDirectly);
 	}
 }
 
@@ -478,6 +537,7 @@ void STable::UpdateTargets()
 	Targets->Kind = FBoardTargets::EKind::None;
 	Targets->Legal.Reset();
 	Targets->Focus = INDEX_NONE;
+	Targets->Hover = INDEX_NONE;
 	if (!Match->HasGame() || !Match->IsHumanToAct() || Match->State().handoff || bLeaving) return;
 	const GameState& S = Match->State();
 	const int32 P = Me();
@@ -601,13 +661,37 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 	return FReply::Unhandled();
 }
 
+FReply STable::OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	// The right stick turns and tilts the 3D table.
+	const FKey K = InAnalogInputEvent.GetKey();
+	const float Value = InAnalogInputEvent.GetAnalogValue();
+	if (View->b3D && View->MoveCamera && FMath::Abs(Value) > 0.2f)
+	{
+		if (K == EKeys::Gamepad_RightX)
+		{
+			View->MoveCamera(Value * 2.5f, 0.f, 1.f);
+			return FReply::Handled();
+		}
+		if (K == EKeys::Gamepad_RightY)
+		{
+			View->MoveCamera(0.f, Value * 1.5f, 1.f);
+			return FReply::Handled();
+		}
+	}
+	return SCompoundWidget::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
+}
+
 FString STable::Instruction() const
 {
 	const GameState& S = Match->State();
 	if (Match->IsEnded()) return FString::Printf(TEXT("%s wins!"), *CatnightText::Player(S, *S.winner));
 	if (Match->NeedsHandoff()) return FString::Printf(TEXT("Pass the device to %s."), *CatnightText::Player(S, Match->Actor()));
 	if (S.phase.kind == PhaseKind::Trade && S.phase.offer.proposer == Me() && !Match->IsHumanToAct()) return TEXT("Waiting for answers to your offer.");
-	if (!Match->IsHumanToAct()) return FString::Printf(TEXT("%s is playing..."), *CatnightText::Player(S, Match->Actor()));
+	if (!Match->IsHumanToAct())
+	{
+		return Match->Actor() == Me() ? FString(TEXT("A bot is playing your seat...")) : FString::Printf(TEXT("%s is playing..."), *CatnightText::Player(S, Match->Actor()));
+	}
 	switch (S.phase.kind)
 	{
 	case PhaseKind::Setup: return S.phase.stepCauseway ? TEXT("Place a road next to your new settlement.") : TEXT("Place a settlement on a free corner.");
@@ -628,10 +712,21 @@ TSharedRef<SWidget> STable::BuildPanel()
 	const GameState& S = Match->State();
 	const FString Round = S.round ? FString::Printf(TEXT("Round %d"), S.round) : FString(TEXT("Founding"));
 	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight()
+		+ SVerticalBox::Slot().AutoHeight()[Text(TEXT("Catnight"), 22, Ivory, true)]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Text(TEXT("Catnight"), 22, Ivory, true)]
+			+ SHorizontalBox::Slot().FillWidth(1.f)[SNullWidget::NullWidget]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)
+			[
+				Button(View->b3D ? TEXT("Flat view") : TEXT("3D view"), [this]
+				{
+					View->b3D = !View->b3D;
+					View->Revision++;
+					if (Board) Board->Invalidate(EInvalidateWidgetReason::Paint);
+					return Redraw();
+				}, View->PickUnderMouse != nullptr || View->b3D)
+			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)
 			[
 				Button(TEXT("Undo"), [this] { Match->Undo(); return Redraw(); }, Match->CanUndo())
@@ -652,6 +747,10 @@ TSharedRef<SWidget> STable::BuildPanel()
 	if (Targets->Kind != FBoardTargets::EKind::None)
 	{
 		Box->AddSlot().AutoHeight().Padding(0, 4, 0, 0)[Text(TEXT("Click a highlighted spot, or choose one with the arrow keys or shoulder buttons and press Enter or A."), 9, Muted)];
+	}
+	if (View->b3D)
+	{
+		Box->AddSlot().AutoHeight().Padding(0, 2, 0, 0)[Text(TEXT("Turn the table: drag with the right mouse button or the right stick; zoom with the wheel."), 9, Muted)];
 	}
 	if (!Match->LastError.IsEmpty())
 	{

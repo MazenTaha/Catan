@@ -1,21 +1,12 @@
 // The playable table, drawn in Slate from code (phase 2: plain, readable, every action reachable).
-// The Hall & Chart look and the 3D table replace it in phase 3; the match logic stays in FCatnightMatch.
+// The 3D board (ACatnightBoardActor) shows through the left side; the flat chart is the fallback view.
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SLeafWidget.h"
 #include "CatnightMatch.h"
-
-/** What a board pick places, and where it may go. Owned by STable, read by SCatnightBoard. */
-struct FBoardTargets
-{
-	enum class EKind : uint8 { None, Vertex, Edge, Hex };
-	EKind Kind = EKind::None;
-	TArray<int32> Legal;
-	/** The target chosen with keys or a gamepad (INDEX_NONE: none). */
-	int32 Focus = INDEX_NONE;
-};
+#include "Table/BoardView.h"
 
 DECLARE_DELEGATE_TwoParams(FOnBoardPick, FBoardTargets::EKind, int32);
 
@@ -24,7 +15,7 @@ class SCatnightBoard : public SLeafWidget
 public:
 	SLATE_BEGIN_ARGS(SCatnightBoard) {}
 		SLATE_ARGUMENT(TSharedPtr<FCatnightMatch>, Match)
-		SLATE_ARGUMENT(TSharedPtr<FBoardTargets>, Targets)
+		SLATE_ARGUMENT(TSharedPtr<FCatnightBoardView>, View)
 		SLATE_EVENT(FOnBoardPick, OnPick)
 	SLATE_END_ARGS()
 
@@ -36,6 +27,8 @@ public:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
@@ -56,8 +49,11 @@ private:
 	int32 HitTarget(const FLayout& L, FVector2f Local) const;
 
 	TSharedPtr<FCatnightMatch> Match;
-	TSharedPtr<FBoardTargets> Targets;
+	TSharedPtr<FCatnightBoardView> View;
+	FBoardTargets* Targets = nullptr;  // View->Targets
 	FOnBoardPick OnPick;
+	FVector2D DragFrom;
+	bool bDragging = false;
 	TArray<FVector2f> VertexLattice;  // per vertex index, from its id
 	FVector2f Mouse = FVector2f(-1e6f, -1e6f);
 };
@@ -67,6 +63,7 @@ class STable : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(STable) {}
 		SLATE_ARGUMENT(TSharedPtr<FCatnightMatch>, Match)
+		SLATE_ARGUMENT(TSharedPtr<FCatnightBoardView>, View)
 		/** Leave to the title screen (the game stays saved). */
 		SLATE_EVENT(FSimpleDelegate, OnMainMenu)
 		/** Open the new-game screen. */
@@ -78,6 +75,7 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 
 	/** The widget to focus first (keyboard and gamepad). */
 	TSharedPtr<SWidget> FirstFocus() const;
@@ -104,7 +102,8 @@ private:
 	TSharedPtr<FCatnightMatch> Match;
 	FSimpleDelegate OnMainMenu;
 	FSimpleDelegate OnNewGame;
-	TSharedPtr<FBoardTargets> Targets;
+	TSharedPtr<FCatnightBoardView> View;
+	FBoardTargets* Targets = nullptr;  // View->Targets
 	TSharedPtr<class SBox> PanelSlot;
 	TSharedPtr<class SBox> OverlaySlot;
 	TSharedPtr<SCatnightBoard> Board;

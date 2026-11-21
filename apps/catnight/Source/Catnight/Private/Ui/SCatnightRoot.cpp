@@ -1,9 +1,10 @@
-﻿#include "Ui/SCatnightRoot.h"
+#include "Ui/SCatnightRoot.h"
 
 #include "CatnightRules/Rules.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformMisc.h"
 #include "Lexicon.h"
+#include "Table/BoardView.h"
 #include "Table/STable.h"
 #include "Ui/CatnightUi.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -49,6 +50,7 @@ namespace
 void SCatnightRoot::Construct(const FArguments& InArgs)
 {
 	Match = InArgs._Match;
+	View = InArgs._View;
 	Draft.Seed = NewSeed();
 	static const TCHAR* Names[] = {TEXT("You"), TEXT("Ash"), TEXT("Bryn"), TEXT("Cole")};
 	for (int32 I = 0; I < 4; I++)
@@ -61,7 +63,14 @@ void SCatnightRoot::Construct(const FArguments& InArgs)
 	}
 	ChildSlot
 	[
-		SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(Backdrop).Padding(0)
+		SNew(SBorder).BorderImage(WhiteBox()).Padding(0)
+		.BorderBackgroundColor_Lambda([this]
+		{
+			// The 3D table shows through: fully at the table, dimmed behind the menus.
+			const bool b3D = View && View->b3D && View->MoveCamera;
+			if (!b3D) return FSlateColor(Backdrop);
+			return FSlateColor(Screen == EScreen::Table ? FLinearColor::Transparent : FLinearColor(Backdrop.R, Backdrop.G, Backdrop.B, 0.72f));
+		})
 		[
 			SAssignNew(Content, SBox)
 		]
@@ -88,7 +97,10 @@ void SCatnightRoot::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	if (bFocusPending && FSlateApplication::IsInitialized())
 	{
 		bFocusPending = false;
-		if (TSharedPtr<SWidget> F = FocusTarget()) FSlateApplication::Get().SetAllUserFocus(F, EFocusCause::Navigation);
+		// Buttons show their focus ring (navigation); a whole screen taking focus should not.
+		const TSharedPtr<SWidget> F = FocusTarget();
+		const bool bButton = F && F->GetType() == TEXT("SButton");
+		if (F) FSlateApplication::Get().SetAllUserFocus(F, bButton ? EFocusCause::Navigation : EFocusCause::SetDirectly);
 	}
 }
 
@@ -122,6 +134,7 @@ void SCatnightRoot::ApplyShow(EScreen InScreen)
 	case EScreen::Table:
 		Content->SetContent(SAssignNew(Table, STable)
 			.Match(Match)
+			.View(View)
 			.OnMainMenu(FSimpleDelegate::CreateLambda([this] { Show(EScreen::Title); }))
 			.OnNewGame(FSimpleDelegate::CreateLambda([this] { Show(EScreen::NewGame); })));
 		break;

@@ -8,6 +8,8 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Board/CatnightBoardActor.h"
+#include "Table/BoardView.h"
 #include "Ui/SCatnightRoot.h"
 #include "UnrealClient.h"
 
@@ -70,9 +72,24 @@ void ACatnightGameMode::BeginPlay()
 		First = SCatnightRoot::EScreen::NewGame;
 	}
 
+	View = MakeShared<FCatnightBoardView>();
+	View->b3D = !FParse::Param(Cmd, TEXT("CatnightFlat"));
+	Board = GetWorld()->SpawnActor<ACatnightBoardActor>();
+	if (Board)
+	{
+		Board->Setup(Match, View);
+		FString Cam;
+		if (FParse::Value(Cmd, TEXT("CatnightCamera="), Cam, false) && View->MoveCamera)
+		{
+			TArray<FString> Parts;
+			Cam.ParseIntoArray(Parts, TEXT(","));
+			if (Parts.Num() == 3) View->MoveCamera(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+		}
+	}
+
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
 	{
-		Root = SNew(SCatnightRoot).Match(Match).Screen(First);
+		Root = SNew(SCatnightRoot).Match(Match).View(View).Screen(First);
 		Viewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
 	}
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())

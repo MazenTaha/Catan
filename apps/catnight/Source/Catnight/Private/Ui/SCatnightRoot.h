@@ -16,6 +16,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SCatnightRoot) {}
 		SLATE_ARGUMENT(TSharedPtr<FCatnightMatch>, Match)
+		SLATE_ARGUMENT(TSharedPtr<struct FCatnightBoardView>, View)
 		SLATE_ARGUMENT(EScreen, Screen)
 	SLATE_END_ARGS()
 
@@ -35,6 +36,7 @@ private:
 	void FocusLater() { bFocusPending = true; }
 
 	TSharedPtr<FCatnightMatch> Match;
+	TSharedPtr<struct FCatnightBoardView> View;
 	TSharedPtr<SBox> Content;
 	TSharedPtr<STable> Table;
 	TSharedPtr<SWidget> Primary;

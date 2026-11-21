@@ -33,6 +33,9 @@ apps/catnight/Saved/
 apps/catnight/Packaged/
 apps/catnight/.vs/
 apps/catnight/*.sln
+# Rebuilt by pnpm catnight:import from apps/web/public/models (Blender GLBs)
+apps/catnight/SourceArt/
+apps/catnight/Content/Generated/
 native/golden/data/
 native/golden/out/
 native/build/

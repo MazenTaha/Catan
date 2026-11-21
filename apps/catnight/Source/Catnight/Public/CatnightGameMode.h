@@ -9,6 +9,8 @@
 //   -CatnightAutoplay         bots play the human seats too
 //   -CatnightBotDelay=<s>     seconds between bot moves (default 0.7)
 //   -CatnightNoSave           no autosave and no Continue (tests)
+//   -CatnightFlat             start with the flat chart instead of the 3D table
+//   -CatnightCamera=<yaw>,<pitch>,<zoom>   turn the 3D table (screenshots)
 //   -CatnightShot=<file.png>  save a screenshot after -CatnightShotAfter=<s> (default 6), then quit
 #pragma once
 
@@ -29,5 +31,7 @@ public:
 
 private:
 	TSharedPtr<class SCatnightRoot> Root;
+	TSharedPtr<struct FCatnightBoardView> View;
+	UPROPERTY() TObjectPtr<class ACatnightBoardActor> Board;
 	FTSTicker::FDelegateHandle ShotHandle;
 };

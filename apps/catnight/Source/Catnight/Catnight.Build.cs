@@ -7,7 +7,8 @@ public class Catnight : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		CppStandard = CppStandardVersion.Cpp20;
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "CatnightRules" });
-		// The table is drawn in Slate from code: no widget or texture assets yet (phase 4 brings the art).
-		PrivateDependencyModuleNames.AddRange(new string[] { "InputCore", "Slate", "SlateCore" });
+		// The UI is Slate from code; the 3D board builds its tiles with ProceduralMeshComponent and
+		// loads the imported models from /Game/Generated (pnpm catnight:import).
+		PrivateDependencyModuleNames.AddRange(new string[] { "InputCore", "Slate", "SlateCore", "ProceduralMeshComponent" });
 	}
 }

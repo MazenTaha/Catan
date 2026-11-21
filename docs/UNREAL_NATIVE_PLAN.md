@@ -206,7 +206,7 @@ feature, its status in Unreal and what "better" means for it. The look (phase 3)
 |---|---|
 | The C++ rules drift from TypeScript in rare cases (key order, sort, RNG floats) | Step-by-step golden comparison over many games; diff prints the first mismatching path |
 | Two games to maintain until phase 6 | Freeze rule changes in TypeScript once phase 1 starts, except bug fixes made in both |
-| The web/3D walk keeps changing in parallel sessions | Port the walk last (phase 5) from the state of `components/world` at that time |
+| The web/3D walk keeps changing in parallel sessions | Port the walk in phase 4 from the state of `components/world` at that time |
 | Name refused or disputed | Gate 0 before any public step |
 | Unreal networking cheats (clients reading hidden data) | Hidden state never leaves the host; owner-only replication; host checks every action |
 | Repo size with binary assets | Git LFS before the first migration |
@@ -288,6 +288,33 @@ packaging.
 ## 9. Next steps
 
 1. Owner: decide the name and terms (gate 0, section 2).
-2. Finish phase 2: title menu, hot-seat, save and continue, gamepad focus, the packaged build as
-   the test target.
+2. Finish phase 2 validation: a packaged build with generated artwork, then a full game by hand with mouse and a real gamepad. The menus, privacy, saves and board focus are implemented.
 3. Phase 3: the 3D war table and the Hall & Chart UI (`docs/CATNIGHT_PARITY.md` §3–4).
+
+## 10. Phase 3, first part: the native 3D war table (2026-11-21)
+
+The native editor game now draws a miniature island on an oak war table. `ACatnightBoardActor`
+builds procedural hexes/sand shelves, instanced terrain scenery, ivory tokens with pips,
+docks/boats and rate plaques, player-coloured cottages/halls and roads, the robber and glowing
+legal targets, with sun, sky, atmosphere/fog and shadows. `FCatnightBoardView` shares legal
+spots, hover/focus and camera requests with Slate. Right/middle drag or right stick orbits/tilts;
+the wheel zooms; Flat view keeps the 2D chart. Menus dim the table behind them. The side panel
+includes the camera-control hint beneath the instruction.
+
+`pnpm catnight:import` regenerates 92 static meshes and the board materials from the existing
+Blender GLBs. `SourceArt/Models` and `Content/Generated` are ignored, so the import is required on
+a fresh checkout and before packaging. Model materials preserve texture × vertex colour ×
+tint, owner slots, cut-out leaves and instancing usage. See `apps/catnight/README.md` for paths,
+logs, options and troubleshooting.
+
+The resumed build succeeds and `pnpm catnight:test` reports **PASSED: 3 automation tests**:
+248/248 golden games, 12/12 full matches to victory, and hot-seat/save/undo (181 hand-offs).
+`-CatnightPickTest` separately checks projection/deprojection of every legal spot under the
+current camera: the fresh setup matches 50/50 legal spots from each of three angles. The
+handoff's captures show the 3D scenery and player pieces; the refreshed setup capture also shows
+the camera hint. The rules and their TypeScript reference are unchanged.
+
+This completes the first table presentation milestone, not phase 3 as a whole. Next: package it
+and confirm the generated assets cook, play manually with mouse and a real gamepad, then finish
+board polish, the hall, Hall & Chart UI and audio. The island walk is phase 4 and Steam online,
+rejoin/autopilot and duels are phase 5. Gate 0 still precedes public release.

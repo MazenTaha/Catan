@@ -47,16 +47,22 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| 19 painted hexes with terrain scenery (forest, clay, pasture with sheep, wheat and windmills, mountains, desert ruin) | part: flat coloured hexes in Slate | **Real 3D miniature board** on an oak war table: modelled tiles with the island's own trees, wheat, rocks and buildings, sunlit with soft shadows, wind in the crops | 3 |
-| Sea, turquoise shallows, foam, docks with badges, little boats | part: flat sea, harbour labels | Animated water with depth colour and foam, the Blender docks and boats bobbing | 3 |
-| Ivory number tokens with pips, red 6/8 | part (drawn circles) | Carved tokens with engraved pips | 3 |
-| Pieces: settlement, city, road, robber, player colours and sigils | part (flat shapes) | Modelled cottage, hall, bridge-road and hooded robber; colour and sigil on every piece; placement animation and dust | 3 |
-| Legal targets on hover/click, keyboard focusable, show-why reasons | part: hover/click, arrows/shoulders + Enter/A (not hand-tested) | Glowing targets, gamepad cursor and stick snapping, reasons on hover | 2 → 3 |
+| 19 painted hexes with terrain scenery (forest, clay, pasture with sheep, wheat and windmills, mountains, desert ruin) | part: native 3D hexes and instanced Blender scenery, sun and shadows verified in `-game`; crop wind and packaged validation pending | **Real 3D miniature board** on an oak war table: modelled tiles with the island's own trees, wheat, rocks and buildings, sunlit with soft shadows, wind in the crops | 3 |
+| Sea, turquoise shallows, foam, docks with badges, little boats | part: shaded sea tray, sand shelves, modelled docks/boats and rate plaques; foam and boat motion pending | Animated water with depth colour and foam, the Blender docks and boats bobbing | 3 |
+| Ivory number tokens with pips, red 6/8 | part: 3D ivory tokens, pips and red 6/8; further readability and packaged checks pending | Carved tokens with engraved pips | 3 |
+| Pieces: settlement, city, road, robber, player colours and sigils | part: modelled cottages/halls with owner-coloured trim, roads and robber; bridge-roads, sigils and placement effects pending | Modelled cottage, hall, bridge-road and hooded robber; colour and sigil on every piece; placement animation and dust | 3 |
+| Legal targets on hover/click, keyboard focusable, show-why reasons | part: 3D hover/picking and glowing targets; projection/deprojection checked from three angles; keys/shoulders + Enter/A remain, real gamepad play pending | Glowing targets, gamepad cursor and stick snapping, reasons on hover | 2 → 3 |
 | Hex tooltip (terrain, number, odds, owners) | to do | Same, as a map note | 3 |
-| Zoom and pan | to do | Orbit, zoom, tilt the camera over the table; top-down 2D view kept for clarity | 3 |
+| Zoom and pan | part: smoothed orbit/tilt by right or middle drag/right stick, wheel zoom and Flat view toggle; pan pending | Orbit, zoom, tilt the camera over the table; top-down 2D view kept for clarity | 3 |
 | Dice roll overlay, flying gains, production highlights | to do | Physical bone dice rolling on the table; cards flying to banners | 3 |
 | Time of day wash and label (rounds → Sunrise … Small hours) | to do | Real sun and moon over the hall's windows and the table | 3 |
 | Walk layer: walkers and fights on the board | to do | Same markers in 3D | 4 / 5 |
+
+The first 3D-table milestone is verified in the native editor game, not yet in a packaged build.
+`pnpm catnight:import` recreates its ignored artwork; see the native README. The actor, import
+pipeline, shared board targets and Flat view toggle are in place. Hall scenery, full Hall & Chart
+widgets, animation, audio and the packaged/manual-play gate remain open. Validation captures:
+`apps/catnight/validation/board3d-*.png`.
 
 ## 4. The Hall & Chart interface
 
@@ -68,7 +74,7 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 | The Herald: recent log with arms and resource art, full Chronicle (search, filters, export) | part: plain log | Same | 3 |
 | Thy Treasury: card art, +N seal, hold-to-reveal, hand-limit scale bar | part: plain counts | Real card art, cards fan in the hand | 3 |
 | Build / Cards / Trade tabs, costs, N left, status words, played-card fan | part: plain buttons | Same, gamepad tabs | 3 |
-| Trade: bank (rates, stock, stepper), players (counts, To, Offer), offer out + Withdraw | part: bank and offer-to-all | Same plus targeted offers | 2 → 3 |
+| Trade: bank (rates, stock, stepper), players (counts, To, Offer), offer out + Withdraw | part: bank, targeted player offers and counters; visual treatment pending | Same plus targeted offers | 2 → 3 |
 | Dialogs: roll-off, discard, rob, offer arrives, counter, Year of Plenty, Monopoly, Man up target, card details | part: inline in the panel | Decree dialogs | 2 → 3 |
 | Toolbar: undo, full log, rulebook, mute, settings, leave | to do | Same | 3 |
 | Toasts (herald's slips), rookie tips, connection banner | to do | Same | 3 |
@@ -80,15 +86,15 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| The live island: every building and road from the match stands there | to do in Catnight; a static island prototype exists in `apps/unreal 5.8` (`Island_*` maps, 424 files) | Nanite and Lumen: real global light, far more vegetation, proper shadows, volumetric fog | 4 |
-| Third-person knight over the shoulder, walk 5 / run 10 m/s with momentum, footfalls, dust | to do | Motion-matched or blended locomotion, camera collision, controller support | 4 |
-| Horses: graze, mount with E, walk/trot/gallop 7/17 m/s | to do (Blender horse exists) | Proper animation blueprints | 4 |
+| The live island: approximately 294 m wide, 38 work yards and connected trails; every building and road from the match stands there | to do in Catnight; a static island prototype exists in `apps/unreal 5.8` (`Island_*` maps, 424 files) | Nanite and Lumen: real global light, far more vegetation, proper shadows, volumetric fog | 4 |
+| Third-person knight over the shoulder, walk 2.4 / sprint 6.2 m/s, silent crouch 1.1 m/s, momentum, footfalls and dust | to do | Motion-matched or blended locomotion, camera collision, controller support | 4 |
+| Horses: graze, mount with E, walk/gallop 5.5/12 m/s with matched rider grip and reins | to do (Blender horse exists) | Proper animation blueprints | 4 |
 | Enterable cottage, hall, mill with furnished rooms and hinged doors | to do (room plans in `buildings.json`) | Lit interiors with Lumen; doors with physics | 4 |
 | Trees, shrubs, grass, flowers, wheat with wind; boulders, crags, clay banks, ruin | prototype island has foliage | Dense foliage with wind, distance fields, no pop-in | 4 |
 | Sheep that graze, look, bleat; pasture horses | to do | Same, with real animation | 4 |
 | Sky, clouds, sun/moon, stars, day stages from game progress | to do | Sky atmosphere, volumetric clouds, moonlight | 4 |
 | Minimap (island / nearby, M), view cone, markers | to do | Same | 4 |
-| Dive in mouse look; keys WASD, Shift, F, RMB guard, 1/2/3, E, M, Esc | to do | Plus gamepad, rebindable keys | 4 |
+| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword / 3 revolver, E, M, Esc | to do | Plus gamepad, rebindable keys | 4 |
 | Training dummy | to do | Same | 4 |
 | Graphics Auto / Full / Lite, 3D resolution 100/75/50 % | to do | Unreal scalability, TSR/DLSS/FSR upscaling, Steam Deck preset | 4 |
 
@@ -125,12 +131,11 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 |---|---|---|---|
 | Reduce motion, colourblind glyphs, hand privacy, hold-to-reveal, rookie tips, show why, bot speed, UI scale, turn timer, theme | to do | Same, saved in `USaveGame` | 3 |
 | Keyboard-operable targets, screen-reader announcements | part: keys and gamepad on the board; no screen reader | Gamepad everywhere; rebindable keys (new) | 2 → 3 |
-| Saves: local versioned save, settings, profile | to do | Save slots, Steam Cloud | 2 / 6 |
+| Saves: local versioned save, settings, profile | part: autosave/Continue records implemented and tested; settings/profile persistence pending | Save slots, Steam Cloud | 2 / 6 |
 
 ## Order of work
 
-1. **Finish phase 2** (now): seats, hot-seat curtain, save and continue, title and new-game screens,
-   targeted offers, leave and victory screens, gamepad and keyboard on the board.
+1. **Finish phase 2 validation**: package the native game with its generated artwork, then play a full game by hand with a mouse and a real gamepad. Seats, hot-seat, autosave/Continue, targeted offers, leave/victory screens and board navigation are implemented; the packaged/hardware check remains.
 2. **Phase 3, the look:** the 3D war table and board, the Hall & Chart UI in UMG, audio. This moved
    ahead of online play so the game looks and sounds like the finished game early.
 3. **Phase 4, the island walk (local):** migrate the island prototype, live buildings, knight,

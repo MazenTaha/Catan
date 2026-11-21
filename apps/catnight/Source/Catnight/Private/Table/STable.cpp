@@ -6,33 +6,20 @@
 #include "Lexicon.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Input/SButton.h"
+#include "Ui/CatnightUi.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SNullWidget.h"
 
 using namespace catnight;
+using namespace CatnightUi;
 
 namespace
 {
-	FLinearColor Srgb(uint8 R, uint8 G, uint8 B, uint8 A = 255) { return FLinearColor(FColor(R, G, B, A)); }
-
-	FLinearColor PlayerTint(PlayerColor C)
-	{
-		switch (C)
-		{
-		case PlayerColor::Crimson: return Srgb(196, 48, 43);
-		case PlayerColor::Frost: return Srgb(46, 116, 214);
-		case PlayerColor::Bone: return Srgb(240, 236, 226);
-		case PlayerColor::Violet: return Srgb(236, 128, 32);
-		}
-		return FLinearColor::White;
-	}
-
 	FLinearColor TerrainTint(Terrain T)
 	{
 		switch (T)
@@ -47,18 +34,7 @@ namespace
 		return FLinearColor::Gray;
 	}
 
-	const FLinearColor Ink = Srgb(26, 24, 22);
-	const FLinearColor Ivory = Srgb(246, 238, 216);
 	const FLinearColor Sea = Srgb(34, 86, 112);
-	const FLinearColor PanelBg = Srgb(24, 26, 28);
-	const FLinearColor Muted = Srgb(170, 172, 168);
-
-	FSlateFontInfo Font(float Size, bool bBold = false)
-	{
-		return FCoreStyle::GetDefaultFontStyle(bBold ? TEXT("Bold") : TEXT("Regular"), Size);
-	}
-
-	const FSlateBrush* WhiteBox() { return FCoreStyle::Get().GetBrush("GenericWhiteBox"); }
 
 	void Fill(FSlateWindowElementList& Out, int32 Layer, const FGeometry& G, const TArray<FVector2f>& Poly, const FLinearColor& Color)
 	{
@@ -104,10 +80,10 @@ namespace
 		FSlateDrawElement::MakeLines(Out, Layer, G.ToPaintGeometry(), TArray<FVector2f>{A, B}, ESlateDrawEffect::None, Color, true, Thickness);
 	}
 
-	void Label(FSlateWindowElementList& Out, int32 Layer, const FGeometry& G, const FString& Text, FVector2f Center, const FSlateFontInfo& F, const FLinearColor& Color)
+	void Label(FSlateWindowElementList& Out, int32 Layer, const FGeometry& G, const FString& Str, FVector2f Center, const FSlateFontInfo& F, const FLinearColor& Color)
 	{
-		const FVector2f Size = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Text, F);
-		FSlateDrawElement::MakeText(Out, Layer, G.ToPaintGeometry(Size, FSlateLayoutTransform(Center - Size * 0.5f)), Text, F, ESlateDrawEffect::None, Color);
+		const FVector2f Size = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Str, F);
+		FSlateDrawElement::MakeText(Out, Layer, G.ToPaintGeometry(Size, FSlateLayoutTransform(Center - Size * 0.5f)), Str, F, ESlateDrawEffect::None, Color);
 	}
 
 	TArray<FVector2f> House(FVector2f V, float S)
@@ -120,31 +96,17 @@ namespace
 		return {Min, FVector2f(Max.X, Min.Y), Max, FVector2f(Min.X, Max.Y)};
 	}
 
-	TSharedRef<SWidget> Text(const FString& S, float Size = 11, const FLinearColor& Color = FLinearColor::White, bool bBold = false)
-	{
-		return SNew(STextBlock).Text(FText::FromString(S)).Font(Font(Size, bBold)).ColorAndOpacity(Color).AutoWrapText(true);
-	}
-
-	TSharedRef<SWidget> Button(const FString& Label, TFunction<FReply()> OnClick, bool bEnabled = true, bool bPrimary = false)
-	{
-		return SNew(SButton)
-			.IsEnabled(bEnabled)
-			.ContentPadding(FMargin(10, 5))
-			.ButtonColorAndOpacity(bPrimary ? Srgb(176, 52, 52) : Srgb(70, 74, 78))
-			.OnClicked_Lambda(MoveTemp(OnClick))
-			[
-				SNew(STextBlock).Text(FText::FromString(Label)).Font(Font(11, bPrimary)).ColorAndOpacity(FLinearColor::White)
-			];
-	}
-
-	TSharedRef<SWidget> Section(const FString& Title, TSharedRef<SWidget> Body)
-	{
-		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 4)[Text(Title.ToUpper(), 10, Muted, true)]
-			+ SVerticalBox::Slot().AutoHeight()[Body];
-	}
-
 	Resource NextResource(Resource R) { return static_cast<Resource>((static_cast<int>(R) + 1) % kResourceCount); }
+
+	PartialCounts Partial(const Counts& C)
+	{
+		PartialCounts P;
+		for (Resource R : kResources)
+			if (C[R] > 0) P.Set(R, C[R]);
+		return P;
+	}
+
+	bool IsAccept(const FKey& K) { return K == EKeys::Enter || K == EKeys::SpaceBar || K == EKeys::Gamepad_FaceButton_Bottom; }
 }
 
 // ================================================================== board
@@ -182,24 +144,27 @@ FVector2f SCatnightBoard::HexPos(const FLayout& L, int32 H) const
 	return L.Lattice(static_cast<float>(2 * A.q + A.r), static_cast<float>(3 * A.r));
 }
 
+FVector2f SCatnightBoard::TargetPos(const FLayout& L, int32 I) const
+{
+	const Topology& T = GetTopology();
+	switch (Targets->Kind)
+	{
+	case FBoardTargets::EKind::Vertex: return VertexPos(L, I);
+	case FBoardTargets::EKind::Edge: return (VertexPos(L, T.edgeVertices[I][0]) + VertexPos(L, T.edgeVertices[I][1])) * 0.5f;
+	case FBoardTargets::EKind::Hex: return HexPos(L, I);
+	default: return FVector2f::ZeroVector;
+	}
+}
+
 int32 SCatnightBoard::HitTarget(const FLayout& L, FVector2f Local) const
 {
 	if (!Targets || Targets->Kind == FBoardTargets::EKind::None) return INDEX_NONE;
-	const Topology& T = GetTopology();
+	const float Reach = (Targets->Kind == FBoardTargets::EKind::Vertex ? 0.32f : Targets->Kind == FBoardTargets::EKind::Edge ? 0.36f : 0.8f) * L.R;
 	int32 Best = INDEX_NONE;
 	float BestDist = TNumericLimits<float>::Max();
 	for (int32 I : Targets->Legal)
 	{
-		FVector2f P;
-		float Reach = 0.f;
-		switch (Targets->Kind)
-		{
-		case FBoardTargets::EKind::Vertex: P = VertexPos(L, I); Reach = 0.32f * L.R; break;
-		case FBoardTargets::EKind::Edge: P = (VertexPos(L, T.edgeVertices[I][0]) + VertexPos(L, T.edgeVertices[I][1])) * 0.5f; Reach = 0.36f * L.R; break;
-		case FBoardTargets::EKind::Hex: P = HexPos(L, I); Reach = 0.8f * L.R; break;
-		default: break;
-		}
-		const float D = FVector2f::Distance(P, Local);
+		const float D = FVector2f::Distance(TargetPos(L, I), Local);
 		if (D < Reach && D < BestDist)
 		{
 			BestDist = D;
@@ -207,6 +172,25 @@ int32 SCatnightBoard::HitTarget(const FLayout& L, FVector2f Local) const
 		}
 	}
 	return Best;
+}
+
+void SCatnightBoard::CycleFocus(int32 Step)
+{
+	if (!Targets || Targets->Legal.IsEmpty()) return;
+	// Reading order: top to bottom, then left to right (a unit layout is enough to sort).
+	FLayout Unit;
+	Unit.Center = FVector2f::ZeroVector;
+	Unit.R = 1.f;
+	TArray<int32> Order = Targets->Legal;
+	Order.Sort([&](int32 A, int32 B)
+	{
+		const FVector2f PA = TargetPos(Unit, A), PB = TargetPos(Unit, B);
+		return FMath::Abs(PA.Y - PB.Y) > 0.1f ? PA.Y < PB.Y : PA.X < PB.X;
+	});
+	const int32 At = Order.Find(Targets->Focus);
+	const int32 Next = At == INDEX_NONE ? (Step > 0 ? 0 : Order.Num() - 1) : (At + Step + Order.Num()) % Order.Num();
+	Targets->Focus = Order[Next];
+	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
 int32 SCatnightBoard::OnPaint(const FPaintArgs& Args, const FGeometry& G, const FSlateRect& MyCullingRect,
@@ -310,13 +294,13 @@ int32 SCatnightBoard::OnPaint(const FPaintArgs& Args, const FGeometry& G, const 
 		Outline(Out, LayerId + 11, G, Circle(P + FVector2f(0, 0.06f * R), 0.17f * R), Srgb(200, 200, 200), 1.5f);
 	}
 
-	// Legal targets and the one under the mouse.
+	// Legal targets; the one under the mouse or chosen with keys stands out.
 	if (Targets && Targets->Kind != FBoardTargets::EKind::None)
 	{
 		const int32 Hover = HitTarget(L, Mouse);
 		for (int32 I : Targets->Legal)
 		{
-			const bool bHover = I == Hover;
+			const bool bHover = I == Hover || I == Targets->Focus;
 			const FLinearColor Glow(1.f, 1.f, 1.f, bHover ? 0.95f : 0.45f);
 			switch (Targets->Kind)
 			{
@@ -336,6 +320,10 @@ int32 SCatnightBoard::OnPaint(const FPaintArgs& Args, const FGeometry& G, const 
 				break;
 			default: break;
 			}
+		}
+		if (Targets->Focus != INDEX_NONE && Targets->Legal.Contains(Targets->Focus))
+		{
+			Outline(Out, LayerId + 13, G, Circle(TargetPos(L, Targets->Focus), 0.3f * R, 28), Srgb(255, 214, 90), 3.f);
 		}
 	}
 	return LayerId + 14;
@@ -363,40 +351,72 @@ void SCatnightBoard::OnMouseLeave(const FPointerEvent& MouseEvent)
 	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
+FReply SCatnightBoard::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (!Targets || Targets->Kind == FBoardTargets::EKind::None) return FReply::Unhandled();
+	const FKey K = InKeyEvent.GetKey();
+	if (K == EKeys::Left || K == EKeys::Gamepad_DPad_Left || K == EKeys::Gamepad_LeftShoulder)
+	{
+		CycleFocus(-1);
+		return FReply::Handled();
+	}
+	if (K == EKeys::Right || K == EKeys::Gamepad_DPad_Right || K == EKeys::Gamepad_RightShoulder)
+	{
+		CycleFocus(1);
+		return FReply::Handled();
+	}
+	if (IsAccept(K) && Targets->Legal.Contains(Targets->Focus))
+	{
+		OnPick.ExecuteIfBound(Targets->Kind, Targets->Focus);
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 // ================================================================== table
 
 void STable::Construct(const FArguments& InArgs)
 {
 	Match = InArgs._Match;
+	OnMainMenu = InArgs._OnMainMenu;
+	OnNewGame = InArgs._OnNewGame;
 	Targets = MakeShared<FBoardTargets>();
 	ChangedHandle = Match->OnChanged.AddLambda([this] { bDirty = true; });
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(WhiteBox())
-		.BorderBackgroundColor(PanelBg)
-		.Padding(0)
+		SNew(SOverlay)
+		+ SOverlay::Slot()
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().FillWidth(1.f)
+			SNew(SBorder)
+			.BorderImage(WhiteBox())
+			.BorderBackgroundColor(PanelBg)
+			.Padding(0)
 			[
-				SAssignNew(Board, SCatnightBoard)
-				.Match(Match)
-				.Targets(Targets)
-				.OnPick(FOnBoardPick::CreateSP(this, &STable::OnPick))
-			]
-			+ SHorizontalBox::Slot().AutoWidth()
-			[
-				SNew(SBox)
-				.WidthOverride(400.f)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
-					SNew(SScrollBox)
-					+ SScrollBox::Slot().Padding(16, 12)
+					SAssignNew(Board, SCatnightBoard)
+					.Match(Match)
+					.Targets(Targets)
+					.OnPick(FOnBoardPick::CreateSP(this, &STable::OnPick))
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(420.f)
 					[
-						SAssignNew(PanelSlot, SBox)
+						SNew(SScrollBox)
+						+ SScrollBox::Slot().Padding(16, 12)
+						[
+							SAssignNew(PanelSlot, SBox)
+						]
 					]
 				]
 			]
+		]
+		+ SOverlay::Slot()
+		[
+			SAssignNew(OverlaySlot, SBox)
 		]
 	];
 	Refresh();
@@ -417,20 +437,50 @@ void STable::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
 	}
 }
 
+TSharedPtr<SWidget> STable::FirstFocus() const
+{
+	if (Primary) return Primary;
+	if (Targets->Kind != FBoardTargets::EKind::None) return Board;
+	return ConstCastSharedRef<STable>(SharedThis(this));
+}
+
 void STable::Refresh()
 {
+	const bool bBoardFocus = Board && Board->HasKeyboardFocus();
+	const bool bHadFocus = HasKeyboardFocus() || (PanelSlot && PanelSlot->HasFocusedDescendants()) || (OverlaySlot && OverlaySlot->HasFocusedDescendants());
 	UpdateTargets();
+	Primary.Reset();
 	if (PanelSlot) PanelSlot->SetContent(BuildPanel());
+	bool bOverlay = false;
+	if (OverlaySlot)
+	{
+		const TSharedPtr<SWidget> PanelPrimary = Primary;
+		Primary.Reset();
+		TSharedRef<SWidget> Over = BuildOverlay();
+		bOverlay = Over != SNullWidget::NullWidget;
+		if (!bOverlay) Primary = PanelPrimary;
+		OverlaySlot->SetContent(Over);
+		OverlaySlot->SetVisibility(bOverlay ? EVisibility::Visible : EVisibility::SelfHitTestInvisible);
+	}
 	if (Board) Board->Invalidate(EInvalidateWidgetReason::Paint);
+	// Keys and gamepads: the focused button was rebuilt, so hand focus to the new main one.
+	const bool bKeepBoard = bBoardFocus && Targets->Kind != FBoardTargets::EKind::None && !bOverlay;
+	if ((bHadFocus || bBoardFocus) && !bKeepBoard && FSlateApplication::IsInitialized())
+	{
+		if (TSharedPtr<SWidget> F = FirstFocus()) FSlateApplication::Get().SetAllUserFocus(F, EFocusCause::Navigation);
+	}
 }
 
 void STable::UpdateTargets()
 {
+	const int32 OldFocus = Targets->Focus;
+	const FBoardTargets::EKind OldKind = Targets->Kind;
 	Targets->Kind = FBoardTargets::EKind::None;
 	Targets->Legal.Reset();
-	if (!Match->HasGame() || !Match->IsHumanToAct() || Match->State().handoff) return;
+	Targets->Focus = INDEX_NONE;
+	if (!Match->HasGame() || !Match->IsHumanToAct() || Match->State().handoff || bLeaving) return;
 	const GameState& S = Match->State();
-	const int32 Me = Match->HumanSeat();
+	const int32 P = Me();
 	auto Set = [&](FBoardTargets::EKind Kind, const std::vector<int>& List)
 	{
 		Targets->Kind = Kind;
@@ -439,8 +489,8 @@ void STable::UpdateTargets()
 	switch (S.phase.kind)
 	{
 	case PhaseKind::Setup:
-		if (S.phase.stepCauseway) Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, Me));
-		else Set(FBoardTargets::EKind::Vertex, LegalOutpostSpots(S, Me));
+		if (S.phase.stepCauseway) Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, P));
+		else Set(FBoardTargets::EKind::Vertex, LegalOutpostSpots(S, P));
 		break;
 	case PhaseKind::MoveWraith:
 	{
@@ -451,30 +501,30 @@ void STable::UpdateTargets()
 		break;
 	}
 	case PhaseKind::Decree:
-		Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, Me));
+		Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, P));
 		break;
 	case PhaseKind::Main:
 	{
-		const PlayerState& P = S.players[Me];
-		if (Build == EBuild::Road && CanAfford(P.hand, CostKey::Causeway) && P.supply.causeways > 0)
-			Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, Me));
-		if (Build == EBuild::Settlement && CanAfford(P.hand, CostKey::Outpost) && P.supply.outposts > 0)
-			Set(FBoardTargets::EKind::Vertex, LegalOutpostSpots(S, Me));
-		if (Build == EBuild::City && CanAfford(P.hand, CostKey::Citadel) && P.supply.citadels > 0)
-			Set(FBoardTargets::EKind::Vertex, LegalCitadelSpots(S, Me));
+		const PlayerState& Pl = S.players[P];
+		if (Build == EBuild::Road && CanAfford(Pl.hand, CostKey::Causeway) && Pl.supply.causeways > 0)
+			Set(FBoardTargets::EKind::Edge, LegalCausewaySpots(S, P));
+		if (Build == EBuild::Settlement && CanAfford(Pl.hand, CostKey::Outpost) && Pl.supply.outposts > 0)
+			Set(FBoardTargets::EKind::Vertex, LegalOutpostSpots(S, P));
+		if (Build == EBuild::City && CanAfford(Pl.hand, CostKey::Citadel) && Pl.supply.citadels > 0)
+			Set(FBoardTargets::EKind::Vertex, LegalCitadelSpots(S, P));
 		break;
 	}
 	default: break;
 	}
+	if (Targets->Kind == OldKind && Targets->Legal.Contains(OldFocus)) Targets->Focus = OldFocus;
 }
 
 void STable::OnPick(FBoardTargets::EKind Kind, int32 Index)
 {
 	const GameState& S = Match->State();
 	const Topology& T = GetTopology();
-	const int32 Me = Match->HumanSeat();
 	Action A;
-	A.player = Me;
+	A.player = Me();
 	switch (S.phase.kind)
 	{
 	case PhaseKind::Setup:
@@ -505,21 +555,69 @@ FReply STable::Do(const Action& A)
 	return FReply::Handled();
 }
 
+FReply STable::Redraw()
+{
+	bDirty = true;
+	return FReply::Handled();
+}
+
+FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey K = InKeyEvent.GetKey();
+	if (!Match->HasGame()) return FReply::Unhandled();
+	if (K == EKeys::Escape || K == EKeys::Gamepad_Special_Right)
+	{
+		if (Build != EBuild::None || bChoosingPlenty || bChoosingMonopoly || bCountering)
+		{
+			Build = EBuild::None;
+			bChoosingPlenty = bChoosingMonopoly = bCountering = false;
+		}
+		else
+		{
+			bLeaving = !bLeaving;
+		}
+		return Redraw();
+	}
+	if (K == EKeys::Z && InKeyEvent.IsControlDown())
+	{
+		Match->Undo();
+		return Redraw();
+	}
+	// Shoulders reach the board from anywhere when there is something to place.
+	const bool bNext = K == EKeys::Gamepad_RightShoulder || K == EKeys::Right;
+	const bool bPrev = K == EKeys::Gamepad_LeftShoulder || K == EKeys::Left;
+	if ((bNext || bPrev) && Targets->Kind != FBoardTargets::EKind::None && Board)
+	{
+		Board->CycleFocus(bNext ? 1 : -1);
+		return FReply::Handled().SetUserFocus(Board.ToSharedRef(), EFocusCause::Navigation);
+	}
+	// Space rolls or ends the turn, as on the web board.
+	if (K == EKeys::SpaceBar && Match->IsHumanToAct() && !Match->NeedsHandoff() && !bLeaving)
+	{
+		const GameState& S = Match->State();
+		if (S.phase.kind == PhaseKind::Roll && S.currentPlayer == Me()) return Do(Action::Make(ActionType::RollDice, Me()));
+		if (S.phase.kind == PhaseKind::Main && S.currentPlayer == Me() && Build == EBuild::None) return Do(Action::Make(ActionType::EndTurn, Me()));
+	}
+	return FReply::Unhandled();
+}
+
 FString STable::Instruction() const
 {
 	const GameState& S = Match->State();
 	if (Match->IsEnded()) return FString::Printf(TEXT("%s wins!"), *CatnightText::Player(S, *S.winner));
+	if (Match->NeedsHandoff()) return FString::Printf(TEXT("Pass the device to %s."), *CatnightText::Player(S, Match->Actor()));
+	if (S.phase.kind == PhaseKind::Trade && S.phase.offer.proposer == Me() && !Match->IsHumanToAct()) return TEXT("Waiting for answers to your offer.");
 	if (!Match->IsHumanToAct()) return FString::Printf(TEXT("%s is playing..."), *CatnightText::Player(S, Match->Actor()));
 	switch (S.phase.kind)
 	{
 	case PhaseKind::Setup: return S.phase.stepCauseway ? TEXT("Place a road next to your new settlement.") : TEXT("Place a settlement on a free corner.");
-	case PhaseKind::Roll: return TEXT("Roll the dice.");
-	case PhaseKind::Discard: return FString::Printf(TEXT("A 7: discard %d cards."), S.phase.pending[Match->HumanSeat()]);
-	case PhaseKind::MoveWraith: return TEXT("Move the robber: click a hex.");
+	case PhaseKind::Roll: return TEXT("Roll the dice (Space).");
+	case PhaseKind::Discard: return FString::Printf(TEXT("A 7: discard %d cards."), S.phase.pending[Me()]);
+	case PhaseKind::MoveWraith: return TEXT("Move the robber: pick a hex.");
 	case PhaseKind::Steal: return TEXT("Choose whom to rob.");
 	case PhaseKind::Decree: return FString::Printf(TEXT("Place a free road (%d left)."), S.phase.remaining);
 	case PhaseKind::Trade: return TEXT("You have an offer.");
-	case PhaseKind::Main: return Build == EBuild::None ? TEXT("Build, trade, or end your turn.") : TEXT("Click a highlighted spot to build.");
+	case PhaseKind::Main: return Build == EBuild::None ? TEXT("Build, trade, or end your turn (Space).") : TEXT("Pick a highlighted spot to build (Esc cancels).");
 	default: return FString();
 	}
 }
@@ -530,24 +628,154 @@ TSharedRef<SWidget> STable::BuildPanel()
 	const GameState& S = Match->State();
 	const FString Round = S.round ? FString::Printf(TEXT("Round %d"), S.round) : FString(TEXT("Founding"));
 	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight()[Text(TEXT("Catnight"), 22, Ivory, true)]
-		+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 0)[Text(FString::Printf(TEXT("%s  ·  first to %d points"), *Round, S.config.targetVp), 10, Muted)]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Text(TEXT("Catnight"), 22, Ivory, true)]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)
+			[
+				Button(TEXT("Undo"), [this] { Match->Undo(); return Redraw(); }, Match->CanUndo())
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				Button(TEXT("Menu"), [this] { bLeaving = true; return Redraw(); })
+			]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 0)
+		[
+			Text(FString::Printf(TEXT("%s  ·  first to %d points  ·  %s layout"), *Round, S.config.targetVp, *CatnightText::Layout(S.config.layout)), 10, Muted)
+		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)
 		[
-			SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(Srgb(48, 44, 36)).Padding(10)
-			[
-				Text(Instruction(), 13, Ivory, true)
-			]
+			Plate(Srgb(48, 44, 36), Text(Instruction(), 13, Ivory, true))
 		];
+	if (Targets->Kind != FBoardTargets::EKind::None)
+	{
+		Box->AddSlot().AutoHeight().Padding(0, 4, 0, 0)[Text(TEXT("Click a highlighted spot, or choose one with the arrow keys or shoulder buttons and press Enter or A."), 9, Muted)];
+	}
 	if (!Match->LastError.IsEmpty())
 	{
-		Box->AddSlot().AutoHeight().Padding(0, 6, 0, 0)[Text(Match->LastError, 11, Srgb(240, 120, 110))];
+		Box->AddSlot().AutoHeight().Padding(0, 6, 0, 0)[Text(Match->LastError, 11, Danger)];
 	}
-	Box->AddSlot().AutoHeight()[ActionsBox()];
-	Box->AddSlot().AutoHeight()[HandBox()];
+	if (!Match->NeedsHandoff())
+	{
+		Box->AddSlot().AutoHeight()[ActionsBox()];
+		Box->AddSlot().AutoHeight()[HandBox()];
+	}
 	Box->AddSlot().AutoHeight()[PlayersBox()];
 	Box->AddSlot().AutoHeight()[LogBox()];
 	return Box;
+}
+
+TSharedRef<SWidget> STable::BuildOverlay()
+{
+	if (!Match->HasGame()) return SNullWidget::NullWidget;
+	const GameState& S = Match->State();
+
+	if (bLeaving)
+	{
+		const bool bEnded = Match->IsEnded();
+		TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Text(TEXT("Leave this game?"), 20, Ivory, true)]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 14)
+			[
+				Text(bEnded ? TEXT("The game is over.") : TEXT("It is saved: Continue on the title screen brings it back."), 11, Muted)
+			];
+		auto Add = [&](TSharedRef<SWidget> W) { Box->AddSlot().AutoHeight().Padding(0, 4)[W]; };
+		Add(Button(TEXT("Main menu"), [this] { bLeaving = false; OnMainMenu.ExecuteIfBound(); return FReply::Handled(); }, true, true, &Primary));
+		Add(Button(TEXT("New game..."), [this] { bLeaving = false; OnNewGame.ExecuteIfBound(); return FReply::Handled(); }));
+		Add(Button(TEXT("Restart with the same seed"), [this]
+		{
+			bLeaving = false;
+			bVictorySeen = false;
+			Match->Start(Match->Setup());
+			return Redraw();
+		}));
+		Add(Button(TEXT("Cancel"), [this] { bLeaving = false; return Redraw(); }));
+		return Dialog(Box, 0.7f, 420.f);
+	}
+
+	if (Match->NeedsHandoff())
+	{
+		const int32 Next = Match->Actor();
+		const PlayerState& P = S.players[Next];
+		const FString Name = UTF8_TO_TCHAR(P.name.c_str());
+		TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				SNew(SBox).WidthOverride(56).HeightOverride(56)[SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(PlayerTint(P.color))]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 4).HAlign(HAlign_Center)[Text(FString::Printf(TEXT("Pass the device to %s"), *Name), 22, Ivory, true)]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 18).HAlign(HAlign_Center)[Text(CatnightText::HandoffReason(S, Next), 12, Muted)]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				Button(FString::Printf(TEXT("I am %s: show my hand"), *Name), [this, Next] { return Do(Action::Make(ActionType::AckPassDevice, Next)); }, true, true, &Primary)
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0).HAlign(HAlign_Center)
+			[
+				Button(TEXT("Menu"), [this] { bLeaving = true; return Redraw(); })
+			];
+		// Opaque: the previous player's hand must not show through.
+		return Dialog(Box, 1.f, 520.f);
+	}
+
+	if (Match->IsEnded() && !bVictorySeen)
+	{
+		const int32 Winner = *S.winner;
+		TSharedRef<SVerticalBox> Rows = SNew(SVerticalBox);
+		for (const PlayerState& P : S.players)
+		{
+			const VpBreakdown B = VpBreakdownOf(S, P.id);
+			TArray<FString> Parts;
+			auto Count = [](int32 N, const TCHAR* One, const TCHAR* Many) { return FString::Printf(TEXT("%d %s"), N, N == 1 ? One : Many); };
+			if (B.outposts) Parts.Add(Count(B.outposts, TEXT("settlement"), TEXT("settlements")));
+			if (B.citadels) Parts.Add(Count(B.citadels, TEXT("city"), TEXT("cities")));
+			if (B.longest) Parts.Add(TEXT("Longest Road"));
+			if (B.host) Parts.Add(TEXT("Largest Army"));
+			if (B.relics) Parts.Add(Count(B.relics, TEXT("point card"), TEXT("point cards")));
+			Rows->AddSlot().AutoHeight().Padding(0, 3)
+			[
+				Plate(P.id == Winner ? Srgb(70, 58, 30) : Srgb(46, 44, 40),
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)
+					[
+						SNew(SBox).WidthOverride(14).HeightOverride(14)[SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(PlayerTint(P.color))]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()[Text(UTF8_TO_TCHAR(P.name.c_str()), 12, Ivory, P.id == Winner)]
+						+ SVerticalBox::Slot().AutoHeight()[Text(FString::Join(Parts, TEXT(" · ")), 9, Muted)]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Text(FString::FromInt(B.total), 18, Ivory, true)],
+					8.f)
+			];
+		}
+		TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[Text(FString::Printf(TEXT("%s wins!"), *CatnightText::Player(S, Winner)), 26, Ivory, true)]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 12)
+			[
+				Text(FString::Printf(TEXT("Round %d · %d actions"), S.round, Match->ActionCount()), 11, Muted)
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Section(TEXT("Final reckoning"), Rows)]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 16, 0, 0)
+			[
+				SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))
+				+ SWrapBox::Slot()[Button(TEXT("Play again"), [this]
+				{
+					FCatnightMatchSetup Again = Match->Setup();
+					Again.Seed = FString::Printf(TEXT("table-%d"), FMath::Rand());
+					bVictorySeen = false;
+					Match->Start(Again);
+					return Redraw();
+				}, true, true, &Primary)]
+				+ SWrapBox::Slot()[Button(TEXT("New game..."), [this] { OnNewGame.ExecuteIfBound(); return FReply::Handled(); })]
+				+ SWrapBox::Slot()[Button(TEXT("Main menu"), [this] { OnMainMenu.ExecuteIfBound(); return FReply::Handled(); })]
+				+ SWrapBox::Slot()[Button(TEXT("See the board"), [this] { bVictorySeen = true; return Redraw(); })]
+			];
+		return Dialog(Box, 0.6f, 560.f);
+	}
+	return SNullWidget::NullWidget;
 }
 
 TSharedRef<SWidget> STable::PlayersBox()
@@ -556,8 +784,8 @@ TSharedRef<SWidget> STable::PlayersBox()
 	TSharedRef<SVerticalBox> List = SNew(SVerticalBox);
 	for (const PlayerState& P : S.players)
 	{
-		const bool bMe = P.id == Match->HumanSeat();
-		const int32 Vp = VictoryPoints(S, P.id, bMe);
+		const bool bMine = P.id == Me() && !Match->NeedsHandoff();
+		const int32 Vp = VictoryPoints(S, P.id, bMine || Match->IsEnded());
 		FString Who = UTF8_TO_TCHAR(P.name.c_str());
 		if (P.bot) Who += FString::Printf(TEXT(" (%s bot)"), *CatnightText::BotLevel(*P.bot));
 		TArray<FString> Badges;
@@ -569,15 +797,11 @@ TSharedRef<SWidget> STable::PlayersBox()
 		const bool bTurn = P.id == S.currentPlayer && !Match->IsEnded();
 		List->AddSlot().AutoHeight().Padding(0, 3)
 		[
-			SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(bTurn ? Srgb(58, 54, 44) : Srgb(34, 36, 38)).Padding(8)
-			[
+			Plate(bTurn ? Srgb(58, 54, 44) : Srgb(34, 36, 38),
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)
 				[
-					SNew(SBox).WidthOverride(14).HeightOverride(14)
-					[
-						SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(PlayerTint(P.color))
-					]
+					SNew(SBox).WidthOverride(14).HeightOverride(14)[SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(PlayerTint(P.color))]
 				]
 				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
@@ -585,11 +809,8 @@ TSharedRef<SWidget> STable::PlayersBox()
 					+ SVerticalBox::Slot().AutoHeight()[Text(Who, 12, FLinearColor::White, bTurn)]
 					+ SVerticalBox::Slot().AutoHeight()[Text(Stats, 9, Muted)]
 				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-				[
-					Text(FString::Printf(TEXT("%d"), Vp), 18, Ivory, true)
-				]
-			]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Text(FString::Printf(TEXT("%d"), Vp), 18, Ivory, true)],
+				8.f)
 		];
 	}
 	return Section(TEXT("Players"), List);
@@ -598,27 +819,21 @@ TSharedRef<SWidget> STable::PlayersBox()
 TSharedRef<SWidget> STable::HandBox()
 {
 	const GameState& S = Match->State();
-	const PlayerState& Me = S.players[Match->HumanSeat()];
+	const PlayerState& Mine = S.players[Me()];
 	TSharedRef<SWrapBox> Cards = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
 	for (Resource R : kResources)
 	{
-		Cards->AddSlot()
-		[
-			SNew(SBorder).BorderImage(WhiteBox()).BorderBackgroundColor(Srgb(52, 50, 46)).Padding(FMargin(10, 6))
-			[
-				Text(FString::Printf(TEXT("%s  %d"), *CatnightText::Resource(R), Me.hand[R]), 12, Ivory, Me.hand[R] > 0)
-			]
-		];
+		Cards->AddSlot()[Plate(Srgb(52, 50, 46), Text(FString::Printf(TEXT("%s  %d"), *CatnightText::Resource(R), Mine.hand[R]), 12, Ivory, Mine.hand[R] > 0), 6.f)];
 	}
 	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight()[Cards];
 
 	// Development cards, with Play where allowed now.
-	const bool bMyTurn = Match->IsHumanToAct() && S.currentPlayer == Match->HumanSeat() &&
+	const bool bMyTurn = Match->IsHumanToAct() && S.currentPlayer == Me() &&
 		(S.phase.kind == PhaseKind::Roll || S.phase.kind == PhaseKind::Main) && !S.omenPlayedThisTurn;
 	for (OmenType O : kOmenTypes)
 	{
 		int32 Count = 0, Ready = 0;
-		for (const OwnedOmen& Own : Me.omens)
+		for (const OwnedOmen& Own : Mine.omens)
 		{
 			if (Own.type != O) continue;
 			Count++;
@@ -626,16 +841,15 @@ TSharedRef<SWidget> STable::HandBox()
 		}
 		if (!Count) continue;
 		const bool bPlayable = bMyTurn && Ready > 0 && O != OmenType::Relic && O != OmenType::Manup &&
-			(O != OmenType::Decree || (Me.supply.causeways > 0 && !LegalCausewaySpots(S, Me.id).empty()));
+			(O != OmenType::Decree || (Mine.supply.causeways > 0 && !LegalCausewaySpots(S, Mine.id).empty()));
 		TFunction<FReply()> Play = [this, O]() -> FReply
 		{
-			const int32 P = Match->HumanSeat();
 			switch (O)
 			{
-			case OmenType::Warden: return Do(Action::Make(ActionType::PlayWarden, P));
-			case OmenType::Decree: return Do(Action::Make(ActionType::PlayDecree, P));
-			case OmenType::Harvest: bChoosingPlenty = true; PlentyPick.Reset(); bDirty = true; return FReply::Handled();
-			case OmenType::Tithe: bChoosingMonopoly = true; bDirty = true; return FReply::Handled();
+			case OmenType::Warden: return Do(Action::Make(ActionType::PlayWarden, Me()));
+			case OmenType::Decree: return Do(Action::Make(ActionType::PlayDecree, Me()));
+			case OmenType::Harvest: bChoosingPlenty = true; PlentyPick.Reset(); return Redraw();
+			case OmenType::Tithe: bChoosingMonopoly = true; return Redraw();
 			default: return FReply::Handled();
 			}
 		};
@@ -651,33 +865,97 @@ TSharedRef<SWidget> STable::HandBox()
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[O == OmenType::Relic ? Text(TEXT("")) : Button(TEXT("Play"), Play, bPlayable)]
 		];
 	}
-	return Section(TEXT("Your hand"), Box);
+	const FString Title = Match->HumanCount() > 1 ? FString::Printf(TEXT("%s's hand"), UTF8_TO_TCHAR(Mine.name.c_str())) : FString(TEXT("Your hand"));
+	return Section(Title, Box);
+}
+
+TSharedRef<SWidget> STable::TermsEditor(Counts& Give, Counts& Want, const Counts& Hand)
+{
+	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f)[Text(TEXT(""), 9)]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[SNew(SBox).WidthOverride(96).HAlign(HAlign_Center)[Text(TEXT("Give"), 9, Muted, true)]]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[SNew(SBox).WidthOverride(96).HAlign(HAlign_Center)[Text(TEXT("Want"), 9, Muted, true)]]
+		];
+	for (Resource R : kResources)
+	{
+		Give[R] = FMath::Clamp(Give[R], 0, Hand[R]);
+		Box->AddSlot().AutoHeight().Padding(0, 2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Text(FString::Printf(TEXT("%s (%d)"), *CatnightText::Resource(R), Hand[R]), 11, Ivory)]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[Stepper(Give[R], [this, &Give, &Want, R](int32 V) { Give[R] = V; if (V > 0) Want[R] = 0; bDirty = true; }, 0, Hand[R])]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[Stepper(Want[R], [this, &Give, &Want, R](int32 V) { Want[R] = V; if (V > 0) Give[R] = 0; bDirty = true; }, 0, 9)]
+		];
+	}
+	return Box;
+}
+
+TSharedRef<SWidget> STable::TradeBox()
+{
+	const GameState& S = Match->State();
+	const int32 P = Me();
+	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox);
+	Box->AddSlot().AutoHeight()[TermsEditor(OfferGive, OfferWant, S.players[P].hand)];
+
+	TSharedRef<SWrapBox> To = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
+	To->AddSlot().VAlign(VAlign_Center)[Text(TEXT("To:"), 11, Muted)];
+	To->AddSlot()[Button(TEXT("Everyone"), [this] { OfferTo.Reset(); return Redraw(); }, true, OfferTo.IsEmpty())];
+	for (const PlayerState& Other : S.players)
+	{
+		if (Other.id == P) continue;
+		const int32 Id = Other.id;
+		To->AddSlot()[Button(FString::Printf(TEXT("%s (%d)"), UTF8_TO_TCHAR(Other.name.c_str()), HandTotal(Other)), [this, Id, P]
+		{
+			if (OfferTo.Contains(Id)) OfferTo.Remove(Id);
+			else OfferTo.Add(Id);
+			if (OfferTo.Num() == static_cast<int32>(Match->State().players.size()) - 1) OfferTo.Reset();
+			return Redraw();
+		}, true, OfferTo.Contains(Id))];
+	}
+	Box->AddSlot().AutoHeight().Padding(0, 6, 0, 0)[To];
+	Box->AddSlot().AutoHeight().Padding(0, 6, 0, 0)
+	[
+		Button(TEXT("Make the offer"), [this, P]
+		{
+			Action A = Action::Make(ActionType::ProposeTrade, P);
+			A.give = Partial(OfferGive);
+			A.want = Partial(OfferWant);
+			if (!OfferTo.IsEmpty())
+			{
+				TArray<int32> Sorted = OfferTo.Array();
+				Sorted.Sort();
+				A.to = std::vector<int>(Sorted.GetData(), Sorted.GetData() + Sorted.Num());
+			}
+			OfferGive = Counts{};
+			OfferWant = Counts{};
+			return Do(A);
+		}, OfferGive.Total() > 0 && OfferWant.Total() > 0)
+	];
+	return Section(TEXT("Offer the players"), Box);
 }
 
 TSharedRef<SWidget> STable::ActionsBox()
 {
 	const GameState& S = Match->State();
-	const int32 MeId = Match->HumanSeat();
-	const PlayerState& Me = S.players[MeId];
+	const int32 MeId = Me();
+	const PlayerState& Mine = S.players[MeId];
 	TSharedRef<SVerticalBox> Box = SNew(SVerticalBox);
 	auto Row = [&](TSharedRef<SWidget> W) { Box->AddSlot().AutoHeight().Padding(0, 6, 0, 0)[W]; };
 
 	if (Match->IsEnded())
 	{
-		Row(Button(TEXT("New game"), [this]
-		{
-			FCatnightMatchSetup Setup;
-			Setup.Seed = FString::Printf(TEXT("table-%d"), FMath::Rand());
-			Match->Start(Setup);
-			return FReply::Handled();
-		}, true, true));
+		Row(Button(TEXT("Results"), [this] { bVictorySeen = false; return Redraw(); }, true, true, &Primary));
+		Row(Button(TEXT("New game..."), [this] { OnNewGame.ExecuteIfBound(); return FReply::Handled(); }));
 		return Box;
 	}
 	// My own open offer: others are answering, I can withdraw it.
 	if (S.phase.kind == PhaseKind::Trade && S.currentPlayer == MeId && S.phase.offer.proposer == MeId && !Match->IsHumanToAct())
 	{
-		Row(Text(TEXT("Waiting for answers to your offer."), 11, Muted));
-		Row(Button(TEXT("Withdraw offer"), [this, MeId] { return Do(Action::Make(ActionType::CancelTrade, MeId)); }));
+		Row(Text(FString::Printf(TEXT("You offer %s for %s."), *CatnightText::Counts(S.phase.offer.give), *CatnightText::Counts(S.phase.offer.want)), 11, Ivory));
+		Row(Button(TEXT("Withdraw offer"), [this, MeId] { return Do(Action::Make(ActionType::CancelTrade, MeId)); }, true, false, &Primary));
 		return Box;
 	}
 	if (!Match->IsHumanToAct()) return Box;
@@ -692,9 +970,8 @@ TSharedRef<SWidget> STable::ActionsBox()
 			Picks->AddSlot()[Button(CatnightText::Resource(R), [this, R, Need]
 			{
 				if (PlentyPick.Num() < Need) PlentyPick.Add(R);
-				bDirty = true;
-				return FReply::Handled();
-			}, S.bank[R] > 0 && PlentyPick.Num() < Need)];
+				return Redraw();
+			}, S.bank[R] > 0 && PlentyPick.Num() < Need, false, PlentyPick.IsEmpty() && !Primary ? &Primary : nullptr)];
 		}
 		Row(Picks);
 		Row(SNew(SHorizontalBox)
@@ -704,8 +981,8 @@ TSharedRef<SWidget> STable::ActionsBox()
 				for (Resource R : PlentyPick) A.resources.push_back(R);
 				bChoosingPlenty = false;
 				return Do(A);
-			}, PlentyPick.Num() == Need, true)]
-			+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Cancel"), [this] { bChoosingPlenty = false; bDirty = true; return FReply::Handled(); })]);
+			}, PlentyPick.Num() == Need, true, PlentyPick.Num() == Need ? &Primary : nullptr)]
+			+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Cancel"), [this] { bChoosingPlenty = false; return Redraw(); })]);
 		return Box;
 	}
 	if (bChoosingMonopoly)
@@ -720,36 +997,36 @@ TSharedRef<SWidget> STable::ActionsBox()
 				Action A = Action::Make(ActionType::PlayBloodTithe, MeId);
 				A.resource = R;
 				return Do(A);
-			})];
+			}, true, false, Primary ? nullptr : &Primary)];
 		}
 		Row(Picks);
-		Row(Button(TEXT("Cancel"), [this] { bChoosingMonopoly = false; bDirty = true; return FReply::Handled(); }));
+		Row(Button(TEXT("Cancel"), [this] { bChoosingMonopoly = false; return Redraw(); }));
 		return Box;
 	}
 
 	switch (S.phase.kind)
 	{
 	case PhaseKind::Roll:
-		Row(Button(TEXT("Roll the dice"), [this, MeId] { return Do(Action::Make(ActionType::RollDice, MeId)); }, true, true));
+		Row(Button(TEXT("Roll the dice"), [this, MeId] { return Do(Action::Make(ActionType::RollDice, MeId)); }, true, true, &Primary));
 		break;
 	case PhaseKind::Discard:
 	{
 		const int32 Owed = S.phase.pending[MeId];
 		for (Resource R : kResources)
 		{
-			DiscardPick[R] = FMath::Clamp(DiscardPick[R], 0, Me.hand[R]);
+			DiscardPick[R] = FMath::Clamp(DiscardPick[R], 0, Mine.hand[R]);
 			Row(SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Text(FString::Printf(TEXT("%s: discard %d of %d"), *CatnightText::Resource(R), DiscardPick[R], Me.hand[R]), 11, Ivory)]
-				+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[Button(TEXT("-"), [this, R] { DiscardPick[R]--; bDirty = true; return FReply::Handled(); }, DiscardPick[R] > 0)]
-				+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("+"), [this, R] { DiscardPick[R]++; bDirty = true; return FReply::Handled(); }, DiscardPick[R] < Me.hand[R] && DiscardPick.Total() < Owed)]);
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Text(FString::Printf(TEXT("%s (%d)"), *CatnightText::Resource(R), Mine.hand[R]), 11, Ivory)]
+				+ SHorizontalBox::Slot().AutoWidth()[Stepper(DiscardPick[R], [this, R](int32 V) { DiscardPick[R] = V; bDirty = true; }, 0,
+					FMath::Min(Mine.hand[R], DiscardPick[R] + Owed - DiscardPick.Total()))]);
 		}
-		Row(Button(FString::Printf(TEXT("Discard %d cards"), Owed), [this, MeId]
+		Row(Button(FString::Printf(TEXT("Discard %d cards (%d chosen)"), Owed, DiscardPick.Total()), [this, MeId]
 		{
 			Action A = Action::Make(ActionType::Discard, MeId);
 			A.cards = PartialCounts::From(DiscardPick);
 			DiscardPick = Counts{};
 			return Do(A);
-		}, DiscardPick.Total() == Owed, true));
+		}, DiscardPick.Total() == Owed, true, &Primary));
 		break;
 	}
 	case PhaseKind::Steal:
@@ -760,27 +1037,52 @@ TSharedRef<SWidget> STable::ActionsBox()
 				Action A = Action::Make(ActionType::StealFrom, MeId);
 				A.victim = Victim;
 				return Do(A);
-			}, true, true));
+			}, true, true, Primary ? nullptr : &Primary));
 		}
 		break;
 	case PhaseKind::Trade:
 	{
 		const TradeOffer& O = S.phase.offer;
 		Row(Text(FString::Printf(TEXT("%s gives %s and wants %s."), *CatnightText::Player(S, O.proposer), *CatnightText::Counts(O.give), *CatnightText::Counts(O.want)), 12, Ivory));
-		const bool bCan = HasAtLeast(Me.hand, O.want) && HasAtLeast(S.players[O.proposer].hand, O.give);
+		if (bCountering)
+		{
+			Row(TermsEditor(CounterGive, CounterWant, Mine.hand));
+			Row(SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("Send counter"), [this, MeId]
+				{
+					Action A = Action::Make(ActionType::RespondTrade, MeId);
+					A.response = TradeResponse::Counter;
+					A.give = Partial(CounterGive);
+					A.want = Partial(CounterWant);
+					A.hasGive = A.hasWant = true;
+					bCountering = false;
+					return Do(A);
+				}, CounterGive.Total() > 0 && CounterWant.Total() > 0, true, &Primary)]
+				+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Back"), [this] { bCountering = false; return Redraw(); })]);
+			break;
+		}
+		const bool bCan = HasAtLeast(Mine.hand, O.want) && HasAtLeast(S.players[O.proposer].hand, O.give);
+		if (!bCan) Row(Text(TEXT("You lack the cards asked for."), 10, Muted));
 		Row(SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("Accept"), [this, MeId]
 			{
 				Action A = Action::Make(ActionType::RespondTrade, MeId);
 				A.response = TradeResponse::Accept;
 				return Do(A);
-			}, bCan, true)]
+			}, bCan, true, bCan ? &Primary : nullptr)]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("Counter"), [this, O]
+			{
+				bCountering = true;
+				CounterGive = O.want;
+				CounterWant = O.give;
+				return Redraw();
+			})]
 			+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Decline"), [this, MeId]
 			{
 				Action A = Action::Make(ActionType::RespondTrade, MeId);
 				A.response = TradeResponse::Decline;
 				return Do(A);
-			})]);
+			}, true, false, bCan ? nullptr : &Primary)]);
 		break;
 	}
 	case PhaseKind::Main:
@@ -791,44 +1093,33 @@ TSharedRef<SWidget> STable::ActionsBox()
 			return Button(bOn ? Label + TEXT(" (pick a spot)") : Label, [this, Kind]
 			{
 				Build = Build == Kind ? EBuild::None : Kind;
-				bDirty = true;
-				return FReply::Handled();
-			}, bAvailable && CanAfford(Me.hand, Cost), bOn);
+				return Redraw();
+			}, bAvailable && CanAfford(Mine.hand, Cost), bOn);
 		};
 		TSharedRef<SWrapBox> Builds = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
-		Builds->AddSlot()[BuildButton(TEXT("Road"), EBuild::Road, CostKey::Causeway, Me.supply.causeways > 0 && !LegalCausewaySpots(S, MeId).empty())];
-		Builds->AddSlot()[BuildButton(TEXT("Settlement"), EBuild::Settlement, CostKey::Outpost, Me.supply.outposts > 0 && !LegalOutpostSpots(S, MeId).empty())];
-		Builds->AddSlot()[BuildButton(TEXT("City"), EBuild::City, CostKey::Citadel, Me.supply.citadels > 0 && !LegalCitadelSpots(S, MeId).empty())];
+		Builds->AddSlot()[BuildButton(TEXT("Road"), EBuild::Road, CostKey::Causeway, Mine.supply.causeways > 0 && !LegalCausewaySpots(S, MeId).empty())];
+		Builds->AddSlot()[BuildButton(TEXT("Settlement"), EBuild::Settlement, CostKey::Outpost, Mine.supply.outposts > 0 && !LegalOutpostSpots(S, MeId).empty())];
+		Builds->AddSlot()[BuildButton(TEXT("City"), EBuild::City, CostKey::Citadel, Mine.supply.citadels > 0 && !LegalCitadelSpots(S, MeId).empty())];
 		Builds->AddSlot()[Button(TEXT("Buy development card"), [this, MeId] { return Do(Action::Make(ActionType::BuyOmen, MeId)); },
-			CanAfford(Me.hand, CostKey::Omen) && !S.omenDeck.empty())];
+			CanAfford(Mine.hand, CostKey::Omen) && !S.omenDeck.empty())];
 		Row(Section(TEXT("Build"), Builds));
-		Row(Text(TEXT("Road: Lumber + Brick · Settlement: Lumber + Brick + Wool + Grain · City: 2 Grain + 3 Ore · Card: Wool + Grain + Ore"), 9, Muted));
+		Row(Text(FString::Printf(TEXT("Road: Lumber + Brick · Settlement: Lumber + Brick + Wool + Grain · City: 2 Grain + 3 Ore · Card: Wool + Grain + Ore.  Left: %d roads, %d settlements, %d cities."),
+			Mine.supply.causeways, Mine.supply.outposts, Mine.supply.citadels), 9, Muted));
 
 		const int32 Rate = BestBankRate(S, MeId, BankGive);
 		TSharedRef<SWrapBox> Bank = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
-		Bank->AddSlot()[Button(FString::Printf(TEXT("Give %d %s"), Rate, *CatnightText::Resource(BankGive)), [this] { BankGive = NextResource(BankGive); bDirty = true; return FReply::Handled(); })];
-		Bank->AddSlot()[Button(FString::Printf(TEXT("Get 1 %s"), *CatnightText::Resource(BankGet)), [this] { BankGet = NextResource(BankGet); bDirty = true; return FReply::Handled(); })];
+		Bank->AddSlot()[Button(FString::Printf(TEXT("Give %d %s"), Rate, *CatnightText::Resource(BankGive)), [this] { BankGive = NextResource(BankGive); return Redraw(); })];
+		Bank->AddSlot()[Button(FString::Printf(TEXT("Get 1 %s"), *CatnightText::Resource(BankGet)), [this] { BankGet = NextResource(BankGet); return Redraw(); })];
 		Bank->AddSlot()[Button(TEXT("Trade"), [this, MeId]
 		{
 			Action A = Action::Make(ActionType::BankTrade, MeId);
 			A.giveRes = BankGive;
 			A.receiveRes = BankGet;
 			return Do(A);
-		}, BankGive != BankGet && Me.hand[BankGive] >= Rate && S.bank[BankGet] > 0, true)];
+		}, BankGive != BankGet && Mine.hand[BankGive] >= Rate && S.bank[BankGet] > 0, true)];
 		Row(Section(TEXT("Bank and harbours"), Bank));
-
-		TSharedRef<SWrapBox> Offer = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
-		Offer->AddSlot()[Button(FString::Printf(TEXT("Give 1 %s"), *CatnightText::Resource(OfferGive)), [this] { OfferGive = NextResource(OfferGive); bDirty = true; return FReply::Handled(); })];
-		Offer->AddSlot()[Button(FString::Printf(TEXT("Want 1 %s"), *CatnightText::Resource(OfferWant)), [this] { OfferWant = NextResource(OfferWant); bDirty = true; return FReply::Handled(); })];
-		Offer->AddSlot()[Button(TEXT("Offer to all"), [this, MeId]
-		{
-			Action A = Action::Make(ActionType::ProposeTrade, MeId);
-			A.give.Set(OfferGive, 1);
-			A.want.Set(OfferWant, 1);
-			return Do(A);
-		}, OfferGive != OfferWant && Me.hand[OfferGive] > 0, true)];
-		Row(Section(TEXT("Offer the players"), Offer));
-		Row(Button(TEXT("End turn"), [this, MeId] { Build = EBuild::None; return Do(Action::Make(ActionType::EndTurn, MeId)); }, true, true));
+		Row(TradeBox());
+		Row(Button(TEXT("End turn"), [this, MeId] { Build = EBuild::None; return Do(Action::Make(ActionType::EndTurn, MeId)); }, true, true, &Primary));
 		break;
 	}
 	default:

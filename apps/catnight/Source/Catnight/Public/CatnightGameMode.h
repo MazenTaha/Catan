@@ -1,10 +1,14 @@
-// Starts a match and puts the Slate table on screen.
+// Puts the game's screens on the viewport: the title screen, or straight to a table.
 //
 // Command line (also used by the automated screenshots):
+//   -CatnightScreen=title|new|table   first screen (default: title; any match option below means table)
 //   -CatnightSeed=<seed>      board seed (default: random)
 //   -CatnightLevel=easy|medium|hard
-//   -CatnightAutoplay         bots play the human seat too
+//   -CatnightPlayers=3|4
+//   -CatnightHotseat=<n>      the first n seats are people on this device (privacy curtain)
+//   -CatnightAutoplay         bots play the human seats too
 //   -CatnightBotDelay=<s>     seconds between bot moves (default 0.7)
+//   -CatnightNoSave           no autosave and no Continue (tests)
 //   -CatnightShot=<file.png>  save a screenshot after -CatnightShotAfter=<s> (default 6), then quit
 #pragma once
 
@@ -24,6 +28,6 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 private:
-	TSharedPtr<class SWidget> Table;
+	TSharedPtr<class SCatnightRoot> Root;
 	FTSTicker::FDelegateHandle ShotHandle;
 };

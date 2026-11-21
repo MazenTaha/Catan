@@ -190,13 +190,15 @@ weeks, L is several weeks of focused work.
 | 0 | **Identity** | S | Final name cleared, terms table filled, rule changes chosen, lawyer consulted |
 | 1 | **Rules core in C++** — *done 2026-11-21* | L | All golden games match step by step; the C++ bots pick the same moves; the 200-game simulation passes |
 | 2 | **Playable table** — *first part done 2026-11-21 (§8)* | L | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue |
-| 3 | **Online through Steam** | L | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand |
-| 4 | **Hall & Chart in Unreal** | L | Every screen in the migration checklist exists in UMG; 3D table; music and sounds; accessibility settings |
-| 5 | **The island and duels** | L | Walk the live island from a match, buildings and roads appear as built, chest and Man up fights work online |
+| 3 | **The look: 3D table and Hall & Chart** | L | The board is a modelled 3D miniature on the war table in a lit hall; every screen in the migration checklist exists in UMG; music and sounds; accessibility settings |
+| 4 | **The island walk (local)** | L | Walk the live island from a match: buildings and roads appear as built, knight, horses, rooms, chest, dummy, minimap, Character and My kingdom |
+| 5 | **Online through Steam, duels** | L | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand; live fights and Man up duels |
 | 6 | **Steam release** | M | Steamworks app (Steam Direct fee), achievements, Steam Cloud, store page and capsule art, trailer, content survey and age rating, EULA and privacy text, crash reports, Steam Deck review, a closed playtest. Then: tag the web version, retire `apps/web`, `apps/server`, `packages/*` and the wrapper project |
 
-Phases 1 and 2 are the critical path. Phase 4's UI work can start beside phase 2 once the game
-layer's events are fixed.
+**The bar** (owner, 2026-11-21): the same game as the browser game, every feature kept, and
+clearly better in every part, the 3D most of all. `docs/CATNIGHT_PARITY.md` lists every browser
+feature, its status in Unreal and what "better" means for it. The look (phase 3) and the island
+(phase 4) come before online play so the game looks like the finished game early.
 
 ## 6. Risks
 
@@ -259,16 +261,33 @@ packaging.
   - It runs as `-game` on the engine's `Entry` map; with `-CatnightAutoplay` the bots finish a
     whole game in about 25 seconds.
 
+**Second part (2026-11-21):**
+- **Screens:** title (Continue when a save exists, Play, Quit), new game (3 or 4 seats, each a
+  person on this device or an Easy / Medium / Hard bot, names, victory target 8–14, layout, seed
+  and reroll), the table, a leave dialog (Main menu, New game, Restart with the same seed, Cancel)
+  and a victory dialog with the final reckoning.
+- **Hot-seat:** the table shows the engine's viewer; an opaque curtain says whom to pass the
+  device to and why, and `AckPassDevice` reveals their hand.
+- **Save and continue:** every action saves the game as a `hexfall-record` (the web game's
+  format: config and actions) in `Saved/SaveGames/Catnight-continue.json`; Continue replays it. A
+  finished game deletes it.
+- **Undo** with the web rules (placements, builds and bank trades that used no randomness).
+- **Trade:** choose cards on both sides, offer to everyone or to chosen players, counter an offer.
+- **Keys and gamepad:** arrows or shoulder buttons choose a board spot, Enter or A places it,
+  Space rolls or ends the turn, Esc cancels or opens the menu, Ctrl+Z undoes; focus moves to the
+  main button after every change.
+- Test `Catnight.Match.HotseatSaveUndo`: a two-person hot-seat game with 181 hand-offs; a record
+  saved halfway loads to the same state; a road is built and undone exactly.
+
 **Not done yet in phase 2:**
-- A title menu, hot-seat with the privacy curtain, save and continue, gamepad play.
-- Counter-offers and choosing whom to offer to (the table offers to everyone).
+- Clicking through a whole game by hand with a mouse and with a real gamepad (the tests drive the
+  same actions; the screenshots show focus landing on the main button).
+- The packaged build with the new screens.
 - Git LFS (still no binary assets).
-- I checked board clicks by reading the code and with screenshots, not by clicking in the game
-  with a mouse. The actions they send are the ones the tests play.
 
 ## 9. Next steps
 
 1. Owner: decide the name and terms (gate 0, section 2).
 2. Finish phase 2: title menu, hot-seat, save and continue, gamepad focus, the packaged build as
    the test target.
-3. Phase 3: Steam lobbies and the host as referee.
+3. Phase 3: the 3D war table and the Hall & Chart UI (`docs/CATNIGHT_PARITY.md` §3–4).

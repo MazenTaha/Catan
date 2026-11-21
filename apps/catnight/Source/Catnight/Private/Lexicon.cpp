@@ -77,6 +77,26 @@ namespace CatnightText
 		return Names[static_cast<int>(B)];
 	}
 
+	FString Layout(catnight::LayoutMode L)
+	{
+		static const TCHAR* Names[] = {TEXT("Balanced"), TEXT("Random"), TEXT("Beginner")};
+		return Names[static_cast<int>(L)];
+	}
+
+	FString HandoffReason(const catnight::GameState& S, int32 Seat)
+	{
+		switch (S.phase.kind)
+		{
+		case PhaseKind::Setup: return TEXT("It is their turn to place a settlement and a road.");
+		case PhaseKind::Discard: return TEXT("A 7 was rolled: they must discard half their cards.");
+		case PhaseKind::Trade:
+			return S.phase.offer.proposer == Seat ? FString(TEXT("Their offer has an answer."))
+				: FString::Printf(TEXT("%s has made them an offer."), *Player(S, S.phase.offer.proposer));
+		default:
+			return S.currentPlayer == Seat ? FString(TEXT("It is their turn.")) : FString(TEXT("They must act."));
+		}
+	}
+
 	FString Player(const catnight::GameState& S, int32 Seat)
 	{
 		if (Seat < 0 || Seat >= static_cast<int32>(S.players.size())) return TEXT("?");

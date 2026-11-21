@@ -14,6 +14,9 @@ namespace CatnightText
 	FString OmenHelp(catnight::OmenType O);
 	FString Color(catnight::PlayerColor C);
 	FString BotLevel(catnight::BotLevel B);
+	FString Layout(catnight::LayoutMode L);
+	/** Why the device is being passed (the hot-seat curtain). */
+	FString HandoffReason(const catnight::GameState& S, int32 Seat);
 	FString Player(const catnight::GameState& S, int32 Seat);
 	FString Counts(const catnight::Counts& C);
 

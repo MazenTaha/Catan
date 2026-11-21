@@ -116,10 +116,20 @@ void ACatnightBoardActor::Setup(TSharedPtr<FCatnightMatch> InMatch, TSharedPtr<F
 	GlowBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Generated/Materials/M_Glow.M_Glow"));
 	VertexColorBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Generated/Materials/M_VertexColor.M_VertexColor"));
 	WaterBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Generated/Materials/M_Water.M_Water"));
+	ConstructionBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Generated/Materials/M_Construction.M_Construction"));
 	if (!TintBase) UE_LOG(LogTemp, Warning, TEXT("Catnight: generated materials missing; run pnpm catnight:import"));
 	ChangedHandle = Match->OnChanged.AddLambda([this] { bPiecesDirty = true; });
+	ActionHandle = Match->OnActionApplied.AddLambda([this](const Action& A, const std::vector<GameEvent>& Events) { OnAction(A, Events); });
+	RebuiltHandle = Match->OnRebuilt.AddLambda([this] { ResetFeedback(); bPiecesDirty = true; });
 	TWeakObjectPtr<ACatnightBoardActor> Weak(this);
 	View->PickUnderMouse = [Weak]() { return Weak.IsValid() ? Weak->PickUnderMouse() : INDEX_NONE; };
+	View->InspectUnderMouse = [Weak]() -> int32
+	{
+		if (!Weak.IsValid()) return INDEX_NONE;
+		APlayerController* PC = Weak->GetWorld()->GetFirstPlayerController();
+		float X = 0.f, Y = 0.f;
+		return PC && PC->GetMousePosition(X, Y) ? Weak->InspectAt(FVector2D(X, Y)) : INDEX_NONE;
+	};
 	View->MoveCamera = [Weak](float DYaw, float DPitch, float Zoom)
 	{
 		if (!Weak.IsValid()) return;
@@ -127,7 +137,9 @@ void ACatnightBoardActor::Setup(TSharedPtr<FCatnightMatch> InMatch, TSharedPtr<F
 		Weak->GoalPitch = FMath::Clamp(Weak->GoalPitch + DPitch, -86.f, -28.f);
 		Weak->GoalDistance = FMath::Clamp(Weak->GoalDistance * Zoom, 6.f * R, 26.f * R);
 	};
+	bReviewCloseup = FParse::Param(FCommandLine::Get(), TEXT("CatnightReviewCloseup"));
 	BuildRoom();
+	BuildFeedback();
 	bPiecesDirty = true;
 	bPickTest = FParse::Param(FCommandLine::Get(), TEXT("CatnightPickTest"));
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -140,10 +152,13 @@ void ACatnightBoardActor::Setup(TSharedPtr<FCatnightMatch> InMatch, TSharedPtr<F
 void ACatnightBoardActor::EndPlay(const EEndPlayReason::Type Reason)
 {
 	if (Match) Match->OnChanged.Remove(ChangedHandle);
+	if (Match) Match->OnActionApplied.Remove(ActionHandle);
+	if (Match) Match->OnRebuilt.Remove(RebuiltHandle);
 	if (View)
 	{
 		View->PickUnderMouse = nullptr;
 		View->MoveCamera = nullptr;
+		View->InspectUnderMouse = nullptr;
 	}
 	Super::EndPlay(Reason);
 }
@@ -357,6 +372,8 @@ void ACatnightBoardActor::BuildRoom()
 void ACatnightBoardActor::BuildIsland()
 {
 	Clear(IslandParts);
+	TokenRoots.Reset();
+	TokenYaw = MAX_flt;
 	Instancers.Reset();
 	const GameState& S = Match->State();
 	const Topology& T = GetTopology();
@@ -459,6 +476,7 @@ void ACatnightBoardActor::BuildIsland()
 	{
 		if (!Hex.token) continue;
 		const FVector C = HexWorld(Hex.id) + FVector(0, 0, 0.02f * R);
+		const int32 TokenStart = IslandParts.Num();
 		AddMesh(IslandParts, Shape(TEXT("Cylinder")), FTransform(FRotator::ZeroRotator, C, FVector(0.46f * R / 100.f, 0.46f * R / 100.f, 0.04f * R / 100.f)), Ivory);
 		const bool bRed = Hex.token == 6 || Hex.token == 8;
 		const FColor Ink = bRed ? FColor(168, 28, 28) : FColor(30, 26, 22);
@@ -483,6 +501,14 @@ void ACatnightBoardActor::BuildIsland()
 			AddMesh(IslandParts, Shape(TEXT("Cylinder")), FTransform(FRotator::ZeroRotator, C + FVector(-0.14f * R, Y, 0.022f * R),
 				FVector(0.032f * R / 100.f, 0.032f * R / 100.f, 0.01f * R / 100.f)), PipInk);
 		}
+		USceneComponent* Group = NewObject<USceneComponent>(this);
+		Group->SetupAttachment(Root);
+		Group->SetRelativeLocation(C);
+		Group->RegisterComponent();
+		for (int32 Part = TokenStart; Part < IslandParts.Num(); Part++)
+			if (USceneComponent* Child = Cast<USceneComponent>(IslandParts[Part])) Child->AttachToComponent(Group, FAttachmentTransformRules::KeepWorldTransform);
+		IslandParts.Add(Group);
+		TokenRoots.Add(Group);
 	}
 
 	// Harbours: a dock reaching from the two served corners, a boat, and the rate on a plaque.
@@ -534,6 +560,15 @@ void ACatnightBoardActor::BuildPieces()
 		BuildIsland();
 	}
 	Clear(PieceParts);
+	for (auto It = Builds.CreateIterator(); It; ++It)
+	{
+		const auto& BuildingAt = S.buildings.at[It.Key()];
+		if (!BuildingAt || (BuildingAt->kind == BuildingKind::Citadel) != It.Value().bCity)
+		{
+			Clear(It.Value().Scaffold);
+			It.RemoveCurrent();
+		}
+	}
 	const Topology& T = GetTopology();
 	TArray<UMaterialInstanceDynamic*> Colors;
 	for (const PlayerState& P : S.players) Colors.Add(Tint(CatnightUi::PlayerTint(P.color), 0.45f));
@@ -557,8 +592,11 @@ void ACatnightBoardActor::BuildPieces()
 	{
 		const Building& Bd = *S.buildings.at[Vx];
 		const FVector P = VertexWorld(Vx);
-		// Face the building's best neighbouring land (the first hex is fine for a miniature).
-		const FVector Toward = HexWorld(T.vertexHexes[Vx].front()) - P;
+		// Face the strongest producing neighbour, using topology order to break ties.
+		int32 BestHex = T.vertexHexes[Vx].front();
+		for (int32 H : T.vertexHexes[Vx])
+			if (Pips(S.board.hexes[H].token) > Pips(S.board.hexes[BestHex].token)) BestHex = H;
+		const FVector Toward = HexWorld(BestHex) - P;
 		const float FaceYaw = FMath::RadiansToDegrees(FMath::Atan2(Toward.Y, Toward.X));
 		const bool bCity = Bd.kind == BuildingKind::Citadel;
 		const float Disc = (bCity ? 0.22f : 0.17f) * R;
@@ -566,8 +604,10 @@ void ACatnightBoardActor::BuildPieces()
 		UStaticMesh* Mesh = Model(TEXT("village"), bCity ? TEXT("Hall") : TEXT("Cottage"));
 		if (Mesh)
 		{
-			UStaticMeshComponent* C = AddMesh(PieceParts, Mesh, Fit(Mesh, P + FVector(0, 0, 0.025f * R), FaceYaw + 90.f, bCity ? 0.4f : 0.3f, true));
+			// The models face glTF +Z, imported as Unreal +Y.
+			UStaticMeshComponent* C = AddMesh(PieceParts, Mesh, Fit(Mesh, P + FVector(0, 0, 0.025f * R), FaceYaw - 90.f, bCity ? 0.4f : 0.3f, true));
 			PaintOwner(C, CatnightUi::PlayerTint(S.players[Bd.owner].color));
+			AttachReveal(Vx, C);
 		}
 		else
 		{
@@ -659,7 +699,7 @@ void ACatnightBoardActor::UpdateCamera(float DeltaSeconds)
 	}
 	const float HalfWidth = Distance * FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView * 0.5f));
 	const FVector Right = FRotationMatrix(Rot).GetUnitAxis(EAxis::Y);
-	const FVector Focus = Right * HalfWidth * PanelShare + FVector(-0.2f * R, 0, 0);
+	const FVector Focus = Right * HalfWidth * PanelShare + (bReviewCloseup ? ReviewFocus : FVector(-0.2f * R, 0, 0));
 	Camera->SetWorldLocationAndRotation(Focus - Rot.Vector() * Distance, Rot);
 }
 
@@ -703,7 +743,26 @@ void ACatnightBoardActor::Tick(float DeltaSeconds)
 	if (bPiecesDirty && Match->HasGame()) BuildPieces();
 	if (View->Revision != SeenRevision && Match->HasGame()) BuildMarkers();
 	UpdateCamera(DeltaSeconds);
+	TickFeedback(DeltaSeconds);
 	if (bPickTest && View->Targets.Kind != FBoardTargets::EKind::None && GetGameTimeSinceCreation() > 3.f) RunPickTest();
+}
+
+int32 ACatnightBoardActor::InspectAt(FVector2D Pixel) const
+{
+	if (!Match || !Match->HasGame()) return INDEX_NONE;
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	FVector Origin, Direction;
+	if (!PC || !PC->DeprojectScreenPositionToWorld(Pixel.X, Pixel.Y, Origin, Direction) || FMath::Abs(Direction.Z) < KINDA_SMALL_NUMBER) return INDEX_NONE;
+	const float DistanceToPlane = -Origin.Z / Direction.Z;
+	if (DistanceToPlane <= 0.f) return INDEX_NONE;
+	const FVector Hit = Origin + Direction * DistanceToPlane;
+	for (const HexTile& H : Match->State().board.hexes)
+	{
+		const FVector P = Hit - HexWorld(H.id);
+		// World X is the flat chart's vertical axis; Y is its horizontal axis.
+		if (FMath::Abs(P.Y) <= 0.8660254f * R && FMath::Abs(P.X) + FMath::Abs(P.Y) / 1.7320508f <= R) return H.id;
+	}
+	return INDEX_NONE;
 }
 
 void ACatnightBoardActor::RunPickTest()

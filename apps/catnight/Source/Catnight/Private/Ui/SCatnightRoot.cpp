@@ -524,6 +524,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 	{
 		FHallSettings& Set = FHallSettings::Get();
 		Set.Save();
+		if (View) View->bReducedMotion = Set.bReduceMotion;
 		if (!CommandLineBotDelay()) Match->BotDelay = Set.BotDelay();
 		bRebuild = true;
 	};
@@ -561,7 +562,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Start on"), TEXT("The 3D war table, or the flat chart (you can switch in the game)."),
 					Pair(S.bStart3D, TEXT("3D table"), TEXT("Flat chart"), [](bool b) { FHallSettings::Get().bStart3D = b; }))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Access"), 22, C::RubricDark)]
-				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Reduce motion"), TEXT("No swaying banners, flickering torches or travelling pieces. Results always stay visible."),
+				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Reduce motion"), TEXT("No swaying banners, flickering torches, tossed dice, dust or gradual construction. Results always stay visible."),
 					Pair(S.bReduceMotion, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bReduceMotion = b; }))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 0)[Rule()]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)

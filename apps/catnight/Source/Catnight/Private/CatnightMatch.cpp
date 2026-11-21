@@ -131,10 +131,11 @@ bool FCatnightMatch::Rebuild(const GameConfig& Config, const TArray<Action>& Act
 	{
 		if (!ApplyQuiet(A, Error)) return false;
 	}
+	OnRebuilt.Broadcast();
 	return true;
 }
 
-bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error)
+bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error, std::vector<GameEvent>* Events)
 {
 	ActionOutcome Out = ApplyAction(S, A);
 	if (!Out.ok)
@@ -152,6 +153,7 @@ bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error)
 		if (!Line.IsEmpty()) Log.Add(Line);
 	}
 	if (Log.Num() > 400) Log.RemoveAt(0, Log.Num() - 400);
+	if (Events) *Events = MoveTemp(Out.events);
 	return true;
 }
 
@@ -185,7 +187,8 @@ FString FCatnightMatch::Apply(const Action& A)
 {
 	if (!bStarted) return TEXT("No game");
 	FString Error;
-	if (!ApplyQuiet(A, Error))
+	std::vector<GameEvent> Events;
+	if (!ApplyQuiet(A, Error, &Events))
 	{
 		LastError = Error;
 		OnChanged.Broadcast();
@@ -195,6 +198,7 @@ FString FCatnightMatch::Apply(const Action& A)
 	Waited = 0.f;
 	if (IsEnded()) DeleteSave();
 	else Autosave();
+	OnActionApplied.Broadcast(A, Events);
 	OnChanged.Broadcast();
 	return FString();
 }

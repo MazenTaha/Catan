@@ -166,7 +166,8 @@ TSharedRef<SWidget> STable::BuildHud()
 	FString Hint;
 	if (Targets->Kind != FBoardTargets::EKind::None) Hint = TEXT("Click a glowing spot — or arrows / shoulder buttons, then Enter or A.");
 	if (View->b3D) Hint += Hint.IsEmpty() ? TEXT("Right-drag or right stick turns the table; the wheel zooms.") : TEXT("  Right-drag turns the table.");
-	if (!Hint.IsEmpty()) Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 6, 0, 0)[OnDark(Hint, 15, C::OnDarkMuted, false)];
+	Hint += TEXT("  ") + CatnightText::InspectionHint();
+	if (!Hint.IsEmpty()) Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 6, 0, 0)[SNew(SBox).WidthOverride(600.f)[OnDark(Hint, 15, C::OnDarkMuted, true)]];
 
 	return SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(26, 22, 0, 0))[ListsBox()]
@@ -223,6 +224,7 @@ TSharedRef<SWidget> STable::ListsBox()
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 10, 0)[InkItalic(FString::Printf(TEXT("First to %d"), S.config.targetVp), 16, C::MapInk)]
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Meter(static_cast<float>(Lead) / S.config.targetVp, C::Gold)]
 				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)[Ink(CatnightText::DiceResult(S), 18)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[Rule()]
 				+ SVerticalBox::Slot().AutoHeight()[Claim(TEXT("Longest Road"), S.longestHolder, BestRoad, kLongestMin, TEXT("long"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)[Claim(TEXT("Largest Army"), S.hostHolder, BestArmy, kHostMin, TEXT("Knights"))],

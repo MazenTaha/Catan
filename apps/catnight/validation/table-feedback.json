@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "date": "2026-11-21",
+  "engine": "Unreal Engine 5.8",
+  "configuration": "Development",
+  "platform": "Windows x64",
+  "branch": "codex/native-table-feedback",
+  "integratedUiCommit": "b4b988c",
+  "scope": "Native Unreal table feedback, construction and Hall/UI integration; no rules changes.",
+  "launch": "apps/catnight/Packaged/Windows/Catnight.exe",
+  "rebuildCommands": [
+    "pnpm catnight:import",
+    "pnpm catnight:package",
+    "pnpm catnight:test-package -ReviewTable"
+  ],
+  "editorValidation": {
+    "build": "passed",
+    "testsPassed": 4,
+    "goldenGamesMatched": 248,
+    "goldenActions": 116078,
+    "fullGamesToVictory": 12,
+    "hotseatHandoffs": 181,
+    "note": "Editor built with -NoHotReloadFromIDE after checking no editor for this isolated project was running; test.ps1 -NoBuild then ran all Catnight tests. The other session's editor was not closed."
+  },
+  "referenceValidation": {
+    "command": "pnpm verify",
+    "typecheck": "passed",
+    "lint": "zero warnings",
+    "unitTestsPassed": 132,
+    "webBuild": "passed",
+    "note": "Passed in this worktree; no TypeScript sources changed in the subsequent Hall/UI integration or table corrections."
+  },
+  "packagedValidation": {
+    "run": "Saved/PackageValidation/20261121-201854-074",
+    "testsPassed": 3,
+    "generatedAssets": 157,
+    "models": 92,
+    "baseMaterials": 7,
+    "basicShapes": 3,
+    "omittedAssets": 0,
+    "picking": [
+      {
+        "scenario": "setup-0",
+        "camera": "0,0,1",
+        "picked": 50
+      },
+      {
+        "scenario": "setup-1",
+        "camera": "40,12,0.9",
+        "picked": 50
+      },
+      {
+        "scenario": "setup-2",
+        "camera": "-55,-18,1.1",
+        "picked": 50
+      }
+    ],
+    "renderedVictory": {
+      "actions": 694,
+      "round": 40,
+      "winner": "You",
+      "points": 10,
+      "screenshotReviewed": true
+    },
+    "shaderOrMissingAssetErrors": 0
+  },
+  "behaviorChecks": [
+    "All 36 dice combinations settle with the authoritative faces upward; visual animation does not change the action record or rules RNG.",
+    "Five-second construction at 10/60/144 Hz; a later action keeps progress; original painted atlas and owner colour survive; original materials restored on completion.",
+    "Undo, Continue and a new match clear presentation history; illegal actions create no construction.",
+    "Paid and blocked markers come from actual production events; expire correctly and keep their glyph orientation while orbiting.",
+    "Desert notes identify adjacent owners without claiming resource production; valid resource hex notes show roll odds.",
+    "Reduced motion finishes current builds and dice immediately and removes dust."
+  ],
+  "motionPreferenceCheck": {
+    "nativeSettingsClicked": "Reduce motion: On",
+    "savedKey": "[Catnight] ReduceMotion=True",
+    "isolatedUserDir": "Saved/TableFeedbackInteractive",
+    "restart": "Fresh packaged process with no motion override flags; review build capture at 0.35 seconds shows the completed painted roof, no scaffolding or dust.",
+    "ownerContinueOverwritten": false
+  },
+  "visualReview": {
+    "size": [
+      1280,
+      800
+    ],
+    "reviewed": [
+      "build-foundation",
+      "build-walls",
+      "build-finished",
+      "city-building",
+      "dice-rolling",
+      "dice-settled",
+      "production",
+      "reduced-build",
+      "map-note-deck"
+    ],
+    "findings": "Original building paint and owner trim retained, temporary scaffolding removed on completion, dice show 5 + 1 = 6, public map notes use HallKit vellum. The tray is clear of the default-view Hall HUD and harbour badges. These are functional presentation checks, not full UI/Deck acceptance."
+  },
+  "screenshots": [
+    {
+      "file": "table-feedback-build-foundation.png",
+      "sha256": "59f9ef0eca901ccbd5474210ad226c12e4b4bf4067536bfc14a3cd759472befc"
+    },
+    {
+      "file": "table-feedback-build-walls.png",
+      "sha256": "a3f07119ec3a045ea5de74fc650b74a542ec38c44c9dea35b8cc57a568285788"
+    },
+    {
+      "file": "table-feedback-build-finished.png",
+      "sha256": "5a39cc65903237c48ef1c8a89aa37257e88afb0b687e6914be5631dc9392b6f6"
+    },
+    {
+      "file": "table-feedback-city-building.png",
+      "sha256": "4ce0c4fc9511d4afc593a0d83994448a23c373d17be25d6cab37e62f090a50ee"
+    },
+    {
+      "file": "table-feedback-dice-settled.png",
+      "sha256": "69eb9948caefb4e95e9e97effdd81cc58e3e15d08fe7c8925be9d35040413d61"
+    },
+    {
+      "file": "table-feedback-map-note-deck.png",
+      "sha256": "ef879641287371f159bac9aac353e73f6485974b56a4f986e438837a7b8d98ed"
+    },
+    {
+      "file": "table-feedback-autoplay.png",
+      "sha256": "c3f473032da8971af5e5b922a7e0713386a247c808b7ba272bfda647fd01920d"
+    },
+    {
+      "file": "table-feedback-saved-reduce.png",
+      "sha256": "c9ccdee79bfa8798723b5f618726e8ec34eddbdb2d7fb1f210b5343532e1aab4"
+    }
+  ],
+  "stillOpen": [
+    "Full mouse-driven match and physical gamepad/reconnect acceptance; clean-PC prerequisite test.",
+    "Hall architecture, UI materials/CommonUI/glyphs, full accessibility/settings/layout and audio.",
+    "Bridge roads, player sigils, crop wind, animated foam/boats, time-of-day lighting, flying gains, physics dice/camera nudge and pan.",
+    "Native island exploration (phase 4), Steam multiplayer/rejoin/autopilot/duels (phase 5), and release gates (phase 6)."
+  ]
+}

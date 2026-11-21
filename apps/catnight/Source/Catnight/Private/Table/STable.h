@@ -47,6 +47,7 @@ private:
 	FVector2f HexPos(const FLayout& L, int32 H) const;
 	FVector2f TargetPos(const FLayout& L, int32 I) const;
 	int32 HitTarget(const FLayout& L, FVector2f Local) const;
+	void InspectHex(int32 Hex);
 
 	TSharedPtr<FCatnightMatch> Match;
 	TSharedPtr<FCatnightBoardView> View;
@@ -85,6 +86,7 @@ private:
 
 	void Refresh();
 	void UpdateTargets();
+	void UpdateInspection();
 	void OnPick(FBoardTargets::EKind Kind, int32 Index);
 	FReply Do(const catnight::Action& A);
 	FReply Redraw();
@@ -121,6 +123,8 @@ private:
 	TSharedPtr<class SBox> OverlaySlot;
 	ETab Tab = ETab::Build;
 	bool bFullLog = false;
+	TSharedPtr<class SBox> InspectionSlot;
+	uint32 SeenInspection = ~0u;
 	TSharedPtr<SCatnightBoard> Board;
 	TSharedPtr<SWidget> Primary;  // the main button of the current panel or dialog
 	FDelegateHandle ChangedHandle;

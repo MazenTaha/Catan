@@ -112,6 +112,22 @@ def model_masked(mat):
     mel.connect_material_property(tex, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
 
 
+def construction(mat):
+    """Preserve the model's paint while revealing foundation, walls and roof by world height."""
+    model(mat)
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    position = mel.create_material_expression(mat, unreal.MaterialExpressionWorldPosition, -900, 700)
+    z = mel.create_material_expression(mat, unreal.MaterialExpressionComponentMask, -700, 700)
+    z.set_editor_property("r", False)
+    z.set_editor_property("g", False)
+    z.set_editor_property("b", True)
+    assert mel.connect_material_expressions(position, "", z, ""), "World-height mask input did not connect"
+    clip = mel.create_material_expression(mat, unreal.MaterialExpressionSubtract, -300, 700)
+    assert mel.connect_material_expressions(scalar(mat, "BuildHeight", 1000000.0, -700, 850), "", clip, "A"), "Build-height parameter did not connect"
+    assert mel.connect_material_expressions(z, "", clip, "B"), "World-height subtraction did not connect"
+    assert mel.connect_material_property(clip, "", unreal.MaterialProperty.MP_OPACITY_MASK), "Construction opacity did not connect"
+
+
 def alpha_modes(glb: Path) -> dict:
     """Material name -> glTF alphaMode, read from the GLB's JSON chunk."""
     data = glb.read_bytes()
@@ -227,6 +243,7 @@ def main():
     material("M_Water", water)
     base = material("M_Model", model)
     masked = material("M_ModelMasked", model_masked)
+    material("M_Construction", construction)
     report = {}
     for family in FAMILIES:
         glb = source / f"{family}.glb"

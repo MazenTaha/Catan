@@ -3,7 +3,8 @@
 param(
   [string]$PackageDir = (Join-Path $PSScriptRoot 'Packaged/Windows'),
   [string]$Engine = 'E:/UE_5.8',
-  [int]$TimeoutSeconds = 240
+  [int]$TimeoutSeconds = 240,
+  [switch]$ReviewTable
 )
 $ErrorActionPreference = 'Stop'
 $exe = Join-Path $PackageDir 'Catnight/Binaries/Win64/Catnight.exe'
@@ -34,11 +35,11 @@ foreach ($shape in @('Cube', 'Cylinder', 'Sphere')) {
 $results += @{ scenario = 'cooked-artwork'; assets = $sourceAssets.Count; basicShapes = 3 }
 Write-Host "Cook audit: $($sourceAssets.Count) generated assets and 3 basic shapes included."
 
-function Run-Game([string]$Name, [string[]]$Options, [switch]$Screenshot) {
+function Run-Game([string]$Name, [string[]]$Options, [switch]$Screenshot, [int]$Width = 1280, [int]$Height = 720) {
   $log = Join-Path $out "$Name.log"
   $shot = Join-Path $out "$Name.png"
-  $arguments = @('-unattended', '-nosplash', '-nosound', '-windowed', '-ResX=1280', '-ResY=720',
-    '-CatnightNoSave', "-abslog=`"$log`"") + $Options
+  $arguments = @('-unattended', '-nosplash', '-nosound', '-windowed', "-ResX=$Width", "-ResY=$Height",
+    '-CatnightNoSave', '-CatnightFullMotion', "-abslog=`"$log`"") + $Options
   if ($Screenshot) { $arguments += "-CatnightShot=`"$shot`"" }
   Write-Host "Running packaged $Name..."
   $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $PackageDir -WindowStyle Hidden -PassThru
@@ -50,7 +51,7 @@ function Run-Game([string]$Name, [string[]]$Options, [switch]$Screenshot) {
   if ($process.ExitCode -ne 0) { throw "Packaged $Name exited $($process.ExitCode). See $log" }
   if (-not (Test-Path -LiteralPath $log)) { throw "Packaged $Name did not create its log." }
   $text = [IO.File]::ReadAllText($log)
-  if ($text -match 'Fatal error|Ensure condition failed|Log\w+: Error:|Catnight: missing model|generated materials missing|Failed to find object') {
+  if ($text -match 'Fatal error|Ensure condition failed|Log\w+: Error:|Catnight: missing model|generated materials missing|Failed to find object|Failed to compile Material|Default Material will be used') {
     throw "Packaged $Name logged an error or missing asset. See $log"
   }
   if ($Screenshot -and -not (Test-Path -LiteralPath $shot)) { throw "Packaged $Name did not create $shot" }
@@ -60,10 +61,10 @@ function Run-Game([string]$Name, [string[]]$Options, [switch]$Screenshot) {
 # These tests use in-memory matches; Rules.Golden is an editor check with external fixtures.
 $tests = Run-Game 'matches' @('-nullrhi', '-ExecCmds="Automation RunTests Catnight.Match"', '-TestExit="Automation Test Queue Empty"')
 $completed = [regex]::Matches($tests, 'Test Completed\. Result=\{(\w+)\}')
-if ($completed.Count -ne 2 -or @($completed | Where-Object { $_.Groups[1].Value -ne 'Success' }).Count) {
-  throw "Expected two successful packaged match tests. See $out/matches.log"
+if ($completed.Count -ne 3 -or @($completed | Where-Object { $_.Groups[1].Value -ne 'Success' }).Count) {
+  throw "Expected three successful packaged match tests. See $out/matches.log"
 }
-$results += @{ scenario = 'matches'; passed = 2 }
+$results += @{ scenario = 'matches'; passed = 3 }
 
 $angles = @('0,0,1', '40,12,0.9', '-55,-18,1.1')
 for ($i = 0; $i -lt $angles.Count; $i++) {
@@ -87,6 +88,29 @@ $text = Run-Game 'autoplay' @('-CatnightSeed=match-0', '-CatnightPlayers=3', '-C
 $win = [regex]::Match($text, 'CATNIGHT CAPTURE victory after (\d+) actions')
 if (-not $win.Success -or [int]$win.Groups[1].Value -le 0) { throw "Rendered match did not reach victory. See $out/autoplay.log" }
 $results += @{ scenario = 'autoplay'; actions = [int]$win.Groups[1].Value; screenshot = 'autoplay.png'; requiresVisualVictoryReview = $true }
+
+if ($ReviewTable) {
+  $scenes = @(
+    @{ Name = 'build-foundation'; Mode = 'build'; After = '0.35'; Close = $true },
+    @{ Name = 'build-walls'; Mode = 'build'; After = '2.5'; Close = $true },
+    @{ Name = 'build-finished'; Mode = 'build'; After = '5.5'; Close = $true },
+    @{ Name = 'city-building'; Mode = 'upgrade'; After = '2.5'; Close = $true },
+    @{ Name = 'dice-rolling'; Mode = 'roll'; After = '0.35'; Close = $true },
+    @{ Name = 'dice-settled'; Mode = 'roll'; After = '1.6'; Close = $true },
+    @{ Name = 'production'; Mode = 'production'; After = '1.5' },
+    @{ Name = 'reduced-build'; Mode = 'build'; After = '0.35'; Close = $true; Reduced = $true },
+    @{ Name = 'map-note-deck'; Mode = 'production'; After = '1.5'; Inspect = $true }
+  )
+  foreach ($scene in $scenes) {
+    $options = @('-CatnightSeed=board3d-handoff', '-CatnightPlayers=3', "-CatnightReview=$($scene.Mode)", "-CatnightShotAfter=$($scene.After)")
+    if ($scene.Close) { $options += '-CatnightReviewCloseup' }
+    if ($scene.Reduced) { $options += '-CatnightReduceMotion' }
+    if ($scene.Inspect) { $options += '-CatnightInspect=0' }
+    $text = Run-Game $scene.Name $options -Screenshot -Width 1280 -Height 800
+    if ($text -notmatch "CATNIGHT REVIEW $($scene.Mode) at action") { throw "Review event was not reached: $($scene.Name)" }
+    $results += @{ scenario = $scene.Name; screenshot = "$($scene.Name).png"; requiresVisualReview = $true }
+  }
+}
 
 $report = @{ executable = $exe; results = $results; physicalGamepadChecked = $false }
 [IO.File]::WriteAllText((Join-Path $out 'report.json'), ($report | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))

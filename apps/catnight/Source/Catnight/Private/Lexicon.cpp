@@ -1,4 +1,5 @@
 #include "Lexicon.h"
+#include "CatnightRules/Board.h"
 
 using namespace catnight;
 
@@ -27,6 +28,33 @@ namespace
 
 namespace CatnightText
 {
+	FString Motion(bool bReduced) { return bReduced ? TEXT("Motion: Reduced") : TEXT("Motion: Full"); }
+	FString InspectionHint() { return TEXT("Inspect terrain: hover a hex. I cycles map notes (gamepad: X)."); }
+	FString DiceResult(const GameState& S)
+	{
+		return S.dice ? FString::Printf(TEXT("Dice: %d + %d = %d"), (*S.dice)[0], (*S.dice)[1], (*S.dice)[0] + (*S.dice)[1]) : FString();
+	}
+	FString HexNote(const GameState& S, int32 Hex)
+	{
+		if (Hex < 0 || Hex >= static_cast<int32>(S.board.hexes.size())) return FString();
+		const HexTile& Tile = S.board.hexes[Hex];
+		const std::optional<catnight::Resource> Res = TerrainResource(Tile.terrain);
+		FString Note = Terrain(Tile.terrain);
+		if (Res) Note += TEXT("  /  ") + Resource(*Res);
+		if (Tile.token) Note += FString::Printf(TEXT("\nRoll %d: %d of 36 combinations (%.1f%%)"), Tile.token, Pips(Tile.token), Pips(Tile.token) * 100.f / 36.f);
+		else Note += TEXT("\nNo production number.");
+		if (S.wraithHex == Hex) Note += TEXT("\nRobber: production blocked.");
+		TArray<int32> Claims;
+		Claims.Init(0, static_cast<int32>(S.players.size()));
+		for (int32 V : GetTopology().hexVertices[Hex])
+			if (S.buildings.at[V]) Claims[S.buildings.at[V]->owner] += S.buildings.at[V]->kind == BuildingKind::Citadel ? 2 : 1;
+		TArray<FString> Owners;
+		for (int32 P = 0; P < Claims.Num(); P++) if (Claims[P]) Owners.Add(Res ? FString::Printf(TEXT("%s x%d"), *Player(S, P), Claims[P]) : Player(S, P));
+		Note += Owners.Num() ? (Res ? TEXT("\nProduction claims: ") : TEXT("\nAdjacent owners: ")) + FString::Join(Owners, TEXT(", ")) : FString(TEXT("\nNo adjacent settlements."));
+		if (Res && Owners.Num()) Note += TEXT("\nSubject to the robber and bank stock.");
+		return Note;
+	}
+
 	FString Resource(catnight::Resource R)
 	{
 		static const TCHAR* Names[] = {TEXT("Lumber"), TEXT("Brick"), TEXT("Wool"), TEXT("Grain"), TEXT("Ore")};

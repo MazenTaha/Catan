@@ -192,6 +192,7 @@ void SCatnightBoard::CycleFocus(int32 Step)
 	const int32 At = Order.Find(Targets->Focus);
 	const int32 Next = At == INDEX_NONE ? (Step > 0 ? 0 : Order.Num() - 1) : (At + Step + Order.Num()) % Order.Num();
 	Targets->Focus = Order[Next];
+	if (Targets->Kind == FBoardTargets::EKind::Hex) InspectHex(Targets->Focus);
 	View->Revision++;
 	Invalidate(EInvalidateWidgetReason::Paint);
 }
@@ -339,6 +340,7 @@ FReply SCatnightBoard::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoi
 	{
 		// Turn the table: drag with the right (or middle) button.
 		bDragging = true;
+		InspectHex(INDEX_NONE);
 		DragFrom = MouseEvent.GetScreenSpacePosition();
 		return FReply::Handled().CaptureMouse(SharedThis(this));
 	}
@@ -379,6 +381,7 @@ FReply SCatnightBoard::OnMouseMove(const FGeometry& MyGeometry, const FPointerEv
 			return FReply::Handled();
 		}
 		const int32 Hover = View->PickUnderMouse ? View->PickUnderMouse() : INDEX_NONE;
+		InspectHex(View->InspectUnderMouse ? View->InspectUnderMouse() : INDEX_NONE);
 		if (Hover != Targets->Hover)
 		{
 			Targets->Hover = Hover;
@@ -387,12 +390,21 @@ FReply SCatnightBoard::OnMouseMove(const FGeometry& MyGeometry, const FPointerEv
 		return FReply::Unhandled();
 	}
 	Mouse = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	const FLayout L = Layout(MyGeometry);
+	int32 Hex = INDEX_NONE;
+	if (Match->HasGame()) for (const HexTile& H : Match->State().board.hexes)
+	{
+		const FVector2f P = Mouse - HexPos(L, H.id);
+		if (FMath::Abs(P.X) <= 0.8660254f * L.R && FMath::Abs(P.Y) + FMath::Abs(P.X) / 1.7320508f <= L.R) { Hex = H.id; break; }
+	}
+	InspectHex(Hex);
 	Invalidate(EInvalidateWidgetReason::Paint);
 	return FReply::Unhandled();
 }
 
 void SCatnightBoard::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
+	InspectHex(INDEX_NONE);
 	Mouse = FVector2f(-1e6f, -1e6f);
 	if (Targets->Hover != INDEX_NONE)
 	{
@@ -400,6 +412,13 @@ void SCatnightBoard::OnMouseLeave(const FPointerEvent& MouseEvent)
 		View->Revision++;
 	}
 	Invalidate(EInvalidateWidgetReason::Paint);
+}
+
+void SCatnightBoard::InspectHex(int32 Hex)
+{
+	if (View->InspectedHex == Hex) return;
+	View->InspectedHex = Hex;
+	View->InspectionRevision++;
 }
 
 FReply SCatnightBoard::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -457,6 +476,13 @@ void STable::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(HudSlot, SBox).Visibility(EVisibility::SelfHitTestInvisible)
 				]
+				+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Center).Padding(20)
+				[
+					SNew(SBox).WidthOverride(300.f).Visibility(EVisibility::HitTestInvisible)
+					[
+						SAssignNew(InspectionSlot, SBox).Visibility(EVisibility::Collapsed)
+					]
+				]
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
@@ -497,6 +523,17 @@ void STable::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
 		bDirty = false;
 		Refresh();
 	}
+	if (SeenInspection != View->InspectionRevision) UpdateInspection();
+}
+
+void STable::UpdateInspection()
+{
+	SeenInspection = View->InspectionRevision;
+	if (!InspectionSlot || !Match->HasGame()) return;
+	const bool bModal = OverlaySlot && OverlaySlot->GetVisibility() == EVisibility::Visible;
+	const FString Note = bModal ? FString() : CatnightText::HexNote(Match->State(), View->InspectedHex);
+	InspectionSlot->SetContent(Note.IsEmpty() ? SNullWidget::NullWidget : HallKit::Paper(HallKit::Ink(Note, 18), HallKit::EPaper::Vellum, FMargin(16, 12)));
+	InspectionSlot->SetVisibility(Note.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
 }
 
 TSharedPtr<SWidget> STable::FirstFocus() const
@@ -538,6 +575,7 @@ void STable::Refresh()
 		if (HudSlot) HudSlot->SetVisibility(bOverlay ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible);
 	}
 	if (Board) Board->Invalidate(EInvalidateWidgetReason::Paint);
+	UpdateInspection();
 	// Keys and gamepads: the focused button was rebuilt, so hand focus to the new main one.
 	const bool bKeepBoard = bBoardFocus && Targets->Kind != FBoardTargets::EKind::None && !bOverlay;
 	if ((bHadFocus || bBoardFocus) && !bKeepBoard && FSlateApplication::IsInitialized())
@@ -642,6 +680,12 @@ FReply STable::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEven
 {
 	const FKey K = InKeyEvent.GetKey();
 	if (!Match->HasGame()) return FReply::Unhandled();
+	if (K == EKeys::I || K == EKeys::Gamepad_FaceButton_Left)
+	{
+		View->InspectedHex = (View->InspectedHex + 1) % static_cast<int32>(Match->State().board.hexes.size());
+		View->InspectionRevision++;
+		return FReply::Handled();
+	}
 	if (K == EKeys::Escape || K == EKeys::Gamepad_Special_Right)
 	{
 		if (Build != EBuild::None || bChoosingPlenty || bChoosingMonopoly || bCountering)

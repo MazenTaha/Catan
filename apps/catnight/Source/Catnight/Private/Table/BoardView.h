@@ -22,6 +22,11 @@ struct FCatnightBoardView
 	FBoardTargets Targets;
 	/** True: the 3D table shows through the UI; false: the flat chart is drawn over it. */
 	bool b3D = true;
+	bool bReducedMotion = false;
+	int32 InspectedHex = INDEX_NONE;
+	uint32 InspectionRevision = 0;
+	/** Public terrain information, independent of legal placement targets. */
+	TFunction<int32()> InspectUnderMouse;
 	/** Set by the 3D board: the legal target under the mouse, or INDEX_NONE. */
 	TFunction<int32()> PickUnderMouse;
 	/** Set by the 3D board: orbit (degrees) and zoom (factor, 1 = none) requests from the UI. */

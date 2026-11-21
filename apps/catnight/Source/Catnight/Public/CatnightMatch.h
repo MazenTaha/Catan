@@ -33,6 +33,9 @@ struct FCatnightMatchSetup
 	catnight::GameConfig ToConfig() const;
 };
 
+/** Live accepted actions only: replay/Continue never plays historical presentation effects. */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FCatnightActionApplied, const catnight::Action&, const std::vector<catnight::GameEvent>&);
+
 class CATNIGHT_API FCatnightMatch
 {
 public:
@@ -80,11 +83,13 @@ public:
 	TArray<FString> Log;
 	FString LastError;
 	FSimpleMulticastDelegate OnChanged;
+	FCatnightActionApplied OnActionApplied;
+	FSimpleMulticastDelegate OnRebuilt;
 	int32 ActionCount() const { return Record.Num(); }
 
 private:
 	bool Rebuild(const catnight::GameConfig& Config, const TArray<catnight::Action>& Actions, FString& Error);
-	bool ApplyQuiet(const catnight::Action& A, FString& Error);
+	bool ApplyQuiet(const catnight::Action& A, FString& Error, std::vector<catnight::GameEvent>* Events = nullptr);
 	void Autosave() const;
 
 	catnight::GameState S;

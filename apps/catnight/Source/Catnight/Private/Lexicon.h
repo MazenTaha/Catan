@@ -19,6 +19,10 @@ namespace CatnightText
 	FString HandoffReason(const catnight::GameState& S, int32 Seat);
 	FString Player(const catnight::GameState& S, int32 Seat);
 	FString Counts(const catnight::Counts& C);
+	FString HexNote(const catnight::GameState& S, int32 Hex);
+	FString DiceResult(const catnight::GameState& S);
+	FString Motion(bool bReduced);
+	FString InspectionHint();
 
 	/** One log line per event (empty for events the log skips); `Viewer` sees their own secrets. */
 	FString EventLine(const catnight::GameState& S, const catnight::GameEvent& E, int32 Viewer);

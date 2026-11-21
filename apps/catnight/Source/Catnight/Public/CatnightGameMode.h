@@ -12,6 +12,8 @@
 //   -CatnightFlat             start with the flat chart instead of the 3D table
 //   -CatnightCamera=<yaw>,<pitch>,<zoom>   turn the 3D table (screenshots)
 //   -CatnightShot=<file.png>  save a screenshot after -CatnightShotAfter=<s> (default 6), then quit
+//   -CatnightReview=build|upgrade|roll|production   isolated presentation capture (never saves)
+//   -CatnightReduceMotion    show settled results without animation
 //   -CatnightShotOnWin       wait for victory before the screenshot (autoplay validation)
 #pragma once
 
@@ -35,4 +37,5 @@ private:
 	TSharedPtr<struct FCatnightBoardView> View;
 	UPROPERTY() TObjectPtr<class ACatnightBoardActor> Board;
 	FTSTicker::FDelegateHandle ShotHandle;
+	FTSTicker::FDelegateHandle ReviewHandle;
 };

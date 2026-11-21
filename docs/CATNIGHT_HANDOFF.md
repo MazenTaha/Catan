@@ -162,3 +162,59 @@ package now builds at `apps/catnight/Packaged/Windows/Catnight.exe`; keep the fu
   check remain open. This is not a finished phase 3 or a release build. No game rules changed.
 - `native/tests/main.cpp` remains another session's edit. Stage only the named native packaging,
   capture-harness, evidence and documentation paths; no push without a fresh owner approval.
+
+## Native table feedback (2026-11-21, isolated branch)
+
+The owner requested continuing the remaining 3D plan. This pass is in the managed worktree
+`C:/Users/LOQ/.codex/worktrees/native-table-feedback/Catan`, branch `codex/native-table-feedback`,
+integrated with `b4b988c` (the Hall/UI first pass, after `c69a443`). The shared `E:/Catan`
+checkout's remaining edits are another session's work; do not stage or overwrite them. This
+branch preserves `STableHud.cpp`/HallKit and adds the shared board-view motion flag.
+
+Implemented:
+- Carved, bevelled bone dice, a felt/timber tray, a rules-result-driven toss and textual result.
+  The toss is kinematic, not a new RNG or physics referee. Real dice physics/camera nudge remain.
+- Five-second masked construction of the original painted cottages/halls, including setup and
+  city upgrades, with scaffolding and transient dust. Later actions do not restart it. Original
+  textures and owner colour are copied into the construction material and restored at completion.
+- Accepted-action presentation events, separate from state refresh/replay. Undo, new games and
+  Continue clear effects instead of replaying old animation.
+- Production uses the actual `ResourcesProduced.hexes` / `blockedHex` event: paid markers with
+  `+`, blocked marker with `X`, delayed until dice settle and then cleared.
+- Tokens and pips face the orbit camera; houses face their strongest producing neighbour.
+- Public map notes: terrain/resource, roll/odds, production claims and robber/bank caveats. Hover
+  a hex, or use I / gamepad X. They are non-interactive and hidden during modal/privacy screens.
+- The Hall Settings reduced-motion preference also finishes table builds/dice immediately and
+  removes dust. No second preference is stored. QA flags override presentation without saving.
+- Map notes use HallKit vellum beside the board, clear of the Herald; the Lists show dice results.
+
+Validation support:
+- `Catnight.Match.TableFeedback` drives the real match + actor: 36 dice pairs, 10/60/144 Hz
+  construction, painted atlas/owner-colour preservation, undo/Continue, reduced motion, real
+  production events, and an editor shader-graph connection regression. There are now four native
+  automation tests and three packaged match/board tests.
+- `pnpm catnight:test-package -ReviewTable` audits all 157 generated packages (92 meshes), tests
+  the match/board, repeats three-angle picking and a rendered victory, and captures nine extra
+  scenes for staged cottage/city construction, dice, production, reduced motion and a Deck map note.
+- Run `pnpm catnight:import` again: `/Game/Generated/Materials/M_Construction` is new. The package
+  preflight requires all seven base materials. Generated assets and detailed logs remain ignored.
+- Material graph gotcha: ComponentMask's unnamed first input must be connected with an empty
+  input name through `MaterialEditingLibrary`. The importer now asserts the connections, and
+  the native test checks this graph. A first editor view may still be compiling shaders; accept
+  the cooked-game captures and reject any shader/default-material fallback warning.
+- Keep source edits isolated while the other session's editor is open. Unreal's IDE Live Coding
+  guard is global to the editor executable. For this unloaded worktree module only, build with
+  `-NoHotReloadFromIDE` after checking no editor for this project is running; do not close the
+  other session's editor. The normal script still requires closing its own editor before builds.
+
+Final validation: four editor tests (248/248 goldens), three packaged match/board tests, all
+157 generated assets cooked, 50/50 legal picks at each of three angles, and a rendered 694-action
+match to victory. The nine additional scenes and a saved-preference restart were reviewed.
+`pnpm verify` also passed (132 tests); no TypeScript changed afterward.
+Scoped evidence is in `apps/catnight/validation/table-feedback.json` with selected captures.
+The dice tray sits clear of the Hall HUD, and the control hint wraps within the island column.
+
+Next work remains: finish Hall & Chart UI/hall/audio, bridge roads and owner sigils, crop wind,
+water/foam/boat motion, time of day, flying resource cards, physics dice, full settings/input
+accessibility, full manual/physical-gamepad acceptance, native island walking, Steam online and
+release. No game rules changed, and no push is authorized.

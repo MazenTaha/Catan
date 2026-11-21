@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "CatnightRules/State.h"
 #include "CatnightBoardActor.generated.h"
 
 class FCatnightMatch;
@@ -15,6 +16,28 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
+
+USTRUCT()
+struct FCatnightBuildReveal
+{
+	GENERATED_BODY()
+	float Started = 0.f;
+	bool bCity = false;
+	float Low = 0.f, High = 0.f;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Mesh;
+	UPROPERTY() TArray<TObjectPtr<UMaterialInterface>> FinalMaterials;
+	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> RevealMaterials;
+	UPROPERTY() TArray<TObjectPtr<UActorComponent>> Scaffold;
+};
+
+USTRUCT()
+struct FCatnightDustMote
+{
+	GENERATED_BODY()
+	float Started = 0.f;
+	FVector Position = FVector::ZeroVector, Velocity = FVector::ZeroVector;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Mesh;
+};
 
 UCLASS()
 class ACatnightBoardActor : public AActor
@@ -29,8 +52,10 @@ public:
 
 	/** Hex circumradius in world units (cm). Everything on the table scales from it. */
 	static constexpr float R = 1000.f;
+	bool HasPaidProduction() const { return !ProductionHexes.IsEmpty(); }
 
 private:
+	friend class FCatnightTableFeedbackTest;
 	void BuildRoom();
 	void BuildIsland();
 	void BuildPieces();
@@ -39,6 +64,15 @@ private:
 	int32 PickUnderMouse() const;
 	int32 PickAt(FVector2D Pixel) const;
 	void RunPickTest();
+	int32 InspectAt(FVector2D Pixel) const;
+	void BuildFeedback();
+	void ResetFeedback();
+	void OnAction(const catnight::Action& Action, const std::vector<catnight::GameEvent>& Events);
+	void AttachReveal(int32 Vertex, UStaticMeshComponent* Mesh);
+	void FinishReveal(FCatnightBuildReveal& Reveal);
+	void TickFeedback(float DeltaSeconds);
+	void ShowProduction(const TArray<int32>& Paid, int32 Blocked);
+	void SetDice(int32 First, int32 Second, bool bRoll);
 
 	FVector LatticeToWorld(float X, float Y, float Z = 0.f) const;
 	FVector VertexWorld(int32 V) const;
@@ -60,6 +94,7 @@ private:
 	TSharedPtr<FCatnightMatch> Match;
 	TSharedPtr<FCatnightBoardView> View;
 	FDelegateHandle ChangedHandle;
+	FDelegateHandle ActionHandle, RebuiltHandle;
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UCameraComponent> Camera;
@@ -74,6 +109,23 @@ private:
 	UPROPERTY() TObjectPtr<UMaterialInterface> GlowBase;
 	UPROPERTY() TObjectPtr<UMaterialInterface> VertexColorBase;
 	UPROPERTY() TObjectPtr<UMaterialInterface> WaterBase;
+	UPROPERTY() TObjectPtr<UMaterialInterface> ConstructionBase;
+	UPROPERTY() TArray<TObjectPtr<UActorComponent>> FeedbackParts;
+	UPROPERTY() TArray<TObjectPtr<UActorComponent>> ProductionParts;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> DiceRoots;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> TokenRoots;
+	UPROPERTY() TMap<int32, FCatnightBuildReveal> Builds;
+	UPROPERTY() TArray<FCatnightDustMote> Dust;
+	UPROPERTY() TObjectPtr<UMaterialInterface> DustMaterial;
+	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> ProductionMaterials;
+	TArray<int32> ProductionHexes;
+	int32 ProductionBlocked = INDEX_NONE;
+	float FeedbackTime = 0.f, DiceStarted = -10.f, ProductionStarted = -10.f;
+	int32 DiceFaces[2] = {1, 1};
+	bool bWasReducedMotion = false, bDiceRolling = false;
+	float TokenYaw = MAX_flt;
+	bool bReviewCloseup = false;
+	FVector ReviewFocus = FVector::ZeroVector;
 
 	FString IslandSignature;
 	bool bPiecesDirty = true;

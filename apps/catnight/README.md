@@ -45,8 +45,9 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 
   `render_ui.mjs` reads `design/hall-chart/assets` (the owner's local design pack) and the web
   game's card art; it uses the repo's Playwright Chromium.
-- The real 3D hall, animated dice/placement, audio and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
-  mouse/real-gamepad playthrough is still required.
+- The real 3D hall, further UI polish, audio and the island walk remain later milestones. The
+  Development package passes cooked-asset and match checks; a full manual mouse/real-gamepad
+  playthrough is still required.
 
 ## Rebuild the board artwork
 
@@ -100,10 +101,12 @@ phase, then hands it over: real positions for screenshots (`validation/ui/`).
 factor, e.g. `-CatnightCamera=40,12,0.9`); `-CatnightPickTest` projects legal targets to the screen
 and picks them back, logging `CATNIGHT PICK n of m targets picked back (k legal)`. A complete
 check requires `n == m == k > 0`; repeat from different camera angles. This is additional to the
-three rules/match automation tests, not a substitute for manual mouse/gamepad play.
+rules/match/feedback automation tests, not a substitute for manual mouse/gamepad play.
 
 3D camera controls: right or middle mouse drag or the right stick turns/tilts; the wheel zooms.
-The camera hint appears below the instruction. **Flat view / 3D view** toggles the board renderer.
+The camera hint appears below the instruction. Hover a hex for its public map note; I or the
+left gamepad face button cycles notes. **Motion: Full / Reduced** controls table animation and
+is saved in the native game settings. Reduced motion settles dice and construction immediately. **Flat view / 3D view** toggles the board renderer.
 
 Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space rolls or
 ends the turn, Esc cancels or opens the menu, Ctrl+Z undoes.
@@ -117,7 +120,9 @@ pnpm catnight:test
 That builds the editor target and runs the automation tests: `Catnight.Rules.Golden` replays all
 golden games under Unreal's compiler settings, `Catnight.Match.FullGames` plays 12 games to a
 win through the match code the table uses, and `Catnight.Match.HotseatSaveUndo` checks hand-offs,
-saving and loading a record, and undo.
+saving and loading a record, and undo. `Catnight.Match.TableFeedback` exercises the real match and board together: all
+36 dice pairs, five-second construction at 10/60/144 Hz, paint/atlas preservation, shader graph
+wiring, undo/Continue resets, reduced motion, and actual production payout events.
 
 Package a standalone Windows build (run `pnpm catnight:import` first):
 
@@ -135,7 +140,7 @@ it does not need the Unreal editor, Node, a browser or the source artwork alongs
 actor loads assets by path.
 
 `test-package.ps1` tests a **Development** package. It inspects the cooked IoStore container
-against every imported asset, runs the two `Catnight.Match` automation tests inside the packaged
+against every imported asset, runs the three `Catnight.Match` automation tests inside the packaged
 executable, checks legal-target picking from three camera angles, and captures title, new game,
 flat board and an autoplay match through victory. The autoplay check waits for an ended match
 and requires its victory log; it cannot pass solely because a timed capture exists. Screenshots
@@ -174,3 +179,43 @@ existing Continue record.
 - The plugin's public functions carry `CATNIGHTRULES_API` (from `Api.h`) so the editor's DLLs can
   link them. Add it to any new public function.
 - Slate `TArray::Add` must not take a reference into the same array (it asserts): copy first.
+
+## Table feedback milestone
+
+The native table now has carved, bevelled bone dice in a timber/felt tray. Their visual toss is
+kinematic and lands on the rules' result; it never rolls a second rules RNG or delays input.
+The Lists repeat the result in text. Physics-simulated dice and the camera nudge remain
+later presentation work.
+
+New settlements (including setup) and city upgrades reveal their original painted geometry
+from foundation through walls to roof over five seconds, with temporary timber scaffolding and
+short-lived dust. Subsequent actions do not restart a construction. Undo, a new game and
+Continue clear presentation history. Reduced motion shows the completed model immediately.
+The Hall Settings reduced-motion preference controls both the UI and board; no separate table
+preference is stored. Map notes use HallKit vellum, reached by hover or I / gamepad X.
+Buildings face their strongest producing neighbour; number tokens and pips turn toward the
+orbit camera. The production event's actual paid hexes get a warm marker and `+`; a blocked
+hex gets `X`. The indicators wait for the dice to settle and then expire, and respect the
+robber and bank-shortage event data. They do not infer payouts from number tokens.
+
+Visual regression captures (Development package, saving disabled):
+
+```powershell
+pnpm catnight:test-package -ReviewTable
+```
+
+This adds staged cottage/city, dice, production, reduced-motion and 1280x800 map-note captures.
+Review these images as well as the automated results. `-CatnightReview=build|upgrade|roll|production`
+plays legal bot actions until the named event and pauses there; it always disables saving.
+`-CatnightShotAfter` is measured from that event in review mode. `-CatnightReviewCloseup`
+frames the building or dice. `-CatnightInspect=<hex index>`, `-CatnightReduceMotion` and
+`-CatnightFullMotion` support repeatable inspection without changing saved preferences.
+
+The new construction shader is `/Game/Generated/Materials/M_Construction`: run the art import
+after updating, even if the previous 92 meshes are already present. There are now seven base
+materials and 157 generated asset packages. The importer asserts every construction graph
+connection. Packaged smoke tests reject shader compilation/default-material fallbacks.
+
+Validation scope and selected captures: [`validation/table-feedback.json`](validation/table-feedback.json).
+The table milestone is integrated with the Hall/UI first pass; the real hall, remaining UI and
+audio, island walking and Steam multiplayer remain in the native plan.

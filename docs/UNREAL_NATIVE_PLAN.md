@@ -327,3 +327,31 @@ This completes the first table presentation milestone, not phase 3 as a whole. N
 full manual mouse/physical-gamepad playthrough, then finish
 board polish, the hall, Hall & Chart UI and audio. The island walk is phase 4 and Steam online,
 rejoin/autopilot and duels are phase 5. Gate 0 still precedes public release.
+
+## 11. Table feedback milestone (2026-11-21)
+
+The next native presentation pass adds carved bone dice and an oak/felt tray, a result-driven
+visual toss, five-second cottage/city construction with the original paint and owner trim,
+scaffolding and dust, actual production markers, camera-facing token labels/pips, stronger
+building orientation and public hex map notes. Reduced motion shares the Hall Settings screen's persistent
+preference. Presentation reacts only to accepted live actions; replay, Continue and undo
+reset it. No rules or their RNG change. Dice animation is kinematic; real dice physics, a
+camera nudge and flying resource cards are still open.
+
+`Catnight.Match.TableFeedback` checks the real board against the match, including 36 dice
+pairs, construction at 10/60/144 Hz, original texture/colour preservation, construction shader
+connections, undo/Continue, reduced motion and the production event's paid/blocked hexes.
+`pnpm catnight:test-package -ReviewTable` adds staged visual captures at 1280x800. The generated
+construction material requires `pnpm catnight:import` again (157 generated asset packages,
+still 92 meshes). Native and packaged validation evidence is recorded with this milestone.
+
+This pass is isolated in the managed `native-table-feedback` worktree on
+`codex/native-table-feedback`. It integrates the Hall/UI first pass (`b4b988c`), preserves its
+HUD refactor, and shares `FHallSettings::bReduceMotion` with the table. QA motion flags override
+presentation without changing saved preferences. Map notes use HallKit vellum beside the board,
+and the Lists include the dice result. The shared checkout's remaining edits stay untouched.
+
+Remaining phase 3 work: the real hall, the remaining Hall & Chart/CommonUI work, audio, further
+board polish (bridge roads, sigils, crop wind, water/foam/boats, time of day, flying gains and
+physics dice), settings/accessibility and the full manual/gamepad acceptance. Phase 4 is the
+native island walk; phase 5 is Steam online and duels; phase 6 is release.

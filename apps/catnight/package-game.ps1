@@ -14,7 +14,7 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
   throw 'Board artwork is missing. Build the editor target, then run pnpm catnight:import first.'
 }
 $manifest = [IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json
-$required = @('M_Tint', 'M_Glow', 'M_VertexColor', 'M_Water', 'M_Model', 'M_ModelMasked') |
+$required = @('M_Tint', 'M_Glow', 'M_VertexColor', 'M_Water', 'M_Model', 'M_ModelMasked', 'M_Construction') |
   ForEach-Object { Join-Path $PSScriptRoot "Content/Generated/Materials/$_.uasset" }
 $modelCount = 0
 foreach ($family in @('village', 'flora', 'rocks', 'props', 'supplies')) {
@@ -29,7 +29,7 @@ foreach ($family in @('village', 'flora', 'rocks', 'props', 'supplies')) {
 }
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missing.Count) { throw "Imported artwork is incomplete. Rerun pnpm catnight:import. Missing: $($missing -join ', ')" }
-Write-Host "Artwork preflight: $modelCount meshes and 6 base materials present."
+Write-Host "Artwork preflight: $modelCount meshes and 7 base materials present."
 
 & $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Configuration" `
   -build -cook -stage -pak -archive "-archivedirectory=$OutputDir" -unattended -utf8output -nocompileeditor

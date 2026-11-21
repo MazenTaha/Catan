@@ -796,8 +796,14 @@ Deviations, on purpose: the instruction ribbon sits at the bottom of the island 
 it covered the island's top); Continue is the sealed letter rather than a fourth banner (the
 skyline stays at three); decrees live in the right column, never over the island.
 
-Next: the materials pass (§4.4), the 3D hall (UI-2), 3D dice and card flights (§4.6), toasts,
-hex map notes, the Chronicle scroll, gamepad glyphs and CommonUI, string table, sounds.
+The integrated table-feedback pass adds carved 3D dice (a result-driven kinematic toss),
+five-second painted construction, actual paid/blocked production markers and public vellum
+hex notes (hover or I / gamepad X). The Lists include the dice result. Reduced motion uses the
+same saved `FHallSettings` preference for Hall and board; QA overrides do not persist. See
+`validation/table-feedback.json` for scope and evidence.
+
+Next: the materials pass (§4.4), the 3D hall (UI-2), physics dice and card flights (§4.6),
+toasts, the Chronicle scroll, gamepad glyphs and CommonUI, string table, sounds.
 
 ## 13. Decisions for the owner
 

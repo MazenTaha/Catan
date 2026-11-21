@@ -35,7 +35,7 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| Title: Play, Continue (with a save), Rejoin (online), How to play, Settings, Character, My kingdom, Quit | part: Continue, Play, Quit (How to play, Settings, Character, My kingdom to do) | Hall in real 3D with torchlight, the live board on the war table behind the menu | 2 → 3 |
+| Title: Play, Continue (with a save), Rejoin (online), How to play, Settings, Character, My kingdom, Quit | part: Hall & Chart Play/Continue/Quit, How to Play and saved basic Settings; Character, My kingdom and online Rejoin pending | Hall in real 3D with torchlight, the live board on the war table behind the menu | 2 → 3 |
 | New game: 3/4 seats, each human / bot level, names, colour, sigil, target, first player, layout, seed + reroll | **done** except colour/sigil choice | Same choices, gamepad-friendly | 2 |
 | Local versus bots | **done** | — | 2 |
 | Hot-seat with pass-the-device curtain | **done** (tested, 181 hand-offs) | — | 2 |
@@ -49,22 +49,25 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 |---|---|---|---|
 | 19 painted hexes with terrain scenery (forest, clay, pasture with sheep, wheat and windmills, mountains, desert ruin) | part: native 3D hexes and instanced Blender scenery, sun/shadows and cooked artwork verified in the Development package; crop wind pending | **Real 3D miniature board** on an oak war table: modelled tiles with the island's own trees, wheat, rocks and buildings, sunlit with soft shadows, wind in the crops | 3 |
 | Sea, turquoise shallows, foam, docks with badges, little boats | part: shaded sea tray, sand shelves, modelled docks/boats and rate plaques; foam and boat motion pending | Animated water with depth colour and foam, the Blender docks and boats bobbing | 3 |
-| Ivory number tokens with pips, red 6/8 | part: 3D ivory tokens, pips and red 6/8; cooked display verified; further readability polish pending | Carved tokens with engraved pips | 3 |
-| Pieces: settlement, city, road, robber, player colours and sigils | part: modelled cottages/halls with owner-coloured trim, roads and robber; bridge-roads, sigils and placement effects pending | Modelled cottage, hall, bridge-road and hooded robber; colour and sigil on every piece; placement animation and dust | 3 |
+| Ivory number tokens with pips, red 6/8 | part: 3D ivory tokens, pips and red 6/8 rotate together toward the camera; engraving polish pending | Carved tokens with engraved pips | 3 |
+| Pieces: settlement, city, road, robber, player colours and sigils | part: owner-coloured cottages/halls face their strongest producing neighbour; five-second painted construction, scaffolding and dust; roads and robber present; bridge-roads and sigils pending | Modelled cottage, hall, bridge-road and hooded robber; colour and sigil on every piece; placement animation and dust | 3 |
 | Legal targets on hover/click, keyboard focusable, show-why reasons | part: 3D hover/picking and glowing targets; projection/deprojection checked from three angles; keys/shoulders + Enter/A remain, real gamepad play pending | Glowing targets, gamepad cursor and stick snapping, reasons on hover | 2 → 3 |
-| Hex tooltip (terrain, number, odds, owners) | to do | Same, as a map note | 3 |
+| Hex tooltip (terrain, number, odds, owners) | part: public parchment map note with terrain/resource, odds, production claims, robber and bank caveat; hover or I/gamepad X; final UI/hardware checks pending | Same, as a map note | 3 |
 | Zoom and pan | part: smoothed orbit/tilt by right or middle drag/right stick, wheel zoom and Flat view toggle; pan pending | Orbit, zoom, tilt the camera over the table; top-down 2D view kept for clarity | 3 |
-| Dice roll overlay, flying gains, production highlights | to do | Physical bone dice rolling on the table; cards flying to banners | 3 |
-| Time of day wash and label (rounds → Sunrise … Small hours) | to do | Real sun and moon over the hall's windows and the table | 3 |
+| Dice roll overlay, flying gains, production highlights | part: carved dice with result-driven kinematic toss, text result, actual paid-hex highlights and blocked X; physics dice/camera nudge and flying cards pending | Physical bone dice rolling on the table; cards flying to banners | 3 |
+| Time of day wash and label (rounds → Sunrise … Small hours) | part: native HUD label; lighting/time wash pending | Real sun and moon over the hall's windows and the table | 3 |
 | Walk layer: walkers and fights on the board | to do | Same markers in 3D | 4 / 5 |
 
 The first 3D-table milestone is verified in the native editor game and a cooked Windows
 Development package (92 models, 156 generated asset packages, 50/50 targets from three angles).
 `pnpm catnight:import` recreates its ignored artwork; see the native README. The actor, import
-pipeline, shared board targets and Flat view toggle are in place. Hall scenery, full Hall & Chart
-widgets, animation, audio and the full manual/physical-gamepad playthrough remain open. The packaged
+pipeline, shared board targets and Flat view toggle are in place. Hall scenery, remaining Hall & Chart
+work, further animation, audio and the full manual/physical-gamepad playthrough remain open. The packaged
 match tests cover 12 full games and hot-seat/save/undo; a rendered autoplay match reaches victory. Validation captures:
-`apps/catnight/validation/board3d-*.png`.
+`apps/catnight/validation/board3d-*.png`. The next feedback milestone adds five-second
+construction, carved dice, actual production markers and map notes, tested against the match.
+The integrated Hall/UI first pass (`b4b988c`) supplies the surrounding HUD and shares its saved
+reduce-motion setting; see `validation/table-feedback.json` and `docs/CATNIGHT_UI_PLAN.md` §12a.
 
 ## 4. The Hall & Chart interface
 
@@ -72,17 +75,17 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| Player banners on a pole (arms, VP, name ribbon, current, cards/pieces) | part: plain list | UMG banners with cloth motion | 3 |
-| Instruction ribbon above the board (also the live region) | part: plain text | Same | 3 |
-| The Lists: round, time, first to N + leader meter, Claims | part: plain text | Same | 3 |
-| The Herald: recent log with arms and resource art, full Chronicle (search, filters, export) | part: plain log | Same | 3 |
-| Thy Treasury: card art, +N seal, hold-to-reveal, hand-limit scale bar | part: plain counts | Real card art, cards fan in the hand | 3 |
-| Build / Cards / Trade tabs, costs, N left, status words, played-card fan | part: plain buttons | Same, gamepad tabs | 3 |
-| Trade: bank (rates, stock, stepper), players (counts, To, Offer), offer out + Withdraw | part: bank, targeted player offers and counters; visual treatment pending | Same plus targeted offers | 2 → 3 |
-| Dialogs: roll-off, discard, rob, offer arrives, counter, Year of Plenty, Monopoly, Man up target, card details | part: inline in the panel | Decree dialogs | 2 → 3 |
+| Player banners on a pole (arms, VP, name ribbon, current, cards/pieces) | part: lit/swaying Slate banners, arms, scores and pole; CommonUI/glyphs pending | UMG banners with cloth motion | 3 |
+| Instruction ribbon above the board (also the live region) | part: HallKit ribbon / chart sheets; live-region accessibility pending | Same | 3 |
+| The Lists: round, time, first to N + leader meter, Claims | part: vellum Lists, round/time/race meter/claims | Same | 3 |
+| The Herald: recent log with arms and resource art, full Chronicle (search, filters, export) | part: Herald scroll and recent lines; full Chronicle pending | Same | 3 |
+| Thy Treasury: card art, +N seal, hold-to-reveal, hand-limit scale bar | part: resource art, count seals and scale bar; hold-to-reveal/fan pending | Real card art, cards fan in the hand | 3 |
+| Build / Cards / Trade tabs, costs, N left, status words, played-card fan | part: HallKit tabs, cost cards and supply/status; played-card fan pending | Same, gamepad tabs | 3 |
+| Trade: bank (rates, stock, stepper), players (counts, To, Offer), offer out + Withdraw | part: bank, targeted offers/counters as a bill of exchange; advanced polish pending | Same plus targeted offers | 2 → 3 |
+| Dialogs: roll-off, discard, rob, offer arrives, counter, Year of Plenty, Monopoly, Man up target, card details | part: parchment decrees in the column; roll-off, Man up and card details pending | Decree dialogs | 2 → 3 |
 | Toolbar: undo, full log, rulebook, mute, settings, leave | to do | Same | 3 |
 | Toasts (herald's slips), rookie tips, connection banner | to do | Same | 3 |
-| How to Play book, Settings with banner tabs, Character, My kingdom | to do | Same | 3 |
+| How to Play book, Settings with banner tabs, Character, My kingdom | part: book and saved bot speed/start view/reduce motion; other settings and profile screens pending | Same | 3 |
 | Layouts wide / mid / narrow, 44 px targets, UI scale | part (fixed layout) | Steam Deck 1280×800 first-class; DPI scaling | 3 |
 | Themes Ember / Frostbound | to do | Same | 3 |
 
@@ -133,13 +136,13 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| Reduce motion, colourblind glyphs, hand privacy, hold-to-reveal, rookie tips, show why, bot speed, UI scale, turn timer, theme | to do | Same, saved in `USaveGame` | 3 |
+| Reduce motion, colourblind glyphs, hand privacy, hold-to-reveal, rookie tips, show why, bot speed, UI scale, turn timer, theme | part: native table reduced-motion control persists; dice/construction settle immediately, dust stops; other settings pending | Same, saved in `USaveGame` | 3 |
 | Keyboard-operable targets, screen-reader announcements | part: keys and gamepad on the board; no screen reader | Gamepad everywhere; rebindable keys (new) | 2 → 3 |
 | Saves: local versioned save, settings, profile | part: autosave/Continue records implemented and tested; settings/profile persistence pending | Save slots, Steam Cloud | 2 / 6 |
 
 ## Order of work
 
-1. **Finish phase 2 validation**: package the native game with its generated artwork, then play a full game by hand with a mouse and a real gamepad. Seats, hot-seat, autosave/Continue, targeted offers, leave/victory screens and board navigation are implemented; the packaged/hardware check remains.
+1. **Finish phase 2 validation**: the cooked package and automated full matches are checked; finish a full game by hand with a mouse and a real gamepad. Seats, hot-seat, autosave/Continue, targeted offers, leave/victory screens and board navigation are implemented; the full manual/hardware check remains.
 2. **Phase 3, the look:** the 3D war table and board, the Hall & Chart UI in UMG, audio. This moved
    ahead of online play so the game looks and sounds like the finished game early.
 3. **Phase 4, the island walk (local):** migrate the island prototype, live buildings, knight,

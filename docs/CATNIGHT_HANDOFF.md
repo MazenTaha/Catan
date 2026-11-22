@@ -260,3 +260,28 @@ The table regression passed all 181 cooked assets, three match/board tests, 50/5
 each of three angles and a rendered 694-action victory. `pnpm verify` passed (132 tests).
 Exact run scope/timing, art hashes, remaining gates and four captures are recorded in
 `apps/catnight/validation/heroes.json`. Generated blends/assets/binaries remain ignored.
+
+## Integration for the requested push (2026-11-22)
+
+The owner explicitly requested committing and pushing. The feature branch integrates main
+through `c33e683` (UI readability, prompts, sounds/card flights, the hall, day/night and table
+camera fixes), preserving the local table feedback and knight/riding work. The shared checkout
+is untouched; the target remains `codex/native-table-feedback`.
+
+- The board owns the single carved dice pair. The hall actor's optional dice are disabled in
+  this combined app, including after returning from practice.
+- Gamepad X remains Undo. I / left-stick click cycles map notes; the bottom hint remains visible
+  alongside the newer device prompts. Settings retain both day/night/hall and reduced motion.
+- Practice removes the table's global daylight, atmosphere, fog and grading, plus its hall;
+  return rebuilds them from the paused match. `catnight:test-heroes` now includes a headless
+  yard-return lifecycle check (lighting, hall, dice owner, table view and cursor/input state).
+- Rendering scripts explicitly use browser `globalThis` properties inside Playwright callbacks,
+  keeping the repository's zero-warning lint check valid.
+
+Integration results and selected packaged captures are in
+`apps/catnight/validation/integration.json`. The original hero report remains a record of its
+earlier pass; the integration report records this newer combined revision. No rules changed.
+The combined revision passed five editor automation tests (248/248 golden games), `pnpm verify`
+(132 unit tests), packaging, 7,910 movement checks, the yard-return lifecycle check, seven hero
+views, all 181 cooked assets, three packaged match/board tests, 50/50 picks at each of three
+angles and a rendered 694-action victory. Physical-gamepad and full-island acceptance stay open.

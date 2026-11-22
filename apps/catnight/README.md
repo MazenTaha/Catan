@@ -44,10 +44,24 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
   ```
 
   `render_ui.mjs` reads `design/hall-chart/assets` (the owner's local design pack) and the web
-  game's card art; it uses the repo's Playwright Chromium.
-- The real 3D hall, further UI polish, audio and the island walk remain later milestones. The
-  Development package passes cooked-asset and match checks; a full manual mouse/real-gamepad
-  playthrough is still required.
+  game's card art; it uses the repo's Playwright Chromium. `node apps/catnight/Tools/render_ui.mjs
+  glyphs/` re-renders only the images whose names start with that prefix.
+- **Sounds:** `node apps/catnight/Tools/render_sfx.mjs` renders the web game's synthesized effects
+  (`apps/web/src/audio/synth.ts`, run unchanged in Chromium) and the UI foley to
+  `Content/Slate/Sounds/*.wav` (committed). `Ui/HallSound.*` plays them as procedural waves on
+  presses and match events; Settings → Effects sets the volume. Automation runs (`-unattended`)
+  stay silent unless `-CatnightSound` is given.
+- **Button prompts:** `Ui/HallStyle.*` watches input and switches every prompt between pad glyphs
+  and keys/mouse (`HallKit::Prompt`). Pad: A confirm, B back, Y roll / end turn, X undo, LB/RB pick
+  a spot, right stick turns the table, triggers zoom, View the Herald, Menu leave.
+- **Dice and the hall:** `Private/Board/CatnightHallActor.*`, spawned beside the board actor: the
+  hall round the table (Settings → The hall; `-CatnightNoHall`).
+  It casts no shadows and its lights stop short of the island, so the board looks as before.
+- **Dice:** the board owns one carved pair and its result-driven toss; the hall's optional
+  dice are disabled in the integrated game, preventing duplicate throws.
+- **Card flights:** `Private/Table/SCardFlights.*` (gained cards fly into Materials (was Thy Treasury)).
+- The Blender hall with its own cameras, music and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
+  mouse/real-gamepad playthrough is still required.
 
 ## Rebuild the board artwork
 
@@ -94,7 +108,27 @@ before capturing; the log then records `CATNIGHT CAPTURE victory after <n> actio
 UI checks: `-CatnightScreen=gallery|rules|settings` shows the HallKit gallery, How to Play or
 Settings; `-CatnightFixture=<moves>` with `-CatnightFixturePhase=main|roll|setup` (and
 `-CatnightFixtureSeed=<seed>`) lets bots play a seeded game until the person's seat must act in that
-phase, then hands it over: real positions for screenshots (`validation/ui/`).
+phase, then hands it over: real positions for screenshots (`validation/ui/`). On the table,
+`-CatnightTab=build|cards|trade` opens that tab, `-CatnightFullLog` the long Herald and
+`-CatnightLeave` the leave decree, so every panel can be captured.
+
+Text sizes follow the plan's minimums at 1080p (labels 20 px, body 18 px; the fonts never go below
+17/16 px whatever a widget asks), and `Config/DefaultEngine.ini` sets a gentler UI scale curve than
+the engine's (0.8 at 720p instead of 0.67). Long names on ribbons and narrow cells shrink to fit
+(`HallKit::FitText`) instead of being cut off.
+
+Playthrough through the UI: `-CatnightUiDrive=mouse|pad` plays the person's seats with simulated
+input on the real controls (clicks on buttons and 3D board spots, or pad keys), using the Medium
+bot's moves, and logs `CATNIGHT UIDRIVE done mode=… ui=… direct=… failed=…`. For a full game:
+
+```powershell
+& 'E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe' 'E:/Catan/apps/catnight/Catnight.uproject' -game -windowed -ResX=1600 -ResY=900 -CatnightSeed=drive1 -CatnightNoSave -CatnightBotDelay=0.05 -CatnightUiDrive=mouse -CatnightShot=drive.png -CatnightShotOnWin -log=drive.log
+```
+
+Add `-RenderOffscreen` (instead of `-windowed`) so the real mouse cannot disturb the simulated
+clicks while you use the computer. Add `-CatnightHotseat=2` to cover the curtain. Pad mode focuses the button it wants before pressing
+A, so it does not test D-pad navigation; neither mode replaces a hand playthrough.
+`-CatnightGamepad` starts (and keeps) the pad prompts for screenshots.
 
 3D table options: `-CatnightFlat` starts with the 2D chart;
 `-CatnightCamera=<yawDelta>,<pitchDelta>,<zoomFactor>` adjusts the default camera (degrees and
@@ -103,13 +137,25 @@ and picks them back, logging `CATNIGHT PICK n of m targets picked back (k legal)
 check requires `n == m == k > 0`; repeat from different camera angles. This is additional to the
 rules/match/feedback automation tests, not a substitute for manual mouse/gamepad play.
 
-3D camera controls: right or middle mouse drag or the right stick turns/tilts; the wheel zooms.
-The camera hint appears below the instruction. Hover a hex for its public map note; I or the
-left gamepad face button cycles notes. **Motion: Full / Reduced** controls table animation and
-is saved in the native game settings. Reduced motion settles dice and construction immediately. **Flat view / 3D view** toggles the board renderer.
+3D camera controls: right or middle mouse drag or the right stick turns/tilts; Q / E turn while held;
+the wheel or the triggers zoom; Home or a right-stick click brings back the starting view. Held
+sticks, triggers and keys move the camera by time (steady speed at any frame rate).
 
-Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space rolls or
-ends the turn, Esc cancels or opens the menu, Ctrl+Z undoes.
+Day and night on the 3D table: `ACatnightDaylightActor` lights the island from the game's clock
+(`Daytime.h`, the web game's `daytime.ts`): each round is a stretch of the day (sunrise, morning,
+midday, afternoon, sunset, dusk, midnight, the small hours) and each turn moves the clock on, the
+light easing to the new hour. Sun or moon, sky, fog, a fixed exposure per hour and a warm grade come
+from keyed looks; from dusk to dawn a lamp over the table and the windows of every settlement and city
+light up. Settings → Day and night: follow the game or always day. `-CatnightHour=<0..24>` holds an
+hour for screenshots (`-CatnightEV=<ev100>` overrides the day exposure while tuning).
+The camera hint appears below the instruction. **Flat view / 3D view** toggles the board renderer.
+
+Hover a hex for its public map note; I or a left-stick click cycles notes. Reduced motion
+finishes the board dice and construction immediately, using the shared saved setting.
+
+Keys: arrows or shoulder buttons choose a spot on the board, Enter or A places it, Space or Y rolls
+or ends the turn, Esc or Menu cancels or opens the menu, Ctrl+Z or X undoes, L or View opens the
+Herald, the wheel or the triggers zoom.
 
 Tests (run `pnpm golden` once first):
 

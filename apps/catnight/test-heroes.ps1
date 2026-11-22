@@ -23,6 +23,8 @@ if(-not $Quick){
     $text=Run-Hero "movement-$rate" @('-nullrhi','-CatnightHero=test','-UseFixedTimeStep',"-FPS=$rate",'-ExecCmds="t.MaxFPS 0"')
     if($text -notmatch 'HERO VALIDATION PASSED: (\d+) checks, 0 failures, 13 physical scenarios'){throw "Movement check did not pass: $rate"}
   }
+  $text=Run-Hero 'return' @('-nullrhi','-CatnightHero=return')
+  if($text -notmatch 'CATNIGHT HERO RETURN PASSED:'){throw 'Yard/table lifecycle check did not pass'}
 }
 foreach($mode in $(if($Quick){@('idle','ride')}else{@('idle','walk','run','crouch','ride','gallop')})){
   Write-Host "Capturing native $mode..."

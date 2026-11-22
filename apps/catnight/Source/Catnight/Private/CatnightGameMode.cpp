@@ -10,6 +10,8 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Board/CatnightBoardActor.h"
+#include "Board/CatnightDaylightActor.h"
+#include "Board/CatnightHallActor.h"
 #include "Table/BoardView.h"
 #include "Ui/SCatnightRoot.h"
 #include "Ui/HallSettings.h"
@@ -105,6 +107,12 @@ void ACatnightGameMode::BeginPlay()
 			Cam.ParseIntoArray(Parts, TEXT(","));
 			if (Parts.Num() == 3) View->MoveCamera(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
 		}
+		// The hall surrounds the table; the board already owns the carved dice pair.
+		Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
+		if (Hall) Hall->Setup(Match, false);
+		// Sun, moon, sky and the lamps at night, following the game's clock.
+		Daylight = GetWorld()->SpawnActor<ACatnightDaylightActor>();
+		if (Daylight) Daylight->Setup(Match);
 	}
 
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
@@ -128,6 +136,25 @@ void ACatnightGameMode::BeginPlay()
 	{
 		EnterHeroYard();
 		if (Hero) Hero->ReviewMode = HeroReview;
+		if (HeroReview == TEXT("return"))
+		{
+			const double Ready = FPlatformTime::Seconds() + 1.0;
+			ReviewHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("CatnightHeroReturn"), .1f,
+				[this, Match, Ready](float)
+				{
+					if (FPlatformTime::Seconds() < Ready) return true;
+					bool bOK = Hero && HeroYard && !Hall && !Daylight && Match->bPresentationPaused;
+					LeaveHeroYard();
+					const auto* PC = GetWorld()->GetFirstPlayerController();
+					bOK &= !Hero && !HeroYard && Hall && Daylight && !Hall->HasDice()
+						&& !Match->bPresentationPaused && Root->GetVisibility() == EVisibility::Visible
+						&& PC && PC->bShowMouseCursor && PC->GetViewTarget() == Board;
+					if (bOK) { UE_LOG(LogTemp, Display, TEXT("CATNIGHT HERO RETURN PASSED: isolated yard light, restored hall/daylight, one dice owner, table view and input")); }
+					else { UE_LOG(LogTemp, Error, TEXT("CATNIGHT HERO RETURN FAILED")); }
+					FPlatformMisc::RequestExitWithStatus(false, bOK ? 0 : 1);
+					return false;
+				});
+		}
 	}
 
 	if (bReview)
@@ -192,6 +219,9 @@ void ACatnightGameMode::EnterHeroYard()
 	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = true;
 	Root->SetVisibility(EVisibility::Collapsed);
 	if (Board) Board->SetActorHiddenInGame(true);
+	// Table sun, sky, fog and unbound grading must leave the yard's physical daylight alone.
+	if (Daylight) { Daylight->Destroy(); Daylight = nullptr; }
+	if (Hall) { Hall->Destroy(); Hall = nullptr; }
 	const FVector Origin(500000, 0, 0);
 	HeroYard = GetWorld()->SpawnActor<ACatnightHeroYard>(Origin, FRotator::ZeroRotator);
 	Hero = GetWorld()->SpawnActor<ACatnightHero>(Origin + FVector(0, 0, 98), FRotator::ZeroRotator);
@@ -236,6 +266,11 @@ void ACatnightGameMode::LeaveHeroYard()
 	}
 	Hero->Destroy(); Hero = nullptr;
 	if (HeroYard) { HeroYard->Destroy(); HeroYard = nullptr; }
+	const TSharedRef<FCatnightMatch> Match = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match();
+	Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
+	if (Hall) Hall->Setup(Match, false);
+	Daylight = GetWorld()->SpawnActor<ACatnightDaylightActor>();
+	if (Daylight) Daylight->Setup(Match);
 	if (HeroHud) { GetWorld()->GetGameViewport()->RemoveViewportWidgetContent(HeroHud.ToSharedRef()); HeroHud.Reset(); }
 	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = false;
 }

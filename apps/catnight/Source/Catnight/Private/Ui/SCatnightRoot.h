@@ -39,8 +39,9 @@ private:
 	TSharedRef<SWidget> BuildRules();
 	TSharedRef<SWidget> BuildSettings();
 	TSharedRef<SWidget> BuildGallery();
-	/** The hall behind the menus: wall, windows, torches, columns. */
-	TSharedRef<SWidget> InHall(TSharedRef<SWidget> Content);
+	/** The hall behind the menus: wall, windows, torches, columns. The torches stand aside (hidden)
+	 *  when a screen's content, `ContentWidth` wide and centred, would cover them. */
+	TSharedRef<SWidget> InHall(TSharedRef<SWidget> Content, float ContentWidth = 0.f);
 	void FocusLater() { bFocusPending = true; }
 	void StartGame(FCatnightMatchSetup Setup);
 

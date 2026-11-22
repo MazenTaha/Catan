@@ -87,6 +87,10 @@ public:
 	FCatnightActionApplied OnActionApplied;
 	FSimpleMulticastDelegate OnRebuilt;
 	int32 ActionCount() const { return Record.Num(); }
+	/** The events of the last action applied with Apply (not replays): sounds, dice and card flights. */
+	std::vector<catnight::GameEvent> LastEvents;
+	/** Bumped with every Apply that succeeded, so listeners can tell new events from old. */
+	uint32 EventSerial = 0;
 
 private:
 	bool Rebuild(const catnight::GameConfig& Config, const TArray<catnight::Action>& Actions, FString& Error);

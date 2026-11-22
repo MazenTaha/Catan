@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "date": "2026-11-22",
+  "featureCommit": "b0ddbba",
+  "integratedMainCommit": "c33e683",
+  "integration": [
+    "one carved board-dice pair; optional hall dice disabled",
+    "gamepad X remains Undo; I/left-stick click inspects map notes",
+    "table light, sky, fog and grading removed in yard and restored on return",
+    "preserved newer UI, prompts, sounds, card flights, hall and day/night",
+    "rendering scripts use explicit browser globalThis references"
+  ],
+  "validation": {
+    "editorAutomationTests": 5,
+    "goldenGames": 248,
+    "goldenActions": 116078,
+    "pnpmVerify": {
+      "passed": true,
+      "unitTests": 132
+    },
+    "packagedHeroes": {
+      "assetTests": 1,
+      "nativeClips": 11,
+      "movement": [
+        {
+          "simulationHz": 10,
+          "checks": 367,
+          "failures": 0
+        },
+        {
+          "simulationHz": 60,
+          "checks": 2215,
+          "failures": 0
+        },
+        {
+          "simulationHz": 144,
+          "checks": 5328,
+          "failures": 0
+        }
+      ],
+      "yardReturnLifecyclePassed": true,
+      "reviewedViews": [
+        "idle",
+        "walk",
+        "run",
+        "crouch",
+        "ride",
+        "gallop",
+        "riding-rear"
+      ]
+    },
+    "packagedTable": [
+      {
+        "scenario": "cooked-artwork",
+        "basicShapes": 3,
+        "assets": 181
+      },
+      {
+        "scenario": "matches",
+        "passed": 3
+      },
+      {
+        "scenario": "setup-0",
+        "camera": "0,0,1",
+        "picked": 50
+      },
+      {
+        "scenario": "setup-1",
+        "camera": "40,12,0.9",
+        "picked": 50
+      },
+      {
+        "scenario": "setup-2",
+        "camera": "-55,-18,1.1",
+        "picked": 50
+      },
+      {
+        "scenario": "title",
+        "screenshot": "title.png"
+      },
+      {
+        "scenario": "new",
+        "screenshot": "new.png"
+      },
+      {
+        "scenario": "flat",
+        "screenshot": "flat.png"
+      },
+      {
+        "scenario": "autoplay",
+        "screenshot": "autoplay.png",
+        "actions": 694,
+        "requiresVisualVictoryReview": true
+      }
+    ],
+    "physicalGamepadChecked": false
+  },
+  "runs": {
+    "heroes": "20261122-113641-955",
+    "package": "20261122-113807-207"
+  },
+  "captures": {
+    "integration-table.png": "ef14c0c3f0db6a5b92f065f6257308bc615f63cd8a7f4051b9886733097996e9",
+    "integration-yard.png": "4ab3df0097e71fccf7501afd3c912939384f06cb22199dc590e6f71208992d25"
+  },
+  "scope": "Native integration checks; full live-island port and hardware gamepad acceptance remain open.",
+  "git": {
+    "ownerRequestedCommitAndPush": true,
+    "targetBranch": "codex/native-table-feedback"
+  }
+}

@@ -66,6 +66,7 @@ const FX = {
   moonglow: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><defs><radialGradient id="g"><stop offset="0" stop-color="#b9cdf0" stop-opacity=".6"/><stop offset="1" stop-color="#b9cdf0" stop-opacity="0"/></radialGradient></defs><rect width="256" height="256" fill="url(#g)"/></svg>`,
   shadow: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter></defs><rect x="28" y="28" width="72" height="72" rx="6" fill="#000" opacity=".75" filter="url(#b)"/></svg>`,
   vignette: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" preserveAspectRatio="none"><defs><radialGradient id="v" cx=".5" cy=".45" r=".75"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".85"/></radialGradient></defs><rect width="512" height="512" fill="url(#v)"/></svg>`,
+  'shade-foot': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 256" width="64" height="256" preserveAspectRatio="none"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0604" stop-opacity="0"/><stop offset="1" stop-color="#0a0604" stop-opacity=".7"/></linearGradient></defs><rect width="64" height="256" fill="url(#s)"/></svg>`,
   ring: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="28" fill="none" stroke="#f3d27a" stroke-width="3"/><circle cx="32" cy="32" r="31" fill="none" stroke="#ffb04a" stroke-opacity=".35" stroke-width="2"/></svg>`,
 };
 
@@ -98,6 +99,59 @@ const ROUNDEL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" w
   <circle cx="60" cy="60" r="57.5" fill="none" stroke="#1a120b" stroke-width="1.5"/>
 </svg>`;
 
+// Button prompts in the same engraved style (plan §4.5): gamepad face buttons as brass roundels
+// with a hint of the pad's colour, shoulders and triggers as brass plates, keys as ivory keycaps.
+const fellSC = readFileSync(join(repo, 'apps/catnight/Content/Slate/Fonts/IMFellEnglishSC-Regular.ttf')).toString('base64');
+const FONT = `<style>@font-face{font-family:Fell;src:url(data:font/ttf;base64,${fellSC})}text{font-family:Fell,serif}</style>`;
+const BRASS = `<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d77e"/><stop offset=".45" stop-color="#c9962f"/><stop offset=".7" stop-color="#f0cf6e"/><stop offset="1" stop-color="#9c6d1c"/></linearGradient>`;
+function padButton(letter, hint) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs>${FONT}${BRASS}
+  <radialGradient id="d" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#2e2823"/><stop offset="1" stop-color="#120d0a"/></radialGradient></defs>
+  <circle cx="52" cy="53" r="44" fill="#000" opacity=".45"/>
+  <circle cx="50" cy="50" r="43" fill="url(#d)" stroke="url(#b)" stroke-width="6"/>
+  <circle cx="50" cy="50" r="35" fill="none" stroke="${hint}" stroke-width="3" opacity=".9"/>
+  <text x="50" y="66" font-size="46" text-anchor="middle" fill="#f3d27a" stroke="#1a120b" stroke-width="1">${letter}</text>
+</svg>`;
+}
+function padPlate(label, w = 150) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 84" width="${w}" height="84"><defs>${FONT}${BRASS}</defs>
+  <rect x="7" y="9" width="${w - 10}" height="70" rx="26" fill="#000" opacity=".45"/>
+  <rect x="5" y="6" width="${w - 10}" height="70" rx="26" fill="url(#b)" stroke="#1a120b" stroke-width="3"/>
+  <rect x="13" y="14" width="${w - 26}" height="54" rx="19" fill="none" stroke="#7a5418" stroke-width="2" opacity=".8"/>
+  <text x="${w / 2}" y="56" font-size="38" text-anchor="middle" fill="#1a120b">${label}</text>
+</svg>`;
+}
+function keycap(label, w = 100, size = 34) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 92" width="${w}" height="92"><defs>${FONT}
+  <linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf1d8"/><stop offset="1" stop-color="#cdb98e"/></linearGradient></defs>
+  <rect x="6" y="10" width="${w - 10}" height="78" rx="12" fill="#000" opacity=".45"/>
+  <rect x="4" y="5" width="${w - 10}" height="78" rx="12" fill="#8a7650" stroke="#1a120b" stroke-width="3"/>
+  <rect x="11" y="9" width="${w - 24}" height="60" rx="8" fill="url(#k)"/>
+  <text x="${(w - 2) / 2}" y="${44 + size * 0.32}" font-size="${size}" text-anchor="middle" fill="#1a120b">${label}</text>
+</svg>`;
+}
+// The mouse, with the button (or wheel) in use inked in rubric.
+function mouse(part) {
+  const right = part === 'right' ? '#a8281e' : 'none';
+  const wheel = part === 'wheel' ? '#a8281e' : '#8a7650';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 96" width="70" height="96"><defs>
+  <linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf1d8"/><stop offset="1" stop-color="#cdb98e"/></linearGradient></defs>
+  <rect x="9" y="8" width="56" height="84" rx="27" fill="#000" opacity=".45"/>
+  <rect x="6" y="4" width="56" height="84" rx="27" fill="url(#k)" stroke="#1a120b" stroke-width="3"/>
+  <path d="M34 5.5 A26 26 0 0 1 60.5 31 V38 H34 Z" fill="${right}" opacity=".9"/>
+  <path d="M7.5 38 H60.5 M34 5.5 V38" stroke="#1a120b" stroke-width="2.5" fill="none"/>
+  <rect x="29.5" y="14" width="9" height="16" rx="4.5" fill="${wheel}" stroke="#1a120b" stroke-width="2"/>
+</svg>`;
+}
+const GLYPH = {
+  'mouse-right': mouse('right'), 'mouse-wheel': mouse('wheel'),
+  'pad-a': padButton('A', '#5f9a48'), 'pad-b': padButton('B', '#c2452f'), 'pad-x': padButton('X', '#4a7fc4'), 'pad-y': padButton('Y', '#e0b84a'),
+  'pad-lb': padPlate('LB'), 'pad-rb': padPlate('RB'), 'pad-lt': padPlate('LT'), 'pad-rt': padPlate('RT'),
+  'pad-menu': padButton('≡', '#cdb98e'), 'pad-view': padButton('⧉', '#cdb98e'), 'pad-rs': padButton('R', '#8a7650'), 'pad-ls': padButton('L', '#8a7650'),
+  'key-space': keycap('Space', 190), 'key-esc': keycap('Esc'), 'key-enter': keycap('Enter', 150), 'key-ctrlz': keycap('Ctrl Z', 160),
+  'key-arrows': keycap('← →', 130), 'key-tab': keycap('Tab', 120), 'key-l': keycap('L'), 'key-f6': keycap('F6'),
+};
+
 // --- jobs ----------------------------------------------------------------------------------
 const jobs = [];
 const svgFile = (p) => readFileSync(join(kit, p), 'utf8');
@@ -109,12 +163,16 @@ const template = svgFile('banners/banner-player-1-template.svg');
 for (const [k, [cloth, fold]] of Object.entries(CLOTH)) add(`banners/player-${k}`, template.replaceAll('#8a1a16', cloth).replaceAll('#6e1210', fold));
 for (const c of Object.keys(PLAYER)) for (const s of Object.keys(SIGIL)) add(`arms/${c}-${s}`, arms(c, s));
 for (const f of ['banner-pole-800', 'candle', 'coin-stack', 'compass-rose', 'crest', 'iron-corner', 'night-window', 'ribbon-label', 'ribbon-title', 'scale-bar-meter', 'scroll-frame-600x400', 'spear-finial', 'stone-column', 'torch', 'wax-seal-small', 'wax-seal']) add(`ornaments/${f}`, svgFile(`ornaments/${f}.svg`));
-for (let i = 1; i <= 6; i++) add(`dice/die-${i}`, svgFile(`dice/bone-die-${i}.svg`));
+// The kit's dice nest an 80 px drawing in a 40-unit box, which showed only the die's top-left
+// quarter: the inner drawing is set to the box's size.
+for (let i = 1; i <= 6; i++) add(`dice/die-${i}`, svgFile(`dice/bone-die-${i}.svg`).replace(/(<svg viewBox="0 0 40 40") width="80" height="80"/, '$1 width="40" height="40"'));
 for (const f of ['fleur', 'lion', 'star', 'tower']) add(`ornaments/charge-${f}`, svgFile(`heraldry/charge-${f}.svg`));
 for (const [k, v] of Object.entries(FX)) add(`fx/${k}`, v);
 mkdirSync(join(out, 'icons'), { recursive: true });
 for (const [k, v] of Object.entries(ICON)) add(`icons/${k}`, icon(v));
 add('ornaments/roundel', ROUNDEL);
+mkdirSync(join(out, 'glyphs'), { recursive: true });
+for (const [k, v] of Object.entries(GLYPH)) add(`glyphs/${k}`, v);
 
 function size(svg) {
   const m = svg.match(/viewBox="([-\d.]+)[ ,]+([-\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)"/);
@@ -124,19 +182,23 @@ function size(svg) {
 const browser = await chromium.launch();
 const pages = { 2: await browser.newPage({ deviceScaleFactor: 2 }), 3: await browser.newPage({ deviceScaleFactor: 3 }) };
 const page = pages[2];
+// `node render_ui.mjs glyphs/` renders only the images whose names start with that prefix.
+const only = process.argv[2];
 for (const { name, svg } of jobs) {
+  if (only && !name.startsWith(only)) continue;
   const pg = pages[scaleFor(name)];
   const [w, h] = size(svg);
   const sized = svg.replace(/<svg([^>]*?)>/, (m, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${w}" height="${h}">`);
   await pg.setViewportSize({ width: Math.ceil(w), height: Math.ceil(h) });
   await pg.setContent(`<html><body style="margin:0;background:transparent">${sized}</body></html>`);
+  await pg.evaluate(() => globalThis.document.fonts.ready);
   const png = await pg.screenshot({ omitBackground: true, clip: { x: 0, y: 0, width: Math.ceil(w), height: Math.ceil(h) } });
   writeFileSync(join(out, `${name}.png`), png);
 }
 
 // Card illustrations: webp to png (Slate's image loader has no webp).
 const cards = join(repo, 'apps/web/public/art/cards');
-for (const f of ['wood', 'clay', 'wool', 'grain', 'ore', 'warden', 'relic', 'decree', 'harvest', 'tithe', 'manup']) {
+if (!only) for (const f of ['wood', 'clay', 'wool', 'grain', 'ore', 'warden', 'relic', 'decree', 'harvest', 'tithe', 'manup']) {
   const b64 = readFileSync(join(cards, `${f}.webp`)).toString('base64');
   await page.setViewportSize({ width: 10, height: 10 });
   await page.setContent(`<img id="i" src="data:image/webp;base64,${b64}">`);
@@ -149,10 +211,37 @@ for (const f of ['wood', 'clay', 'wool', 'grain', 'ore', 'warden', 'relic', 'dec
   writeFileSync(join(out, `cards/${f}.png`), await p2.screenshot({ clip: { x: 0, y: 0, width: dims[0], height: dims[1] } }));
   await p2.close();
 }
-await browser.close();
-
+// Tiling textures. The kit's papers have blotches cut at the tile's edges, which tile into straight
+// seams across a large sheet, so papers are mirrored into a 2x2 tile that has no seams.
+const MIRROR = new Set(['parchment', 'vellum', 'letter-paper']);
+const flat = await browser.newPage({ deviceScaleFactor: 1 });
 for (const f of ['parchment', 'vellum', 'letter-paper', 'oak-tile', 'stone-wall-tile']) {
   const src = join(kit, `textures/${f}.png`);
-  if (existsSync(src)) copyFileSync(src, join(out, `textures/${f}.png`));
+  if (!existsSync(src)) continue;
+  const dst = join(out, `textures/${f}.png`);
+  if (!MIRROR.has(f)) {
+    copyFileSync(src, dst);
+    continue;
+  }
+  const url = await flat.evaluate(async (data) => {
+    const img = new globalThis.Image();
+    img.src = data;
+    await img.decode();
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = globalThis.document.createElement('canvas');
+    c.width = 2 * w;
+    c.height = 2 * h;
+    const g = c.getContext('2d');
+    for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      g.save();
+      g.translate(sx < 0 ? 2 * w : 0, sy < 0 ? 2 * h : 0);
+      g.scale(sx, sy);
+      g.drawImage(img, 0, 0);
+      g.restore();
+    }
+    return c.toDataURL('image/png');
+  }, `data:image/png;base64,${readFileSync(src).toString('base64')}`);
+  writeFileSync(dst, Buffer.from(url.split(',')[1], 'base64'));
 }
+await browser.close();
 console.log(`[ui] ${jobs.length} images + 11 cards + textures -> ${out}`);

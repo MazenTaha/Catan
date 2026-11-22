@@ -103,6 +103,9 @@ scenarios at fixed 10/60/144 Hz simulation steps, then captures six movement mod
 additional rear riding view for visual inspection. Logs and
 images go to `Saved/HeroValidation/<timestamp>`. `-CatnightHero=idle|walk|run|crouch|ride|gallop`
 and `-CatnightHeroAngle=<yaw>` make these captures repeatable; `test` runs the functional route.
+The full command also runs `-CatnightHero=return`: the table's hall, global light, fog and
+grading leave the practice yard alone, then return with the table camera and mouse input.
+The board owns the single dice pair; the hall's optional dice remain disabled.
 All automated runs disable saving. An isolated `-UserDir` should be used for interactive tests.
 Pose captures disable motion blur for joint inspection; the player's rendering setting is
 unchanged. These simulation checks do not claim that this PC renders at 144 FPS.

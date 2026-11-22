@@ -10,6 +10,12 @@ struct FHallSettings
 	bool bReduceMotion = false;
 	/** Start games on the 3D table (true) or the flat chart. */
 	bool bStart3D = true;
+	/** Effects volume, 0 (off) to 10. */
+	int32 Volume = 7;
+	/** Torches, banners and dice in the hall around the war table (Lite turns them off). */
+	bool bHall = true;
+	/** The 3D table's light follows the game's clock through day and night (false: always afternoon). */
+	bool bDayNight = true;
 
 	static FHallSettings& Get();
 	void Load();

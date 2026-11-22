@@ -29,7 +29,7 @@ namespace
 namespace CatnightText
 {
 	FString Motion(bool bReduced) { return bReduced ? TEXT("Motion: Reduced") : TEXT("Motion: Full"); }
-	FString InspectionHint() { return TEXT("Inspect terrain: hover a hex. I cycles map notes (gamepad: X)."); }
+	FString InspectionHint() { return TEXT("Inspect terrain: hover a hex. I cycles map notes (gamepad: left-stick click)."); }
 	FString DiceResult(const GameState& S)
 	{
 		return S.dice ? FString::Printf(TEXT("Dice: %d + %d = %d"), (*S.dice)[0], (*S.dice)[1], (*S.dice)[0] + (*S.dice)[1]) : FString();

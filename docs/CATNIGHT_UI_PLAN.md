@@ -783,7 +783,7 @@ scripts, the 3D war table untouched:
   How to Play as a parchment book; Settings (bot speed, start view, reduce motion; saved).
 - **UI-5/UI-6 game HUD:** the Lists (round in Roman numerals, time of day, race meter, claims),
   player banners on a pole with score numerals, the Herald log, the instruction ribbon; the right
-  column on the hall wall with toolbar plaques, Thy Treasury, the orders board (Build plaques with
+  column on the hall wall with toolbar plaques, Materials (was Thy Treasury), the orders board (Build plaques with
   costs and status, Cards, Trade with the bank and a bill of exchange) and the wax-seal Roll / End
   turn; forced choices as decrees in that column (discard, rob, offer, counter, Year of Plenty,
   Monopoly, placement help); the curtain, leave decree and victory chart (final reckoning, rolls of
@@ -802,8 +802,81 @@ hex notes (hover or I / gamepad X). The Lists include the dice result. Reduced m
 same saved `FHallSettings` preference for Hall and board; QA overrides do not persist. See
 `validation/table-feedback.json` for scope and evidence.
 
-Next: the materials pass (§4.4), the 3D hall (UI-2), physics dice and card flights (§4.6),
-toasts, the Chronicle scroll, gamepad glyphs and CommonUI, string table, sounds.
+### Second pass (2026-11-21)
+
+- **Sound (§4.7, UI-8 part):** `Tools/render_sfx.mjs` runs the web game's `synth.ts` recipes
+  unchanged on an OfflineAudioContext in the repo's Chromium and writes WAVs to
+  `Content/Slate/Sounds`, plus new UI foley in the same style (parchment, brass click, wax stamp,
+  cloth, wooden tab, a hunting horn for your turn). `Ui/HallSound` plays them as procedural waves
+  (no imported assets): every HallKit press by kind, banner hover/click, decrees arriving, and the
+  match events as the web's `SOUND_FOR`. Settings → Effects 0–10.
+- **Button prompts (§4.5, §9):** engraved glyphs rendered by `render_ui.mjs` (`glyphs/`: A/B/X/Y,
+  LB/RB/LT/RT, sticks, Menu/View, keycaps, the mouse with the button in use). An input pre-processor
+  tells pad from mouse and keys; `HallKit::Prompt`/`PromptHint` switch live. The hint row under the
+  ribbon shows only what applies now. Pad: Y rolls / ends the turn, X undoes, View opens the Herald,
+  triggers zoom (plus the existing shoulders, A, right stick, Menu).
+- **Dice and card flights (§4.6):** `ACatnightHallActor` throws two bone dice across the sea off the
+  island's lower right on every roll and leaves them on the rolled faces (reduce motion: placed);
+  `SCardFlights` flies gained cards from the producing tiles (projected from the 3D table or the
+  chart) into their places in Materials (was Thy Treasury), turning face up.
+  After integration with the table-feedback branch, the board owns the single carved dice pair
+  and its toss/production timing. The hall's optional dice are disabled in the integrated game.
+- **The hall (UI-2, first part):** the same actor dresses the space round the war table:
+  flagstones, a rug, oak legs, candles on the table's corners, stone walls with pillars, flickering
+  torches and banners in the players' colours. Nothing in it casts shadows or reaches the island
+  with its light, so the board looks exactly as before; Settings → The hall turns it off. Not yet:
+  the Blender architecture, windows with moonlight, per-screen cameras and the menu push-in.
+- **Torchlight on the column (§4.4, a first step):** a warm, flickering pool from above over the
+  right column and shade at its foot. Real UI materials (`M_UI_*`) remain to do.
+- **Playthrough by UI (§11.2 "focus" check, partly):** `-CatnightUiDrive=mouse|pad` plays the
+  person's seats through the real controls with simulated input (`Table/UiDriver.cpp`) and logs
+  what went through the UI. Mouse, one person and three bots: 137 of 137 moves through the UI (the
+  table was turned twice when a spot lay under the Herald or the Lists). Pad, two people in
+  hot-seat: 348 of 348, including 126 curtain reveals. In pad mode the driver puts focus on the
+  button it wants before pressing A, so D-pad navigation between buttons is not covered.
+
+### Readability pass (2026-11-21)
+
+Every screen captured before and after (including each tab, the long Herald and the leave decree,
+via `-CatnightTab`, `-CatnightFullLog`, `-CatnightLeave`). Fixed:
+
+- **Type sizes (§4.2):** labels and body text raised to the plan's minimums (most were 13–17 px);
+  `Hall::Label/Body/Italic` now have floors (17/16 px) so no call can go below them.
+- **UI scale (§4.3):** the engine's default curve made a 720p window two-thirds size; the project's
+  curve is 0.8 at 720p, 1.0 at 1080p, 1.33 at 1440p, 2.0 at 2160p.
+- **Ribbons:** label text sat low and its lower half was cut by the ribbon's edge; it is now
+  centred on the ribbon's face, and ribbons are only as wide as their name (they overlapped on the
+  player pole). Names too long for their room shrink (`FitText`) instead of being cut.
+- **Cut-off controls:** the bill of exchange's steppers were wider than their columns, the bank's
+  rate buttons overflowed the paper, a decree's title ran off the paper, and a build card's name
+  shared its line with the count. Steppers are compact and square, the bank is a table of equal
+  cells, decree titles wrap, and build cards put each thing on its own line.
+- **Hidden text:** the hand-limit meter's figures and marker were dark ink on dark oak; a banner's
+  card count lay over the board under a swallowtail (now on a small dark plate).
+- **Layout:** the top banners and the bottom ribbon move aside on narrow screens instead of covering
+  the Lists or the Herald, and the hint row wraps. Buttons in decrees keep their own width (some
+  stretched across the paper). The victory sheet is wider and its subtitle no longer breaks after two
+  words. Keyboard and pad focus shows as a gold ring instead of Slate's blue box.
+- **Paper:** the kit's paper tiles were not seamless (straight seams across big sheets); they are
+  mirrored into 2×2 seamless tiles by `render_ui.mjs`.
+
+### Day and night on the 3D table (2026-11-22)
+
+- The table's light follows the game's clock (`Daytime.h`, a port of the web's `daytime.ts`, shared
+  with the HUD's "Round II · Midday"): `ACatnightDaylightActor` owns the sun/moon, sky light, sky
+  atmosphere, fog and an unbound post-process; the board actor no longer makes its own light. Keyed
+  looks per hour (from the web walk's `daylight.ts`, retuned: lower sun, softer shadow edges, golden
+  hours, lavender dusk, blue moonlight), an exposure held per hour so night reads as night, a gentle
+  warm grade by day. From dusk to dawn a candle lamp hangs over the island and every settlement and
+  city has lit windows. The light eases to each new hour over a couple of seconds (reduce motion:
+  at once). Settings → Day and night (follow the game / always day); `-CatnightHour` for captures.
+- Camera checked and fixed: a pad reports an axis only when it moves, so a held stick stopped
+  turning the table; sticks, triggers and the new Q/E keys now move it by time. A right-drag released
+  outside the window kept turning the table (capture lost now ends it). Trackpad scrolling zooms by
+  its fraction. Home or a right-stick click brings back the starting view.
+
+Next: real UI materials, the Blender hall and per-screen cameras, toasts, the
+Chronicle scroll, CommonUI and focus navigation tests, string table, music, a Text size setting.
 
 ## 13. Decisions for the owner
 

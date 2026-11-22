@@ -50,4 +50,11 @@ namespace Hall
 
 	/** Reduce motion (settings): widgets skip sway, flicker and travel. */
 	extern bool bReduceMotion;
+	/** The last input came from a gamepad (prompts show pad glyphs), else mouse and keys. */
+	extern bool bGamepad;
+
+	/** What a button prompt stands for; HallKit::Prompt shows the glyph for the device in use. */
+	enum class EPrompt : uint8 { Confirm, Back, Primary, Cycle, Menu, Undo, Log, Turn, Zoom };
+	/** The glyph image names for a prompt on the current device (one or two images). */
+	TArray<FString> PromptGlyphs(EPrompt P);
 }

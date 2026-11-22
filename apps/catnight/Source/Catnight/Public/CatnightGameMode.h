@@ -15,6 +15,11 @@
 //   -CatnightReview=build|upgrade|roll|production   isolated presentation capture (never saves)
 //   -CatnightReduceMotion    show settled results without animation
 //   -CatnightShotOnWin       wait for victory before the screenshot (autoplay validation)
+//   -CatnightNoHall           no hall round the table (the dice stay)
+//   -CatnightHour=<0..24>     hold the 3D table's light at this hour (screenshots of the day cycle)
+//   -CatnightGamepad          start with gamepad prompts (screenshots)
+//   -CatnightUiDrive=mouse|pad  plays the person's seats through the UI with simulated input
+//                             (Table/UiDriver.cpp), logging CATNIGHT UIDRIVE lines
 #pragma once
 
 #include "CoreMinimal.h"
@@ -41,6 +46,8 @@ private:
 	UPROPERTY() TObjectPtr<class ACatnightHeroYard> HeroYard;
 	TSharedPtr<struct FCatnightBoardView> View;
 	UPROPERTY() TObjectPtr<class ACatnightBoardActor> Board;
+	UPROPERTY() TObjectPtr<class ACatnightHallActor> Hall;
+	UPROPERTY() TObjectPtr<class ACatnightDaylightActor> Daylight;
 	FTSTicker::FDelegateHandle ShotHandle;
 	FTSTicker::FDelegateHandle ReviewHandle;
 };

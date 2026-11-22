@@ -143,6 +143,7 @@ bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error, std::vector<Gam
 		Error = UTF8_TO_TCHAR(Out.error.message.c_str());
 		return false;
 	}
+	LastEvents = Out.events;
 	Undoable.Add(IsUndoableStep(S, A, Out.state, Out.events));
 	S = MoveTemp(Out.state);
 	Record.Add(A);
@@ -196,6 +197,7 @@ FString FCatnightMatch::Apply(const Action& A)
 	}
 	LastError.Reset();
 	Waited = 0.f;
+	EventSerial++;
 	if (IsEnded()) DeleteSave();
 	else Autosave();
 	OnActionApplied.Broadcast(A, Events);

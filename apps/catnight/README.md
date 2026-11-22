@@ -210,6 +210,40 @@ For isolated local testing, Unreal's `-UserDir=<absolute directory>` keeps saves
 under that directory's `Saved/` folder. Use a fresh directory rather than replacing a player's
 existing Continue record.
 
+## Performance
+
+`-CatnightPerf=<file.csv>` records every frame (frame, game, render, RHI and GPU ms, draws,
+triangles, memory) after `-CatnightPerfWarmup` seconds for `-CatnightPerfSeconds` (or
+`-CatnightPerfUntilWin` with `-CatnightAutoplay`), writes the engine's CSV profile beside it, logs
+`CATNIGHT PERF` summaries and quits; `-CatnightPerfGpu` adds one ProfileGPU breakdown to the log.
+It measures uncapped unless `-CatnightPerfCapped` (with `-CatnightFrameRate=0|1|2`). Use
+`-RenderOffscreen -ResX=1920 -ResY=1080 -ForceRes` for a true 1080p frame on a 1080p screen.
+
+Measured 2026-11-22, packaged Development build, 1920×1080, RTX 4050 Laptop (6 GB), i7-13650HX,
+uncapped:
+
+| Scene | fps | GPU ms | Game thread ms | p99 frame ms | Draws | Memory |
+|---|---|---|---|---|---|---|
+| Title | 1229 | 0.22 | 0.8 | 1.4 | 40 | 0.96 GB |
+| Table, midday (67 moves in) | 169 | 5.45 | 2.2 | 6.8 | 730 | 1.02 GB |
+| Table, night, late game (260 moves) | 156 | 5.93 | 2.2 | 7.4 | 890 | 1.07 GB |
+| Whole bot game (312 moves, to victory) | 160 | 5.77 | 2.2 | 7.5 | 800 | 1.04 → 1.06 GB |
+
+Engine start 1.3 s (2.7 s cold). The whole game had one frame over 16.7 ms (19 ms) and no frame over
+33 ms; a move costs no more game-thread time than a quiet frame. The table is GPU-bound: the render
+thread mostly waits on the GPU, and TSR (anti-aliasing and upscaling from 1400×788) is the largest
+pass (about 1.9 ms); the scene, shadows, lights, AO and sky are about 3 ms together.
+
+Changes from this check:
+
+- The 3D table is not drawn while a menu or the flat chart covers it (`bDisableWorldRendering`):
+  title GPU 6.0 → 0.2 ms, chart 6.7 → 0.5 ms.
+- TSR's history at the output size (`[SystemSettings] r.TSR.History.ScreenPercentage=100`): table
+  GPU 6.6 → 5.5 ms with the same picture (mean difference 0.6/255).
+- Settings → Frame rate: Match the display (VSync, default), Up to 60, Unlimited; at most 30 a second
+  in the background. Before, the game ran the GPU flat out at any frame rate. "Up to 60" holds 60 fps
+  with the GPU busy about a third of the time on this laptop (its panel is 144 Hz).
+
 ## Things to know
 
 - `CatnightRules.Build.cs` sets `FPSemantics = Precise` and turns unity builds off. Unreal compiles

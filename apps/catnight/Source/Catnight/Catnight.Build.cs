@@ -10,5 +10,7 @@ public class Catnight : ModuleRules
 		// The UI is Slate from code; the 3D board builds its tiles with ProceduralMeshComponent and
 		// loads the imported models from /Game/Generated (pnpm catnight:import).
 		PrivateDependencyModuleNames.AddRange(new string[] { "InputCore", "Slate", "SlateCore", "ProceduralMeshComponent" });
+		// -CatnightPerf reads the engine's frame timings (stat unit's numbers) and draw counts.
+		PrivateDependencyModuleNames.AddRange(new string[] { "RHI", "RenderCore" });
 	}
 }

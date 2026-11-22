@@ -2,6 +2,8 @@
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "CatnightRules/Rules.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformMisc.h"
 #include "Lexicon.h"
@@ -169,6 +171,14 @@ void SCatnightRoot::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		ApplyShow(Screen);
 		if (!bHadFocus) bFocusPending = false;
 	}
+	// The menus (stone wall) and the flat chart (its own sea) cover the whole view, so the 3D table
+	// behind them is not drawn at all: it cost 6-7 ms of GPU a frame for nothing (laptops ran hot
+	// on the title screen). It still ticks, so the light and camera are ready when it shows again.
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->bDisableWorldRendering = !(Screen == EScreen::Table && View && View->b3D);
+	}
+	FHallSettings::Get().ApplyFrameRate(FSlateApplication::IsInitialized() && FSlateApplication::Get().IsActive());
 	if (bFocusPending && FSlateApplication::IsInitialized())
 	{
 		bFocusPending = false;
@@ -537,6 +547,11 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 	{
 		Speeds->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FHallSettings::BotSpeedName(K), [K, Apply] { FHallSettings::Get().BotSpeed = K; Apply(); return FReply::Handled(); }, S.BotSpeed == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
 	}
+	TSharedRef<SHorizontalBox> Rates = SNew(SHorizontalBox);
+	for (int32 K = 0; K < 3; K++)
+	{
+		Rates->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(FHallSettings::FrameRateName(K), [K, Apply] { FHallSettings::Get().FrameRate = K; Apply(); return FReply::Handled(); }, S.FrameRate == K ? EButton::TabOn : EButton::Paper, true, nullptr, FString(), 19)];
+	}
 	auto Pair = [Apply](bool bValue, const FString& On, const FString& Off, TFunction<void(bool)> Set)
 	{
 		return SNew(SHorizontalBox)
@@ -577,6 +592,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 					Pair(S.bHall, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bHall = b; }))]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Day and night"), TEXT("The table's light follows the game's clock: each round is part of a day, from sunrise to a lamplit night."),
 					Pair(S.bDayNight, TEXT("Follow the game"), TEXT("Always day"), [](bool b) { FHallSettings::Get().bDayNight = b; }))]
+				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Frame rate"), TEXT("Up to 60 keeps a laptop cool and quiet. In the background the game draws at most 30 a second."), Rates)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[LabelText(TEXT("¶ Access"), 23, C::RubricDark)]
 				+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("Reduce motion"), TEXT("No swaying banners, flickering torches or travelling pieces. Results always stay visible."),
 					Pair(S.bReduceMotion, TEXT("On"), TEXT("Off"), [](bool b) { FHallSettings::Get().bReduceMotion = b; }))]
@@ -594,7 +610,11 @@ TSharedRef<SWidget> SCatnightRoot::BuildSettings()
 				EPaper::Parchment, FMargin(44, 28))
 		];
 	Primary = Done;
-	return InHall(SNew(SBox).HAlign(HAlign_Center).VAlign(VAlign_Center)[Sheet]);
+	// The sheet shrinks to fit a short window rather than lose its last rows.
+	return InHall(SNew(SBox).Padding(FMargin(0, 8))
+		[
+			SNew(SScaleBox).Stretch(EStretch::ScaleToFit).StretchDirection(EStretchDirection::DownOnly).HAlign(HAlign_Center).VAlign(VAlign_Center)[Sheet]
+		]);
 }
 
 // ------------------------------------------------------------------ gallery

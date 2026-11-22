@@ -8,6 +8,7 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "PerfProbe.h"
 #include "Board/CatnightBoardActor.h"
 #include "Board/CatnightDaylightActor.h"
 #include "Board/CatnightHallActor.h"
@@ -109,6 +110,8 @@ void ACatnightGameMode::BeginPlay()
 		PC->SetInputMode(Mode);
 	}
 
+	PerfHandle = CatnightPerf::StartFromCommandLine(GetWorld(), Match);
+
 	FString Shot;
 	if (FParse::Value(Cmd, TEXT("CatnightShot="), Shot))
 	{
@@ -141,6 +144,7 @@ void ACatnightGameMode::BeginPlay()
 void ACatnightGameMode::EndPlay(const EEndPlayReason::Type Reason)
 {
 	FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(PerfHandle);
 	if (Root)
 	{
 		if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport()) Viewport->RemoveViewportWidgetContent(Root.ToSharedRef());

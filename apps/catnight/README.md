@@ -244,6 +244,19 @@ Changes from this check:
   in the background. Before, the game ran the GPU flat out at any frame rate. "Up to 60" holds 60 fps
   with the GPU busy about a third of the time on this laptop (its panel is 144 Hz).
 
+## Unreal MCP (AI tools in the editor)
+
+Epic's experimental Unreal MCP ships with UE 5.8 (`Engine/Plugins/Experimental/ModelContextProtocol`).
+The project enables it with All Toolsets, for the Editor target only, so the game never contains it.
+`Config/DefaultEditorPerProjectUserSettings.ini` starts the server with the editor at
+`http://127.0.0.1:8000/mcp` (local connections only).
+
+- Register it once with Claude Code from the repo root:
+  `claude mcp add --transport http --scope local unreal-mcp http://127.0.0.1:8000/mcp`
+  (or run `ModelContextProtocol.GenerateClientConfig ClaudeCode` in the editor console for a `.mcp.json`).
+- The tools exist only while the editor is open. `claude mcp get unreal-mcp` shows whether it connects.
+- The server lists three tools (`list_toolsets`, `describe_toolset`, `call_tool`) and finds the rest on demand.
+
 ## Things to know
 
 - `CatnightRules.Build.cs` sets `FPSemantics = Precise` and turns unity builds off. Unreal compiles

@@ -22,20 +22,6 @@ function WeaponSilhouette({ weapon }: { weapon: Weapon }) {
           />
           <path d="M20 20H85" stroke="var(--loadout-dark)" strokeWidth="1.5" />
         </>
-      ) : weapon === 'revolver' ? (
-        <>
-          <path
-            d="M9 11H65L68 7H79L82 11 92 14 97 21 92 25 102 35 94 39 79 26 66 25 62 22H43V18H9Z"
-            fill="currentColor"
-          />
-          <path d="M13 7H18V11H13ZM69 9H77V6L73 4 69 6Z" fill="currentColor" />
-          <path
-            d="M66 24Q66 35 78 30L79 25M48 13V20M58 13V20"
-            fill="none"
-            stroke="var(--loadout-dark)"
-            strokeWidth="2"
-          />
-        </>
       ) : (
         <>
           <path
@@ -58,12 +44,11 @@ function WeaponSilhouette({ weapon }: { weapon: Weapon }) {
 interface Props {
   weapon: Weapon;
   armed: boolean;
-  ammo: number;
   onSelect(weapon: Weapon): void;
   onPractice(): void;
 }
 
-export function WeaponHUD({ weapon, armed, ammo, onSelect, onPractice }: Props) {
+export function WeaponHUD({ weapon, armed, onSelect, onPractice }: Props) {
   return (
     <div className="world-loadout" data-testid="weapon-loadout">
       <OakPanel as="div" plain className="world-loadout__frame">
@@ -76,7 +61,7 @@ export function WeaponHUD({ weapon, armed, ammo, onSelect, onPractice }: Props) 
                 key={kind}
                 type="button"
                 className="hc-paper-btn hc-paper-btn--sm world-loadout__slot"
-                aria-label={`${COMBAT_TEXT[kind]}${kind === 'revolver' && armed ? ` ${ammo}` : ''} · ${key}`}
+                aria-label={`${COMBAT_TEXT[kind]} · ${key}`}
                 aria-pressed={selected}
                 aria-keyshortcuts={key}
                 disabled={locked}
@@ -92,21 +77,6 @@ export function WeaponHUD({ weapon, armed, ammo, onSelect, onPractice }: Props) 
             );
           })}
         </div>
-        {weapon === 'revolver' && armed && (
-          <div className="hc-parchment world-loadout__ammo" aria-live="polite" aria-atomic="true">
-            <span className="world-loadout__rounds">{ammo}</span>
-            <span>
-              <span className="world-loadout__ammo-label">
-                {ammo ? COMBAT_TEXT.rounds : COMBAT_TEXT.empty}
-              </span>
-              <span className="world-loadout__cartridges" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <i key={i} data-live={i < ammo} />
-                ))}
-              </span>
-            </span>
-          </div>
-        )}
         <button
           type="button"
           className="hc-plaque hc-plaque--iron hc-plaque--sm world-loadout__practice"

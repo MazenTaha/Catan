@@ -11,7 +11,7 @@ Roots (each a variant node the game finds by name; front faces -Y, origin at gro
   DesertStones SandRidge Column Drums Lintel Ruin           desert
   FencePost FenceRail Gate TroughA TroughB BrickStack       farms and clay works
   WeaponChest (+ WeaponChestLid, origin on the rear hinge)  the weapon chest
-  Sword Revolver Shield DummyA DummyB                       equipment (Sword/Revolver: grip origin)
+  Sword Shield DummyA DummyB                       equipment (Sword: grip origin)
   Antlers CandleWheel FloorPlant TablePlant ArmorStand Candles CrossedShields Tapestry Banner
   Bookshelf                                                 My kingdom furnishings
 
@@ -779,27 +779,6 @@ def build_sword(M):
     return [k.build('Sword', M)]
 
 
-def build_revolver(M):
-    """Revolver A: a steel frame and fluted cylinder, round barrel with a front sight, a brass
-    trigger guard and a walnut grip. Origin where the hand closes (top of the grip); barrel
-    along +Y."""
-    k = Kit(72, ao=0)
-    blued = C('#5d666c')
-    k.add(cube(0.036, 0.13, 0.07, 0.008), T((0, 0.04, 0.02)), blued, M_METAL)
-    k.add(lathe([(0.032, 0), (0.032, 0.075)], 12, True, True, lambda i, j: 0.88 if i % 2 else 1.0),
-          T((0, 0.04, 0.05), (-math.pi / 2, 0, 0)) @ T((0, 0, -0.035)), STEEL_DK, M_METAL)
-    k.add(cyl(0.014, 0.013, 0.17, 10), T((0, 0.11, 0.065), (-math.pi / 2, 0, 0)), blued, M_METAL)
-    k.add(cube(0.024, 0.15, 0.01, 0.003), T((0, 0.175, 0.07)), blued, M_METAL)
-    k.add(cube(0.006, 0.012, 0.016, 0.002), T((0, 0.27, 0.075)), STEEL, M_METAL)
-    k.add(cube(0.014, 0.025, 0.035, 0.004), T((0, -0.03, 0.06), (0.5, 0, 0)), STEEL_DK, M_METAL)
-    k.add(torus(0.026, 0.005, 12, 4), T((0, 0.02, -0.025), (0, math.pi / 2, 0)), BRASS, M_BRASS)
-    k.add(cube(0.006, 0.012, 0.03, 0.002), T((0, 0.022, -0.035)), STEEL_DK, M_METAL)
-    grip = T((0, -0.02, 0.0), (0.38, 0, 0))
-    k.add(cube(0.034, 0.05, 0.12, 0.012), grip @ T((0, 0, -0.12)), C('#7a3a22'), M_WOOD)
-    k.add(cyl(0.006, 0.006, 0.038, 6), grip @ T((-0.019, 0, -0.07), (0, math.pi / 2, 0)), BRASS, M_BRASS)
-    k.add(cube(0.036, 0.054, 0.012, 0.004), grip @ T((0, 0, -0.13)), blued, M_METAL)
-    return [k.build('Revolver', M)]
-
 
 def heater(w=0.56, h=0.68, n=10):
     """The heater shield outline (x, z), point at the bottom, top edge at z = h/2."""
@@ -1075,7 +1054,6 @@ def build():
     roots += build_farm(M)
     roots += build_chest(M)
     roots += build_sword(M)
-    roots += build_revolver(M)
     roots += build_shield(M)
     roots += build_dummies(M)
     roots += build_decor(M)

@@ -25,7 +25,7 @@ motion and feel, faster, and easier to read (DECISIONS #29–30 still hold).
 | Layouts balanced / random / beginner, seeds, no adjacent 6/8, 9 harbours | **done** | Seed preview in the new-game screen | 2 → 3 |
 | First player by dice roll-off | **done** in rules | Roll-off shown with real 3D dice | 3 |
 | Bots Easy / Medium / Hard (lookahead, road blocking, public-info hand estimates) | **done**, same moves as TypeScript | — | 1 |
-| Arms: chest in a starting settlement, 5 bullets, health 100, kills, card debts, duel phase | **done** in rules | Played in 3D (§6) | 1 / 5 |
+| Arms: chest in a starting settlement, melee only, health 100, kills, card debts, duel phase | **done** in rules | Played in 3D (§6) | 1 / 5 |
 | Hot-seat privacy in state (`handoff`, `viewer`, `AckPassDevice`) | **done**: opaque curtain, `AckPassDevice` | Curtain in the lit hall | 2 → 3 |
 | Records (`hexfall-record`: config + actions replay a game) | **done**: autosave after every action, Continue | Save slots, Steam Cloud, replay viewer | 2 → 6 |
 | Undo (local, no randomness used) | **done** (tested) | Same limits | 2 |
@@ -104,7 +104,7 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 | Sheep that graze, look, bleat; pasture horses | to do | Same, with real animation | 4 |
 | Sky, clouds, sun/moon, stars, day stages from game progress | to do | Sky atmosphere, volumetric clouds, moonlight | 4 |
 | Minimap (island / nearby, M), view cone, markers | to do | Same | 4 |
-| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword / 3 revolver, E, M, Esc | part: WASD/arrows, mouse orbit, Shift, Ctrl/C, E, wheel and Esc in the practice yard; combat/minimap/rebinding pending | Plus gamepad, rebindable keys | 4 |
+| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword, E, M, Esc | part: WASD/arrows, mouse orbit, Shift, Ctrl/C, E, wheel and Esc in the practice yard; combat/minimap/rebinding pending | Plus gamepad, rebindable keys | 4 |
 | Training dummy | to do | Same | 4 |
 | Graphics Auto / Full / Lite, 3D resolution 100/75/50 % | to do | Unreal scalability, TSR/DLSS/FSR upscaling, Steam Deck preset | 4 |
 
@@ -113,7 +113,7 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
 | Weapon chest in a starting settlement (decoy in the other), juicy opening | rules done; `CatanAnimation` has chest clips | Full animated opening, particles, sound | 4 |
-| Fists 10 / sword 25 / revolver 50 damage, health 100, 5 bullets per game | rules done | Hit reactions, ragdoll-lite knockback, hit-stop | 4 |
+| Fists 10 / sword 25 damage, health 100 | rules done | Hit reactions, ragdoll-lite knockback, hit-stop | 4 |
 | Sword guard parries from the front | rules on the server side to port | Same, host-checked | 5 |
 | Kill → victim respawns, killer steals a card or a debt | rules done | Same | 5 |
 | Man up card: duel pauses the board; yield; 90 s away yields | rules done | Arena framing, duel camera | 5 |

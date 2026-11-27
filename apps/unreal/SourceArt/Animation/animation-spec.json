@@ -2,13 +2,11 @@
   "fps": 60,
   "contact": {
     "fist": 0.12,
-    "sword": 0.21,
-    "revolver": 0
+    "sword": 0.21
   },
   "duration": {
     "fist": 0.42,
-    "sword": 0.58,
-    "revolver": 0.42
+    "sword": 0.58
   },
   "chest": {
     "reveal": 0.64,
@@ -75,10 +73,6 @@
       "loop": false
     },
     "Fist_Jab": {
-      "duration": 0.42,
-      "loop": false
-    },
-    "Revolver_Fire": {
       "duration": 0.42,
       "loop": false
     },

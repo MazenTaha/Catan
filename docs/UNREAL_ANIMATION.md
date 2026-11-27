@@ -13,6 +13,11 @@ ported to Unreal. The native practice scene exercises reusable presentation comp
 clearly labelled standalone sparring partner; its HUD states that it has no inventory, rewards,
 board rules or online play.
 
+The 2026-11-22 melee-only update removes the revolver model/clip export, hides the legacy enum
+entry, rejects selecting or attacking with it, and unbinds 3. The editor target compiles with
+these changes. The earlier 59-check Play-In-Editor run above is historical; the updated practice
+validation script has not been rerun through all four interactive sessions.
+
 ## Build and authoring
 
 The runtime plugin source is `apps/unreal/Plugins/CatanAnimation`. The project module and
@@ -60,7 +65,7 @@ or from the Content Browser under `CatanNight/Maps`. The validated map is
 ## Controls and boundaries
 
 Press Play, click the viewport, and use WASD/mouse to move/look. Shift runs; Space jumps; F or
-left click attacks; right click guards. 1 selects sword/shield, 2 the revolver, and 3 fists. E
+left click attacks; right click guards. 1 selects fists and 2 sword/shield; 3 is unbound. E
 opens the nearby chest. R resets practice actors and the practice chest save. M toggles reduced
 motion for every practice character and chest. Esc leaves Play. The follow camera sits 3.6 m
 back and 1 m to the right, so the partner stays visible during an exchange.
@@ -75,7 +80,6 @@ ammunition allocation or card rewards are introduced by the preview.
 |---|---:|---:|---|
 | Sword cut, alternating sides | 0.21 s | 0.58 s | No |
 | Fist jab | 0.12 s | 0.42 s | No |
-| Revolver fire | 0 s | 0.42 s | No |
 | Combat idle | — | 1.60 s | Yes |
 | Guard hold | — | 1.20 s | Yes |
 | Hit reaction | — | 0.30 s | No |
@@ -145,7 +149,7 @@ afterwards and never writes them to config. Result on 2026-11-19: **59/59 passed
     hand and sparks appear.
   - The partner turns upright and counters; the facing sword guard parries.
   - A strike between guards is cancelled before contact.
-  - Revolver (−50) and fist (−10) contacts land; the partner recovers in place after defeat.
+  - Sword (−25) and fist (−10) contacts land; the partner recovers in place after defeat.
 - **Weapons and options:** 1/2/3 switch weapons and visibility. M reaches every character and
   chest, and no partner sparks appear. M off restores them.
 - **Movement:** W walks at 400 cm/s with leg motion; Shift runs above 700 cm/s. An attack while
@@ -160,7 +164,7 @@ afterwards and never writes them to config. Result on 2026-11-19: **59/59 passed
 The visual review used PIE viewport screenshots of:
 - the chest latch, lift, reveal and settled lid;
 - sword wind-up, contact and follow-through;
-- the partner's counter, the guard parry and revolver recoil;
+- the partner's counter, the guard parry and rejection of the retired weapon key;
 - the reduced-motion HUD.
 
 Additional side-view captures checked facing, grips (hilt locked in the gauntlet throughout) and

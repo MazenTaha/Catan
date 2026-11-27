@@ -102,10 +102,8 @@ for (const reduceMotion of [false, true]) {
     for (const [key, name] of [
       ['Digit1', 'Bare hands'],
       ['Digit2', 'Sword'],
-      ['Digit3', 'Revolver 5'],
       ['Numpad1', 'Bare hands'],
       ['Numpad2', 'Sword'],
-      ['Numpad3', 'Revolver 5'],
     ]) {
       await page.keyboard.press(key);
       await expect(page.getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute(
@@ -119,8 +117,16 @@ for (const reduceMotion of [false, true]) {
       'true',
     );
     await page.keyboard.press('Digit3');
-    await page.keyboard.press('KeyF');
-    await expect(page.getByRole('button', { name: /^Revolver 4/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Bare hands/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByRole('button', { name: /Revolver/ })).toHaveCount(0);
+    await page.keyboard.press('Numpad3');
+    await expect(page.getByRole('button', { name: /^Bare hands/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await page.evaluate(() => (window as unknown as Dev).__world3d.world.setHour(13));
     if (!reduceMotion) {
       await page.screenshot({ path: `${out}/loadout-1440.png` });

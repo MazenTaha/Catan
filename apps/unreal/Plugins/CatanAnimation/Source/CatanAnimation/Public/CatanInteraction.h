@@ -21,7 +21,7 @@ class UAudioComponent;
 class ACatanPracticeCharacter;
 
 UENUM(BlueprintType)
-enum class ECatanWeapon : uint8 { Fist, Sword, Revolver };
+enum class ECatanWeapon : uint8 { Fist, Sword, Revolver UMETA(Hidden) };
 
 USTRUCT(BlueprintType)
 struct FCatanChestKey {
@@ -41,7 +41,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float ChestFinish = 2.4f;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMesh> Knight;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMesh> Sword;
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMesh> Revolver;
+    UPROPERTY() TObjectPtr<USkeletalMesh> Revolver; // Legacy asset field; never equipped.
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMesh> Shield;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMesh> ChestBody;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMesh> ChestLid;
@@ -201,7 +201,6 @@ private:
     void GuardOn();
     void GuardOff();
     void SwordKey();
-    void GunKey();
     void FistKey();
 };
 

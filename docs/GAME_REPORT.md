@@ -4,6 +4,8 @@
 
 The game has changed considerably since the first combat prototype. Current source takes priority over old paragraphs in the README and old decision entries. In particular, the current game has online player combat, persistent health, weapon chests and **five bullets per game with no reload**. The old six-shot, reloadable practice description is historical.
 
+> **2026-11-22 update:** This is a historical snapshot. Active equipment is now **1 bare hands / 2 sword**; the revolver, firing and ammunition HUD have been removed. Older v1 firearm records still replay, but cannot fire when resumed. Use the current README and DECISIONS #70 for this change.
+
 ## Contents
 
 1. [What the game is](#1-what-the-game-is)

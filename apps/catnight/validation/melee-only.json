@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "date": "2026-11-22",
+  "scope": "Remove the revolver from active gameplay across shared web/server rules, native Catnight rules, HUD/equipment and the old Unreal animation practice. Preserve v1 archives.",
+  "controls": {
+    "1": "bare hands",
+    "2": "sword",
+    "3": "unbound"
+  },
+  "compatibility": {
+    "legacyKeysPreserved": true,
+    "historicalShotsReplay": true,
+    "resumedLiveShotsRejected": true,
+    "retiredRemotePose": "fist"
+  },
+  "checks": {
+    "verify": {
+      "passed": true,
+      "unitTests": 133
+    },
+    "browser": {
+      "passed": 12,
+      "scope": "combat, online PvP, rider/equipment, HUD and crouch full/reduced motion, island entry/walk/exit",
+      "note": "The island check was interrupted by a source refresh during the first run; its isolated rerun passed."
+    },
+    "native": {
+      "passed": 261,
+      "goldenGames": 248,
+      "actions": 116509
+    },
+    "unrealEditor": {
+      "passed": 6,
+      "goldenGames": 248
+    },
+    "legacyUnrealEditorBuild": true,
+    "legacyPracticeInteractiveSessions": "not rerun; previous 59-check report is historical",
+    "nativeImport": {
+      "models": 91,
+      "generatedAssets": 180,
+      "revolverAbsent": true
+    },
+    "package": {
+      "passed": true,
+      "automationTests": 5,
+      "generatedAssets": 180,
+      "basicShapes": 3,
+      "retiredModelAbsent": true,
+      "picking": [
+        50,
+        50,
+        50
+      ],
+      "renderedMatchToVictory": true,
+      "evidence": "apps/catnight/Saved/PackageValidation/20261122-161859-877/report.json"
+    },
+    "wrapperStagedModelMatches": true,
+    "diffCheck": true
+  },
+  "artifacts": {
+    "apps/web/public/models/props.glb": {
+      "sha256": "c1a9603f1d7a5b8f199ff925c7027367f050a7d91397462145978b8c818c51d9"
+    },
+    "assets/blender/props.blend": {
+      "sha256": "ab9713390e0b4fb3d82370baeafe827097323a2873b10002a2342de477c20f2c"
+    },
+    "assets/blender/native_interactions.blend": {
+      "sha256": "78b8b78d8ce94097e41ae855e4411e66113f562040e854ee53a35aed88180f22"
+    }
+  }
+}

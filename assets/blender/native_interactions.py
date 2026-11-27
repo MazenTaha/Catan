@@ -16,14 +16,12 @@ IDLE = {'ArmR':[-.55,0,-.14], 'ForeArmR':[-.65,0,0], 'HandR':[.1,0,0], 'ArmL':[-
 def pose(**values): return {**IDLE, **values}
 CUT = [(0,IDLE),(.12,pose(ArmR=[-1.65,-.65,-.35],ForeArmR=[-1.05,0,0],Spine=[-.03,-.32,0],Hips=[0,.05,0],Head=[.04,.16,0])),(.21,pose(ArmR=[-1.35,.18,-.22],ForeArmR=[-.28,0,0],Spine=[.08,.12,0],Hips=[0,-.03,0])),(.29,pose(ArmR=[-.4,.85,-.3],ForeArmR=[-.3,0,0],Spine=[.1,.4,0],Hips=[0,-.04,0],Head=[-.04,-.16,0])),(.43,pose(ArmR=[-.48,.35,-.2],Spine=[.04,.16,0])),(.58,IDLE)]
 FIST=pose(ArmR=[-.65,0,-.12],ForeArmR=[-1.35,0,0],ArmL=[-.7,0,.15],ForeArmL=[-1.5,0,0])
-GUN=pose(ArmR=[-1.48,.1,-.08],ForeArmR=[-.08,0,0])
 GUARD=pose(ArmR=[-1.25,-.65,-.25],ForeArmR=[-.9,0,0],ArmL=[-1,.05,.3],ForeArmL=[-1.3,0,0],Spine=[.06,-.04,0])
 CLIPS = {
 'Combat_Idle':(1.6,[(0,IDLE),(.8,pose(Spine=[.035,.025,0],ArmR=[-.57,0,-.14])),(1.6,IDLE)]),
 'Sword_Cut_R':(.58,CUT),
 'Sword_Cut_L':(.58,[(t,{n:[a[0],-a[1] if n in ['Hips','Spine','Head','ArmR'] else a[1],a[2]] for n,a in p.items()}) for t,p in CUT]),
 'Fist_Jab':(.42,[(0,FIST),(.065,{**FIST,'ArmR':[-.35,-.16,-.2],'ForeArmR':[-1.65,0,0],'Spine':[-.02,-.14,0]}),(.12,{**FIST,'ArmR':[-1.48,.06,-.08],'ForeArmR':[-.06,0,0],'Spine':[.09,.14,0]}),(.17,{**FIST,'ArmR':[-1.5,.08,-.08],'ForeArmR':[-.1,0,0],'Spine':[.08,.18,0]}),(.42,FIST)]),
-'Revolver_Fire':(.42,[(0,GUN),(.035,{**GUN,'ArmR':[-1.75,.1,-.1],'ForeArmR':[-.2,0,0],'Spine':[-.065,0,0]}),(.12,{**GUN,'ArmR':[-1.59,.1,-.08]}),(.42,GUN)]),
 'Guard_Hold':(1.2,[(0,GUARD),(.6,{**GUARD,'Spine':[.075,-.04,0]}),(1.2,GUARD)]),
 'Hit_React':(.3,[(0,IDLE),(.045,pose(Spine=[-.22,.1,.065],Head=[.14,-.07,0])),(.12,pose(Spine=[-.1,.055,.03],Head=[.06,0,0])),(.3,IDLE)]),
 'Guard_Impact':(.24,[(0,GUARD),(.04,{**GUARD,'Spine':[-.1,-.12,0],'ArmL':[-1.2,.05,.3],'ForeArmL':[-1.5,0,0]}),(.24,GUARD)]),
@@ -85,7 +83,7 @@ def build():
         for bone in arm.pose.bones: bone.rotation_quaternion=Quaternion()
     # Rigged original gear shares the exact bind skeleton, so grip/forearm contact cannot drift.
     mats=props.mats()
-    for label,maker,bone,at,rot in [('SwordRig',props.build_sword,'HandR',(-.252,-.01,.865),math.pi),('RevolverRig',props.build_revolver,'HandR',(-.252,-.01,.865),math.pi),('ShieldRig',props.build_shield,'ForeArmL',(.33,0,1.08),math.pi/2)]:
+    for label,maker,bone,at,rot in [('SwordRig',props.build_sword,'HandR',(-.252,-.01,.865),math.pi),('ShieldRig',props.build_shield,'ForeArmL',(.33,0,1.08),math.pi/2)]:
         ob=maker(mats)[0]; ob.name=label
         transform=Matrix.Translation(Vector(at))@Matrix.Rotation(rot,4,'Z')
         ob.data.transform(transform); ob.location=(0,0,0); ob.parent=arm
@@ -107,7 +105,7 @@ def build():
             ob.rotation_euler.x=angle if idx==1 else latch_angle; ob.keyframe_insert('rotation_euler',frame=time*FPS)
     sc.frame_start=0; sc.frame_end=66; sc.frame_set(0)
     save_blend(sc,'native_interactions.blend')
-    spec={'fps':FPS,'contact':{'fist':.12,'sword':.21,'revolver':0},'duration':{'fist':.42,'sword':.58,'revolver':.42},'chest':{'reveal':.64,'finish':2.4,'keys':[{'time':t,'lid':a,'latch':l} for t,a,l in CHEST]},'clips':{n:{'duration':d,'loop':n in ['Combat_Idle','Guard_Hold','Walk','Run']} for n,(d,_) in CLIPS.items()}}
+    spec={'fps':FPS,'contact':{'fist':.12,'sword':.21},'duration':{'fist':.42,'sword':.58},'chest':{'reveal':.64,'finish':2.4,'keys':[{'time':t,'lid':a,'latch':l} for t,a,l in CHEST]},'clips':{n:{'duration':d,'loop':n in ['Combat_Idle','Guard_Hold','Walk','Run']} for n,(d,_) in CLIPS.items()}}
     (OUT/'animation-spec.json').write_text(json.dumps(spec,indent=2)+'\n')
     return {'clips':len(CLIPS)+2,'source':'assets/blender/native_interactions.blend'}
 

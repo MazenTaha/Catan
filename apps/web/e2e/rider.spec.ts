@@ -86,7 +86,7 @@ for (const reduceMotion of [false, true])
         avatar.root.getObjectByName(`ReinGrip${side}`)!.getWorldPosition(new T.Vector3());
       for (const hz of [10, 60, 144])
         for (const speed of [0, 2, 5.5, 12])
-          for (const weapon of ['fist', 'sword', 'revolver'] as const)
+          for (const weapon of ['fist', 'sword'] as const)
             for (const block of [false, true])
               for (const age of [0.1, 1])
                 for (const heading of [0, 2.6]) {
@@ -189,7 +189,7 @@ for (const reduceMotion of [false, true])
       for (const variant of [1, 2]) {
         avatar.setLook({ ...look, cape: variant });
         for (const speed of [0, 1.1, 2.4, 6.2])
-          for (const weapon of ['fist', 'sword', 'revolver'] as const)
+          for (const weapon of ['fist', 'sword'] as const)
             for (const block of [false, true]) {
               let previous: Float32Array | null = null;
               for (let i = 0; i < 180; i++) {
@@ -353,7 +353,7 @@ test('live controller and online riders keep hold through steering, fighting and
           w.attack();
         }
         if (i === 85) {
-          w.selectWeapon('revolver');
+          w.selectWeapon('sword');
           w.attack();
         }
         if (i === 130) w.selectWeapon('fist');

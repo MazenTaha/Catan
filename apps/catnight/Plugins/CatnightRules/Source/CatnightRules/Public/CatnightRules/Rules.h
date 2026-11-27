@@ -25,6 +25,8 @@ CATNIGHTRULES_API std::optional<std::string> ValidateConfig(const GameConfig& co
 CATNIGHTRULES_API GameState CreateGame(const GameConfig& config);
 
 CATNIGHTRULES_API ActionOutcome ApplyAction(const GameState& state, const Action& action);
+// Historical record reconstruction only; never use for live commands.
+CATNIGHTRULES_API ActionOutcome ApplyRecordedAction(const GameState& state, const Action& action);
 CATNIGHTRULES_API bool IsLegal(const GameState& state, const Action& action);
 /** Legal actions for the seat that must act (domestic trade offers are not listed). */
 CATNIGHTRULES_API std::vector<Action> LegalActions(const GameState& state, Rng* rng = nullptr);

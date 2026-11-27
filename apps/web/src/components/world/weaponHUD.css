@@ -73,36 +73,6 @@
   background: var(--gold-light);
   border-color: var(--gold-dark);
 }
-.world-loadout__ammo {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  margin-top: 5px;
-}
-.world-loadout__rounds {
-  font: 34px/1 var(--font-body);
-  font-variant-numeric: tabular-nums;
-}
-.world-loadout__ammo-label {
-  display: block;
-  font: 13px/1 var(--font-label);
-}
-.world-loadout__cartridges {
-  display: flex;
-  gap: 4px;
-  margin-top: 5px;
-}
-.world-loadout__cartridges i {
-  width: 4px;
-  height: 10px;
-  border: 1px solid var(--map-ink);
-  border-radius: 2px 2px 0 0;
-}
-.world-loadout__cartridges i[data-live='true'] {
-  background: var(--map-ink);
-}
 .world-loadout__practice.hc-plaque {
   width: 100%;
   margin-top: 7px;

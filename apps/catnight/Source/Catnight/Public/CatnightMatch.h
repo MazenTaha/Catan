@@ -94,7 +94,7 @@ public:
 
 private:
 	bool Rebuild(const catnight::GameConfig& Config, const TArray<catnight::Action>& Actions, FString& Error);
-	bool ApplyQuiet(const catnight::Action& A, FString& Error, std::vector<catnight::GameEvent>* Events = nullptr);
+	bool ApplyQuiet(const catnight::Action& A, FString& Error, std::vector<catnight::GameEvent>* Events = nullptr, bool bRecorded = false);
 	void Autosave() const;
 
 	catnight::GameState S;

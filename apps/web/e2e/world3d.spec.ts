@@ -47,7 +47,7 @@ test('3D walk: toggle from the board, walk, jump between lands and back', async 
   await expect(where).toContainText('You', { timeout: 30_000 });
   await expect(page.getByRole('button', { name: /^Bare hands/ })).toBeEnabled();
   await expect(page.getByRole('button', { name: /^Sword/ })).toBeDisabled();
-  await expect(page.getByRole('button', { name: /^Revolver/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Revolver/ })).toHaveCount(0);
 
   await world.focus();
   await page.keyboard.down('KeyW');

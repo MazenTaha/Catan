@@ -129,15 +129,15 @@ bool FCatnightMatch::Rebuild(const GameConfig& Config, const TArray<Action>& Act
 	Waited = 0.f;
 	for (const Action& A : Actions)
 	{
-		if (!ApplyQuiet(A, Error)) return false;
+		if (!ApplyQuiet(A, Error, nullptr, true)) return false;
 	}
 	OnRebuilt.Broadcast();
 	return true;
 }
 
-bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error, std::vector<GameEvent>* Events)
+bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error, std::vector<GameEvent>* Events, bool bRecorded)
 {
-	ActionOutcome Out = ApplyAction(S, A);
+	ActionOutcome Out = bRecorded ? ApplyRecordedAction(S, A) : ApplyAction(S, A);
 	if (!Out.ok)
 	{
 		Error = UTF8_TO_TCHAR(Out.error.message.c_str());

@@ -48,9 +48,7 @@ export class Avatar {
   readonly offArm = new THREE.Group();
   readonly legs = [new THREE.Group(), new THREE.Group()];
   readonly sword = new THREE.Group();
-  readonly revolver = new THREE.Group();
   readonly shield = new THREE.Group();
-  readonly muzzle = new THREE.Group();
   private head = new THREE.Group();
   private styled = new THREE.Group();
   private cape = new THREE.Group();
@@ -79,7 +77,6 @@ export class Avatar {
     const leather = this.mat('#51382b', 0.85);
     const boot = this.mat('#3a2a20', 0.8);
     const steel = this.mat('#a3adb2', 0.45, 0.65);
-    const wood = this.mat('#765039', 1);
     const dark = this.mat('#1d1715', 0.6);
 
     const model = knightModel();
@@ -103,8 +100,8 @@ export class Avatar {
     const hand = new THREE.Group();
     if (!this.knight) hand.position.set(0, -0.56, -0.02);
     (this.knight?.hand ?? this.arm).add(hand);
-    hand.add(this.sword, this.revolver);
-    // Blender sword (Sword A), revolver and heater shield when props.glb is loaded; shapes else.
+    hand.add(this.sword);
+    // Blender sword (Sword A) and heater shield when props.glb is loaded; shapes else.
     const swordModel = cloneGear('Sword');
     if (swordModel) this.sword.add(swordModel);
     else {
@@ -114,23 +111,6 @@ export class Avatar {
       this.part(this.sword, leather, 0, 0, 0.02, 0.05, 0.05, 0.2, tube).rotation.x = Math.PI / 2;
       this.part(this.sword, this.mat('#a78c54', 0.5, 0.6), 0, 0, 0.14, 0.05, 0.05, 0.05, ball);
     }
-    const gunModel = cloneGear('Revolver');
-    if (gunModel) {
-      gunModel.scale.setScalar(1.15);
-      this.revolver.add(gunModel);
-      this.muzzle.position.set(0, 0.075, -0.33);
-    } else {
-      // Revolver: blued barrel, cylinder, walnut grip, brass trigger guard.
-      const blued = this.mat('#303c43', 0.5, 0.7);
-      const grip = this.part(this.revolver, wood, 0, -0.05, 0.03, 0.06, 0.16, 0.08);
-      grip.rotation.x = -0.35;
-      this.part(this.revolver, blued, 0, 0.05, -0.16, 0.045, 0.045, 0.3);
-      const cyl = this.part(this.revolver, blued, 0, 0.04, -0.04, 0.09, 0.09, 0.1, tube);
-      cyl.rotation.x = Math.PI / 2;
-      this.part(this.revolver, this.mat('#a78c54', 0.5, 0.6), 0, -0.02, -0.03, 0.03, 0.04, 0.08);
-      this.muzzle.position.set(0, 0.05, -0.33);
-    }
-    this.revolver.add(this.muzzle);
     // Shield on the left forearm, its face (the seat colour) turned outwards.
     if (this.knight) this.shield.position.set(-0.075, 0, -0.03);
     else this.shield.position.set(-0.06, -0.38, -0.06);
@@ -229,10 +209,10 @@ export class Avatar {
 
   private bake() {
     if (this.knight) {
-      this.rig.bake(this.root, [this.sword, this.revolver, this.shield, this.styled]);
+      this.rig.bake(this.root, [this.sword, this.shield, this.styled]);
       return;
     }
-    this.rig.bake(this.root, [this.body, this.arm, this.offArm, ...this.legs, this.cape, this.sword, this.revolver, this.shield]);
+    this.rig.bake(this.root, [this.body, this.arm, this.offArm, ...this.legs, this.cape, this.sword, this.shield]);
   }
 
   setLook(look: CharacterLook) {
@@ -315,7 +295,6 @@ export class Avatar {
 
   setWeapon(w: Weapon) {
     this.sword.visible = this.shield.visible = w === 'sword';
-    this.revolver.visible = w === 'revolver';
   }
 
   /** A short red glow when struck. */
@@ -379,9 +358,6 @@ export class Avatar {
       }
       ox = -0.5;
       oz = -0.25;
-    } else if (p.weapon === 'revolver') {
-      ax = -1.45;
-      if (live && !this.reduce) ax -= Math.max(0, 1 - t / 0.25) * 0.45;
     } else if (live && !this.reduce) {
       // A jab: pull back, punch out, recover.
       const s = t < 0.12 ? -t / 0.12 : t < 0.22 ? -1 + ((t - 0.12) / 0.1) * 2.4 : Math.max(0, 1.4 - ((t - 0.22) / 0.2) * 1.4);

@@ -46,9 +46,11 @@ export const MANUP_CARDS = 6;
 
 /** Live combat in the 3D walk (DECISIONS #40). */
 export const MAX_HEALTH = 100;
+/** Frozen v1 archive default; live play never spends ammunition. */
 export const BULLETS = 5;
-export const WEAPONS = ['fist', 'sword', 'revolver'] as const;
-export type Weapon = (typeof WEAPONS)[number];
+// The retired key remains readable in v1 records; only these two weapons are playable.
+export type Weapon = 'fist' | 'sword' | 'revolver';
+export const WEAPONS: readonly Weapon[] = ['fist', 'sword'];
 export const DAMAGE: Record<Weapon, number> = { fist: 10, sword: 25, revolver: 50 };
 
 export const PLAYER_COLORS = ['crimson', 'frost', 'bone', 'violet'] as const;

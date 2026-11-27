@@ -78,7 +78,8 @@ describe('hub', () => {
     const legacy = client(hub);
     legacy.send({ t: 'host', profile: me, settings: defaultSettings('legacy') });
     legacy.send({ t: 'settings', settings: { ...defaultSettings('full'), targetVp: 12 } });
-    expect(legacy.last('lobby')!.lobby.settings).toEqual({ ...defaultSettings('full'), targetVp: 12 });
+    expect(legacy.last('lobby')!.lobby.settings).toEqual({ ...defaultSettings('full'), targetVp: 12,
+    });
   });
 
   it('plays a game: checks whose move it is, hides cards, runs the bots', () => {
@@ -160,7 +161,8 @@ describe('hub', () => {
   /** Two people and a bot, past setup, with the room's own (unredacted) state. */
   function armedTable() {
     const h = client(hub);
-    h.send({ t: 'host', profile: me, settings: { ...defaultSettings('s6'), players: 3, rollOff: false } });
+    h.send({ t: 'host', profile: me, settings: { ...defaultSettings('s6'), players: 3, rollOff: false },
+    });
     const code = h.last('welcome')!.code;
     const f = client(hub);
     f.send({ t: 'join', code, profile: friend });
@@ -173,47 +175,41 @@ describe('hub', () => {
       if (actor === 2) vi.advanceTimersByTime(20);
       else (actor === 0 ? h : f).send({ t: 'action', action: decideAction(room.state!) });
     }
-    const pose = { y: 0, speed: 0, weapon: 'revolver', attacks: 0, block: false, riding: false };
+    const pose = { y: 0, speed: 0, weapon: 'sword', attacks: 0, block: false, riding: false };
     return { h, f, room, pose };
   }
 
-  it('relays 3D-walk positions and checks every hit', () => {
+  it('relays melee poses, checks reach/parries and refuses retired firearm commands', () => {
     const { h, f, room, pose } = armedTable();
-    expect(room.state!.config.pvp).toBe(true);
     h.send({ t: 'action', action: { type: 'OpenChest', player: 0 } });
-    expect(room.state!.arms!.armed[0]).toBe(true);
-    const strike = { type: 'Strike', player: 0, victim: 1, weapon: 'revolver' };
-
-    // Not in the 3D walk: the blow is dropped.
-    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
+    const strike = { type: 'Strike', player: 0, victim: 1, weapon: 'sword' };
     h.send({ t: 'action', action: strike });
     expect(room.state!.arms!.health[1]).toBe(100);
 
     h.send({ t: 'pose', pose: { ...pose, x: 0, z: 0, yaw: 0 } });
-    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -40, yaw: 0 } });
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -10, yaw: 0 } });
     vi.advanceTimersByTime(120);
     expect(f.last('poses')!.poses[0]).toMatchObject({ x: 0, z: 0 });
-    // Too far, then no shot fired, then a real hit.
-    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
     h.send({ t: 'action', action: strike });
     expect(room.state!.arms!.health[1]).toBe(100);
-    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -10, yaw: 0 } });
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -2, yaw: 0 } });
     vi.advanceTimersByTime(400);
     h.send({ t: 'action', action: strike });
-    expect(room.state!.arms!.health[1]).toBe(100);
+    expect(room.state!.arms!.health[1]).toBe(75);
+    const count = room.state!.actionCount;
     h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
-    h.send({ t: 'action', action: strike });
-    expect(room.state!.arms!.health[1]).toBe(50);
-    expect(room.state!.arms!.bullets[0]).toBe(2);
-
-    // A raised sword facing the shooter parries; the server decides, not the shooter.
+    h.send({ t: 'action', action: { ...strike, weapon: 'revolver' } });
+    expect(room.state!.actionCount).toBe(count);
+    expect(room.state!.arms!.health[1]).toBe(75);
+    // An old client cannot show or use its retired weapon over the network.
+    h.send({ t: 'pose', pose: { ...pose, x: 0, z: 0, yaw: 0, weapon: 'revolver' } });
+    vi.advanceTimersByTime(120);
+    expect(f.last('poses')!.poses[0]?.weapon).toBe('fist');
     f.send({ t: 'action', action: { type: 'OpenChest', player: 1 } });
-    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -10, yaw: Math.PI, weapon: 'sword', block: true } });
+    f.send({ t: 'pose', pose: { ...pose, x: 0, z: -2, yaw: Math.PI, block: true } });
     vi.advanceTimersByTime(400);
-    h.send({ t: 'action', action: { type: 'Fire', player: 0 } });
     h.send({ t: 'action', action: { ...strike, parried: false } });
-    expect(room.state!.arms!.health[1]).toBe(50);
-    // The bot can't be fought.
+    expect(room.state!.arms!.health[1]).toBe(75);
     h.send({ t: 'action', action: { ...strike, victim: 2, weapon: 'fist' } });
     expect(room.state!.arms!.health[2]).toBe(100);
   });
@@ -223,7 +219,9 @@ describe('hub', () => {
     const s = room.state!;
     room.state = {
       ...s,
-      players: s.players.map((p, i) => (i === s.currentPlayer ? { ...p, omens: [{ type: 'manup', boughtTurn: 0 }] } : p)),
+      players: s.players.map((p, i) =>
+        i === s.currentPlayer ? { ...p, omens: [{ type: 'manup', boughtTurn: 0 }] } : p,
+      ),
     };
     const me = room.state.currentPlayer;
     // The current player may be the bot; then the host has nothing to play.

@@ -245,7 +245,6 @@ export const ASSET_FILES: Partial<Record<AssetSlot, AssetRef>> = {
 export const GEAR_NODES = [
   'WeaponChest',
   'Sword',
-  'Revolver',
   'Shield',
   'DummyA',
   'Antlers',

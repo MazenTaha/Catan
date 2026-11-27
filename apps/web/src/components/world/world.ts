@@ -227,8 +227,6 @@ export interface WorldOptions {
   look?: CharacterLook;
   /** A blow landed on another player (online live combat; the server checks it). */
   onStrike?(seat: number, weapon: Weapon): void;
-  /** The revolver fired: spends one of the game's bullets. */
-  onFire?(): void;
   /** A weapon chest's lid snapped open; `full` when it held the weapons. */
   onChestOpened?(full: boolean): void;
   onChestSound?(sound: ChestSound): void;
@@ -512,7 +510,7 @@ export class World {
         (health, hit) => opts.onCombatHealth?.(health, hit),
         (state) => opts.onWeaponChange?.(state),
         (seat, weapon) => opts.onStrike?.(seat, weapon),
-        () => opts.onFire?.(),
+        undefined,
         opts.look ?? DEFAULT_LOOK,
       );
       this.combat.setColor(opts.playerColor ?? '#3f7fd4');
@@ -604,9 +602,9 @@ export class World {
     this.combat?.setLook(look);
   }
 
-  /** From the game: has the weapon chest been opened, and how many bullets are left. */
-  setArms(armed: boolean, ammo: number): void {
-    this.combat?.setArms(armed, ammo);
+  /** From the game: has the sword chest been opened? */
+  setArms(armed: boolean, _retiredAmmo = 0): void {
+    this.combat?.setArms(armed);
   }
 
   /** Right mouse button: hold a guard (a sword parries from the front). */
@@ -661,9 +659,7 @@ export class World {
       seen.add(r.seat);
       let f = this.remotes.get(r.seat);
       if (!f) {
-        f = new RemoteFighter(r.seat, r.name, r.color, r.look, this.opts.reduceMotion, (x, z) => {
-          if (Math.hypot(x - this.x, z - this.z) < 45) this.opts.onCombatSound?.('shot');
-        });
+        f = new RemoteFighter(r.seat, r.name, r.color, r.look, this.opts.reduceMotion);
         this.remotes.set(r.seat, f);
         this.scene.add(f.root);
       }

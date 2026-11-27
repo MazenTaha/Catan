@@ -169,7 +169,7 @@ highlight; shadows fall the same way (from the nearest torch, mostly down-right)
 
 - **One icon family, engraved woodcut style**: about 60 icons (undo, log, rulebook, sound on/off,
   settings, leave, dice, hourglass, crown, road, settlement, city, card, trade, bank, harbour,
-  knight, sword, revolver, fist, shield, horse, eye (reveal), lock, chest, scroll, compass, quill,
+  knight, sword, fist, shield, horse, eye (reveal), lock, chest, scroll, compass, quill,
   seal, gamepad glyph frames…). Drawn as vectors, rendered to SDF textures so they stay crisp at
   every scale and can be embossed (brass), inked (paper) or stitched (cloth).
 - **Ornaments** from `design/hall-chart/assets/ornaments/*.svg` as the starting point: banner
@@ -609,8 +609,8 @@ to play, Save and quit to menu, Quit to desktop. Online: no pause, same menu wit
 
 The web kept the old graphite look for the walk's HUD; here it joins Hall & Chart, lighter:
 minimap as a small round chart with a compass ring and ink marks (island/nearby toggle), health as
-a heraldic shield that cracks, bullets as five brass cartridges on a leather strip, weapon slots
-as three small plaques (sword, revolver, fists) with glyphs, context hints as map notes ("E —
+a heraldic shield that cracks, weapon slots as two small plaques (1 bare hands, 2 sword)
+with glyphs, context hints as map notes ("E —
 Open the chest"), duel banner across the top when duelling. Minimal, edges only.
 
 ### 8.15 Errors and connection

@@ -40,6 +40,9 @@ const report: string[] = [];
 const results: Record<string, unknown> = {};
 const log = (s: string) => {
   report.push(s);
+  // Preserve progress from long runs, including useful samples before a timeout or interruption.
+  fs.writeFileSync(path.join(OUT, 'report.txt'), report.join('\n') + '\n');
+  fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 1));
   console.log(`[perf] ${s}`);
 };
 

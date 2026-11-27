@@ -224,7 +224,7 @@ export function describeEvent(e: GameEvent, ctx: DescribeCtx): LogLine | null {
     case 'GameWon':
       return { icon: 'crown', parts: [P(e.player), ` wins with ${e.vp} points!`], players: [e.player], tone: 'gold' };
     case 'ChestOpened':
-      return { icon: 'chest', parts: [P(e.player), ' found a sword and a revolver'], players: [e.player], tone: 'gold' };
+      return { icon: 'chest', parts: [P(e.player), ' found a sword'], players: [e.player], tone: 'gold' };
     case 'Slain':
       return {
         icon: 'sword',

@@ -62,6 +62,7 @@ CATNIGHTRULES_API int OmenDeckCount(OmenType o);
 inline constexpr std::array<int, 18> kNumberTokens = {2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12};
 inline constexpr int kManupCards = 6;
 inline constexpr int kMaxHealth = 100;
+// Frozen v1 archive default; no live ranged weapon uses this field.
 inline constexpr int kBullets = 5;
 CATNIGHTRULES_API int Damage(Weapon w);
 

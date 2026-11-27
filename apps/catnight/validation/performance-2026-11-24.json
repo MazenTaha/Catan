@@ -1,0 +1,2753 @@
+{
+  "schema": 1,
+  "date": "2026-11-24",
+  "baseCommit": "241a7f1ee0aea547d747a77016fdfec101bba147",
+  "scope": "Local performance audit of the packaged native Catnight board and riding yard; separate production-bundle Chromium audit of the full reference island. Native live-island migration and Steam online remain incomplete.",
+  "hardware": {
+    "gpus": [
+      {
+        "Name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+        "DriverVersion": "32.0.15.9597"
+      },
+      {
+        "Name": "Intel(R) UHD Graphics",
+        "DriverVersion": "32.0.101.7026"
+      }
+    ],
+    "cpu": [
+      "13th Gen Intel(R) Core(TM) i7-13650HX"
+    ],
+    "ramBytes": 16873545728,
+    "powerMode": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+    "wallpaperPausedForTest": true,
+    "date": "2026-11-24"
+  },
+  "method": {
+    "nativeConfiguration": "Development, default Epic scalability (3), render scale 100%, DX12 SM5, RTX 4050",
+    "nativeWindowVerification": "Win32 client rectangle per capture; uncapped PNG back buffers are 1920x1080. ForceRes and r.SetRes required.",
+    "nativeWarmupFrames": 300,
+    "nativeMovementWarmupFrames": 30,
+    "nativeProfiler": "Synchronous CSV processing; async CSV mode produced exit 777003 after shutdown, while unprofiled and synchronous captures exited 0.",
+    "nativeTargets": "60-FPS capped and separate uncapped runs; r.VSync=0; no fixed timestep for performance.",
+    "browser": "Chromium 151 headless, DPR=1, full island canvas smaller than window; GPU queries enabled; local assets; audio muted.",
+    "wallpaper": "Paused for final performance captures, restored after checks.",
+    "lateFrameThresholdMs": 20.833333333333336,
+    "limits": [
+      "One laptop, Balanced power mode, hidden native windows / headless Chromium; engine/page timings rather than monitor-present latency.",
+      "Fresh processes with warm OS/driver caches; no cold-PC or Shipping-build certification.",
+      "Five-minute soaks cannot prove absence of long-duration leaks.",
+      "Fixed 10/60/144 Hz physics checks do not measure rendered FPS.",
+      "Native Steam/network, physical gamepad, mobile, other machines and the old CEF wrapper were not performance-certified."
+    ],
+    "discarded": "Preliminary native grid requested 1080p but remained 1280x720; excluded from final metrics."
+  },
+  "nativeCapped": [
+    {
+      "name": "title-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 900,
+      "seconds": 15.001,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6854,
+        "p95": 17.2526,
+        "p99": 17.633,
+        "max": 20.1721,
+        "mean": 16.6673
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 3.4796,
+      "renderThreadP95Ms": 3.5621,
+      "engineGpuCounterP95Ms": 12.6445,
+      "memoryFirstLastMiB": [
+        1090.43,
+        1057.85
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\title-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_164924).csv"
+    },
+    {
+      "name": "setup-day-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 1500,
+      "seconds": 25.001,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6773,
+        "p95": 17.4117,
+        "p99": 19.1508,
+        "max": 20.5506,
+        "mean": 16.6671
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.4737,
+      "renderThreadP95Ms": 3.79,
+      "engineGpuCounterP95Ms": 12.5816,
+      "memoryFirstLastMiB": [
+        1079.21,
+        1060.62
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\setup-day-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_164948).csv"
+    },
+    {
+      "name": "setup-night-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 900,
+      "seconds": 15.0,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.673,
+        "p95": 17.1823,
+        "p99": 17.5566,
+        "max": 18.7794,
+        "mean": 16.6664
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.2271,
+      "renderThreadP95Ms": 3.8028,
+      "engineGpuCounterP95Ms": 12.5996,
+      "memoryFirstLastMiB": [
+        1087.84,
+        1068.37
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\setup-night-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165021).csv"
+    },
+    {
+      "name": "late-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 1500,
+      "seconds": 25.001,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.668,
+        "p95": 17.2334,
+        "p99": 17.8723,
+        "max": 19.7475,
+        "mean": 16.6671
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.2533,
+      "renderThreadP95Ms": 3.6831,
+      "engineGpuCounterP95Ms": 12.6289,
+      "memoryFirstLastMiB": [
+        1052.96,
+        1048.27
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\late-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165044).csv"
+    },
+    {
+      "name": "flat-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 900,
+      "seconds": 15.001,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6807,
+        "p95": 17.3287,
+        "p99": 17.7729,
+        "max": 18.1653,
+        "mean": 16.6674
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 3.7526,
+      "renderThreadP95Ms": 3.9193,
+      "engineGpuCounterP95Ms": 12.6,
+      "memoryFirstLastMiB": [
+        1077.39,
+        1070.58
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\flat-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165117).csv"
+    },
+    {
+      "name": "full-match-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 2400,
+      "seconds": 40.033,
+      "fps": 59.95,
+      "frameMs": {
+        "p50": 16.6731,
+        "p95": 23.0133,
+        "p99": 24.4002,
+        "max": 60.0437,
+        "mean": 16.6805
+      },
+      "missed60Percent": 21.167,
+      "hitches50ms": 1,
+      "gameThreadP95Ms": 7.0792,
+      "renderThreadP95Ms": 6.1276,
+      "engineGpuCounterP95Ms": 12.7125,
+      "memoryFirstLastMiB": [
+        1157.69,
+        1304.38
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\full-match-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165140).csv"
+    },
+    {
+      "name": "yard-idle-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 900,
+      "seconds": 15.0,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6808,
+        "p95": 17.1664,
+        "p99": 17.5503,
+        "max": 18.3752,
+        "mean": 16.6666
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 2.7212,
+      "renderThreadP95Ms": 3.4916,
+      "engineGpuCounterP95Ms": 12.6009,
+      "memoryFirstLastMiB": [
+        1070.9,
+        1065.23
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\yard-idle-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165229).csv"
+    },
+    {
+      "name": "yard-route-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 1170,
+      "seconds": 19.501,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.666,
+        "p95": 17.3096,
+        "p99": 17.8042,
+        "max": 18.6602,
+        "mean": 16.6674
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 3.0364,
+      "renderThreadP95Ms": 3.8104,
+      "engineGpuCounterP95Ms": 12.5122,
+      "memoryFirstLastMiB": [
+        1084.47,
+        1077.55
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\yard-route-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165252).csv"
+    },
+    {
+      "name": "late-720",
+      "window": "1280x720 dpi 96",
+      "frames": 900,
+      "seconds": 15.0,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6654,
+        "p95": 17.5613,
+        "p99": 18.1217,
+        "max": 20.7593,
+        "mean": 16.667
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.2699,
+      "renderThreadP95Ms": 4.5057,
+      "engineGpuCounterP95Ms": 12.1499,
+      "memoryFirstLastMiB": [
+        1053.73,
+        1049.55
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\late-720\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165316).csv"
+    },
+    {
+      "name": "yard-route-720",
+      "window": "1280x720 dpi 96",
+      "frames": 1170,
+      "seconds": 19.5,
+      "fps": 60.0,
+      "frameMs": {
+        "p50": 16.6731,
+        "p95": 17.2443,
+        "p99": 17.7368,
+        "max": 18.8792,
+        "mean": 16.6671
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 3.1255,
+      "renderThreadP95Ms": 4.1447,
+      "engineGpuCounterP95Ms": 12.0675,
+      "memoryFirstLastMiB": [
+        1058.89,
+        1057.39
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\yard-route-720\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165339).csv"
+    },
+    {
+      "name": "late-soak-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 18000,
+      "seconds": 300.133,
+      "fps": 59.97,
+      "frameMs": {
+        "p50": 16.6696,
+        "p95": 17.4664,
+        "p99": 18.228,
+        "max": 40.7814,
+        "mean": 16.674
+      },
+      "missed60Percent": 0.111,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.2716,
+      "renderThreadP95Ms": 4.7064,
+      "engineGpuCounterP95Ms": 12.5799,
+      "memoryFirstLastMiB": [
+        1071.62,
+        1110.77
+      ],
+      "minuteWindows": [
+        {
+          "frames": 3593,
+          "fps": 59.88,
+          "frameMs": {
+            "p50": 16.6719,
+            "p95": 17.7001,
+            "p99": 18.9369,
+            "max": 40.7814,
+            "mean": 16.7007
+          },
+          "physicalMiB": {
+            "p50": 1111.9414,
+            "p95": 1113.5742,
+            "p99": 1113.6484,
+            "max": 1113.7578,
+            "mean": 1103.4921
+          },
+          "gpuMs": {
+            "p50": 12.2022,
+            "p95": 12.6035,
+            "p99": 12.8189,
+            "max": 62.5984,
+            "mean": 11.827
+          }
+        },
+        {
+          "frames": 3600,
+          "fps": 60.0,
+          "frameMs": {
+            "p50": 16.6703,
+            "p95": 17.3876,
+            "p99": 17.956,
+            "max": 20.6606,
+            "mean": 16.668
+          },
+          "physicalMiB": {
+            "p50": 1109.7305,
+            "p95": 1110.3789,
+            "p99": 1110.5898,
+            "max": 1110.6719,
+            "mean": 1109.362
+          },
+          "gpuMs": {
+            "p50": 12.2567,
+            "p95": 12.5862,
+            "p99": 12.7183,
+            "max": 12.897,
+            "mean": 12.2424
+          }
+        },
+        {
+          "frames": 3600,
+          "fps": 60.0,
+          "frameMs": {
+            "p50": 16.6714,
+            "p95": 17.4115,
+            "p99": 17.9431,
+            "max": 19.195,
+            "mean": 16.6668
+          },
+          "physicalMiB": {
+            "p50": 1110.0664,
+            "p95": 1110.9336,
+            "p99": 1111.0938,
+            "max": 1111.1914,
+            "mean": 1109.7804
+          },
+          "gpuMs": {
+            "p50": 12.4201,
+            "p95": 12.6382,
+            "p99": 12.7328,
+            "max": 22.5466,
+            "mean": 12.3503
+          }
+        },
+        {
+          "frames": 3600,
+          "fps": 60.0,
+          "frameMs": {
+            "p50": 16.6633,
+            "p95": 17.4379,
+            "p99": 18.0259,
+            "max": 20.1118,
+            "mean": 16.6673
+          },
+          "physicalMiB": {
+            "p50": 1109.9453,
+            "p95": 1110.7539,
+            "p99": 1110.8203,
+            "max": 1110.8789,
+            "mean": 1109.6244
+          },
+          "gpuMs": {
+            "p50": 12.1707,
+            "p95": 12.4695,
+            "p99": 12.5874,
+            "max": 13.5653,
+            "mean": 12.2024
+          }
+        },
+        {
+          "frames": 3600,
+          "fps": 60.0,
+          "frameMs": {
+            "p50": 16.669,
+            "p95": 17.4376,
+            "p99": 18.0972,
+            "max": 20.275,
+            "mean": 16.6674
+          },
+          "physicalMiB": {
+            "p50": 1109.5703,
+            "p95": 1110.6643,
+            "p99": 1110.9023,
+            "max": 1110.9414,
+            "mean": 1109.2373
+          },
+          "gpuMs": {
+            "p50": 12.1504,
+            "p95": 12.4876,
+            "p99": 12.6645,
+            "max": 12.9277,
+            "mean": 12.1989
+          }
+        }
+      ],
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\late-soak-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_165403).csv"
+    }
+  ],
+  "nativeUncapped": [
+    {
+      "name": "late-uncapped-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 1500,
+      "seconds": 15.6,
+      "fps": 96.16,
+      "frameMs": {
+        "p50": 10.359,
+        "p95": 11.842,
+        "p99": 12.4843,
+        "max": 59.7661,
+        "mean": 10.3997
+      },
+      "missed60Percent": 0.067,
+      "hitches50ms": 1,
+      "gameThreadP95Ms": 4.6483,
+      "renderThreadP95Ms": 11.7828,
+      "engineGpuCounterP95Ms": 9.9737,
+      "memoryFirstLastMiB": [
+        1128.66,
+        1118.62
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\late-uncapped-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_172057).csv"
+    },
+    {
+      "name": "instant-match-uncapped-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 3300,
+      "seconds": 37.81,
+      "fps": 87.28,
+      "frameMs": {
+        "p50": 11.4497,
+        "p95": 12.9261,
+        "p99": 13.8715,
+        "max": 20.1992,
+        "mean": 11.4576
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 7.799,
+      "renderThreadP95Ms": 12.7695,
+      "engineGpuCounterP95Ms": 11.1751,
+      "memoryFirstLastMiB": [
+        1194.88,
+        1346.21
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\instant-match-uncapped-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_172125).csv"
+    },
+    {
+      "name": "normal-bots-uncapped-1080",
+      "window": "1920x1080 dpi 96",
+      "frames": 1500,
+      "seconds": 16.186,
+      "fps": 92.67,
+      "frameMs": {
+        "p50": 10.808,
+        "p95": 11.8667,
+        "p99": 12.7278,
+        "max": 17.8594,
+        "mean": 10.7906
+      },
+      "missed60Percent": 0.0,
+      "hitches50ms": 0,
+      "gameThreadP95Ms": 4.0244,
+      "renderThreadP95Ms": 11.8264,
+      "engineGpuCounterP95Ms": 10.5768,
+      "memoryFirstLastMiB": [
+        1134.37,
+        1130.12
+      ],
+      "minuteWindows": null,
+      "evidence": "C:\\Users\\LOQ\\.codex\\worktrees\\native-table-feedback\\Catan\\apps\\catnight\\Saved\\Performance\\2026-11-24\\verified\\normal-bots-uncapped-1080\\User\\Saved\\Profiling\\CSV\\Profile(20261124_172211).csv"
+    }
+  ],
+  "browser": {
+    "rtx1080": {
+      "meta": {
+        "label": "full-2026-11-24-rtx1080",
+        "effects": "full",
+        "renderScale": 1,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "stress": "",
+        "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028E1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+        "headless": true,
+        "repeat": 2,
+        "sampleMs": 3000,
+        "date": "2026-11-24T14:59:35.883Z"
+      },
+      "entry": {
+        "ms": 3603,
+        "downloads": 20,
+        "kb": 10411,
+        "fetchMs": 134,
+        "longest": 2124,
+        "longMs": 2740,
+        "info": {
+          "timer": true,
+          "buffer": [
+            1316,
+            807
+          ],
+          "css": [
+            1316,
+            807
+          ],
+          "dpr": 1,
+          "pixelRatio": 1,
+          "memory": {
+            "geometries": 147,
+            "textures": 54,
+            "programs": 39
+          }
+        }
+      },
+      "views": {
+        "wheat": [
+          {
+            "frames": 181,
+            "seconds": 3.008699999988079,
+            "fps": 60.15887260302362,
+            "frameP95Ms": 17.80000001192093,
+            "frameMaxMs": 18.30000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.400000005960464,
+            "gpuP95Ms": 8.51968,
+            "drawCalls": {
+              "main": 634,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1875297,
+              "shadow": 310013
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0085,
+            "fps": 60.162871863054676,
+            "frameP95Ms": 18.19999998807907,
+            "frameMaxMs": 20.900000005960464,
+            "missed60Percent": 0.5524861878453039,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 13.700000017881393,
+            "gpuP95Ms": 11.568128,
+            "drawCalls": {
+              "main": 634,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1875297,
+              "shadow": 310013
+            }
+          }
+        ],
+        "forest-edge": [
+          {
+            "frames": 181,
+            "seconds": 3.0154000000059606,
+            "fps": 60.0252039529224,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.299999982118607,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.099999994039536,
+            "gpuP95Ms": 9.979904000000001,
+            "drawCalls": {
+              "main": 724,
+              "shadow": 90
+            },
+            "triangles": {
+              "main": 1643778,
+              "shadow": 282151
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.005699999988079,
+            "fps": 59.88621618947796,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 13.699999988079071,
+            "gpuP95Ms": 12.273664,
+            "drawCalls": {
+              "main": 724,
+              "shadow": 90
+            },
+            "triangles": {
+              "main": 1643778,
+              "shadow": 282151
+            }
+          }
+        ],
+        "forest-clearing": [
+          {
+            "frames": 181,
+            "seconds": 3.0129000000059603,
+            "fps": 60.07501078683061,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.299999982118607,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.5,
+            "gpuP95Ms": 10.095616,
+            "drawCalls": {
+              "main": 582,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1351078,
+              "shadow": 344321
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0124000000059605,
+            "fps": 60.08498207397486,
+            "frameP95Ms": 18.100000023841858,
+            "frameMaxMs": 20.700000017881393,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 13.599999994039536,
+            "gpuP95Ms": 11.124736,
+            "drawCalls": {
+              "main": 582,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1351078,
+              "shadow": 344321
+            }
+          }
+        ],
+        "mountains": [
+          {
+            "frames": 181,
+            "seconds": 3.0085,
+            "fps": 60.162871863054676,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.30000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8,
+            "gpuP95Ms": 8.718335999999999,
+            "drawCalls": {
+              "main": 307,
+              "shadow": 148
+            },
+            "triangles": {
+              "main": 751234,
+              "shadow": 344345
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.0000999999940396,
+            "fps": 59.998000066783646,
+            "frameP95Ms": 18.200000017881393,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.400000005960464,
+            "gpuP95Ms": 10.306560000000001,
+            "drawCalls": {
+              "main": 307,
+              "shadow": 148
+            },
+            "triangles": {
+              "main": 751234,
+              "shadow": 344345
+            }
+          }
+        ],
+        "hills": [
+          {
+            "frames": 180,
+            "seconds": 3.0019000000059606,
+            "fps": 59.96202405131503,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.200000017881393,
+            "gpuP95Ms": 10.382336,
+            "drawCalls": {
+              "main": 198,
+              "shadow": 144
+            },
+            "triangles": {
+              "main": 515186,
+              "shadow": 326645
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.013699999988079,
+            "fps": 60.05906360975411,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 18.799999982118607,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.700000017881393,
+            "gpuP95Ms": 8.936448,
+            "drawCalls": {
+              "main": 198,
+              "shadow": 144
+            },
+            "triangles": {
+              "main": 515186,
+              "shadow": 326645
+            }
+          }
+        ],
+        "pasture": [
+          {
+            "frames": 181,
+            "seconds": 3.007300000011921,
+            "fps": 60.18687859517924,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.69999998807907,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.299999982118607,
+            "gpuP95Ms": 8.654848,
+            "drawCalls": {
+              "main": 323,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 823128,
+              "shadow": 323579
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.0002000000178812,
+            "fps": 59.99600026629131,
+            "frameP95Ms": 17.700000017881393,
+            "frameMaxMs": 19.799999982118607,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 12.199999988079071,
+            "gpuP95Ms": 10.692608,
+            "drawCalls": {
+              "main": 323,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 823128,
+              "shadow": 323579
+            }
+          }
+        ],
+        "desert": [
+          {
+            "frames": 181,
+            "seconds": 3.0144000000059603,
+            "fps": 60.04511677270505,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 19.30000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 7.9000000059604645,
+            "gpuP95Ms": 8.224768,
+            "drawCalls": {
+              "main": 120,
+              "shadow": 130
+            },
+            "triangles": {
+              "main": 375568,
+              "shadow": 340817
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.004199999988079,
+            "fps": 59.91611743582793,
+            "frameP95Ms": 17.700000017881393,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9,
+            "gpuP95Ms": 8.345600000000001,
+            "drawCalls": {
+              "main": 120,
+              "shadow": 130
+            },
+            "triangles": {
+              "main": 375568,
+              "shadow": 340817
+            }
+          }
+        ],
+        "settlement": [
+          {
+            "frames": 181,
+            "seconds": 3.0105,
+            "fps": 60.12290317223053,
+            "frameP95Ms": 17.700000017881393,
+            "frameMaxMs": 18.900000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9.199999988079071,
+            "gpuP95Ms": 9.526271999999999,
+            "drawCalls": {
+              "main": 223,
+              "shadow": 174
+            },
+            "triangles": {
+              "main": 743395,
+              "shadow": 516659
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.001699999988079,
+            "fps": 59.966019255993224,
+            "frameP95Ms": 17.69999998807907,
+            "frameMaxMs": 18.30000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 12.199999988079071,
+            "gpuP95Ms": 10.134528,
+            "drawCalls": {
+              "main": 223,
+              "shadow": 174
+            },
+            "triangles": {
+              "main": 743395,
+              "shadow": 516659
+            }
+          }
+        ],
+        "city": [
+          {
+            "frames": 180,
+            "seconds": 3.0049000000059602,
+            "fps": 59.90215980553195,
+            "frameP95Ms": 17.799999982118607,
+            "frameMaxMs": 18.80000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.599999994039536,
+            "gpuP95Ms": 9.161728,
+            "drawCalls": {
+              "main": 341,
+              "shadow": 184
+            },
+            "triangles": {
+              "main": 958780,
+              "shadow": 506074
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0125999999940394,
+            "fps": 60.08099316217159,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.599999994039536,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 12.199999988079071,
+            "gpuP95Ms": 10.309632,
+            "drawCalls": {
+              "main": 341,
+              "shadow": 184
+            },
+            "triangles": {
+              "main": 958780,
+              "shadow": 506074
+            }
+          }
+        ],
+        "dock": [
+          {
+            "frames": 180,
+            "seconds": 3.0005,
+            "fps": 59.990001666388935,
+            "frameP95Ms": 17.599999994039536,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 7.0999999940395355,
+            "gpuP95Ms": 7.10144,
+            "drawCalls": {
+              "main": 63,
+              "shadow": 85
+            },
+            "triangles": {
+              "main": 237999,
+              "shadow": 216093
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.011199999988079,
+            "fps": 60.108926673989295,
+            "frameP95Ms": 18.19999998807907,
+            "frameMaxMs": 18.80000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.399999976158142,
+            "gpuP95Ms": 7.043072,
+            "drawCalls": {
+              "main": 63,
+              "shadow": 85
+            },
+            "triangles": {
+              "main": 237999,
+              "shadow": 216093
+            }
+          }
+        ],
+        "elevated": [
+          {
+            "frames": 179,
+            "seconds": 3.0015,
+            "fps": 59.63684824254539,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 23.099999994039536,
+            "missed60Percent": 1.1173184357541899,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 16.30000001192093,
+            "gpuP95Ms": 12.2368,
+            "drawCalls": {
+              "main": 590,
+              "shadow": 157
+            },
+            "triangles": {
+              "main": 1540667,
+              "shadow": 374435
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0100999999940394,
+            "fps": 60.130892661492446,
+            "frameP95Ms": 18.299999982118607,
+            "frameMaxMs": 20.799999982118607,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 14,
+            "gpuP95Ms": 11.303936,
+            "drawCalls": {
+              "main": 590,
+              "shadow": 157
+            },
+            "triangles": {
+              "main": 1540667,
+              "shadow": 374435
+            }
+          }
+        ]
+      },
+      "runtimeProblems": [],
+      "late-views": {
+        "wheat": [
+          {
+            "frames": 180,
+            "seconds": 3.0045999999940394,
+            "fps": 59.90814085081445,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.599999994039536,
+            "gpuP95Ms": 8.236032,
+            "drawCalls": {
+              "main": 759,
+              "shadow": 101
+            },
+            "triangles": {
+              "main": 2134059,
+              "shadow": 295831
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.010899999976158,
+            "fps": 60.114915806381234,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.400000005960464,
+            "gpuP95Ms": 8.38656,
+            "drawCalls": {
+              "main": 759,
+              "shadow": 101
+            },
+            "triangles": {
+              "main": 2134059,
+              "shadow": 295831
+            }
+          }
+        ],
+        "forest-edge": [
+          {
+            "frames": 180,
+            "seconds": 3.0040999999940396,
+            "fps": 59.9181119138368,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.200000017881393,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.300000011920929,
+            "gpuP95Ms": 9.464832,
+            "drawCalls": {
+              "main": 910,
+              "shadow": 118
+            },
+            "triangles": {
+              "main": 2008024,
+              "shadow": 381705
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.004,
+            "fps": 59.92010652463382,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.200000017881393,
+            "gpuP95Ms": 9.269248,
+            "drawCalls": {
+              "main": 910,
+              "shadow": 118
+            },
+            "triangles": {
+              "main": 2008024,
+              "shadow": 381705
+            }
+          }
+        ],
+        "forest-clearing": [
+          {
+            "frames": 181,
+            "seconds": 3.011,
+            "fps": 60.11291929591498,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.699999988079071,
+            "gpuP95Ms": 9.061376,
+            "drawCalls": {
+              "main": 729,
+              "shadow": 136
+            },
+            "triangles": {
+              "main": 1648508,
+              "shadow": 420431
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.0001999999880793,
+            "fps": 59.99600026688727,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.400000005960464,
+            "gpuP95Ms": 9.148416000000001,
+            "drawCalls": {
+              "main": 729,
+              "shadow": 136
+            },
+            "triangles": {
+              "main": 1648508,
+              "shadow": 420431
+            }
+          }
+        ],
+        "mountains": [
+          {
+            "frames": 181,
+            "seconds": 3.014300000011921,
+            "fps": 60.04710878123749,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 18.599999994039536,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9.5,
+            "gpuP95Ms": 7.90016,
+            "drawCalls": {
+              "main": 394,
+              "shadow": 161
+            },
+            "triangles": {
+              "main": 911832,
+              "shadow": 408434
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0145,
+            "fps": 60.04312489633438,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9.300000011920929,
+            "gpuP95Ms": 8.349696,
+            "drawCalls": {
+              "main": 394,
+              "shadow": 161
+            },
+            "triangles": {
+              "main": 911832,
+              "shadow": 408434
+            }
+          }
+        ],
+        "hills": [
+          {
+            "frames": 180,
+            "seconds": 3.0050999999940395,
+            "fps": 59.89817310583908,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.399999976158142,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8,
+            "gpuP95Ms": 8.686592000000001,
+            "drawCalls": {
+              "main": 238,
+              "shadow": 163
+            },
+            "triangles": {
+              "main": 614852,
+              "shadow": 435405
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.0055,
+            "fps": 59.890201297621026,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 19,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10,
+            "gpuP95Ms": 8.962048,
+            "drawCalls": {
+              "main": 238,
+              "shadow": 163
+            },
+            "triangles": {
+              "main": 614852,
+              "shadow": 435405
+            }
+          }
+        ],
+        "pasture": [
+          {
+            "frames": 181,
+            "seconds": 3.0050999999940395,
+            "fps": 60.23094073420485,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 18.900000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.299999982118607,
+            "gpuP95Ms": 7.615488,
+            "drawCalls": {
+              "main": 412,
+              "shadow": 120
+            },
+            "triangles": {
+              "main": 1011983,
+              "shadow": 349421
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.0024000000059603,
+            "fps": 59.952038369185544,
+            "frameP95Ms": 17.799999982118607,
+            "frameMaxMs": 18.599999994039536,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.700000017881393,
+            "gpuP95Ms": 8.63744,
+            "drawCalls": {
+              "main": 412,
+              "shadow": 120
+            },
+            "triangles": {
+              "main": 1011983,
+              "shadow": 349421
+            }
+          }
+        ],
+        "desert": [
+          {
+            "frames": 181,
+            "seconds": 3.014600000023842,
+            "fps": 60.04113315151878,
+            "frameP95Ms": 18.19999998807907,
+            "frameMaxMs": 18.80000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 6.799999982118607,
+            "gpuP95Ms": 8.142847999999999,
+            "drawCalls": {
+              "main": 134,
+              "shadow": 128
+            },
+            "triangles": {
+              "main": 436918,
+              "shadow": 371563
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0172999999821184,
+            "fps": 59.98740595932545,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.799999982118607,
+            "gpuP95Ms": 8.956928,
+            "drawCalls": {
+              "main": 134,
+              "shadow": 128
+            },
+            "triangles": {
+              "main": 436918,
+              "shadow": 371563
+            }
+          }
+        ],
+        "settlement": [
+          {
+            "frames": 180,
+            "seconds": 3.003199999988079,
+            "fps": 59.93606819416439,
+            "frameP95Ms": 18.19999998807907,
+            "frameMaxMs": 18.900000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.200000017881393,
+            "gpuP95Ms": 8.511488,
+            "drawCalls": {
+              "main": 312,
+              "shadow": 169
+            },
+            "triangles": {
+              "main": 940818,
+              "shadow": 545463
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0135,
+            "fps": 60.06304961008794,
+            "frameP95Ms": 18,
+            "frameMaxMs": 21.200000017881393,
+            "missed60Percent": 0.5524861878453039,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.599999994039536,
+            "gpuP95Ms": 9.615359999999999,
+            "drawCalls": {
+              "main": 312,
+              "shadow": 169
+            },
+            "triangles": {
+              "main": 940818,
+              "shadow": 545463
+            }
+          }
+        ],
+        "city": [
+          {
+            "frames": 180,
+            "seconds": 3.005199999988079,
+            "fps": 59.8961799549827,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.599999994039536,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.400000005960464,
+            "gpuP95Ms": 9.556992000000001,
+            "drawCalls": {
+              "main": 261,
+              "shadow": 164
+            },
+            "triangles": {
+              "main": 816127,
+              "shadow": 513653
+            }
+          },
+          {
+            "frames": 180,
+            "seconds": 3.004100000023842,
+            "fps": 59.91811191324238,
+            "frameP95Ms": 18.69999998807907,
+            "frameMaxMs": 21.5,
+            "missed60Percent": 0.5555555555555556,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 15.899999976158142,
+            "gpuP95Ms": 10.001408000000001,
+            "drawCalls": {
+              "main": 261,
+              "shadow": 164
+            },
+            "triangles": {
+              "main": 701551,
+              "shadow": 399077
+            }
+          }
+        ],
+        "dock": [
+          {
+            "frames": 180,
+            "seconds": 3.0050999999940395,
+            "fps": 59.89817310583908,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 18.5,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 6.699999988079071,
+            "gpuP95Ms": 6.7020800000000005,
+            "drawCalls": {
+              "main": 68,
+              "shadow": 90
+            },
+            "triangles": {
+              "main": 254233,
+              "shadow": 273779
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0149000000059605,
+            "fps": 60.03515871161304,
+            "frameP95Ms": 17.80000001192093,
+            "frameMaxMs": 18.30000001192093,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.800000011920929,
+            "gpuP95Ms": 7.313408000000001,
+            "drawCalls": {
+              "main": 68,
+              "shadow": 90
+            },
+            "triangles": {
+              "main": 254233,
+              "shadow": 273779
+            }
+          }
+        ],
+        "elevated": [
+          {
+            "frames": 181,
+            "seconds": 3.0137000000178813,
+            "fps": 60.05906360916019,
+            "frameP95Ms": 17.899999976158142,
+            "frameMaxMs": 18.400000005960464,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.099999994039536,
+            "gpuP95Ms": 8.592384,
+            "drawCalls": {
+              "main": 711,
+              "shadow": 158
+            },
+            "triangles": {
+              "main": 1782887,
+              "shadow": 402975
+            }
+          },
+          {
+            "frames": 181,
+            "seconds": 3.0060999999940394,
+            "fps": 60.210904494314526,
+            "frameP95Ms": 18.19999998807907,
+            "frameMaxMs": 22.900000005960464,
+            "missed60Percent": 1.1049723756906078,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 15.300000011920929,
+            "gpuP95Ms": 9.663488000000001,
+            "drawCalls": {
+              "main": 711,
+              "shadow": 158
+            },
+            "triangles": {
+              "main": 1782887,
+              "shadow": 402975
+            }
+          }
+        ]
+      },
+      "route-first": {
+        "route": {
+          "length": 466.8222180201477,
+          "secs": 93.36444360402955
+        },
+        "stats": {
+          "frames": 5609,
+          "seconds": 93.57980000001191,
+          "fps": 59.93814904497857,
+          "frameP95Ms": 17.899999976158142,
+          "frameMaxMs": 138.19999998807907,
+          "missed60Percent": 0.053485469780709574,
+          "hitches50ms": 1,
+          "mainThreadP95Ms": 10,
+          "gpuP95Ms": 9.737216,
+          "drawCalls": {
+            "main": 269,
+            "shadow": 127
+          },
+          "triangles": {
+            "main": 781592,
+            "shadow": 406224
+          }
+        }
+      },
+      "route-warm": {
+        "route": {
+          "length": 466.8222180201477,
+          "secs": 93.36444360402955
+        },
+        "stats": {
+          "frames": 5613,
+          "seconds": 93.56880000001192,
+          "fps": 59.98794469950758,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 37.20000001788139,
+          "missed60Percent": 0.035631569570639586,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 10.900000005960464,
+          "gpuP95Ms": 9.527296,
+          "drawCalls": {
+            "main": 270,
+            "shadow": 128
+          },
+          "triangles": {
+            "main": 784140,
+            "shadow": 402173
+          }
+        }
+      },
+      "late-route": {
+        "route": {
+          "length": 473.3676778535246,
+          "secs": 94.67353557070491
+        },
+        "stats": {
+          "frames": 5693,
+          "seconds": 94.87769999998808,
+          "fps": 60.00356248096987,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 39.70000001788139,
+          "missed60Percent": 0.05269629369401019,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 9.400000005960464,
+          "gpuP95Ms": 8.653824,
+          "drawCalls": {
+            "main": 352,
+            "shadow": 151
+          },
+          "triangles": {
+            "main": 1104816,
+            "shadow": 470559
+          }
+        }
+      },
+      "soak": [
+        {
+          "minute": 1,
+          "stats": {
+            "frames": 3599,
+            "seconds": 59.99470000001788,
+            "fps": 59.9886323291712,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 44.099999994039536,
+            "missed60Percent": 0.05557099194220617,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.400000005960464,
+            "gpuP95Ms": 9.165824,
+            "drawCalls": {
+              "main": 376,
+              "shadow": 127
+            },
+            "triangles": {
+              "main": 1099442,
+              "shadow": 464181
+            }
+          },
+          "heapMiB": 95.4432258605957,
+          "resources": {
+            "geometries": 361,
+            "textures": 64,
+            "programs": 39
+          }
+        },
+        {
+          "minute": 2,
+          "stats": {
+            "frames": 3600,
+            "seconds": 59.99479999998212,
+            "fps": 60.00520045072361,
+            "frameP95Ms": 17.899999976158142,
+            "frameMaxMs": 21.100000023841858,
+            "missed60Percent": 0.027777777777777776,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.699999988079071,
+            "gpuP95Ms": 9.631744,
+            "drawCalls": {
+              "main": 376,
+              "shadow": 127
+            },
+            "triangles": {
+              "main": 1100110,
+              "shadow": 461290
+            }
+          },
+          "heapMiB": 108.56168365478516,
+          "resources": {
+            "geometries": 361,
+            "textures": 64,
+            "programs": 39
+          }
+        },
+        {
+          "minute": 3,
+          "stats": {
+            "frames": 3574,
+            "seconds": 59.99209999999404,
+            "fps": 59.57451064390737,
+            "frameP95Ms": 17.80000001192093,
+            "frameMaxMs": 417,
+            "missed60Percent": 0.27979854504756574,
+            "hitches50ms": 2,
+            "mainThreadP95Ms": 10.900000005960464,
+            "gpuP95Ms": 8.868864,
+            "drawCalls": {
+              "main": 376,
+              "shadow": 127
+            },
+            "triangles": {
+              "main": 1081891,
+              "shadow": 458503
+            }
+          },
+          "heapMiB": 104.63961029052734,
+          "resources": {
+            "geometries": 361,
+            "textures": 64,
+            "programs": 39
+          }
+        },
+        {
+          "minute": 4,
+          "stats": {
+            "frames": 3593,
+            "seconds": 60.006600000023845,
+            "fps": 59.87674689115151,
+            "frameP95Ms": 17.700000017881393,
+            "frameMaxMs": 155.90000000596046,
+            "missed60Percent": 0.055663790704146954,
+            "hitches50ms": 1,
+            "mainThreadP95Ms": 9,
+            "gpuP95Ms": 8.711168,
+            "drawCalls": {
+              "main": 376,
+              "shadow": 127
+            },
+            "triangles": {
+              "main": 1095798,
+              "shadow": 461290
+            }
+          },
+          "heapMiB": 106.89385223388672,
+          "resources": {
+            "geometries": 361,
+            "textures": 64,
+            "programs": 39
+          }
+        },
+        {
+          "minute": 5,
+          "stats": {
+            "frames": 3601,
+            "seconds": 60.00669999998808,
+            "fps": 60.00996555385841,
+            "frameP95Ms": 17.900000005960464,
+            "frameMaxMs": 19,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9,
+            "gpuP95Ms": 8.726528,
+            "drawCalls": {
+              "main": 376,
+              "shadow": 127
+            },
+            "triangles": {
+              "main": 1097408,
+              "shadow": 461290
+            }
+          },
+          "heapMiB": 97.81969451904297,
+          "resources": {
+            "geometries": 361,
+            "textures": 64,
+            "programs": 39
+          }
+        }
+      ],
+      "cycle": {
+        "baseHeapMB": 7.009521484375,
+        "rows": [
+          {
+            "i": 0,
+            "enterMs": 2680.199999988079,
+            "memory": {
+              "geometries": 147,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 13.55838394165039,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 1,
+            "enterMs": 2557.2999999821186,
+            "memory": {
+              "geometries": 273,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 14.417221069335938,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 2,
+            "enterMs": 2504.0999999940395,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 14.768081665039062,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 3,
+            "enterMs": 2450.899999976158,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 14.979450225830078,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 4,
+            "enterMs": 2529.2999999821186,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 15.20058822631836,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 5,
+            "enterMs": 2400.800000011921,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 15.404685974121094,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 6,
+            "enterMs": 2560.7999999821186,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 15.669929504394531,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 7,
+            "enterMs": 2447.5,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 15.807373046875,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 8,
+            "enterMs": 2464.5,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 16.267932891845703,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 9,
+            "enterMs": 2488,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 16.405357360839844,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 10,
+            "enterMs": 2334.199999988079,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 16.549999237060547,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 11,
+            "enterMs": 2193.100000023842,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 16.675743103027344,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 12,
+            "enterMs": 2225.300000011921,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 16.802989959716797,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 13,
+            "enterMs": 2472.7000000178814,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 17.068588256835938,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 14,
+            "enterMs": 2205.5,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 17.195301055908203,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 15,
+            "enterMs": 2281.2000000178814,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 17.322128295898438,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 16,
+            "enterMs": 2277.5,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 17.43602752685547,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 17,
+            "enterMs": 2051.2000000178814,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 17.563796997070312,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 18,
+            "enterMs": 2210.800000011921,
+            "memory": {
+              "geometries": 143,
+              "textures": 54,
+              "programs": 39
+            },
+            "heapMB": 17.686161041259766,
+            "drawsAfterExit": 0
+          },
+          {
+            "i": 19,
+            "enterMs": 2220.5,
+            "memory": {
+              "geometries": 263,
+              "textures": 61,
+              "programs": 39
+            },
+            "heapMB": 17.80508041381836,
+            "drawsAfterExit": 0
+          }
+        ],
+        "problems": [],
+        "note": "The second visit resizes through four windows and ends at 1440x900. Resource counts depend on resize and view; all exit draw counts are zero. Heap rises even after GC, so retention requires follow-up attribution."
+      },
+      "board2d": {
+        "idle": {
+          "fps": 59.917613281737616,
+          "p50": 16.699999999999818,
+          "p95": 16.700000000000728,
+          "p99": 16.800000000000182,
+          "max": 16.800000000000182,
+          "miss60": 0,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "hover tiles": {
+          "fps": 59.76333718496129,
+          "p50": 16.69999999999891,
+          "p95": 16.700000000000728,
+          "p99": 16.800000000000182,
+          "max": 16.800000000000182,
+          "miss60": 0,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "bot round": {
+          "fps": 58.911927524688835,
+          "p50": 16.69999999999891,
+          "p95": 16.700000000004366,
+          "p99": 16.80000000000291,
+          "max": 149.89999999999782,
+          "miss60": 8,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "roll + production": {
+          "fps": 59.768637532133674,
+          "p50": 16.69999999999709,
+          "p95": 16.80000000000291,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "miss60": 0,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        }
+      },
+      "village": {
+        "cottage-outside": {
+          "frames": 181,
+          "seconds": 3.0084000000059605,
+          "fps": 60.16487169247487,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 18.900000005960464,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 11,
+          "gpuP95Ms": 9.571328,
+          "drawCalls": {
+            "main": 427,
+            "shadow": 163
+          },
+          "triangles": {
+            "main": 1260204,
+            "shadow": 458679
+          }
+        },
+        "cottage-door": {
+          "frames": 181,
+          "seconds": 3.0099000000059606,
+          "fps": 60.13488820214677,
+          "frameP95Ms": 17.700000017881393,
+          "frameMaxMs": 18.599999994039536,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 9.600000023841858,
+          "gpuP95Ms": 9.007104,
+          "drawCalls": {
+            "main": 474,
+            "shadow": 160
+          },
+          "triangles": {
+            "main": 1218186,
+            "shadow": 450383
+          }
+        },
+        "cottage-in-hearth": {
+          "frames": 180,
+          "seconds": 3.0016000000238416,
+          "fps": 59.96801705709297,
+          "frameP95Ms": 17.799999982118607,
+          "frameMaxMs": 24.700000017881393,
+          "missed60Percent": 0.5555555555555556,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 10.099999994039536,
+          "gpuP95Ms": 9.629696,
+          "drawCalls": {
+            "main": 550,
+            "shadow": 145
+          },
+          "triangles": {
+            "main": 1461712,
+            "shadow": 442322
+          }
+        },
+        "cottage-in-door": {
+          "frames": 181,
+          "seconds": 3.006,
+          "fps": 60.212907518296745,
+          "frameP95Ms": 17.700000017881393,
+          "frameMaxMs": 18.400000005960464,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 6.800000011920929,
+          "gpuP95Ms": 8.890368,
+          "drawCalls": {
+            "main": 184,
+            "shadow": 138
+          },
+          "triangles": {
+            "main": 582407,
+            "shadow": 419896
+          }
+        },
+        "cottage-overhead": {
+          "frames": 181,
+          "seconds": 3.0049000000059602,
+          "fps": 60.234949582229355,
+          "frameP95Ms": 18,
+          "frameMaxMs": 21.80000001192093,
+          "missed60Percent": 0.5524861878453039,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 7.600000023841858,
+          "gpuP95Ms": 9.01632,
+          "drawCalls": {
+            "main": 309,
+            "shadow": 170
+          },
+          "triangles": {
+            "main": 1398536,
+            "shadow": 454218
+          }
+        },
+        "wheat": {
+          "frames": 180,
+          "seconds": 3.0019000000059606,
+          "fps": 59.96202405131503,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 18.200000017881393,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 11.899999976158142,
+          "gpuP95Ms": 10.543104,
+          "drawCalls": {
+            "main": 615,
+            "shadow": 156
+          },
+          "triangles": {
+            "main": 1787216,
+            "shadow": 450393
+          }
+        },
+        "mill-outside": {
+          "frames": 180,
+          "seconds": 3.0075,
+          "fps": 59.85037406483791,
+          "frameP95Ms": 18,
+          "frameMaxMs": 18.599999994039536,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 7.699999988079071,
+          "gpuP95Ms": 9.646080000000001,
+          "drawCalls": {
+            "main": 153,
+            "shadow": 112
+          },
+          "triangles": {
+            "main": 961870,
+            "shadow": 330249
+          }
+        },
+        "mill-inside": {
+          "frames": 180,
+          "seconds": 3.0095,
+          "fps": 59.810599767403225,
+          "frameP95Ms": 18,
+          "frameMaxMs": 18.400000005960464,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 7,
+          "gpuP95Ms": 8.860672,
+          "drawCalls": {
+            "main": 132,
+            "shadow": 85
+          },
+          "triangles": {
+            "main": 630691,
+            "shadow": 305328
+          }
+        },
+        "walk-in-out": {
+          "frames": 693,
+          "seconds": 11.545,
+          "fps": 60.025985275010825,
+          "frameP95Ms": 18,
+          "frameMaxMs": 18.80000001192093,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 9,
+          "gpuP95Ms": 9.730048,
+          "drawCalls": {
+            "main": 236,
+            "shadow": 157
+          },
+          "triangles": {
+            "main": 902258,
+            "shadow": 450383
+          }
+        },
+        "hall-outside": {
+          "frames": 180,
+          "seconds": 3.001199999988079,
+          "fps": 59.97600959639976,
+          "frameP95Ms": 18.099999994039536,
+          "frameMaxMs": 19.100000023841858,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 10.600000023841858,
+          "gpuP95Ms": 10.13248,
+          "drawCalls": {
+            "main": 443,
+            "shadow": 168
+          },
+          "triangles": {
+            "main": 1363447,
+            "shadow": 461463
+          }
+        },
+        "hall-in-table": {
+          "frames": 180,
+          "seconds": 3.005199999988079,
+          "fps": 59.8961799549827,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 19,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 8.200000017881393,
+          "gpuP95Ms": 8.771584,
+          "drawCalls": {
+            "main": 425,
+            "shadow": 149
+          },
+          "triangles": {
+            "main": 1037071,
+            "shadow": 445974
+          }
+        },
+        "hall-in-corner": {
+          "frames": 180,
+          "seconds": 3.0055,
+          "fps": 59.890201297621026,
+          "frameP95Ms": 17.900000005960464,
+          "frameMaxMs": 18.900000005960464,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 9.300000011920929,
+          "gpuP95Ms": 8.245248,
+          "drawCalls": {
+            "main": 440,
+            "shadow": 133
+          },
+          "triangles": {
+            "main": 1114750,
+            "shadow": 370862
+          }
+        },
+        "hall-overhead": {
+          "frames": 169,
+          "seconds": 3.002800000011921,
+          "fps": 56.28080458216634,
+          "frameP95Ms": 17.80000001192093,
+          "frameMaxMs": 18.600000023841858,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 8.400000005960464,
+          "gpuP95Ms": 8.535039999999999,
+          "drawCalls": {
+            "main": 316,
+            "shadow": 177
+          },
+          "triangles": {
+            "main": 1288336,
+            "shadow": 458212
+          }
+        },
+        "walk-hall": {
+          "frames": 823,
+          "seconds": 13.71659999999404,
+          "fps": 60.00029161748229,
+          "frameP95Ms": 17.899999976158142,
+          "frameMaxMs": 19.400000005960464,
+          "missed60Percent": 0.0,
+          "hitches50ms": 0,
+          "mainThreadP95Ms": 9.800000011920929,
+          "gpuP95Ms": 10.076160000000002,
+          "drawCalls": {
+            "main": 429,
+            "shadow": 161
+          },
+          "triangles": {
+            "main": 1092047,
+            "shadow": 454035
+          }
+        }
+      }
+    },
+    "intel900": {
+      "meta": {
+        "label": "full-2026-11-24-intel900",
+        "effects": "full",
+        "renderScale": 1,
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stress": "",
+        "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A78B) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+        "headless": true,
+        "repeat": 1,
+        "sampleMs": 3000,
+        "date": "2026-11-24T15:17:58.246Z"
+      },
+      "entry": {
+        "ms": 3547.399999976158,
+        "downloads": 20,
+        "kb": 10411,
+        "fetchMs": 101,
+        "longest": 1874,
+        "longMs": 2844,
+        "info": {
+          "timer": true,
+          "buffer": [
+            836,
+            627
+          ],
+          "css": [
+            836,
+            627
+          ],
+          "dpr": 1,
+          "pixelRatio": 1,
+          "memory": {
+            "geometries": 143,
+            "textures": 54,
+            "programs": 39
+          }
+        }
+      },
+      "views": {
+        "wheat": [
+          {
+            "frames": 93,
+            "seconds": 3.0001999999880793,
+            "fps": 30.997933471225092,
+            "frameP95Ms": 40.19999998807907,
+            "frameMaxMs": 55.89999997615814,
+            "missed60Percent": 97.84946236559139,
+            "hitches50ms": 1,
+            "mainThreadP95Ms": 12.599999994039536,
+            "gpuP95Ms": 28.51854,
+            "drawCalls": {
+              "main": 590,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1819625,
+              "shadow": 310013
+            }
+          }
+        ],
+        "forest-edge": [
+          {
+            "frames": 120,
+            "seconds": 3.0026999999880792,
+            "fps": 39.96403237102488,
+            "frameP95Ms": 31.400000005960464,
+            "frameMaxMs": 50,
+            "missed60Percent": 93.33333333333333,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.400000005960464,
+            "gpuP95Ms": 21.566822000000002,
+            "drawCalls": {
+              "main": 702,
+              "shadow": 90
+            },
+            "triangles": {
+              "main": 1618552,
+              "shadow": 282151
+            }
+          }
+        ],
+        "forest-clearing": [
+          {
+            "frames": 138,
+            "seconds": 3.006700000017881,
+            "fps": 45.89749559290228,
+            "frameP95Ms": 27,
+            "frameMaxMs": 43.20000001788139,
+            "missed60Percent": 65.21739130434783,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.200000017881393,
+            "gpuP95Ms": 21.338228,
+            "drawCalls": {
+              "main": 523,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 1230345,
+              "shadow": 344321
+            }
+          }
+        ],
+        "mountains": [
+          {
+            "frames": 175,
+            "seconds": 3.0044000000059605,
+            "fps": 58.24790307537372,
+            "frameP95Ms": 22,
+            "frameMaxMs": 30.599999994039536,
+            "missed60Percent": 6.857142857142857,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 8.300000011920929,
+            "gpuP95Ms": 15.763696,
+            "drawCalls": {
+              "main": 288,
+              "shadow": 148
+            },
+            "triangles": {
+              "main": 744201,
+              "shadow": 344345
+            }
+          }
+        ],
+        "hills": [
+          {
+            "frames": 181,
+            "seconds": 3.0062000000178815,
+            "fps": 60.208901602994935,
+            "frameP95Ms": 17.899999976158142,
+            "frameMaxMs": 19,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 7.799999982118607,
+            "gpuP95Ms": 14.417499,
+            "drawCalls": {
+              "main": 178,
+              "shadow": 144
+            },
+            "triangles": {
+              "main": 494019,
+              "shadow": 326645
+            }
+          }
+        ],
+        "pasture": [
+          {
+            "frames": 132,
+            "seconds": 3.022199999988079,
+            "fps": 43.67679174128802,
+            "frameP95Ms": 48.20000001788139,
+            "frameMaxMs": 70.09999999403954,
+            "missed60Percent": 35.60606060606061,
+            "hitches50ms": 4,
+            "mainThreadP95Ms": 12.800000011920929,
+            "gpuP95Ms": 23.705675,
+            "drawCalls": {
+              "main": 301,
+              "shadow": 116
+            },
+            "triangles": {
+              "main": 802776,
+              "shadow": 323579
+            }
+          }
+        ],
+        "desert": [
+          {
+            "frames": 179,
+            "seconds": 3.005800000011921,
+            "fps": 59.55153370127423,
+            "frameP95Ms": 27.30000001192093,
+            "frameMaxMs": 35.30000001192093,
+            "missed60Percent": 7.82122905027933,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.699999988079071,
+            "gpuP95Ms": 16.394478,
+            "drawCalls": {
+              "main": 109,
+              "shadow": 130
+            },
+            "triangles": {
+              "main": 368186,
+              "shadow": 340817
+            }
+          }
+        ],
+        "settlement": [
+          {
+            "frames": 161,
+            "seconds": 3.0065999999940396,
+            "fps": 53.54885917658457,
+            "frameP95Ms": 37.80000001192093,
+            "frameMaxMs": 54.900000005960464,
+            "missed60Percent": 30.434782608695652,
+            "hitches50ms": 1,
+            "mainThreadP95Ms": 9.099999994039536,
+            "gpuP95Ms": 20.321822,
+            "drawCalls": {
+              "main": 209,
+              "shadow": 174
+            },
+            "triangles": {
+              "main": 717965,
+              "shadow": 516659
+            }
+          }
+        ],
+        "city": [
+          {
+            "frames": 144,
+            "seconds": 3.008800000011921,
+            "fps": 47.85961180518129,
+            "frameP95Ms": 41.29999998211861,
+            "frameMaxMs": 51.900000005960464,
+            "missed60Percent": 34.02777777777778,
+            "hitches50ms": 1,
+            "mainThreadP95Ms": 10.800000011920929,
+            "gpuP95Ms": 21.22927,
+            "drawCalls": {
+              "main": 320,
+              "shadow": 184
+            },
+            "triangles": {
+              "main": 916312,
+              "shadow": 506074
+            }
+          }
+        ],
+        "dock": [
+          {
+            "frames": 180,
+            "seconds": 3.0015999999940397,
+            "fps": 59.96801705768838,
+            "frameP95Ms": 18.099999994039536,
+            "frameMaxMs": 18.69999998807907,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 6.299999982118607,
+            "gpuP95Ms": 11.397499,
+            "drawCalls": {
+              "main": 62,
+              "shadow": 85
+            },
+            "triangles": {
+              "main": 235643,
+              "shadow": 216093
+            }
+          }
+        ],
+        "elevated": [
+          {
+            "frames": 87,
+            "seconds": 3.002700000017881,
+            "fps": 28.97392346870547,
+            "frameP95Ms": 42.39999997615814,
+            "frameMaxMs": 48,
+            "missed60Percent": 96.55172413793103,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 11.200000017881393,
+            "gpuP95Ms": 34.821197,
+            "drawCalls": {
+              "main": 536,
+              "shadow": 157
+            },
+            "triangles": {
+              "main": 1401982,
+              "shadow": 374435
+            }
+          }
+        ]
+      },
+      "runtimeProblems": [],
+      "board2d": {
+        "idle": {
+          "fps": 59.87426404586058,
+          "p50": 16.699999999999818,
+          "p95": 16.700000000000728,
+          "p99": 16.800000000000182,
+          "max": 16.800000000000182,
+          "miss60": 0,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "hover tiles": {
+          "fps": 53.41837751644409,
+          "p50": 16.69999999999891,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000109,
+          "max": 549.9000000000005,
+          "miss60": 1,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "bot round": {
+          "fps": 59.27553060825358,
+          "p50": 16.69999999999891,
+          "p95": 16.700000000004366,
+          "p99": 16.80000000000291,
+          "max": 99.89999999999964,
+          "miss60": 8,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        },
+        "roll + production": {
+          "fps": 59.18106206014075,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999995634,
+          "p99": 16.80000000000291,
+          "max": 33.299999999995634,
+          "miss60": 1,
+          "long": 0,
+          "longMs": 0,
+          "longMax": 0
+        }
+      }
+    },
+    "intel-lite75": {
+      "meta": {
+        "label": "full-2026-11-24-intel-lite75",
+        "effects": "lite",
+        "renderScale": 0.75,
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stress": "",
+        "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A78B) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+        "headless": true,
+        "repeat": 1,
+        "sampleMs": 3000,
+        "date": "2026-11-24T15:20:26.474Z"
+      },
+      "entry": {
+        "ms": 2777.7999999821186,
+        "downloads": 20,
+        "kb": 10411,
+        "fetchMs": 111,
+        "longest": 1310,
+        "longMs": 1818,
+        "info": {
+          "timer": true,
+          "buffer": [
+            627,
+            470
+          ],
+          "css": [
+            836,
+            627
+          ],
+          "dpr": 1,
+          "pixelRatio": 0.75,
+          "memory": {
+            "geometries": 105,
+            "textures": 52,
+            "programs": 30
+          }
+        }
+      },
+      "views": {
+        "wheat": [
+          {
+            "frames": 110,
+            "seconds": 3.0175999999940397,
+            "fps": 36.45281018034772,
+            "frameP95Ms": 35.29999998211861,
+            "frameMaxMs": 37.70000001788139,
+            "missed60Percent": 92.72727272727273,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 17.69999998807907,
+            "gpuP95Ms": 21.323177,
+            "drawCalls": {
+              "main": 563,
+              "shadow": null
+            },
+            "triangles": {
+              "main": 1407860,
+              "shadow": null
+            }
+          }
+        ],
+        "forest-edge": [
+          {
+            "frames": 116,
+            "seconds": 3.0105,
+            "fps": 38.53180534794885,
+            "frameP95Ms": 35.60000002384186,
+            "frameMaxMs": 45.599999994039536,
+            "missed60Percent": 90.51724137931035,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 15.5,
+            "gpuP95Ms": 18.932759,
+            "drawCalls": {
+              "main": 685,
+              "shadow": null
+            },
+            "triangles": {
+              "main": 1421743,
+              "shadow": null
+            }
+          }
+        ],
+        "forest-clearing": [
+          {
+            "frames": 145,
+            "seconds": 3.007300000011921,
+            "fps": 48.21600771437011,
+            "frameP95Ms": 25.599999994039536,
+            "frameMaxMs": 27.900000005960464,
+            "missed60Percent": 48.275862068965516,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 12.099999994039536,
+            "gpuP95Ms": 14.942864,
+            "drawCalls": {
+              "main": 505,
+              "shadow": null
+            },
+            "triangles": {
+              "main": 1029248,
+              "shadow": null
+            }
+          }
+        ],
+        "pasture": [
+          {
+            "frames": 181,
+            "seconds": 3.002899999976158,
+            "fps": 60.275067435291575,
+            "frameP95Ms": 18,
+            "frameMaxMs": 18.600000023841858,
+            "missed60Percent": 0.0,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 10.099999994039536,
+            "gpuP95Ms": 12.484947,
+            "drawCalls": {
+              "main": 290,
+              "shadow": null
+            },
+            "triangles": {
+              "main": 645692,
+              "shadow": null
+            }
+          }
+        ],
+        "city": [
+          {
+            "frames": 178,
+            "seconds": 3.0010999999940395,
+            "fps": 59.311585752008774,
+            "frameP95Ms": 20.799999982118607,
+            "frameMaxMs": 33.599999994039536,
+            "missed60Percent": 3.932584269662921,
+            "hitches50ms": 0,
+            "mainThreadP95Ms": 9.599999994039536,
+            "gpuP95Ms": 12.17802,
+            "drawCalls": {
+              "main": 309,
+              "shadow": null
+            },
+            "triangles": {
+              "main": 766487,
+              "shadow": null
+            }
+          }
+        ]
+      },
+      "runtimeProblems": []
+    }
+  },
+  "validation": {
+    "exitCodes": {
+      "heroes": 0,
+      "verify": 0,
+      "nativeRules": 0,
+      "editor": 0
+    },
+    "repositoryUnitTests": 133,
+    "nativeChecks": 261,
+    "nativeGoldenGames": 248,
+    "goldenActions": 116509,
+    "editorAutomationTests": 6,
+    "movementChecks": 7910,
+    "movementFixedRates": [
+      10,
+      60,
+      144
+    ],
+    "movementPhysicalScenarios": 13,
+    "yardReturnLifecycle": true,
+    "renderedHeroViews": 7,
+    "visualReview": "Current crouch and rear-riding captures reviewed; complete route validation passed.",
+    "browserRtx": "All four scenario groups completed; saved results contain travel, 44 view samples, five soak minutes, 20 visits, 2D scenarios and 14 village/interior samples. Observed runner status passed; PowerShell supervisor misclassified stderr warning.",
+    "browserIntelExit": 0,
+    "browserLiteExit": 0,
+    "wallpaperRestored": true,
+    "noGameplayOptimizationApplied": true
+  },
+  "findings": [
+    {
+      "priority": 1,
+      "finding": "Island entry stalls the main thread",
+      "evidence": "RTX first entry 3603 ms; longest main-thread task 2124 ms, local downloads complete at 134 ms. Repeat entry median 2424 ms.",
+      "next": "Profile and split island initialization; measure again without changing visual quality."
+    },
+    {
+      "priority": 2,
+      "finding": "Instant bot pacing depends on frame cap",
+      "evidence": "1080p capped fast match: 21.167% late frames, p95 23.0133 ms. Uncapped fast match: 87.28 FPS, p95 12.9261 ms, 0% over the late-frame threshold.",
+      "next": "Investigate limiter/presentation scheduling with bursty action/render updates; do not call this a general lack of 60-FPS rendering capacity."
+    },
+    {
+      "priority": 2,
+      "finding": "Integrated GPU cannot sustain Full island effects",
+      "evidence": "Intel UHD Full wheat 31 FPS, forest edge 40 FPS at a 1440x900 window. Lite/75% wheat 36.5 FPS and forest edge 38.5 FPS still miss 60.",
+      "next": "Prefer the tested RTX 4050 for Full effects; reduce foliage/draw and pixel costs before declaring Intel support at 60 FPS."
+    },
+    {
+      "priority": 2,
+      "finding": "Repeated-entry retained heap grows",
+      "evidence": "After forced GC, first to twentieth exit rises from 13.56 to 17.81 MiB. Last ten visits still rise about 1.4 MiB. No orphan WebGL draws or context warnings.",
+      "next": "Take heap snapshots and attribute game, benchmark, browser and cache retention; this is a growth signal, not proof of a game-only leak."
+    },
+    {
+      "priority": 3,
+      "finding": "Flat chart retains the native 3D world",
+      "evidence": "Chart toggle only changes Slate view/paint state; game mode does not disable board/world rendering for flat mode. GPU counters remain close to 3D.",
+      "next": "Measure an A/B that suspends obscured world rendering before choosing an optimization."
+    }
+  ],
+  "binary": {
+    "path": "apps/catnight/Packaged/Windows/Catnight/Binaries/Win64/Catnight.exe",
+    "sha256": "2235e24edc7f7629aabdf9ddeff311360dabf3c5a960c2d5196f7aa97c8aafa5"
+  }
+}

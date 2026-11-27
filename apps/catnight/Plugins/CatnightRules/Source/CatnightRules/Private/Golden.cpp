@@ -172,7 +172,7 @@ GoldenSummary ReplayGoldenDir(const std::string& dir, const GoldenOptions& optio
                                       "bank:4", "bank:3", "bank:2", "TradeCompleted", "TradeProposed", "TradeCountered",
                                       "discard", "Stolen", "StealSkipped", "ProductionShortage", "CitadelBuilt",
                                       "longest:transfer", "host:transfer", "GameWon", "Struck", "Slain", "DuelEnded",
-                                      "ChestOpened", "ShotFired", "DevicePassed"};
+                                      "ChestOpened", "DevicePassed"};
     for (const char* r : kRequired)
       if (!run.events.count(r)) sum.missingRules.push_back(r);
   }

@@ -8,6 +8,8 @@ export interface Ctx {
   s: GameState;
   ev: GameEvent[];
   rng: Rng;
+  /** Archive replay only. Live actions never enable retired weapons. */
+  legacyReplay?: boolean;
 }
 
 export function requireCurrent(ctx: Ctx, player: number): void {

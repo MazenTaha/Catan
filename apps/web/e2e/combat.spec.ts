@@ -55,7 +55,7 @@ test('guarding stops attacks; reduced motion keeps damage without shake or parti
   expect(c.dummy.position.z).toBe(-2);
 });
 
-test('revolver: the game’s five bullets, aim, cover and a dry click when empty', () => {
+test('retired revolver cannot be equipped, displayed or fired', () => {
   const sounds: string[] = [];
   let fired = 0;
   const c = new Combat(
@@ -67,26 +67,15 @@ test('revolver: the game’s five bullets, aim, cover and a dry click when empty
     () => fired++,
   );
   c.setArms(true, 5);
-  expect(c.selectWeapon('revolver')).toBe(true);
+  expect(c.selectWeapon('revolver')).toBe(false);
+  expect(c.weapon).toBe('sword');
   c.practice(0, 0, -10);
   c.attack(0);
-  expect(c.selectWeapon('sword')).toBe(false);
-  run(c, 30);
-  expect(c.health).toBe(50);
-  expect(fired).toBe(1);
-  // Behind cover: no hit. Off to the side: a miss.
-  c.attack(0);
-  run(c, 30, 0, (_x, z) => Math.abs(z + 5) > 0.2);
-  expect(c.health).toBe(50);
-  c.practice(2, 0, -10);
-  c.attack(0);
-  run(c, 30);
+  run(c, 45);
   expect(c.health).toBe(100);
-  // The game counts the bullets: none left means a dry click and no shot.
-  c.setArms(true, 0);
-  expect(c.attack(0)).toBe(false);
-  expect(sounds.at(-1)).toBe('empty');
-  expect(fired).toBe(3);
+  expect(fired).toBe(0);
+  expect(sounds).not.toContain('shot');
+  expect(c.me.root.getObjectByName('Revolver')).toBeUndefined();
 });
 
 test('live fights: a blow that lands on another player is reported, the nearest first', () => {
@@ -109,7 +98,7 @@ test('live fights: a blow that lands on another player is reported, the nearest 
   ]);
 });
 
-test('third-person practice in a game from before weapon chests: armed, five local bullets', async ({ page }) => {
+test('third-person practice in a game from before weapon chests: sword-only equipment', async ({ page }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -159,12 +148,13 @@ test('third-person practice in a game from before weapon chests: armed, five loc
   expect(view.actions).toBe(setup);
   expect(view.hits).toBe(1);
   expect(view.cameraDistance).toBeGreaterThan(0.1);
-  // Five bullets for the visit; a shot spends one.
+  // Old saves also have no third slot or local-ammo fallback.
   await page.waitForTimeout(800);
+  await page.keyboard.press('Digit2');
   await page.keyboard.press('Digit3');
-  await expect(page.getByRole('button', { name: /^Revolver 5/ })).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('KeyF');
-  await expect(page.getByRole('button', { name: /^Revolver 4/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Sword/ })).toHaveAttribute('aria-pressed', 'true',
+  );
+  await expect(page.getByRole('button', { name: /Revolver/ })).toHaveCount(0);
   expect(
     await page.evaluate(
       () =>
@@ -172,7 +162,6 @@ test('third-person practice in a game from before weapon chests: armed, five loc
           .session.actions.length,
     ),
   ).toBe(setup);
-  await page.screenshot({ path: '../../design/combat/revolver.png' });
   await page.keyboard.press('Escape');
   await expect(world).toHaveCount(0);
   expect(errors).toEqual([]);

@@ -22,6 +22,9 @@ $csv = Join-Path $out 'container.csv'
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $csv)) { throw 'Could not inspect the cooked artwork.' }
 $cooked = @{}
 Import-Csv -LiteralPath $csv | ForEach-Object { $cooked[$_.Filename] = $true }
+if (@($cooked.Keys | Where-Object { $_ -match '/SM_Revolver\.uasset$' }).Count) {
+  throw 'Cook still contains the retired revolver model. Reimport artwork and rebuild the package.'
+}
 $content = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'Content')).Path
 $sourceAssets = @(Get-ChildItem -LiteralPath (Join-Path $content 'Generated') -Recurse -Filter '*.uasset')
 if (-not $sourceAssets.Count) { throw 'No imported artwork to compare; run pnpm catnight:import.' }
@@ -65,6 +68,13 @@ if ($completed.Count -ne 3 -or @($completed | Where-Object { $_.Groups[1].Value 
   throw "Expected three successful packaged match tests. See $out/matches.log"
 }
 $results += @{ scenario = 'matches'; passed = 3 }
+
+$melee = Run-Game 'melee-only' @('-nullrhi', '-ExecCmds="Automation RunTests Catnight.Hero"', '-TestExit="Automation Test Queue Empty"')
+if ($melee -notmatch 'Test Completed. Result=\{Success\} Name=\{MeleeOnlyRules\}' -or
+    $melee -notmatch 'Test Completed. Result=\{Success\} Name=\{Assets\}') {
+  throw "Packaged hero assets or melee-only rules did not pass. See $out/melee-only.log"
+}
+$results += @{ scenario = 'hero-assets-and-melee-only'; passed = 2 }
 
 $angles = @('0,0,1', '40,12,0.9', '-55,-18,1.1')
 for ($i = 0; $i -lt $angles.Count; $i++) {

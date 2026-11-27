@@ -101,15 +101,15 @@ def s1_chest_locked(w, p, q, c):
     c.set_confirmed_open(True)
     check('state correction does not repeat the reveal', c.reveal_requests == 1)
     S['samples']['hand0'] = local(p, 'HandR'); S['samples']['hand_max'] = 0
-    tap(p, 'One'); tap(p, 'F')
+    tap(p, 'Two'); tap(p, 'F')
 
 
 def s1_sword_spam(w, p, q, c):
-    check('1 selects sword and shield', p.combat.weapon == unreal.CatanWeapon.SWORD and p.sword_mesh.is_visible() and p.shield_mesh.is_visible())
+    check('2 selects sword and shield', p.combat.weapon == unreal.CatanWeapon.SWORD and p.sword_mesh.is_visible() and p.shield_mesh.is_visible())
     S['samples']['count'] = p.combat.attack_count
     check('F starts one attack', p.combat.attack_count == 1, int(p.combat.attack_count))
     for _ in range(12): tap(p, 'F'); tap(p, 'LeftMouseButton')
-    tap(p, 'Two')
+    tap(p, 'One')
 
 
 def s1_track_hand(w, p, q, c):
@@ -155,34 +155,35 @@ def s1_guard_cancel(w, p, q, c):
     p.simulate_practice_key(key('RightMouseButton'), False)
 
 
-def s1_revolver(w, p, q, c):
+def s1_retired_weapon(w, p, q, c):
     check('releasing right mouse lowers the guard', not p.combat.guarding)
     S['samples']['health'] = q.practice_health
-    tap(p, 'Two'); tap(p, 'F')
+    tap(p, 'Three')
 
 
-def s1_revolver_hit(w, p, q, c):
-    check('2 selects the revolver', p.combat.weapon == unreal.CatanWeapon.REVOLVER and p.gun_mesh.is_visible() and not p.sword_mesh.is_visible())
-    check('revolver contact lands at once', q.practice_health == max(0, S['samples']['health'] - 50), [int(S['samples']['health']), int(q.practice_health)])
+def s1_retired_weapon_check(w, p, q, c):
+    check('3 cannot select equipment', p.combat.weapon == unreal.CatanWeapon.SWORD and not p.gun_mesh.is_visible())
+    check('removed ranged equipment cannot damage the partner', q.practice_health == S['samples']['health'])
 
 
 def s1_fist(w, p, q, c):
     S['samples']['health'] = q.practice_health
-    tap(p, 'Three'); tap(p, 'F')
+    tap(p, 'One'); tap(p, 'F')
 
 
 def s1_fist_hit(w, p, q, c):
-    check('3 selects fists', p.combat.weapon == unreal.CatanWeapon.FIST and not p.gun_mesh.is_visible() and not p.sword_mesh.is_visible())
+    check('1 selects fists', p.combat.weapon == unreal.CatanWeapon.FIST and not p.gun_mesh.is_visible() and not p.sword_mesh.is_visible())
     check('fist jab contact', q.practice_health == max(0, S['samples']['health'] - 10), [int(S['samples']['health']), int(q.practice_health)])
 
 
 def s1_reduced(w, p, q, c):
-    tap(p, 'M'); tap(p, 'One'); tap(p, 'F')
+    S['samples']['reduced_health'] = q.practice_health
+    tap(p, 'M'); tap(p, 'Two'); tap(p, 'F')
 
 
 def s1_reduced_check(w, p, q, c):
     check('M reaches every native component', p.combat.reduced_motion and c.reduced_motion)
-    check('partner defeated by the practice exchange', q.practice_health == 0, int(q.practice_health))
+    check('reduced-motion sword still deals damage', q.practice_health == max(0, S['samples']['reduced_health'] - 25), int(q.practice_health))
     check('reduced motion draws no impact sparks', not q.impact_bits.is_visible())
 
 
@@ -263,8 +264,8 @@ def s4_fresh(w, p, q, c):
 SESSIONS = [
     [(.3, s1_start), (1.0, s1_ground), (1.2, s1_chest), (1.35, s1_chest_started), (1.95, s1_chest_reveal), (3.8, s1_chest_done),
      (3.95, s1_chest_locked), (4.05, s1_sword_spam), ('track', 3.96, 4.6, s1_track_hand), (4.6, s1_contact), (5.6, s1_counter),
-     (5.75, s1_guard_up), (6.4, s1_parry), (6.5, s1_guard_started), (7.1, s1_guard_cancel), (7.8, s1_revolver),
-     (8.0, s1_revolver_hit), (8.8, s1_fist), (9.2, s1_fist_hit), (10.0, s1_reduced), (10.4, s1_reduced_check),
+     (5.75, s1_guard_up), (6.4, s1_parry), (6.5, s1_guard_started), (7.1, s1_guard_cancel), (7.8, s1_retired_weapon),
+     (8.0, s1_retired_weapon_check), (8.8, s1_fist), (9.2, s1_fist_hit), (10.0, s1_reduced), (10.4, s1_reduced_check),
      (12.2, s1_recovered), ('track', 12.3, 13.4, s1_track_walk), (13.4, s1_run), ('track', 13.45, 14.6, s1_track_walk),
      (14.6, s1_run_check), (14.85, s1_attack_moving), (16.0, s1_end)],
     [(1.0, s2_restore), (1.1, s2_exit)],

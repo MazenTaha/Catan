@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { DEFAULT_LOOK, type CharacterLook, type Pose } from '@hexfall/net';
+import { cleanPose, DEFAULT_LOOK, type CharacterLook, type Pose } from '@hexfall/net';
 import { Avatar } from './avatar';
 import { Horse } from './horse';
 import { CROUCH_DROP } from './locomotion';
 
 /**
  * Another player walking the island (online games): their avatar eases towards each
- * position the server relays, replays every swing or shot once, and rides a horse of its own
+ * position the server relays, replays every melee swing once, and rides a horse of its own
  * when they ride.
  */
 export class RemoteFighter {
@@ -22,8 +22,6 @@ export class RemoteFighter {
   private attacks = -1;
   private age = 9;
   private side = 1;
-  private shot = 0;
-  private tracer: THREE.Mesh;
   private crouch = 0;
   /** Name tag above the head, drawn once on a small canvas. */
   private tag: THREE.Sprite;
@@ -33,18 +31,13 @@ export class RemoteFighter {
     name: string,
     color: string,
     look: CharacterLook = DEFAULT_LOOK,
-    private reduce = false,
-    private onShot?: (x: number, z: number) => void,
+    reduce = false,
+    _retiredShotCallback?: (x: number, z: number) => void,
   ) {
     this.avatar = new Avatar(look, color, reduce);
     this.horse = new Horse(color, reduce);
     this.horse.root.visible = false;
     this.root.add(this.avatar.root, this.horse.root);
-    const glow = new THREE.MeshBasicMaterial({ color: '#ffd993' });
-    this.tracer = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 1), glow);
-    this.tracer.geometry.translate(0, 0, -0.5);
-    this.tracer.visible = false;
-    this.root.add(this.tracer);
     this.tag = nameTag(name, color);
     this.root.add(this.tag);
     this.root.visible = false;
@@ -52,6 +45,7 @@ export class RemoteFighter {
 
   /** The latest relayed position (null: they left the 3D walk). */
   setPose(p: Pose | null) {
+    p = cleanPose(p);
     if (p && (!this.pose || Math.hypot(p.x - this.x, p.z - this.z) > 8)) {
       this.x = p.x;
       this.y = p.y;
@@ -95,10 +89,6 @@ export class RemoteFighter {
       this.attacks = p.attacks;
       this.age = 0;
       this.side *= -1;
-      if (p.weapon === 'revolver') {
-        this.shot = 0.075;
-        this.onShot?.(this.x, this.z);
-      }
     }
     this.age += dt;
     const ride = p.riding;
@@ -119,13 +109,6 @@ export class RemoteFighter {
     if (ride) this.avatar.holdReins(this.horse);
     else this.horse.holdReins(null);
     this.tag.position.set(this.x, this.y + (ride ? 3.3 : 2.35 - this.crouch * CROUCH_DROP), this.z);
-    this.shot = Math.max(0, this.shot - dt);
-    this.tracer.visible = this.shot > 0 && !this.reduce;
-    if (this.tracer.visible) {
-      this.tracer.position.set(this.x, this.y + 1.05 - this.crouch * CROUCH_DROP, this.z);
-      this.tracer.rotation.y = this.yaw;
-      this.tracer.scale.z = 20;
-    }
   }
 
   dispose() {
@@ -133,8 +116,6 @@ export class RemoteFighter {
     this.horse.dispose();
     (this.tag.material as THREE.SpriteMaterial).map?.dispose();
     this.tag.material.dispose();
-    this.tracer.geometry.dispose();
-    (this.tracer.material as THREE.Material).dispose();
     this.root.removeFromParent();
   }
 }

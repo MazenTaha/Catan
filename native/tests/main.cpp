@@ -84,6 +84,20 @@ void UnitTests() {
     if (d < 1 || d > 6) inRange = false;
   }
   Check(inRange, "rng range");
+  GameConfig meleeConfig;
+  std::string configError;
+  Check(ConfigFromJson(Json::Parse(R"JSON({"seed":"retired-weapon","targetVp":10,"layout":"balanced","firstPlayer":0,"privacy":false,"arms":true,"pvp":true,"seats":[{"name":"A","kind":"human","color":"crimson","sigil":"skull"},{"name":"B","kind":"human","color":"frost","sigil":"moon"},{"name":"C","kind":"bot","color":"bone","sigil":"eye"}]})JSON"), meleeConfig, &configError), "melee config");
+  auto meleeState = CreateGame(meleeConfig);
+  meleeState.arms->armed[0] = true;
+  Action fire; fire.type = ActionType::Fire; fire.player = 0;
+  Action gun; gun.type = ActionType::Strike; gun.player = 0; gun.victim = 1; gun.weapon = Weapon::Revolver;
+  Check(!ApplyAction(meleeState, fire).ok && !ApplyAction(meleeState, gun).ok, "retired firearm commands rejected live");
+  auto archivedShot = ApplyRecordedAction(meleeState, fire);
+  Check(archivedShot.ok && archivedShot.state.arms->bullets[0] == 4, "archive shot still replays");
+  auto archivedHit = ApplyRecordedAction(archivedShot.state, gun);
+  Check(archivedHit.ok && archivedHit.state.arms->health[1] == 50, "archive damage still replays");
+  Check(!ApplyAction(archivedHit.state, fire).ok, "archive restore does not re-enable firearm");
+
 }
 
 // ------------------------------------------------------------------ golden replay
@@ -258,7 +272,7 @@ void GoldenTests(const fs::path& dir, const std::string& only, int maxFailures) 
                               "bank:4", "bank:3", "bank:2", "TradeCompleted", "TradeProposed", "TradeCountered",
                               "discard", "Stolen", "StealSkipped", "ProductionShortage", "CitadelBuilt",
                               "longest:transfer", "host:transfer", "GameWon", "Struck", "Slain", "DuelEnded",
-                              "ChestOpened", "ShotFired", "DevicePassed"};
+                              "ChestOpened", "DevicePassed"};
     std::string missing;
     for (const char* r : required)
       if (!st.events.count(r)) missing += std::string(" ") + r;

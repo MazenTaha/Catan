@@ -35,7 +35,7 @@ export interface GameConfig {
    */
   privacy?: boolean;
   /**
-   * Weapon chests, health, bullets and kill rewards for the 3D walk (DECISIONS #40). Off for
+   * Sword chests, health and kill rewards for the 3D walk (DECISIONS #40). Off for
    * games created before it existed, so their saves and records replay unchanged.
    */
   arms?: boolean;
@@ -48,9 +48,9 @@ export interface ArmsState {
   chest: (VertexId | null)[];
   /** Each seat's two starting settlements: the chest is in one, the other holds nothing. */
   starts: VertexId[][];
-  /** Has opened its chest: carries a sword and a revolver. */
+  /** Has opened its chest: carries a sword. */
   armed: boolean[];
-  /** Revolver rounds left for the whole game. */
+  /** Retired ammunition field retained only for v1 save/record compatibility. */
   bullets: number[];
   /** Kept between visits to the 3D walk; back to full after a death. */
   health: number[];

@@ -98,7 +98,7 @@ One GLB per family; each variant is a root node with that name. Triangles as exp
 | `DesertStones`, `SandRidge`, `Column`, `Drums`, `Lintel`, `Ruin` | `rock.desert`, `prop.dune`, `prop.column`, `prop.drums`, `prop.lintel`, `prop.ruin` | 80–1,642 | Stone |
 | `FencePost`, `FenceRail` (1 m, stretched), `Gate`, `TroughA` `TroughB`, `BrickStack` | `prop.fencepost`, `prop.fencerail`, `prop.gate`, `prop.trough`, `prop.bricks` | 104–1,524 | Wood, Stone, Metal, Water, Cloth |
 | `WeaponChest` (+ `WeaponChestLid`, origin on the rear hinge) | `chest.ts` via `gear.ts` | 2,276 + lid | Wood, Metal, Brass |
-| `Sword`, `Revolver` (grip origin, barrel/blade along -Z), `Shield` (back-centre origin, face +Z), `DummyA` `DummyB` | `avatar.ts`, `chest.ts`, `combat.ts` via `gear.ts` | 504–1,052 | Metal, Brass, Wood, Cloth, Owner_Field |
+| `Sword` (grip origin, blade along -Z), `Shield` (back-centre origin, face +Z), `DummyA` `DummyB` | `avatar.ts`, `chest.ts`, `combat.ts` via `gear.ts` | 504–1,052 | Metal, Brass, Wood, Cloth, Owner_Field |
 | `Antlers` `CandleWheel` `FloorPlant` `TablePlant` `ArmorStand` `Candles` `CrossedShields` `Tapestry` `Banner` `Bookshelf` | `decor.ts` via `gear.ts` | 232–2,124 | Wood, Metal, Brass, Cloth, Glow, Foliage, Tint_Cloth |
 
 `props.glb` materials: `Owner_Field` is tinted in the seat colour (the shield), `Tint_Cloth` in

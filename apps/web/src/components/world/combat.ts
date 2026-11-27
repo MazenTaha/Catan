@@ -1,16 +1,13 @@
 import * as THREE from 'three';
-import { CROUCH_DROP } from './locomotion';
 import { cloneGear } from './gear';
-import type { Weapon } from '@hexfall/engine';
+import { WEAPONS, type Weapon } from '@hexfall/engine';
 import { DEFAULT_LOOK, REACH, type CharacterLook } from '@hexfall/net';
 import { ATTACK_TIME, Avatar } from './avatar';
 
 export type { Weapon };
-export type CombatSound = 'swing' | 'impact' | 'shot' | 'empty' | 'clang' | 'punch';
+export type CombatSound = 'swing' | 'impact' | 'clang' | 'punch';
 export interface WeaponState {
   weapon: Weapon;
-  /** Revolver rounds left for the whole game (the engine's count). */
-  ammo: number;
   /** The seat has opened its weapon chest. */
   armed: boolean;
   blocking: boolean;
@@ -24,12 +21,12 @@ export interface Target {
   z: number;
 }
 
-const DAMAGE_PRACTICE: Record<Weapon, number> = { fist: 10, sword: 25, revolver: 50 };
+const DAMAGE_PRACTICE: Record<Weapon, number> = { fist: 10, sword: 25, revolver: 0 };
 
 /**
- * The walker's own fighting: bare hands (1), then sword (2) or revolver (3) after the chest.
+ * The walker's own fighting: bare hands (1), then sword (2) after the chest.
  * F or a click attacks; the right mouse button holds a guard, and a
- * raised sword parries blows and bullets from the front. Hits on other players are reported
+ * raised sword parries melee blows from the front. Hits on other players are reported
  * (the server checks them and the engine applies the damage); the straw dummy is local.
  */
 export class Combat {
@@ -37,17 +34,13 @@ export class Combat {
   readonly me: Avatar;
   readonly dummy = new THREE.Group();
   readonly sparks = new THREE.Group();
-  readonly tracer = new THREE.Group();
-  private flashMesh: THREE.Mesh;
   weapon: Weapon = 'fist';
-  ammo = 0;
   armed = false;
   blocking = false;
   /** The world's footfall count, so the character's feet land with the footstep sounds. */
   stride: number | undefined = undefined;
   riding = false;
   crouch = 0;
-  private shotFlash = 0;
   health = 100;
   hits = 0;
   active = false;
@@ -72,8 +65,8 @@ export class Combat {
     private weaponChanged?: (state: WeaponState) => void,
     /** A blow landed on another player. */
     private onHit?: (seat: number, weapon: Weapon) => void,
-    /** A revolver shot was fired (spends one of the game's bullets). */
-    private onFire?: () => void,
+    /** Reserved argument for older callers; firing is no longer supported. */
+    _retiredFireCallback?: () => void,
     look: CharacterLook = DEFAULT_LOOK,
   ) {
     this.me = new Avatar(look, '#3f7fd4', reduce);
@@ -99,14 +92,6 @@ export class Combat {
       parent.add(m);
       return m;
     };
-    const glow = new THREE.MeshBasicMaterial({ color: '#ffd993' });
-    this.flashMesh = part(this.me.muzzle, glow, 0, 0, -0.05, 0.1, 0.1, 0.18, true);
-    this.flashMesh.castShadow = this.flashMesh.receiveShadow = false;
-    // Blinks on its own, so the avatar's re-bakes leave it out.
-    this.flashMesh.userData.loose = true;
-    const line = part(this.tracer, glow, 0, 0, -0.5, 0.008, 0.008, 1);
-    line.castShadow = line.receiveShadow = false;
-    this.tracer.visible = this.flashMesh.visible = false;
     // The straw dummy from props.glb (its materials copied, so a hit can flash them), or shapes.
     const dummyModel = cloneGear('DummyA', (m) => {
       const c = (m as THREE.MeshStandardMaterial).clone();
@@ -128,7 +113,7 @@ export class Combat {
       p.castShadow = p.receiveShadow = false;
     }
     this.dummy.visible = this.sparks.visible = false;
-    this.root.add(this.me.root, this.dummy, this.sparks, this.tracer);
+    this.root.add(this.me.root, this.dummy, this.sparks);
     this.publishWeapon();
   }
 
@@ -145,12 +130,11 @@ export class Combat {
     this.me.setLook(look);
   }
 
-  /** Arms and bullets come from the game: opening the chest, shots fired so far. */
-  setArms(armed: boolean, ammo: number) {
-    if (armed === this.armed && ammo === this.ammo) return;
+  /** Opening the chest unlocks the sword. */
+  setArms(armed: boolean, _retiredAmmo = 0) {
+    if (armed === this.armed) return;
     const first = armed && !this.armed;
     this.armed = armed;
-    this.ammo = ammo;
     if (!armed) this.weapon = 'fist';
     else if (first) this.weapon = 'sword';
     this.publishWeapon();
@@ -170,25 +154,22 @@ export class Combat {
   }
 
   attack(yaw: number): boolean {
-    if (this.attacking || this.blocking || this.riding) return false;
-    if (this.weapon === 'revolver' && this.ammo <= 0) {
-      this.sound('empty');
+    if (!WEAPONS.includes(this.weapon)) {
+      this.weapon = 'fist';
+      this.publishWeapon();
       return false;
     }
+    if (this.attacking || this.blocking || this.riding) return false;
     this.age = 0;
     this.aim = yaw;
     this.struck = false;
     this.side *= -1;
-    if (this.weapon === 'revolver') {
-      this.shotFlash = 0.075;
-      this.onFire?.();
-    }
-    this.sound(this.weapon === 'sword' ? 'swing' : this.weapon === 'revolver' ? 'shot' : 'swing');
+    this.sound('swing');
     return true;
   }
 
   selectWeapon(weapon: Weapon): boolean {
-    if (this.attacking) return false;
+    if (!WEAPONS.includes(weapon) || this.attacking) return false;
     if (weapon !== 'fist' && !this.armed) return false;
     this.weapon = weapon;
     this.age = 9;
@@ -213,7 +194,6 @@ export class Combat {
   private publishWeapon() {
     this.weaponChanged?.({
       weapon: this.weapon,
-      ammo: this.ammo,
       armed: this.armed,
       blocking: this.blocking,
     });
@@ -239,22 +219,17 @@ export class Combat {
 
   /** Is (tx, tz) in front of the fighter, in reach and not behind cover? */
   private lands(x: number, y: number, z: number, tx: number, ty: number, tz: number, clear: (x: number, z: number) => boolean) {
-    const gun = this.weapon === 'revolver';
     const dx = tx - x;
     const dz = tz - z;
     const distance = Math.hypot(dx, dz);
-    const reach = gun ? REACH.revolver : REACH[this.weapon] - 0.15;
+    const reach = REACH[this.weapon] - 0.15;
     if (distance > reach || Math.abs(ty - y) > 1.2) return false;
     const facing = (-Math.sin(this.aim) * dx - Math.cos(this.aim) * dz) / Math.max(distance, 0.001);
-    const across = Math.abs(Math.cos(this.aim) * dx - Math.sin(this.aim) * dz);
-    const aligned = gun ? facing > 0 && across < 0.45 : facing > 0.5;
+    const aligned = facing > 0.5;
     return aligned && this.clearLine(x, z, tx, tz, clear);
   }
 
   update(dt: number, x: number, y: number, z: number, yaw: number, speed: number, clear: (x: number, z: number) => boolean, facing = yaw) {
-    this.shotFlash = Math.max(0, this.shotFlash - dt);
-    const gun = this.weapon === 'revolver';
-    this.flashMesh.visible = this.tracer.visible = gun && this.shotFlash > 0 && !this.reduce;
     this.flash = Math.max(0, this.flash - dt * 7);
     const pause = this.hold > 0;
     this.hold = Math.max(0, this.hold - dt);
@@ -277,13 +252,11 @@ export class Combat {
       crouch: this.crouch,
       aimTurn: this.riding ? Math.atan2(Math.sin(yaw - facing), Math.cos(yaw - facing)) : 0,
     });
-    // The moment of contact: a sword at 210 ms into its swing, a fist at 120 ms, a shot at once.
-    const contact = gun ? 0 : this.weapon === 'sword' ? 0.21 : 0.12;
+    // The moment of contact: a sword at 210 ms into its swing, a fist at 120 ms.
+    const contact = this.weapon === 'sword' ? 0.21 : 0.12;
     if (!this.struck && this.age >= contact && this.attacking) {
       this.struck = true;
       this.count++;
-      const eye = y + 1.3 - this.crouch * CROUCH_DROP;
-      let length = REACH.revolver;
       // The nearest other player the blow lands on, if any.
       let best: Target | null = null;
       let bestD = Infinity;
@@ -297,29 +270,16 @@ export class Combat {
       const dummyHit =
         this.active && this.health > 0 && this.lands(x, y, z, this.dummy.position.x, this.dummy.position.y, this.dummy.position.z, clear);
       const dummyD = Math.hypot(this.dummy.position.x - x, this.dummy.position.z - z);
-      if (gun) {
-        for (let d = 0.15; d < length; d += 0.15) {
-          if (!clear(x - Math.sin(this.aim) * d, z - Math.cos(this.aim) * d)) {
-            length = d;
-            break;
-          }
-        }
-        if (best) length = Math.min(length, bestD);
-        else if (dummyHit) length = Math.min(length, dummyD);
-        this.tracer.position.set(x, eye - 0.25, z);
-        this.tracer.rotation.y = this.aim;
-        this.tracer.scale.z = length;
-      }
       if (best && (!dummyHit || bestD < dummyD)) {
         this.onHit?.(best.seat, this.weapon);
         this.sound(this.weapon === 'fist' ? 'punch' : 'impact');
-        this.hold = this.reduce || gun ? 0 : 0.045;
+        this.hold = this.reduce ? 0 : 0.045;
         this.flash = 0.6;
       } else if (dummyHit) {
         this.health = Math.max(0, this.health - DAMAGE_PRACTICE[this.weapon]);
         this.hits++;
         this.flash = 1;
-        this.hold = this.reduce || gun ? 0 : 0.045;
+        this.hold = this.reduce ? 0 : 0.045;
         this.push = this.reduce ? 0 : 0.32;
         this.sound(this.weapon === 'fist' ? 'punch' : 'impact');
         this.report(this.health, true);

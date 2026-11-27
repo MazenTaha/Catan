@@ -4,7 +4,6 @@ import type { Weapon } from '@hexfall/engine';
 export const WEAPON_SLOTS = [
   { weapon: 'fist', key: '1' },
   { weapon: 'sword', key: '2' },
-  { weapon: 'revolver', key: '3' },
 ] as const satisfies readonly { weapon: Weapon; key: string }[];
 
 export function weaponForKey(code: string): Weapon | undefined {

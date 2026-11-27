@@ -285,3 +285,56 @@ The combined revision passed five editor automation tests (248/248 golden games)
 (132 unit tests), packaging, 7,910 movement checks, the yard-return lifecycle check, seven hero
 views, all 181 cooked assets, three packaged match/board tests, 50/50 picks at each of three
 angles and a rendered 694-action victory. Physical-gamepad and full-island acceptance stay open.
+
+## Revolver removal (2026-11-22)
+
+At the owner's request, active equipment is now bare hands (1) and sword (2); 3 is unbound.
+The HUD, chest reveal, local/remote models and firing effects no longer offer the revolver.
+The original Blender props and interaction sources have been rebuilt without it, including
+removal of the two old FBX exports. The wrapper's staged game and converted interaction source
+match the canonical files. No new push was requested for this change.
+
+Both live reducers reject `Fire` and ranged `Strike`; the online referee rejects them too and
+normalizes old ranged poses to hands. Preserve the retired v1 enum/action/ammunition fields:
+only archive reconstruction uses `applyRecordedAction` / `ApplyRecordedAction`, and continuing
+that record returns to the normal melee-only reducer. TS record replay, standalone C++ and
+Unreal tests exercise this boundary. `ShotFired` is no longer required in live golden coverage.
+
+`catnight:import` now produces 91 board meshes and 180 generated assets, with no `SM_Revolver`.
+Packaging refuses a stale imported gun, and package validation audits the cooked container and
+runs the melee-only automation test. Results are recorded in `apps/catnight/validation/melee-only.json`.
+The older animation practice's editor target compiles; its historical four interactive PIE
+sessions have not been rerun. This change does not complete the native island/combat migration.
+
+Final removal validation: `pnpm verify` passed (133 unit tests), all 12 focused browser
+checks passed, standalone C++ passed 261 checks with all 248 golden games matching, and all
+six editor automation tests passed. The rebuilt Development package passed three match tests,
+hero asset validation and the new melee-only rules test, the cooked-content audit (180 assets,
+no revolver), 50/50 picks from each of three angles, and a rendered match to victory. The
+regenerated board and two-slot HUD were visually reviewed. The updated executable is
+`apps/catnight/Packaged/Windows/Catnight.exe`; generated outputs remain ignored.
+
+## Full performance audit (2026-11-24)
+
+The owner requested a full game performance test. See `docs/PERFORMANCE_2026-11-24.md` and
+`apps/catnight/validation/performance-2026-11-24.json` for scope, data and follow-ups. No gameplay
+optimization or new push is included. Saved native runners/raw CSVs and browser reports are ignored
+local evidence; the normal Continue save is untouched.
+
+- Verified native 1920x1080 clients at 100% render scale, capped and uncapped, plus 720p and a
+  five-minute busy-board soak. Uncapped board/normal/Instant bot samples average 87–96 FPS.
+  Capped Instant play has 21.17% late frames; uncapped Instant has none above 20.83 ms.
+- Native soak: 59.97 FPS, no >50 ms frames, memory stable near 1110 MiB after its initial rise.
+- Full reference island: RTX Full is about 60 FPS through early/late routes, biomes and rooms.
+  First entry takes 3.603 s with a 2.124 s main-thread task; repeated entries still take about
+  2.4 s. Intel UHD Full falls to 31 FPS in wheat; Lite/75% is insufficient for consistent 60 FPS.
+- Twenty enter/exit cycles have zero orphan WebGL draws or context warnings, but post-GC heap
+  rises 13.56 -> 17.81 MiB. Attribute game/probe/browser retention before declaring a game leak.
+  The separate five-minute island soak has stable renderer resources and fluctuating heap.
+- Benchmark log calls now checkpoint partial reports, and normal UI/navigation waits are bounded
+  at 30 s. Logging happens outside the timed samples. Force native resolution with `r.SetRes`,
+  verify the client size, and use `-csvNoProcessingThread`; async CSV shutdown returned 777003
+  while unprofiled and synchronous captures returned 0. Discard the initial unverified grid.
+- Final checks: verify (133 tests), native rules (261 checks, 248 goldens), six editor tests and
+  all 7,910 movement checks pass. Wallpaper was restored. This is not Shipping/144-Hz, Steam,
+  network-latency, CEF-wrapper or cross-machine certification.

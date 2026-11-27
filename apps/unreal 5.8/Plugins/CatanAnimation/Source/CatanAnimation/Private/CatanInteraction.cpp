@@ -32,18 +32,19 @@ float Ease(float T) { T=FMath::Clamp(T,0.f,1.f); return T*T*(3-2*T); }
 
 UCatanCombatPresentation::UCatanCombatPresentation() { PrimaryComponentTick.bCanEverTick=true; }
 bool UCatanCombatPresentation::Attack() {
-    if (bGuarding || !Action.Begin(ContactFor(Weapon), DurationFor(Weapon))) return false;
+    if (Weapon==ECatanWeapon::Revolver || bGuarding || !Action.Begin(ContactFor(Weapon), DurationFor(Weapon))) return false;
     bCancelled=false; ++AttackCount; Side=-Side;
-    if (auto S=GetOwner()->FindComponentByClass<UCatanInteractionSound>()) S->Cue(Weapon==ECatanWeapon::Revolver ? "Shot" : "Swing");
+    if (auto S=GetOwner()->FindComponentByClass<UCatanInteractionSound>()) S->Cue("Swing");
     return true;
 }
 void UCatanCombatPresentation::Guard(bool On) { bGuarding=On; if (On && Action.Active()) { Action.CancelContact(); bCancelled=true; } }
-bool UCatanCombatPresentation::Select(ECatanWeapon W) { if (Action.Active()) return false; Weapon=W; bGuarding=false; return true; }
+bool UCatanCombatPresentation::Select(ECatanWeapon W) { if (W==ECatanWeapon::Revolver || Action.Active()) return false; Weapon=W; bGuarding=false; return true; }
 void UCatanCombatPresentation::ConfirmHit(bool Parried) { Reaction=Parried ? "Guard_Impact" : "Hit_React"; ReactionAge=0; }
 void UCatanCombatPresentation::Recover() { Cancel(); Reaction="Respawn_Recover"; ReactionAge=0; }
 void UCatanCombatPresentation::Cancel() { Action.Cancel(); bCancelled=true; bGuarding=false; }
 void UCatanCombatPresentation::TickComponent(float Delta,ELevelTick Kind,FActorComponentTickFunction* Fn) {
     Super::TickComponent(Delta,Kind,Fn); ReactionAge+=Delta;
+    if (Weapon==ECatanWeapon::Revolver) { Cancel(); Weapon=ECatanWeapon::Fist; }
     if (Action.Advance(Delta)) { ++ContactCount; OnContactRequested.Broadcast(Weapon); }
 }
 void UCatanCombatPresentation::EndPlay(const EEndPlayReason::Type Reason) { Cancel(); OnContactRequested.Clear(); Super::EndPlay(Reason); }
@@ -70,10 +71,10 @@ struct FCatanAnimProxy : FAnimInstanceProxy {
         FName Name=NAME_None;
         if (C->bGuarding) { Name="Guard_Hold"; ActionTime=IdleTime; }
         else if (C->Action.Active() && !C->bCancelled) {
-            Name=C->Weapon==ECatanWeapon::Sword ? (C->Side<0 ? "Sword_Cut_R":"Sword_Cut_L") : C->Weapon==ECatanWeapon::Fist ? "Fist_Jab":"Revolver_Fire";
+            Name=C->Weapon==ECatanWeapon::Sword ? (C->Side<0 ? "Sword_Cut_R":"Sword_Cut_L") : "Fist_Jab";
             ActionTime=C->Action.Age;
         }
-        if (Name.IsNone() && C->Weapon!=ECatanWeapon::Sword) { Name=C->Weapon==ECatanWeapon::Fist ? "Fist_Jab":"Revolver_Fire"; ActionTime=.42; }
+        if (Name.IsNone() && C->Weapon!=ECatanWeapon::Sword) { Name="Fist_Jab"; ActionTime=.42; }
         ActionClip=Clip(Library,Name);
         const float Desired=ActionClip ? 1.f:0.f;
         ActionWeight=FMath::Lerp(ActionWeight,Desired,1-FMath::Exp(-30*Delta));
@@ -238,7 +239,7 @@ void ACatanPracticeCharacter::OnConstruction(const FTransform& T) {
     Super::OnConstruction(T); if(!Library) return;
     GetMesh()->SetSkeletalMeshAsset(Library->Knight); GetMesh()->SetAnimInstanceClass(UCatanAnimInstance::StaticClass());
     ImpactBits->SetMaterial(0,Library->ParticleMaterial);
-    SwordMesh->SetSkeletalMeshAsset(Library->Sword); GunMesh->SetSkeletalMeshAsset(Library->Revolver); ShieldMesh->SetSkeletalMeshAsset(Library->Shield);
+    SwordMesh->SetSkeletalMeshAsset(Library->Sword); GunMesh->SetSkeletalMeshAsset(nullptr); GunMesh->SetVisibility(false); ShieldMesh->SetSkeletalMeshAsset(Library->Shield);
     for(auto GearMesh:{SwordMesh,GunMesh,ShieldMesh}) GearMesh->SetLeaderPoseComponent(GetMesh());
 }
 void ACatanPracticeCharacter::BeginPlay() { Super::BeginPlay(); StartLocation=GetActorLocation(); OnConstruction(GetActorTransform()); Combat->OnContactRequested.AddDynamic(this,&ACatanPracticeCharacter::Contact); }
@@ -251,7 +252,7 @@ void ACatanPracticeCharacter::Tick(float Delta) {
         AddMovementInput(Right,(PC->IsInputKeyDown(EKeys::D)?1:0)-(PC->IsInputKeyDown(EKeys::A)?1:0));
         GetCharacterMovement()->MaxWalkSpeed=PC->IsInputKeyDown(EKeys::LeftShift)?800:400;
     }
-    SwordMesh->SetVisibility(Combat->Weapon==ECatanWeapon::Sword); ShieldMesh->SetVisibility(Combat->Weapon==ECatanWeapon::Sword); GunMesh->SetVisibility(Combat->Weapon==ECatanWeapon::Revolver);
+    SwordMesh->SetVisibility(Combat->Weapon==ECatanWeapon::Sword); ShieldMesh->SetVisibility(Combat->Weapon==ECatanWeapon::Sword); GunMesh->SetVisibility(false);
     NearbyChest=nullptr;
     if(!bPracticePartner) for(TActorIterator<ACatanAnimatedChest> It(GetWorld());It;++It) if(FVector::Dist2D(GetActorLocation(),It->GetActorLocation())<200) { NearbyChest=*It; break; }
     if(ReturnIn>0 && (ReturnIn-=Delta)<=0 && PracticeHealth>0 && ReturnTarget) {
@@ -265,7 +266,7 @@ void ACatanPracticeCharacter::SetupPlayerInputComponent(UInputComponent* Input) 
     Input->BindKey(EKeys::E,IE_Pressed,this,&ACatanPracticeCharacter::Interact); Input->BindKey(EKeys::R,IE_Pressed,this,&ACatanPracticeCharacter::ResetPractice);
     Input->BindKey(EKeys::M,IE_Pressed,this,&ACatanPracticeCharacter::ReducedMotion);
     Input->BindKey(EKeys::RightMouseButton,IE_Pressed,this,&ACatanPracticeCharacter::GuardOn); Input->BindKey(EKeys::RightMouseButton,IE_Released,this,&ACatanPracticeCharacter::GuardOff);
-    Input->BindKey(EKeys::One,IE_Pressed,this,&ACatanPracticeCharacter::SwordKey); Input->BindKey(EKeys::Two,IE_Pressed,this,&ACatanPracticeCharacter::GunKey); Input->BindKey(EKeys::Three,IE_Pressed,this,&ACatanPracticeCharacter::FistKey);
+    Input->BindKey(EKeys::One,IE_Pressed,this,&ACatanPracticeCharacter::FistKey); Input->BindKey(EKeys::Two,IE_Pressed,this,&ACatanPracticeCharacter::SwordKey);
     Input->BindKey(EKeys::SpaceBar,IE_Pressed,this,&ACharacter::Jump); Input->BindAxisKey(EKeys::MouseX,this,&ACatanPracticeCharacter::LookYaw); Input->BindAxisKey(EKeys::MouseY,this,&ACatanPracticeCharacter::LookPitch);
 }
 bool ACatanPracticeCharacter::SimulatePracticeKey(FKey Key,bool bPressed) {
@@ -279,7 +280,6 @@ void ACatanPracticeCharacter::Strike() { if(PracticeHealth>0) Combat->Attack(); 
 void ACatanPracticeCharacter::GuardOn() { Combat->Guard(true); }
 void ACatanPracticeCharacter::GuardOff() { Combat->Guard(false); }
 void ACatanPracticeCharacter::SwordKey() { Combat->Select(ECatanWeapon::Sword); }
-void ACatanPracticeCharacter::GunKey() { Combat->Select(ECatanWeapon::Revolver); }
 void ACatanPracticeCharacter::FistKey() { Combat->Select(ECatanWeapon::Fist); }
 void ACatanPracticeCharacter::Interact() { if(NearbyChest) NearbyChest->Open(); }
 void ACatanPracticeCharacter::ReducedMotion() {
@@ -290,21 +290,21 @@ void ACatanPracticeCharacter::ReducedMotion() {
 }
 void ACatanPracticeCharacter::Contact(ECatanWeapon W) {
     // This is explicitly a standalone practice target, never the authoritative board-game health.
-    if(GetNetMode()!=NM_Standalone) return;
+    if(GetNetMode()!=NM_Standalone || W==ECatanWeapon::Revolver) return;
     FHitResult Hit; FVector Start=GetActorLocation()+FVector(0,0,35);
     FCollisionQueryParams Params; Params.AddIgnoredActor(this);
-    const float Reach=W==ECatanWeapon::Sword?260:W==ECatanWeapon::Fist?190:2600;
-    if(GetWorld()->SweepSingleByChannel(Hit,Start,Start+GetActorForwardVector()*Reach,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeSphere(W==ECatanWeapon::Revolver?8:22),Params))
+    const float Reach=W==ECatanWeapon::Sword?260:190;
+    if(GetWorld()->SweepSingleByChannel(Hit,Start,Start+GetActorForwardVector()*Reach,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeSphere(22),Params))
         if(auto Target=Cast<ACatanPracticeCharacter>(Hit.GetActor())) if(Target->bPracticePartner!=bPracticePartner) Target->ReceivePracticeHit(this,W);
 }
 void ACatanPracticeCharacter::ReceivePracticeHit(ACatanPracticeCharacter* Attacker,ECatanWeapon W) {
-    if(GetNetMode()!=NM_Standalone || PracticeHealth<=0) return;
+    if(GetNetMode()!=NM_Standalone || PracticeHealth<=0 || W==ECatanWeapon::Revolver) return;
     const FVector To=Attacker->GetActorLocation()-GetActorLocation();
     const bool Parried=Combat->bGuarding && Combat->Weapon==ECatanWeapon::Sword && FVector::DotProduct(GetActorForwardVector(),To.GetSafeNormal2D())>.259f;
     Combat->ConfirmHit(Parried); Sound->Cue(Parried ? "Parry":"Impact");
     ImpactBits->Pulse(GetActorLocation()+FVector(0,0,35),Combat->bReducedMotion);
     if(Parried) ++PracticeParries;
-    else { ++ConfirmedPracticeHits; PracticeHealth=FMath::Max(0,PracticeHealth-(W==ECatanWeapon::Sword?25:W==ECatanWeapon::Fist?10:50)); }
+    else { ++ConfirmedPracticeHits; PracticeHealth=FMath::Max(0,PracticeHealth-(W==ECatanWeapon::Sword?25:10)); }
     if(PracticeHealth==0) { Combat->Recover(); ReturnIn=-1; if(bPracticePartner) RecoverIn=1.2f; else { PracticeHealth=100; SetActorLocation(StartLocation,false,nullptr,ETeleportType::TeleportPhysics); } }
     else if(bPracticePartner) { ReturnTarget=Attacker; ReturnIn=.7f; }
 }
@@ -318,7 +318,7 @@ void ACatanPracticeHUD::DrawHUD() {
     DrawRect(FLinearColor(0,0,0,.38f),12,16,560,78);
     DrawRect(FLinearColor(0,0,0,.38f),12,Canvas->SizeY-64,Canvas->SizeX-24,36);
     DrawText(TEXT("CATAN NIGHT  /  ANIMATION PRACTICE"),FLinearColor(.95f,.72f,.35f),24,22,GEngine->GetMediumFont(),1.1f);
-    DrawText(TEXT("WASD move   Shift run   F / click strike   Right click guard   1 2 3 weapons   E chest   R reset   M reduced motion"),FLinearColor::White,24,Canvas->SizeY-55,GEngine->GetSmallFont(),1);
+    DrawText(TEXT("WASD move   Shift run   F / click strike   Right click guard   1 hands   2 sword   E chest   R reset   M reduced motion"),FLinearColor::White,24,Canvas->SizeY-55,GEngine->GetSmallFont(),1);
     DrawText(TEXT("Isolated practice scene: no inventory, rewards, board rules or online play"),FLinearColor(.75f,.78f,.8f),24,50,GEngine->GetSmallFont(),1);
     DrawText(FString::Printf(TEXT("Practice health %d   /   hits %d   /   parries %d%s"),P->PracticeHealth,P->ConfirmedPracticeHits,P->PracticeParries,P->Combat->bReducedMotion?TEXT("   /   reduced motion"):TEXT("")),FLinearColor::White,24,72,GEngine->GetSmallFont(),1);
     if(P->NearbyChest) DrawText(P->NearbyChest->bOpening ? TEXT("Opening...") : P->NearbyChest->bOpened ? TEXT("Chest open") : TEXT("E  Open chest"),FLinearColor(1,.82f,.46f),Canvas->SizeX*.45f,Canvas->SizeY*.8f,GEngine->GetMediumFont(),1);

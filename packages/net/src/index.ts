@@ -437,7 +437,7 @@ export interface Pose {
   weapon: Weapon;
   /** Counts attacks, so others replay each swing or shot once. */
   attacks: number;
-  /** Holding the right mouse button: a sword parries blows and bullets from the front. */
+  /** Holding the right mouse button: a sword parries melee blows from the front. */
   block: boolean;
   riding: boolean;
   /** Optional for older clients; presentation only, never changes the authoritative rules. */
@@ -445,7 +445,7 @@ export interface Pose {
 }
 
 /** Reach of each weapon (m), used by the browser to aim and by the server to check hits. */
-export const REACH: Record<Weapon, number> = { fist: 1.9, sword: 2.6, revolver: 26 };
+export const REACH: Record<Weapon, number> = { fist: 1.9, sword: 2.6, revolver: 0 };
 
 export function cleanPose(p: Partial<Pose> | null | undefined): Pose | null {
   if (!p || typeof p !== 'object') return null;

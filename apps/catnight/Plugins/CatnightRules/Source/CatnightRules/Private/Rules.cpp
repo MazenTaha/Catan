@@ -30,6 +30,7 @@ struct Ctx {
   GameState& s;
   std::vector<GameEvent>& ev;
   Rng rng;
+  bool legacyReplay = false;
 };
 
 Json Ev(const char* type) {
@@ -300,6 +301,7 @@ Err OpenChest(Ctx& ctx, int player) {
 }
 
 Err FireShot(Ctx& ctx, int player) {
+  CN_CHECK(ctx.legacyReplay, "INVALID", "Ranged weapons are not available");
   ArmsState* a = nullptr;
   CN_TRY(ArmsOf(ctx, a));
   CN_CHECK(a->armed[player], "INVALID", "Find your weapon chest first");
@@ -317,6 +319,7 @@ Err Strike(Ctx& ctx, int player, int victim, Weapon weapon, bool parried) {
   ArmsState* a = nullptr;
   CN_TRY(ArmsOf(ctx, a));
   CN_CHECK(s.config.pvp.value_or(false), "INVALID", "Fighting other players is off in this game");
+  CN_CHECK(weapon == Weapon::Fist || weapon == Weapon::Sword || (ctx.legacyReplay && weapon == Weapon::Revolver), "INVALID", "Unknown weapon");
   const int n = static_cast<int>(s.players.size());
   CN_CHECK(victim >= 0 && victim < n && victim != player, "INVALID", "Unknown target");
   CN_CHECK(s.players[player].kind == SeatKind::Human && s.players[victim].kind == SeatKind::Human, "INVALID",
@@ -1281,7 +1284,7 @@ GameState CreateGame(const GameConfig& config) {
   return s;
 }
 
-ActionOutcome ApplyAction(const GameState& state, const Action& action) {
+static ActionOutcome ReduceAction(const GameState& state, const Action& action, bool legacyReplay) {
   ActionOutcome out;
   auto fail = [&](const char* code, std::string msg) {
     out.ok = false;
@@ -1301,7 +1304,7 @@ ActionOutcome ApplyAction(const GameState& state, const Action& action) {
 
   out.state = state;
   GameState& s = out.state;
-  Ctx ctx{s, out.events, Rng(s.rng)};
+  Ctx ctx{s, out.events, Rng(s.rng), legacyReplay};
   if (Err e = Dispatch(ctx, action)) {
     out = ActionOutcome{};
     out.ok = false;
@@ -1318,6 +1321,9 @@ ActionOutcome ApplyAction(const GameState& state, const Action& action) {
   out.ok = true;
   return out;
 }
+
+ActionOutcome ApplyAction(const GameState& state, const Action& action) { return ReduceAction(state, action, false); }
+ActionOutcome ApplyRecordedAction(const GameState& state, const Action& action) { return ReduceAction(state, action, true); }
 
 bool IsLegal(const GameState& state, const Action& action) { return ApplyAction(state, action).ok; }
 

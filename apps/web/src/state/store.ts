@@ -209,7 +209,7 @@ function toastFor(events: GameEvent[], state: GameState): Toast | null {
       tone = 'bad';
     }
     if (e.type === 'ChestOpened') {
-      text = `${name(e.player)} found a sword and a revolver.`;
+      text = `${name(e.player)} found a sword.`;
       tone = 'gold';
     }
   }

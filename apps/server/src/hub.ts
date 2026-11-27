@@ -82,8 +82,6 @@ class Room {
   readonly poses: ({ pose: Pose; at: number } | null)[] = [];
   private poseTimer: ReturnType<typeof setInterval> | null = null;
   private lastStrike: number[] = [];
-  /** When each seat last fired, so a revolver hit needs a shot just before it. */
-  private shotAt: number[] = [];
   /** Duel watchdog: how long each duellist has been away from the 3D walk (ms). */
   private away: number[] = [];
 
@@ -161,14 +159,11 @@ class Room {
 
   /**
    * Hits are found in the attacker's browser; the server checks they are possible: both
-   * fighters are in the 3D walk, within reach, not striking too fast, and a revolver hit
-   * follows a shot. It decides parries itself, from the defender's guard and facing.
+   * fighters are in the 3D walk, within melee reach and not striking too fast. It decides parries itself, from the defender's guard and facing.
    */
   checkStrike(a: Extract<Action, { type: 'Strike' }>): string | Action {
     const now = this.opts.now();
-    // Each shot can land once, whether or not this hit is accepted.
-    const shot = this.shotAt[a.player] ?? -Infinity;
-    if (a.weapon === 'revolver') this.shotAt[a.player] = -Infinity;
+    if (a.weapon !== 'fist' && a.weapon !== 'sword') return 'Unknown weapon';
     const me = this.poses[a.player];
     const them = this.poses[a.victim];
     if (!me || !them || now - me.at > POSE_FRESH || now - them.at > POSE_FRESH)
@@ -176,13 +171,8 @@ class Room {
     const d = Math.hypot(me.pose.x - them.pose.x, me.pose.z - them.pose.z);
     if (d > (REACH[a.weapon] ?? 0) + REACH_SLACK) return 'Out of reach';
     if (now - (this.lastStrike[a.player] ?? -Infinity) < STRIKE_GAP) return 'Too fast';
-    if (a.weapon === 'revolver' && now - shot > 1500) return 'No shot was fired';
     this.lastStrike[a.player] = now;
     return { ...a, parried: parries(them.pose, me.pose) };
-  }
-
-  noteShot(seat: number) {
-    this.shotAt[seat] = this.opts.now();
   }
 
   /** A duellist who stays out of the 3D walk (or offline) too long yields the duel. */
@@ -393,7 +383,6 @@ export class Hub {
           }
           const err = r.act(action);
           if (err) fail(err);
-          else if (action.type === 'Fire') r.noteShot(action.player);
           return;
         }
         case 'pose': {

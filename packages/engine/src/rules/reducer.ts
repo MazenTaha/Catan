@@ -131,7 +131,11 @@ export function cloneState(s: GameState): GameState {
  * events it produced, or a typed error. The input state is never mutated. All randomness
  * comes from (and is written back to) `state.rng`, so replays are exact.
  */
-export function applyAction(state: GameState, action: Action): Result<ActionOutcome, GameError> {
+function reduceAction(
+  state: GameState,
+  action: Action,
+  legacyReplay: boolean,
+): Result<ActionOutcome, GameError> {
   try {
     check(action && typeof action === 'object', 'INVALID', 'Malformed action');
     check(
@@ -150,7 +154,7 @@ export function applyAction(state: GameState, action: Action): Result<ActionOutc
     }
 
     const s = cloneState(state);
-    const ctx: Ctx = { s, ev: [], rng: new Rng(s.rng) };
+    const ctx: Ctx = { s, ev: [], rng: new Rng(s.rng), legacyReplay };
     dispatch(ctx, action);
     settleDebts(ctx);
     s.rng = ctx.rng.state;
@@ -164,6 +168,18 @@ export function applyAction(state: GameState, action: Action): Result<ActionOutc
     if (e instanceof RuleError) return { ok: false, error: { code: e.code, message: e.message } };
     throw e;
   }
+}
+
+export function applyAction(state: GameState, action: Action): Result<ActionOutcome, GameError> {
+  return reduceAction(state, action, false);
+}
+
+/** Internal archive path; intentionally not exported from the public engine entry point. */
+export function applyRecordedAction(
+  state: GameState,
+  action: Action,
+): Result<ActionOutcome, GameError> {
+  return reduceAction(state, action, true);
 }
 
 /** Convenience: apply or throw (useful in tests and replays). */

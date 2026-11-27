@@ -1,4 +1,4 @@
-import { applyOrThrow } from './rules/reducer';
+import { applyRecordedAction } from './rules/reducer';
 import { activeActor } from './state/selectors';
 import { createGame } from './state/setup';
 import type { Action, ActionType, GameConfig, GameEvent, GameState } from './state/types';
@@ -23,9 +23,11 @@ export function replay(
   let state = createGame(record.config);
   const events: GameEvent[] = [];
   for (let i = 0; i < upTo; i++) {
-    const out = applyOrThrow(state, record.actions[i]);
-    state = out.state;
-    events.push(...out.events);
+    const action = record.actions[i];
+    const out = applyRecordedAction(state, action);
+    if (!out.ok) throw new Error(`${action.type} rejected: ${out.error.code} — ${out.error.message}`);
+    state = out.value.state;
+    events.push(...out.value.events);
   }
   return { state, events };
 }

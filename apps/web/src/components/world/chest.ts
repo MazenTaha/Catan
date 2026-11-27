@@ -26,7 +26,7 @@ const FLY = 0.45;
  * riveted iron bands, a brass lock and a barrel lid hinged at the back. Opening it follows
  * the "juicy chest" recipe: hold, a shaking wind-up with the lid straining, a squash, the lid
  * snapping open with a stretch, a burst of light, sparks and coins, the lid's bounce settling,
- * then the sword and revolver rising out one after the other, turning in the glow, and
+ * then the sword rising out, turning in the glow, and
  * flying to the player. A decoy (the other settlement) opens on dust and nothing.
  */
 export class Chest {
@@ -36,7 +36,6 @@ export class Chest {
   private glow: THREE.Sprite;
   private loot = new THREE.Group();
   private sword = new THREE.Group();
-  private gun = new THREE.Group();
   private bits: Bit[] = [];
   private mats: THREE.Material[] = [];
   private rig = new RigBaker(0.85);
@@ -120,7 +119,7 @@ export class Chest {
       this.part(this.lid, brass, 0, -0.02, D + 0.01, 0.1, 0.08, 0.02);
     }
 
-    // What's inside: a heap of coins, and (in the real chest) the two weapons.
+    // What's inside: a heap of coins, and (in the real chest) the sword.
     const gold = this.mat('#e3b54a', 0.3, 0.85);
     for (let i = 0; i < 18; i++) {
       const c = new THREE.Mesh(coinGeo, gold);
@@ -130,7 +129,6 @@ export class Chest {
     }
     if (full) {
       const sword = cloneGear('Sword');
-      const gun = cloneGear('Revolver');
       if (sword) {
         // Blade up (the model's blade runs along -z), grip just above the coins.
         sword.rotation.x = Math.PI / 2;
@@ -143,18 +141,8 @@ export class Chest {
         this.part(this.sword, this.mat('#51382b', 0.8), 0, -0.18, 0, 0.045, 0.18, 0.045);
         this.part(this.sword, brass, 0, -0.29, 0, 0.06, 0.06, 0.06);
       }
-      if (gun) {
-        gun.scale.setScalar(1.4);
-        this.gun.add(gun);
-      } else {
-        const blued = this.mat('#2e3a41', 0.4, 0.7);
-        this.part(this.gun, blued, 0, 0.05, -0.12, 0.05, 0.05, 0.32);
-        this.part(this.gun, blued, 0, 0.04, 0.02, 0.1, 0.1, 0.1);
-        const grip = this.part(this.gun, this.mat('#6a4428', 0.9), 0, -0.07, 0.1, 0.06, 0.18, 0.08);
-        grip.rotation.x = -0.35;
-      }
-      this.sword.visible = this.gun.visible = false;
-      this.loot.add(this.sword, this.gun);
+      this.sword.visible = false;
+      this.loot.add(this.sword);
       this.loot.position.y = H;
       this.root.add(this.loot);
     }
@@ -196,7 +184,7 @@ export class Chest {
       if (m.isMesh && !(m.material as THREE.MeshBasicMaterial).isMeshBasicMaterial) m.castShadow = m.receiveShadow = true;
     });
     // About sixty boards, bands, rivets and coins as a few meshes per moving part.
-    this.rig.bake(this.root, [this.body, this.lid, this.sword, this.gun], false);
+    this.rig.bake(this.root, [this.body, this.lid, this.sword], false);
   }
 
   private mat(color: string, roughness: number, metalness = 0) {
@@ -300,7 +288,7 @@ export class Chest {
       if (u > 1.2) this.finish();
       return;
     }
-    // Reveal: the sword pops up first, the revolver a beat later, both turning in the light.
+    // Reveal: the sword rises at the centre, turning in the light.
     const pop = (g: THREE.Group, at: number, x: number) => {
       const v = u - at;
       if (v < 0) return;
@@ -312,11 +300,10 @@ export class Chest {
       g.position.set(x, 0.15 + (1 - (1 - rise) ** 3) * 0.42, 0.05);
       g.rotation.y = r ? 0 : v * 2.4;
     };
-    pop(this.sword, 0.2, -0.16);
-    pop(this.gun, 0.42, 0.18);
+    pop(this.sword, 0.2, 0);
     const fly = u - (REVEAL + HOLD);
     if (fly > 0) {
-      // Taken: both shrink up and away towards the player.
+      // Taken: the sword shrinks up and away towards the player.
       const k = Math.min(1, fly / FLY);
       this.loot.position.set(0, 0.44 + k * 0.9, k * 1.2);
       this.loot.scale.setScalar(Math.max(0.01, 1 - k));

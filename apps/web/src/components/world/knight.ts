@@ -55,7 +55,7 @@ const qb = new THREE.Quaternion();
  * skinned meshes, and slots on the head, right hand and left forearm for the hair, the weapons
  * and the shield. `pose` drives a walk and a run (knees and elbows that bend, arms pumping
  * against the legs, a forward lean, a bounce between footfalls, a cape that streams behind),
- * the sword, fist and revolver, the guard and the riding seat. Model space: front +z, left +x;
+ * the sword and fist, the guard and the riding seat. Model space: front +z, left +x;
  * a positive angle about x swings a limb back, so forward is negative.
  */
 export class KnightRig {
@@ -303,10 +303,6 @@ export class KnightRig {
       // The shield held across the body.
       arms.L = [-0.35, 0, 0.18];
       fore.L = -1.25;
-    } else if (p.weapon === 'revolver') {
-      const kick = live ? Math.max(0, 1 - t / 0.25) : 0;
-      arms.R = [-1.5 + kick * 0.45, 0.12, -0.05];
-      fore.R = -0.05 - kick * 0.3;
     } else if (live) {
       // A jab: pull back, punch out, recover.
       const s = t < 0.12 ? -t / 0.12 : t < 0.22 ? -1 + ((t - 0.12) / 0.1) * 2.4 : Math.max(0, 1.4 - ((t - 0.22) / 0.2) * 1.4);

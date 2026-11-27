@@ -5,6 +5,9 @@ param(
   [string]$OutputDir = (Join-Path $PSScriptRoot 'Packaged')
 )
 $ErrorActionPreference = 'Stop'
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Content/Generated/Models/props/SM_Revolver.uasset')) {
+  throw 'Retired revolver artwork is still imported. Run pnpm catnight:import before packaging.'
+}
 $project = Join-Path $PSScriptRoot 'Catnight.uproject'
 $uat = Join-Path $Engine 'Engine/Build/BatchFiles/RunUAT.bat'
 if (-not (Test-Path -LiteralPath $uat)) { throw "Unreal packaging tool not found: $uat" }

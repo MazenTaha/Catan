@@ -24,8 +24,6 @@ import { HallLoader } from '../../ui/hall/Surfaces';
 import './worldHUD.css';
 
 const topo = getTopology();
-/** Bullets for games that started before weapon chests existed (kept for this visit only). */
-const OLD_GAME_BULLETS = 5;
 
 /** The seat's settlements and cities, to spawn at (setup may not have placed any yet). */
 function homesOf(state: GameState, seat: number): string[] {
@@ -76,11 +74,10 @@ export default function World3D({ state, seat, onExit }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [targetHealth, setTargetHealth] = useState<number | null>(null);
   const [hitCount, setHitCount] = useState(0);
-  const [weapon, setWeapon] = useState<WeaponState>({ weapon: 'fist', ammo: 0, armed: false, blocking: false });
+  const [weapon, setWeapon] = useState<WeaponState>({ weapon: 'fist', armed: false, blocking: false });
   const [diving, setDiving] = useState(false);
   const [riding, setRiding] = useState(false);
   const [crouching, setCrouching] = useState(false);
-  const [oldAmmo, setOldAmmo] = useState(OLD_GAME_BULLETS);
   const touch = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
   const [stick, setStick] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
   const stateRef = useRef(state);
@@ -89,7 +86,6 @@ export default function World3D({ state, seat, onExit }: Props) {
   const pvp = !!online && !!state.config.pvp;
   const arms = state.arms;
   const armed = arms ? arms.armed[seat] : true;
-  const ammo = arms ? arms.bullets[seat] : oldAmmo;
   const health = arms?.health[seat] ?? 100;
   const duel = state.phase.kind === 'duel' ? state.phase : null;
   const inDuel = !!duel && (duel.challenger === seat || duel.target === seat);
@@ -157,10 +153,6 @@ export default function World3D({ state, seat, onExit }: Props) {
               if (hit) setHitCount((n) => n + 1);
             },
             onStrike: (victim, weapon) => dispatch({ type: 'Strike', player: seat, victim, weapon }),
-            onFire: () => {
-              if (stateRef.current.arms) dispatch({ type: 'Fire', player: seat });
-              else setOldAmmo((n) => Math.max(0, n - 1));
-            },
             onChestOpened: (full) => {
               if (full) dispatch({ type: 'OpenChest', player: seat });
               else setNotice('Empty… Your weapons must be in your other first settlement.');
@@ -231,8 +223,8 @@ export default function World3D({ state, seat, onExit }: Props) {
     worldRef.current?.setLook(profile.look);
   }, [profile.look, ready]);
   useEffect(() => {
-    worldRef.current?.setArms(armed, ammo);
-  }, [armed, ammo, ready]);
+    worldRef.current?.setArms(armed);
+  }, [armed, ready]);
   useEffect(() => {
     if (worldRef.current) worldRef.current.pvp = pvp;
   }, [pvp, ready]);
@@ -785,7 +777,6 @@ export default function World3D({ state, seat, onExit }: Props) {
           <WeaponHUD
             weapon={weapon.weapon}
             armed={armed}
-            ammo={ammo}
             onSelect={(kind) => { worldRef.current?.selectWeapon(kind); refocus(); }}
             onPractice={() => { worldRef.current?.practice(); refocus(); }}
           />

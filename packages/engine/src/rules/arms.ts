@@ -37,6 +37,7 @@ export function openChest(ctx: Ctx, player: number): void {
 }
 
 export function fire(ctx: Ctx, player: number): void {
+  check(!!ctx.legacyReplay, 'INVALID', 'Ranged weapons are not available');
   const a = armsOf(ctx);
   check(a.armed[player], 'INVALID', 'Find your weapon chest first');
   check(a.bullets[player] > 0, 'INVALID', 'No bullets left this game');
@@ -49,7 +50,8 @@ export function strike(ctx: Ctx, player: number, victim: number, weapon: Weapon,
   const { s } = ctx;
   const a = armsOf(ctx);
   check(!!s.config.pvp, 'INVALID', 'Fighting other players is off in this game');
-  check(WEAPONS.includes(weapon), 'INVALID', 'Unknown weapon');
+  check(WEAPONS.includes(weapon) || (!!ctx.legacyReplay && weapon === 'revolver'), 'INVALID', 'Unknown weapon',
+  );
   check(s.players[victim] !== undefined && victim !== player, 'INVALID', 'Unknown target');
   check(
     s.players[player].kind === 'human' && s.players[victim].kind === 'human',

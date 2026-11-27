@@ -30,7 +30,7 @@ already matches closely enough), **open** (not done yet).
 | 16 textiles & heraldry | owner banners (cottage bracket, hall), `Tapestry` and `Banner` in the furnishing colour, capes (knight) | `homes.py`, `props.py`, `knight.py` | partial |
 | 17 kingdom decor | `Antlers` `CandleWheel` `FloorPlant` `TablePlant` `ArmorStand` `Candles` `CrossedShields` `Tapestry` `Banner` `Bookshelf`; rug stays painted in code | `props.py`; `decor.ts` | done |
 | 18 sheep & horses | sheep (existing); horse coats bay, dark bay, chestnut, grey, black, palomino with saddle, blanket, girth, stirrups, bridle, reins | `village.py`, `horse.py`; `horse.ts` | kept |
-| 19 shields, revolvers & training | `Shield` (A, seat colour), `Revolver` (A), `DummyA` (the practice target), `DummyB` | `props.py`; `avatar.ts`, `combat.ts` | done |
+| 19 shields & training (revolver retired) | `Shield` (A, seat colour), `DummyA` (the practice target), `DummyB` | `props.py`; `avatar.ts`, `combat.ts` | done |
 | 20 helms, robber & customization | helms Great/Armet/Bascinet/Crowned/bare (existing choices); robber | `knight.py`, `village.py` | kept (hairstyle heads, robber turnaround open) |
 | 21 board pieces & signs | 3D number sign (post, stone footing, ivory plaque drawn from game data) | `models.ts makeTokenSign` | kept (2D pieces, badges open) |
 | 22 resource & development cards | 11 illustrations: lumber, brick, wool, grain, ore; knight, victory point, road building, year of plenty, monopoly, man up | `apps/web/public/art/cards/*.webp`; `OmenCard.tsx`, `primitives.tsx ResourceCard` | done |

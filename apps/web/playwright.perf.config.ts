@@ -20,6 +20,8 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
+    actionTimeout: 30_000,
+    navigationTimeout: 30_000,
     baseURL: `http://localhost:${PORT}`,
     viewport: { width: Number(process.env.PERF_W ?? 1440), height: Number(process.env.PERF_H ?? 900) },
     deviceScaleFactor: Number(process.env.PERF_DPR ?? 1),

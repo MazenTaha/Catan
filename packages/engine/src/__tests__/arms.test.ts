@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BULLETS, MANUP_CARDS, MAX_HEALTH, totalCards } from '../lexicon-keys';
+import { WEAPONS, BULLETS, MANUP_CARDS, MAX_HEALTH, totalCards } from '../lexicon-keys';
 import { Rng } from '../rng';
 import { legalActions } from '../rules/legal';
 import { buildOmenDeck } from '../state/setup';
@@ -14,7 +14,7 @@ const armed = (over: { pvp?: boolean } = {}) => {
 };
 
 const kill = (s: GameState, killer: number, victim: number) => {
-  for (let i = 0; i < 2; i++) s = act(s, { type: 'Strike', player: killer, victim, weapon: 'revolver' });
+  for (let i = 0; i < 4; i++) s = act(s, { type: 'Strike', player: killer, victim, weapon: 'sword' });
   return s;
 };
 
@@ -45,12 +45,14 @@ describe('weapon chest', () => {
   });
 });
 
-describe('revolver', () => {
-  it('has five rounds for the whole game', () => {
-    let s = armed();
-    for (let i = 0; i < BULLETS; i++) s = act(s, { type: 'Fire', player: 1 });
-    expect(s.arms!.bullets[1]).toBe(0);
+describe('melee-only equipment', () => {
+  it('exposes only fists and sword and rejects retired firing/hits without mutation', () => {
+    const s = armed();
+    const before = JSON.stringify(s);
+    expect(WEAPONS).toEqual(['fist', 'sword']);
     expectErr(s, { type: 'Fire', player: 1 }, 'INVALID');
+    expectErr(s, { type: 'Strike', player: 1, victim: 0, weapon: 'revolver' }, 'INVALID');
+    expect(JSON.stringify(s)).toBe(before);
   });
 });
 
@@ -87,15 +89,15 @@ describe('fights', () => {
 
   it('an empty-handed victim owes the card and pays it as soon as they hold one', () => {
     let s = setHand(setHand(armed(), 1, {}), 0, {});
-    const slain = actEv(s, { type: 'Strike', player: 0, victim: 1, weapon: 'revolver' });
-    s = slain.state;
-    const last = actEv(s, { type: 'Strike', player: 0, victim: 1, weapon: 'revolver' });
+    for (let i = 0; i < 3; i++)
+      s = act(s, { type: 'Strike', player: 0, victim: 1, weapon: 'sword' });
+    const last = actEv(s, { type: 'Strike', player: 0, victim: 1, weapon: 'sword' });
     expect(last.events).toContainEqual({ type: 'Slain', killer: 0, victim: 1, resource: null });
     s = last.state;
     expect(s.arms!.owed[1][0]).toBe(1);
     // Any action settles debts; the bank-backed setHand stands in for a production roll.
     s = setHand(s, 1, { grain: 2 });
-    const paid = actEv(s, { type: 'Fire', player: 2 });
+    const paid = actEv(s, { type: 'Strike', player: 2, victim: 3, weapon: 'fist' });
     expect(paid.events).toContainEqual({ type: 'DebtPaid', from: 1, to: 0, resource: 'grain' });
     expect(paid.state.arms!.owed[1][0]).toBe(0);
     expect(paid.state.players[0].hand.grain).toBe(1);

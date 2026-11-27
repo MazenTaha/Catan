@@ -68,7 +68,7 @@ def import_fbx(name,kind,skeleton=None):
 spec=json.loads((SOURCE/'animation-spec.json').read_text())
 knight=import_fbx('Knight','skeletal')
 skeleton=knight.get_editor_property('skeleton')
-gear={name:import_fbx(name+'Rig','skeletal',skeleton) for name in ['Sword','Revolver','Shield']}
+gear={name:import_fbx(name+'Rig','skeletal',skeleton) for name in ['Sword','Shield']}
 static={name:import_fbx('Chest_'+name,'static') for name in ['Body','Lid','Latch']}
 clips={name:import_fbx(name,'animation',skeleton) for name in list(spec['clips'])+['Walk','Run']}
 paint=assets.load_asset('/Game/CatanNight/Materials/M_TerrainVertexPaint')
@@ -96,7 +96,7 @@ if not particle.get_editor_property('used_with_instanced_static_meshes'):
     unreal.MaterialEditingLibrary.recompile_material(particle); assets.save_loaded_asset(particle)
 factory=unreal.DataAssetFactory(); factory.set_editor_property('data_asset_class',unreal.CatanMotionLibrary)
 lib=assets.load_asset(DEST+'/DA_Interactions') if assets.does_asset_exist(DEST+'/DA_Interactions') else tools.create_asset('DA_Interactions',DEST,unreal.CatanMotionLibrary,factory)
-for prop,value in [('knight',knight),('sword',gear['Sword']),('revolver',gear['Revolver']),('shield',gear['Shield']),('chest_body',static['Body']),('chest_lid',static['Lid']),('chest_latch',static['Latch']),('particle_material',particle),('clips',clips),('chest_reveal',spec['chest']['reveal']),('chest_finish',spec['chest']['finish'])]: lib.set_editor_property(prop,value)
+for prop,value in [('knight',knight),('sword',gear['Sword']),('revolver',None),('shield',gear['Shield']),('chest_body',static['Body']),('chest_lid',static['Lid']),('chest_latch',static['Latch']),('particle_material',particle),('clips',clips),('chest_reveal',spec['chest']['reveal']),('chest_finish',spec['chest']['finish'])]: lib.set_editor_property(prop,value)
 keys=[]
 for key in spec['chest']['keys']:
     k=unreal.CatanChestKey(); k.time=key['time']; k.lid=key['lid']; k.latch=key['latch']; keys.append(k)

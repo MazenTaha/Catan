@@ -1,4 +1,4 @@
-#include "Board/CatnightBoardActor.h"
+﻿#include "Board/CatnightBoardActor.h"
 
 #include "Board/TablePresentation.h"
 #include "CatnightMatch.h"
@@ -25,96 +25,15 @@ namespace
 
 void ACatnightBoardActor::BuildFeedback()
 {
-	Clear(FeedbackParts);
-	DiceRoots.Reset();
-	DustMaterial = Tint(CatnightUi::Srgb(184, 151, 111), 1.f);
-	UMaterialInterface* Timber = Tint(CatnightUi::Srgb(76, 45, 25), 0.75f);
-	UMaterialInterface* Felt = Tint(CatnightUi::Srgb(54, 69, 53), 0.95f);
-	UMaterialInterface* Bone = Tint(CatnightUi::Srgb(241, 228, 192), 0.36f);
-	UMaterialInterface* PipInk = Tint(CatnightUi::Srgb(35, 26, 21), 0.5f);
-	UStaticMesh* Cube = Shape(TEXT("Cube"));
-	AddMesh(FeedbackParts, Cube, FTransform(FRotator::ZeroRotator, TrayCenter, FVector(1.05f * R / 100.f, 1.4f * R / 100.f, 0.12f * R / 100.f)), Timber);
-	AddMesh(FeedbackParts, Cube, FTransform(FRotator::ZeroRotator, TrayCenter + FVector(0, 0, 0.065f * R), FVector(0.94f * R / 100.f, 1.29f * R / 100.f, 0.025f * R / 100.f)), Felt);
-	for (int32 Side : {-1, 1})
-	{
-		AddMesh(FeedbackParts, Cube, FTransform(FRotator::ZeroRotator, TrayCenter + FVector(Side * 0.52f * R, 0, 0.09f * R), FVector(0.06f * R / 100.f, 1.4f * R / 100.f, 0.12f * R / 100.f)), Timber);
-		AddMesh(FeedbackParts, Cube, FTransform(FRotator::ZeroRotator, TrayCenter + FVector(0, Side * 0.69f * R, 0.09f * R), FVector(1.05f * R / 100.f, 0.06f * R / 100.f, 0.12f * R / 100.f)), Timber);
-	}
-	// A bevelled, carved bone cube: six faces, twelve bevel strips, eight clipped corners.
-	const float Half = 0.12f * R, Inner = Half * 0.85f;
-	TArray<FVector> Vertices, Normals;
-	TArray<int32> Indices;
-	auto Polygon = [&](TArray<FVector> Points, const FVector& Normal)
-	{
-		const int32 Base = Vertices.Num();
-		const bool bReverse = FVector::DotProduct(FVector::CrossProduct(Points[2] - Points[0], Points[1] - Points[0]), Normal) < 0;
-		for (const FVector& P : Points) { Vertices.Add(P); Normals.Add(Normal); }
-		for (int32 I = 1; I < Points.Num() - 1; I++)
-		{
-			Indices.Add(Base);
-			Indices.Add(Base + (bReverse ? I + 1 : I));
-			Indices.Add(Base + (bReverse ? I : I + 1));
-		}
-	};
-	const FVector Axes[] = {FVector::ForwardVector, FVector::RightVector, FVector::UpVector};
-	for (int32 Axis = 0; Axis < 3; Axis++)
-		for (int32 Sign : {-1, 1})
-		{
-			const FVector N = Axes[Axis] * Sign, U = Axes[(Axis + 1) % 3], V = FVector::CrossProduct(N, U);
-			Polygon({N * Half - U * Inner - V * Inner, N * Half - U * Inner + V * Inner,
-				N * Half + U * Inner + V * Inner, N * Half + U * Inner - V * Inner}, N);
-		}
-	for (int32 Axis = 0; Axis < 3; Axis++)
-		for (int32 A : {-1, 1}) for (int32 B : {-1, 1})
-		{
-			const FVector N1 = Axes[(Axis + 1) % 3] * A, N2 = Axes[(Axis + 2) % 3] * B, Along = Axes[Axis] * Inner;
-			const FVector P = N1 * Half + N2 * Inner, Q = N1 * Inner + N2 * Half;
-			Polygon({P - Along, P + Along, Q + Along, Q - Along}, (N1 + N2).GetSafeNormal());
-		}
-	for (int32 X : {-1, 1}) for (int32 Y : {-1, 1}) for (int32 Z : {-1, 1})
-		Polygon({FVector(X * Half, Y * Inner, Z * Inner), FVector(X * Inner, Y * Half, Z * Inner),
-			FVector(X * Inner, Y * Inner, Z * Half)}, FVector(X, Y, Z).GetSafeNormal());
-
-	for (int32 Die = 0; Die < 2; Die++)
-	{
-		USceneComponent* Group = NewObject<USceneComponent>(this);
-		Group->SetupAttachment(Root);
-		Group->RegisterComponent();
-		DiceRoots.Add(Group);
-		FeedbackParts.Add(Group);
-		UProceduralMeshComponent* Body = NewObject<UProceduralMeshComponent>(this);
-		Body->SetupAttachment(Group);
-		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Body->RegisterComponent();
-		Body->CreateMeshSection_LinearColor(0, Vertices, Indices, Normals, {}, {}, {}, false);
-		Body->SetMaterial(0, Bone);
-		FeedbackParts.Add(Body);
-		UHierarchicalInstancedStaticMeshComponent* Dots = NewObject<UHierarchicalInstancedStaticMeshComponent>(this);
-		Dots->SetupAttachment(Group);
-		Dots->SetStaticMesh(Shape(TEXT("Sphere")));
-		Dots->SetMaterial(0, PipInk);
-		Dots->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Dots->RegisterComponent();
-		FeedbackParts.Add(Dots);
-		for (int32 Face = 1; Face <= 6; Face++)
-		{
-			const FVector N = CatnightTable::DiceNormal(Face);
-			const FVector U = FMath::Abs(N.Z) > 0.5f ? FVector::ForwardVector : FVector::UpVector;
-			const FVector V = FVector::CrossProduct(N, U);
-			for (const FVector2D& P : CatnightTable::Pips(Face))
-				Dots->AddInstance(FTransform(FQuat::FindBetweenNormals(FVector::UpVector, N), N * Half + (U * P.X + V * P.Y) * (2.f * Half),
-					FVector(0.037f * R / 100.f, 0.037f * R / 100.f, 0.005f * R / 100.f)), false);
-		}
-	}
-	ResetFeedback();
+    Clear(FeedbackParts); DiceRoots.Reset(); ResetFeedback();
 }
 
 void ACatnightBoardActor::SetDice(int32 First, int32 Second, bool bRoll)
 {
-	bDiceRolling = bRoll && !View->bReducedMotion;
+	bDiceRolling = false;
 	DiceFaces[0] = First;
 	DiceFaces[1] = Second;
-	DiceStarted = bRoll && !View->bReducedMotion ? FeedbackTime : FeedbackTime - CatnightTable::DiceSeconds;
+	DiceStarted = FeedbackTime - CatnightTable::DiceSeconds;
 	for (int32 I = 0; I < DiceRoots.Num(); I++)
 	{
 		DiceRoots[I]->SetVisibility(true, true);
@@ -156,7 +75,6 @@ void ACatnightBoardActor::OnAction(const Action& A, const std::vector<GameEvent>
 		{
 			const auto& Values = E.Get("dice")->Items();
 			SetDice(static_cast<int32>(Values[0].AsInt()), static_cast<int32>(Values[1].AsInt()), true);
-			if (bReviewCloseup) { ReviewFocus = TrayCenter; GoalDistance = 4.5f * R; }
 			ShowProduction({}, INDEX_NONE);
 		}
 		if (Type->AsStr() == "ResourcesProduced")

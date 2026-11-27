@@ -1,4 +1,4 @@
-#if WITH_DEV_AUTOMATION_TESTS
+﻿#if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
 #include "CatnightMatch.h"
 #include "Island/IslandWorld.h"
@@ -22,6 +22,7 @@ bool FCatnightIslandTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("rich instanced scenery"),Island->SceneryInstances>2000);
     TestTrue(TEXT("full collision terrain"),Island->TerrainTriangles>15000);
     FString Report; TestTrue(*Report,Island->ValidateRoutes(Report)); AddInfo(Report);
+    FString Mountains; TestTrue(*Mountains,Island->ValidateMountains(Mountains)); AddInfo(Mountains);
     TestTrue(TEXT("spawn on dry land"),Island->CanWalk(Island->EntryPoint()));
     TestFalse(TEXT("deep ocean excluded"),Island->CanWalk(FVector(1000000,1000000,0)));
     for(int32 E=0;E<static_cast<int32>(catnight::GetTopology().edgeHexes.size());E++) {

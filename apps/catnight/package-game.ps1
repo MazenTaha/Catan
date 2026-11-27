@@ -46,7 +46,9 @@ Write-Host "Artwork preflight: $modelCount meshes and 7 base materials present."
 foreach($name in @('Well','MarketStall','Waystone','Handcart','LanternPost','Flowerbed')) {
   if(-not(Test-Path -LiteralPath "$PSScriptRoot/Content/Generated/Island/Meshes/island/StaticMeshes/$name.uasset")){throw 'Island artwork missing. Run pnpm catnight:island.'}
 }
-foreach($name in 'M_Ground','M_IslandSea','M_IslandCover','M_IslandCoverMasked'){ if(-not(Test-Path -LiteralPath "$PSScriptRoot/Content/Generated/Island/$name.uasset")){throw "Island material $name missing. Run pnpm catnight:island."} }
+foreach($name in @('M_Ground','M_IslandSea','M_IslandCover','M_IslandCoverMasked','M_LivingSky')) {
+  if(-not(Test-Path -LiteralPath "$PSScriptRoot/Content/Generated/Island/$name.uasset")){throw "Island material missing: $name. Run pnpm catnight:island."}
+}
 
 & $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Configuration" `
   -build -cook -stage -pak -archive "-archivedirectory=$OutputDir" -unattended -utf8output -nocompileeditor `

@@ -1,4 +1,4 @@
-// The game's screens in Hall & Chart (docs/CATNIGHT_UI_PLAN.md §8): the title hall, the new-game
+﻿// The game's screens in Hall & Chart (docs/CATNIGHT_UI_PLAN.md §8): the title hall, the new-game
 // screen, How to Play, Settings, the UI gallery, and the table. Switches between them and keeps
 // keyboard/gamepad focus on something useful after every switch.
 #pragma once
@@ -33,6 +33,7 @@ public:
 	TSharedPtr<SWidget> FocusTarget() const;
 
 private:
+	float WindowScale = 1.f;
 	void ApplyShow(EScreen Screen);
 	TSharedRef<SWidget> BuildTitle();
 	TSharedRef<SWidget> BuildNewGame();

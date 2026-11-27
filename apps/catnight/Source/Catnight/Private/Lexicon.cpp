@@ -1,4 +1,4 @@
-#include "Lexicon.h"
+﻿#include "Lexicon.h"
 #include "CatnightRules/Board.h"
 
 using namespace catnight;
@@ -145,7 +145,7 @@ namespace CatnightText
 	{
 		const FString Type = Str(E.Get("type"));
 		auto P = [&](const char* Key) { return Player(S, Int(E.Get(Key))); };
-		if (Type == TEXT("DiceRolled")) return FString::Printf(TEXT("%s rolled %d."), *P("player"), Int(E.Get("total")));
+		if (Type == TEXT("DiceRolled")) { const auto& D = E.Get("dice")->Items(); return FString::Printf(TEXT("%s rolled %d + %d = %d."), *P("player"), Int(&D[0]), Int(&D[1]), Int(E.Get("total"))); }
 		if (Type == TEXT("ResourcesProduced"))
 		{
 			TArray<FString> Parts;

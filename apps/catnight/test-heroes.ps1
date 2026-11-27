@@ -27,7 +27,7 @@ if(-not $Quick){
   $text=Run-Hero 'return' @('-nullrhi','-CatnightHero=return')
   if($text -notmatch 'CATNIGHT HERO RETURN PASSED:'){throw 'Yard/table lifecycle check did not pass'}
 }
-foreach($mode in $(if($Quick){@('idle','ride')}else{@('idle','walk','run','crouch','ride','gallop')})){
+foreach($mode in $(if($Quick){@('idle','ride')}else{@('idle','walk','run','crouch','ride','gallop','slope','ride-slope')})){
   Write-Host "Capturing native $mode..."
   $shot=Join-Path $out "$mode.png"
   $null=Run-Hero $mode @("-CatnightHero=$mode",'-CatnightHeroAngle=140','-ExecCmds="r.MotionBlurQuality 0"',"-CatnightShot=`"$shot`"",$(if($mode -eq "idle"){"-CatnightShotAfter=8"}else{"-CatnightShotAfter=4"}))

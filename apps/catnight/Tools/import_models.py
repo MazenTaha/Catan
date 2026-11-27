@@ -110,6 +110,14 @@ def model_masked(mat):
     mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
     mat.set_editor_property("opacity_mask_clip_value", 0.5)
     mel.connect_material_property(tex, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)
+    painted=mel.get_material_property_input_node(mat,unreal.MaterialProperty.MP_BASE_COLOR)
+    transmission=mel.create_material_expression(mat,unreal.MaterialExpressionMultiply,-200,700)
+    assert mel.connect_material_expressions(painted,'',transmission,'A')
+    assert mel.connect_material_expressions(scalar(mat,'FoliageTransmission',.35,-500,850),'',transmission,'B')
+    assert mel.connect_material_property(transmission,'',unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
+    assert mel.connect_material_property(scalar(mat,'FoliageDensity',.6,-200,900),'',unreal.MaterialProperty.MP_OPACITY)
+
 
 
 def construction(mat):
@@ -181,32 +189,49 @@ def rematerial(family: str, meshes: dict, parent, masked_parent, modes: dict):
     return len(made)
 
 
+def custom_input(name):
+    item=unreal.CustomInput()
+    item.set_editor_property('input_name',name)
+    return item
+
+
+def water_ripples(mat):
+    # Three crossing swells, scrolled in time: broad enough to read on the table, fine enough
+    # to break the sun into glints instead of one mirror-like streak.
+    world=mel.create_material_expression(mat,unreal.MaterialExpressionWorldPosition,-1200,700)
+    time=mel.create_material_expression(mat,unreal.MaterialExpressionTime,-1200,850)
+    size=scalar(mat,'RippleScale',0.0045,-1200,950)
+    lift=scalar(mat,'RippleStrength',0.11,-1200,1050)
+    wave=mel.create_material_expression(mat,unreal.MaterialExpressionCustom,-600,700)
+    wave.set_editor_property('output_type',unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    wave.set_editor_property('inputs',[custom_input('P'),custom_input('T'),custom_input('K'),custom_input('A')])
+    wave.set_editor_property('code',"float2 q=P.xy*K; float x=sin(q.x+T*.75)+.45*sin(q.y*1.6-T*.9)+.3*sin((q.x+q.y)*2.9+T*1.3); float y=cos(q.y+T*.6)+.35*sin(q.x*1.4+T)+.3*cos((q.x-q.y)*3.3-T*1.1); return normalize(float3(x*A,y*A,1));")
+    for node,pin in ((world,'P'),(time,'T'),(size,'K'),(lift,'A')):
+        assert mel.connect_material_expressions(node,'',wave,pin)
+    assert mel.connect_material_property(wave,'',unreal.MaterialProperty.MP_NORMAL)
+
+
 def water(mat):
-    # Deep and shallow colours mixed by a slow moving noise; low roughness for sun glints.
-    deep = vector(mat, "Deep", (0.012, 0.09, 0.16, 1), -900, -100)
-    shallow = vector(mat, "Shallow", (0.025, 0.17, 0.24, 1), -900, 100)
+    # The table's sea: friendly turquoise shallows round the island that deepen to blue toward
+    # the rim, with broad slow colour drift (no fine noise: that read as carpet, not water).
+    deep = vector(mat, "Deep", (0.003, 0.022, 0.115, 1), -900, -100)
+    shallow = vector(mat, "Shallow", (0.012, 0.115, 0.25, 1), -900, 100)
     world = mel.create_material_expression(mat, unreal.MaterialExpressionWorldPosition, -1300, 300)
-    time = mel.create_material_expression(mat, unreal.MaterialExpressionTime, -1300, 450)
-    speed = scalar(mat, "Speed", 18.0, -1300, 550)
-    drift = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -1100, 500)
-    mel.connect_material_expressions(time, "", drift, "A")
-    mel.connect_material_expressions(speed, "", drift, "B")
-    moved = mel.create_material_expression(mat, unreal.MaterialExpressionAdd, -950, 350)
-    mel.connect_material_expressions(world, "", moved, "A")
-    mel.connect_material_expressions(drift, "", moved, "B")
-    noise = mel.create_material_expression(mat, unreal.MaterialExpressionNoise, -800, 350)
-    noise.set_editor_property("scale", 0.0012)
-    noise.set_editor_property("levels", 3)
-    noise.set_editor_property("output_min", 0.0)
-    noise.set_editor_property("output_max", 1.0)
-    mel.connect_material_expressions(moved, "", noise, "Position")
-    lerp = mel.create_material_expression(mat, unreal.MaterialExpressionLinearInterpolate, -500, 0)
-    mel.connect_material_expressions(deep, "", lerp, "A")
-    mel.connect_material_expressions(shallow, "", lerp, "B")
-    mel.connect_material_expressions(noise, "", lerp, "Alpha")
-    mel.connect_material_property(lerp, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    mel.connect_material_property(scalar(mat, "Roughness", 0.08, -500, 250), "", unreal.MaterialProperty.MP_ROUGHNESS)
-    mel.connect_material_property(scalar(mat, "Specular", 0.8, -500, 350), "", unreal.MaterialProperty.MP_SPECULAR)
+    centre = mel.create_material_expression(mat, unreal.MaterialExpressionObjectPositionWS, -1300, 400)
+    time = mel.create_material_expression(mat, unreal.MaterialExpressionTime, -1300, 500)
+    near = scalar(mat, "ShoreRadius", 3800.0, -1300, 600)
+    far = scalar(mat, "DeepRadius", 7600.0, -1300, 700)
+    tone = mel.create_material_expression(mat, unreal.MaterialExpressionCustom, -700, 0)
+    tone.set_editor_property('output_type', unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    tone.set_editor_property('inputs', [custom_input(n) for n in ('P', 'O', 'T', 'S', 'D', 'R0', 'R1')])
+    tone.set_editor_property('code', "float d=length(P.xy-O.xy); float drift=sin(P.x*.00042+T*.05)*sin(P.y*.00051-T*.037); float t=saturate(smoothstep(R0,R1,d)+drift*.07); return lerp(S,D,t);")
+    for node, pin in ((world, 'P'), (centre, 'O'), (time, 'T'), (shallow, 'S'), (deep, 'D'), (near, 'R0'), (far, 'R1')):
+        assert mel.connect_material_expressions(node, '', tone, pin)
+    mel.connect_material_property(tone, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(scalar(mat, "Roughness", 0.16, -500, 250), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(scalar(mat, "Specular", 0.5, -500, 350), "", unreal.MaterialProperty.MP_SPECULAR)
+
+    water_ripples(mat)
 
 
 def import_family(source: Path, family: str):

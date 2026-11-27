@@ -1,4 +1,4 @@
-#include "Ui/SCatnightRoot.h"
+﻿#include "Ui/SCatnightRoot.h"
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "CatnightRules/Rules.h"
@@ -20,6 +20,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SDPIScaler.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -114,7 +115,7 @@ void SCatnightRoot::Construct(const FArguments& InArgs)
 	}
 	ChildSlot
 	[
-		SAssignNew(Content, SBox)
+		SNew(SDPIScaler).DPIScale_Lambda([this] { return WindowScale; })[SAssignNew(Content, SBox)]
 	];
 	EScreen First = InArgs._Screen;
 	// -CatnightFixture=<moves> [-CatnightFixturePhase=main|roll|setup] [-CatnightFixtureSeed=<seed>]:
@@ -129,6 +130,10 @@ void SCatnightRoot::Construct(const FArguments& InArgs)
 		FCatnightMatchSetup Fixture;
 		Fixture.Seed = Seed;
 		Fixture.bAutoplay = true;
+        if(FParse::Param(FCommandLine::Get(),TEXT("CatnightLongNames"))) {
+            Fixture.Seats=Fixture.ResolvedSeats();
+            for(int32 I=0;I<Fixture.Seats.Num();I++) Fixture.Seats[I].Name=FString::Printf(TEXT("Alexandria of the Northern Coast %d"),I+1);
+        }
 		Match->Start(Fixture);
 		auto Wanted = [this, &Phase]
 		{
@@ -159,6 +164,8 @@ void SCatnightRoot::Construct(const FArguments& InArgs)
 void SCatnightRoot::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	const FVector2D Size=AllottedGeometry.GetLocalSize();
+	WindowScale=FMath::Clamp(FMath::Min(static_cast<float>(Size.X)/1440.f,static_cast<float>(Size.Y)/900.f),.55f,2.f);
 	if (Pending)
 	{
 		const EScreen Next = *Pending;
@@ -504,7 +511,7 @@ TSharedRef<SWidget> SCatnightRoot::BuildRules()
 		+ SVerticalBox::Slot().AutoHeight()[Cost(TEXT("Dev. card"), {R::Wool, R::Grain, R::Ore}, TEXT("25 in the deck"))]
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Trade"), TEXT("Only the player whose turn it is trades. Offer cards to everyone or to chosen players; they accept, decline or counter. The bank trades 4 for 1, or 3 for 1 at a general harbour and 2 for 1 at a harbour of that resource, when you have a building on it."))]
 		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Development cards"), TEXT("Knight (move the robber, steal, counts for Largest Army), Road Building (two free roads), Year of Plenty (two cards from the bank), Monopoly (everyone gives you all of one resource) and Victory Point. One per turn, never on the turn you bought it."))]
-		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Keys"), TEXT("Space (Y) rolls or ends the turn. Arrows (LB / RB) choose a spot on the board; Enter (A) places it. Esc (Menu) cancels or opens the menu; Ctrl+Z (X) undoes; L (View) opens the Herald. Drag with the right mouse button, hold Q or E, or use the right stick to turn the table; the wheel (triggers) zooms; Home (right-stick click) brings back the starting view. The prompts on screen follow whichever you use."))];
+		+ SVerticalBox::Slot().AutoHeight()[Chapter(TEXT("Keys"), TEXT("Space (Y) rolls or ends the turn. Arrows (LB / RB) choose a spot on the board; Enter (A) places it. Esc (Menu) cancels or opens the menu; Ctrl+Z (X) undoes; L (View) opens the Herald. Drag with the right mouse button, hold Q or E, or use the right stick to turn the table; the wheel (triggers) zooms; Home (right-stick click) brings back the starting view. These controls remain available without an on-screen instruction strip."))];
 
 	TSharedPtr<SWidget> BackButton;
 	TSharedRef<SWidget> Sheet = SNew(SBox).WidthOverride(1400)

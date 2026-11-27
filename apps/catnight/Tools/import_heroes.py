@@ -22,6 +22,11 @@ for name,prop,value,y in [('Roughness',unreal.MaterialProperty.MP_ROUGHNESS,.7,2
     p.set_editor_property('parameter_name',name); p.set_editor_property('default_value',value)
     mel.connect_material_property(p,'',prop)
 mel.recompile_material(base)
+# Full-precision recorder compression keeps tiny end-chain seams out of these short loops.
+compression=tools.duplicate_asset('HeroCompression',ROOT,unreal.load_asset('/Engine/Animation/DefaultRecorderBoneCompression'))
+assert compression, 'Native animation compression settings missing'
+assets.save_loaded_asset(compression)
+
 
 
 def task(path,name,options):
@@ -81,6 +86,9 @@ for family,info in manifest['models'].items():
         desired=ROOT+'/A_'+family+'_'+mode
         if seq.get_path_name().split('.')[0]!=desired: assets.rename_asset(seq.get_path_name(),desired)
         seq.set_editor_property('enable_root_motion',False)
+        # Keep short loops continuous after animation compression.
+        seq.set_editor_property('bone_compression_settings',compression)
+        seq.set_editor_property('allow_frame_stripping',False)
         unreal.log('HERO IMPORT clip '+seq.get_path_name())
     assets.save_loaded_asset(mesh)
     unreal.log(f'HERO IMPORT {family}: {len(info["clips"])} clips, {info["triangles"]} triangles')

@@ -1,4 +1,4 @@
-#include "Ui/HallKit.h"
+﻿#include "Ui/HallKit.h"
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Framework/Application/SlateApplication.h"
@@ -746,17 +746,11 @@ namespace HallKit
 	}
 
 	void SBanner::Tick(const FGeometry& G, const double Time, const float Dt)
-	{
-		SCompoundWidget::Tick(G, Time, Dt);
-		if (!Cloth) return;
-		// A menu banner's loops hang on the rod, so it only stirs; a player banner lifts.
-		const float Goal = bEmbroidered ? (bHot() ? -5.f : 0.f) : bHot() ? -10.f : (Lit.Get(false) ? -4.f : 0.f);
-		Lift += (Goal - Lift) * FMath::Min(1.f, Dt * 10.f);
-		const float Sway = Hall::bReduceMotion ? 0.f : FMath::DegreesToRadians(0.6f * FMath::Sin(static_cast<float>(Time) * 1.3f + Seed) + 0.25f * FMath::Sin(static_cast<float>(Time) * 2.9f + Seed * 1.7f));
-		Cloth->SetRenderTransform(FSlateRenderTransform(FQuat2f(Sway), FVector2f(0, Hall::bReduceMotion ? 0.f : Lift)));
-	}
+    {
+        SCompoundWidget::Tick(G,Time,Dt);
+    }
 
-	// ------------------------------------------------------------------ scale bar
+    // ------------------------------------------------------------------ scale bar
 
 	int32 SScaleBar::OnPaint(const FPaintArgs& Args, const FGeometry& G, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bEnabled) const
 	{

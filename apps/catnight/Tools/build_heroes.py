@@ -147,25 +147,34 @@ def native_knight():
                 [.009,.01,.007],6,lambda t,s:knight.STEEL,cap=True)
         parts.append((hand,lambda p,side=side:{'Hand'+side:1}))
     body=knight.make('KnightNative',parts,mats)
-    cape=knight.make('CapeLong',knight.cape(True),mats)
+    # No cape (owner's request): the knight reads cleaner without the cloth flapping behind.
     arm=knight.build_armature()
-    # Longer, articulated cloth chain. Kinematic folds remain bounded in crouch and riding.
     select(arm,False); bpy.ops.object.mode_set(mode='EDIT')
-    chain_names=['Cape','Cape2','Cape3','Cape4']
-    for i,name in enumerate(chain_names):
-        bone=arm.data.edit_bones.get(name) or arm.data.edit_bones.new(name)
-        bone.head=(0,.19+i*.045,1.46-i*.30)
-        bone.tail=(0,.235+i*.045,1.16-i*.30)
-        bone.parent=arm.data.edit_bones['Spine' if i==0 else chain_names[i-1]]
+    sheath=arm.data.edit_bones.new('Scabbard')
+    sheath.head=(.215,.07,.9);sheath.tail=(.245,.26,.3);sheath.parent=arm.data.edit_bones['Hips']
     bpy.ops.object.mode_set(mode='OBJECT')
-    for v in cape.data.vertices:
-        for g in list(v.groups): cape.vertex_groups[g.group].remove([v.index])
-        t=max(0,min(3,(1.46-v.co.z)/.30))
-        a=int(t); f=t-a
-        for i,w in [(a,1-f),(min(3,a+1),f)]:
-            if w: (cape.vertex_groups.get(chain_names[i]) or cape.vertex_groups.new(name=chain_names[i])).add([v.index],w,'ADD')
+    # Keep the hanging sheath clear of knees and ground in crouch, instead of a rigid hip pole.
+    adjacency=[[] for _ in body.data.vertices]
+    for edge in body.data.edges:
+        a,b=edge.vertices;adjacency[a].append(b);adjacency[b].append(a)
+    unseen=set(range(len(adjacency)))
+    while unseen:
+        todo=[unseen.pop()];component=[]
+        while todo:
+            i=todo.pop();component.append(i)
+            for j in adjacency[i]:
+                if j in unseen:unseen.remove(j);todo.append(j)
+        points=[body.data.vertices[i].co for i in component]
+        if min(v.x for v in points)>.17 and max(v.z for v in points)<.98:
+            center=sum(points,Vector())/len(points)
+            a=Vector((.215,.07,.9));d=Vector((.03,.19,-.6))
+            if (center-(a+d*max(0,min(1,(center-a).dot(d)/d.length_squared)))).length<.10:
+                group=body.vertex_groups.get('Scabbard') or body.vertex_groups.new(name='Scabbard')
+                for i in component:
+                    for g in list(body.data.vertices[i].groups):body.vertex_groups[g.group].remove([i])
+                    group.add([i],1,'REPLACE')
     socket_bones(arm,{'GripL':((.253,-.008,.836),'HandL'),'GripR':((-.253,-.008,.836),'HandR'),'Forward':((0,-.5,1),'Hips')})
-    mesh=join(arm,[body,cape],'KnightNative')
+    mesh=join(arm,[body],'KnightNative')
     # Warm worn steel and olive cloth follow the owner's turnaround, retaining brass edging.
     col=mesh.data.color_attributes.active_color
     for poly in mesh.data.polygons:
@@ -183,17 +192,24 @@ def native_knight():
 def native_horse():
     common.new_scene('NativeHorse')
     mats=[common.material('Coat',rough=.68),common.material('Hair',rough=.85,double=True),common.material('Tack',rough=.62,double=True),common.material('Owner_Blanket',rough=.95,double=True)]
-    body=horse.sculpt_body(); horse.paint_body(body); body.data.materials.append(mats[0])
+    body=horse.sculpt_body()
+    # Round the anatomical sculpt while keeping the authored mane, tack and silhouette crisp.
+    sub=body.modifiers.new('Sculpt finish','SUBSURF'); sub.levels=1
+    bpy.context.view_layer.objects.active=body; body.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=sub.name)
+    horse.paint_body(body); body.data.materials.append(mats[0])
     parts=horse.build_parts(horse.Surface(body), stirrup_height=1.025)
     arm=horse.build_armature()
     # Deterministic anatomical skinning: avoid Blender heat-weight variations and crossover feet.
     def weights(p):
         z=p.z/horse.S; x=p.x/horse.S; y=p.y/horse.S
-        if z<.97 and abs(y)>.27:
+        if z<1.05 and abs(y)>.27 and abs(x)>.07:
             front=y<0; side='L' if x>=0 else 'R'; suffix=('F' if front else 'H')+side
-            if z>.59: return {'Upper'+suffix:1}
-            if z>.19: return {'Cannon'+suffix:1}
-            return {'Pastern'+suffix:1}
+            upper=common.smooth(.48,.62,z); lower=common.smooth(.12,.22,z)
+            torso=common.smooth(.88,1.05,z)
+            return {'Body':torso,'Upper'+suffix:(1-torso)*upper,
+                'Cannon'+suffix:(1-torso)*(1-upper)*lower,
+                'Pastern'+suffix:(1-torso)*(1-upper)*(1-lower)}
         t=common.smooth(-.45,-.95,y)
         return {'Body':1-t,'Neck':t*(1-common.smooth(-.88,-1.05,y)),'Head':t*common.smooth(-.88,-1.05,y)}
     horse.assign(body,weights)
@@ -212,7 +228,7 @@ def native_horse():
         for li in poly.loop_indices:
             c=col.data[li].color; rgb=list(c[:3]); v=mesh.data.vertices[mesh.data.loops[li].vertex_index].co
             if name.startswith('Coat'):
-                rgb=[rgb[0]*.48,rgb[1]*.21,rgb[2]*.085]
+                rgb=[rgb[0]*.43,rgb[1]*.235,rgb[2]*.115]
                 # Narrow natural blaze, dark muzzle and lower legs retained from vertex paint.
                 if abs(v.x)<.035 and v.y<-.98*horse.S and v.z>1.52*horse.S: rgb=[.72,.64,.48]
             elif name.startswith('Hair'): rgb=[rgb[0]*.075,rgb[1]*.045,rgb[2]*.025]
@@ -229,60 +245,74 @@ def foot_path(t,stride,lift,duty):
 
 
 def knight_pose(arm,t,mode):
+    from mathutils import Quaternion
     reset(arm)
-    moving=mode in ('Walk','Run','CrouchWalk','RideWalk','RideGallop')
     crouch=mode.startswith('Crouch'); riding=mode.startswith('Ride')
-    cycle=2*math.pi*t; bob=(.018 if mode=='Run' else .006)*math.sin(2*cycle) if moving else .002*math.sin(cycle)
-    hips=arm.pose.bones['Hips']; drop=(-.33 if crouch else -.24 if mode=='Run' else -.10 if mode=='Walk' else 0)+bob
+    moving=mode in ('Walk','Run','CrouchWalk','RideWalk','RideGallop')
+    run=mode=='Run'; cycle=math.tau*t
+    stride=.48 if crouch else .98 if run else .72 if moving else 0
+    duty=.68 if crouch else .32 if run else .58
+    targets={}
+    for side,sign,phase in [('L',1,0),('R',-1,.5)]:
+        f,h=foot_path(t+phase,stride,.065 if crouch else .28 if run else .12,duty)
+        targets[side]=Vector((sign*.11,-f,.09+h))
+    if riding: drop=0  # The native saddle constraint uses the reference hips anchor.
+    elif crouch: drop=-.28+.006*math.sin(2*cycle)
+    elif moving:
+        # The pelvis rises over a planted leg and lowers only as that leg reaches forward/back.
+        # A permanent 10-24 cm hip drop made every stride look like a squat.
+        heights=[.09+.805]
+        for side in ('L','R'):
+            p=targets[side]; heights.append(p.z+math.sqrt(max(.01,.805**2-p.y**2)))
+        drop=min(heights)-.9
+    else: drop=.002*math.sin(cycle)
+    hips=arm.pose.bones['Hips']
     hips.matrix=Matrix.Translation((0,0,drop)) @ arm.data.bones['Hips'].matrix_local
+    bpy.context.view_layer.update()  # Child world poses must see this frame's hips, not the previous key.
+    sheath_head=Vector((.215,.07,.9+drop))
+    sheath_direction=Vector((.32,.24,-.49)) if riding else Vector((.03,.52,-.35)) if crouch else Vector((.03,.27,-.57)) if run else Vector((.03,.19,-.6))
+    pose_segment(arm,'Scabbard',sheath_head,sheath_head+sheath_direction.normalized()*Vector((.03,.19,-.6)).length)
+    lean=.20 if crouch else .12 if run else .025 if moving else 0
+    arm.pose.bones['Spine'].rotation_quaternion=Quaternion((1,0,0),lean)
     bpy.context.view_layer.update()
     for side,sign,phase in [('L',1,0),('R',-1,.5)]:
-        if riding:
-            ankle=limb(arm,'Thigh'+side,'Shin'+side,'Foot'+side,(sign*.43,-.04,.315),(sign*.75,-.30,.55))
-        else:
-            stride=.48 if crouch else .72 if mode=='Walk' else .95 if mode=='Run' else 0
-            f,h=foot_path(t+phase,stride,.10 if crouch else .20 if mode=='Run' else .11,.62 if mode!='Run' else .42)
-            ankle=limb(arm,'Thigh'+side,'Shin'+side,'Foot'+side,(sign*.11,-f,.09+h),(sign*.12,-1,.55))
+        target=Vector((sign*.43,-.04,.315)) if riding else targets[side]
+        pole=(sign*.75,-.30,.55) if riding else (sign*.11,-1,.50)
+        ankle=limb(arm,'Thigh'+side,'Shin'+side,'Foot'+side,target,pole)
         pose_segment(arm,'Foot'+side,ankle,ankle+Vector((0,-.19,-.06)))
-        sh=arm.pose.bones['Arm'+side].head.copy()
-        swing=math.sin(cycle+phase*2*math.pi) if moving else 0
-        if riding:
-            target=Vector((sign*.17,-.43,1.08)); elbow=(sign*.55,.02,1.1)
-        elif crouch:
-            target=Vector((sign*.24,-.22+.06*swing,.72)); elbow=(sign*.38,0,.86)
-        elif mode=='Run':
-            target=Vector((sign*.24,-.20+.18*swing,.95)); elbow=(sign*.36,.10,.98)
-        else:
-            target=Vector((sign*.26,-.07+.10*swing,.92+drop)); elbow=(sign*.42,.02,1.03+drop)
+        swing=math.cos(cycle+phase*math.tau) if moving else 0
+        if riding: target=Vector((sign*.17,-.43,1.08)); elbow=(sign*.55,.02,1.1)
+        elif crouch: target=Vector((sign*.24,-.26+.055*swing,.71)); elbow=(sign*.36,.04,.88)
+        elif run: target=Vector((sign*.24,-.16+.24*swing,.99+drop*.5)); elbow=(sign*.35,.15,1.04+drop*.5)
+        else: target=Vector((sign*.25,.02+.16*swing,.85+drop)); elbow=(sign*.28,.05,1.08+drop)
         wrist=limb(arm,'Arm'+side,'ForeArm'+side,'Hand'+side,target,elbow)
         hand_direction=Vector((0,-.10,-.025)) if riding else (wrist-arm.pose.bones['ForeArm'+side].head).normalized()*.12
         pose_segment(arm,'Hand'+side,wrist,wrist+hand_direction)
-    # World-space cloth shape follows the lowered shoulders; lift back over the saddle while riding.
-    last=None
-    for i,name in enumerate(['Cape','Cape2','Cape3','Cape4']):
-        z=1.46+drop-i*(.19 if crouch or riding else .30)
-        y=.20+i*(.17 if riding else .11 if crouch else .045)
-        sway=.012*math.sin(cycle-i*.5)*(i/3) if moving else .003*math.sin(cycle-i*.4)
-        head=Vector((sway,y,z)) if last is None else last
-        tail=Vector((sway,y+(.17 if riding else .11 if crouch else .045),z-(.19 if crouch or riding else .30)))
-        pose_segment(arm,name,head,tail); last=tail
 
 
 def horse_pose(arm,t,mode):
+    from mathutils import Quaternion
     reset(arm); moving=mode!='Idle'; gallop=mode=='Gallop'
     cycle=t*math.tau
-    arm.pose.bones['Body'].location.z=((-.30 if gallop else -.12)+.025*math.sin(cycle*2) if moving else .003*math.sin(cycle))
-    bpy.context.view_layer.update()
     offsets={'FL':0,'HR':.25,'FR':.5,'HL':.75} if not gallop else {'HL':0,'HR':.12,'FL':.48,'FR':.60}
+    targets={}; drop=.003*math.sin(cycle)
     for suffix,offset in offsets.items():
         front=suffix[0]=='F'; sign=1 if suffix[1]=='L' else -1
-        stride=.80 if not gallop else 1.20
-        f,h=foot_path(t+offset,stride,.17 if not gallop else .32,.64 if not gallop else .38) if moving else (0,0)
+        f,h=foot_path(t+offset,.90 if gallop else .84,.30 if gallop else .16,.26 if gallop else .58) if moving else (0,0)
         x=sign*(.19 if front else .22)*horse.S; y=(-.468 if front else .62)*horse.S
-        ankle=limb(arm,'Upper'+suffix,'Cannon'+suffix,'Pastern'+suffix,(x,y-f,.16*horse.S+h),(x,y+(-1 if front else 1),.5))
+        target=Vector((x,y-f,.16*horse.S+h)); targets[suffix]=target
+        if moving:
+            bone=arm.data.bones['Upper'+suffix]
+            reach=(bone.length+arm.data.bones['Cannon'+suffix].length)*.996
+            horizontal=(Vector((bone.head_local.x,bone.head_local.y,0))-Vector((target.x,target.y,0))).length
+            drop=min(drop,target.z+math.sqrt(max(.01,reach**2-horizontal**2))-bone.head_local.z)
+    arm.pose.bones['Body'].location.z=drop
+    bpy.context.view_layer.update()
+    for suffix in offsets:
+        x,y,z=targets[suffix]; front=suffix[0]=='F'
+        ankle=limb(arm,'Upper'+suffix,'Cannon'+suffix,'Pastern'+suffix,(x,y,z),(x,y+(-1 if front else 1),.5))
         pose_segment(arm,'Pastern'+suffix,ankle,ankle+Vector((0,-.035,-.16*horse.S)))
-    for name,axis,angle in [('Neck',(1,0,0),.018*math.sin(cycle)),('Head',(1,0,0),.025*math.sin(cycle+.3)),('Tail',(0,1,0),.05*math.sin(cycle)),('Tail2',(0,1,0),.07*math.sin(cycle-.7))]:
-        from mathutils import Quaternion
+    for name,axis,angle in [('Neck',(1,0,0),.025*math.sin(cycle)),('Head',(1,0,0),.035*math.sin(cycle+.3)),('Tail',(0,1,0),.06*math.sin(cycle)),('Tail2',(0,1,0),.09*math.sin(cycle-.7))]:
         arm.pose.bones[name].rotation_quaternion=Quaternion(axis,angle)
 
 
@@ -296,18 +326,25 @@ def build(family,make,pose,clips):
         n=round(duration*FPS); sc.frame_start=1; sc.frame_end=n+1
         action=bpy.data.actions.new(family+'_'+mode); action.use_fake_user=True; arm.animation_data_create(); arm.animation_data.action=action
         stance_error=0
+        first_pose=None
         for frame in range(1,n+2):
             sc.frame_set(frame); pose(arm,(frame-1)/n,mode); key(arm,frame)
+            if first_pose is None:first_pose={b.name:b.matrix.copy() for b in arm.pose.bones}
             if family=='Knight' and mode in ('Walk','Run','CrouchWalk'):
-                duty=.42 if mode=='Run' else .62
+                duty=.32 if mode=='Run' else .68 if mode=='CrouchWalk' else .58
                 for side,offset in [('L',0),('R',.5)]:
                     if ((frame-1)/n+offset)%1 < duty:
                         stance_error=max(stance_error,abs(arm.pose.bones['Foot'+side].head.z-.09))
             if family=='Horse' and mode!='Idle':
                 offsets={'FL':0,'HR':.25,'FR':.5,'HL':.75} if mode=='Walk' else {'HL':0,'HR':.12,'FL':.48,'FR':.60}
                 for side,offset in offsets.items():
-                    if ((frame-1)/n+offset)%1 < (.64 if mode=='Walk' else .38):
+                    if ((frame-1)/n+offset)%1 < (.58 if mode=='Walk' else .26):
                         stance_error=max(stance_error,abs(arm.pose.bones['Pastern'+side].head.z-.16*horse.S))
+        for bone in arm.pose.bones:
+            first=first_pose[bone.name];last=bone.matrix
+            distance=(first.translation-last.translation).length
+            angle=2*math.acos(min(1,abs(first.to_quaternion().dot(last.to_quaternion()))))
+            if distance>.0001 or angle>.003:raise RuntimeError(f'{family}/{mode}/{bone.name} open loop: {distance}m {angle}rad')
         if stance_error>.025: raise RuntimeError(f'{family}/{mode} stance foot error {stance_error}')
         # Every clip closes exactly; all skinned bone channels are baked, no DCC constraints required.
         sc.frame_set(1); fbx(arm,family+'_'+mode,True)

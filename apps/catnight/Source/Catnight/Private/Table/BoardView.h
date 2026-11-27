@@ -1,4 +1,4 @@
-// What the table UI and the 3D board share: where a pick may go, what is highlighted, and how a
+﻿// What the table UI and the 3D board share: where a pick may go, what is highlighted, and how a
 // screen position becomes a board target in 3D.
 #pragma once
 
@@ -22,6 +22,8 @@ struct FCatnightBoardView
 	FBoardTargets Targets;
 	/** True: the 3D table shows through the UI; false: the flat chart is drawn over it. */
 	bool b3D = true;
+	float PanelShare = .27f;
+    float LeftHudShare = .22f;
 	bool bReducedMotion = false;
 	/** The live match's human-scale island; never bypass a hot-seat privacy curtain. */
 	FSimpleDelegate ExploreIsland;

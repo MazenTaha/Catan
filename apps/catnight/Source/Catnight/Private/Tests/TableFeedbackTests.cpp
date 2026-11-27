@@ -1,4 +1,4 @@
-// Drive the real match and board together: effects must finish, reset and preserve rules state.
+﻿// Drive the real match and board together: effects must finish, reset and preserve rules state.
 #include "Board/CatnightBoardActor.h"
 #include "Board/TablePresentation.h"
 #include "CatnightMatch.h"
@@ -134,12 +134,9 @@ bool FCatnightTableFeedbackTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("carved pip count"), CatnightTable::Pips(First).Num(), First);
         Board->SetDice(First, Second, true);
         Board->Tick(1.3f);
-        for (int32 I = 0; I < 2; I++)
-        {
-            const int32 Face = I ? Second : First;
-            const FVector Up = Board->DiceRoots[I]->GetRelativeTransform().TransformVectorNoScale(CatnightTable::DiceNormal(Face));
-            TestTrue(TEXT("authoritative face lands upwards"), Up.Equals(FVector::UpVector, 0.0001f));
-        }
+        TestEqual(TEXT("no dice or tray geometry on the table"), Board->DiceRoots.Num(), 0);
+        TestEqual(TEXT("first authoritative face retained"), Board->DiceFaces[0], First);
+        TestEqual(TEXT("second authoritative face retained"), Board->DiceFaces[1], Second);
     }
     TestEqual(TEXT("visual dice do not consume rules RNG or actions"), Match->RecordJson(), BeforeDice);
 
@@ -168,7 +165,7 @@ bool FCatnightTableFeedbackTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("reduce motion clears dust"), Board->Dust.Num(), 0);
     Board->SetDice(6, 2, true);
     Board->Tick(0.f);
-    TestTrue(TEXT("reduced dice are settled immediately"), Board->DiceRoots[0]->GetRelativeRotation().Quaternion().RotateVector(CatnightTable::DiceNormal(6)).Equals(FVector::UpVector, 0.0001f));
+    TestFalse(TEXT("no hidden 3D toss delays production"), Board->bDiceRolling);
 
     // Use a real roll/event payout, not inferred tile numbers; bank shortages and robber stay authoritative.
     View->bReducedMotion = false;
@@ -198,6 +195,11 @@ bool FCatnightTableFeedbackTest::RunTest(const FString& Parameters)
         }
     }
     TestTrue(TEXT("a real production roll was checked"), bProduced);
+    TestTrue(TEXT("last dice remain available to the exploration HUD"),Match->LastDice.has_value());
+    const auto LastRoll=Match->LastDice;
+    const FString RolledRecord=Match->RecordJson();
+    TestEqual(TEXT("replay restores the public dice readout"),Match->LoadRecord(RolledRecord),FString());
+    TestTrue(TEXT("Continue retains both exact dice faces"),Match->LastDice==LastRoll);
     Match->OnActionApplied.Remove(Capture);
     Board->GoalYaw = 43.f;
     Board->Tick(0.2f);

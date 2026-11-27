@@ -1,4 +1,4 @@
-#include "Island/IslandWorld.h"
+﻿#include "Island/IslandWorld.h"
 #include "CatnightMatch.h"
 #include "CatnightRules/Board.h"
 #include "CatnightRules/Rules.h"
@@ -12,6 +12,7 @@
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProceduralMeshComponent.h"
 #include "Ui/CatnightUi.h"
@@ -185,6 +186,22 @@ float ACatnightIsland::FootpathDistance(FVector2D P) const
     for(const auto& T:Trails) D=FMath::Min(D,SegmentDistance(W,T.Key,T.Value));
     return D;
 }
+float ACatnightIsland::MountainPathDistance(FVector2D P) const
+{
+    float Best=BIG_NUMBER;
+    for(const auto& M:Hills) if(M.bCrag) {
+        const FVector2D D=P-M.P; const float R=static_cast<float>(D.Size());
+        // Reserve the approach outside the mound too: a wide prop can straddle the first turn.
+        const FVector2D Entry=M.P+FVector2D(M.Radius*.95f,0).GetRotated(-855.f);
+        Best=FMath::Min(Best,static_cast<float>(FVector2D::Distance(P,Entry)));
+        if(R>M.Radius*.97f) continue;
+        if(R<M.Radius*.10f) {Best=0;continue;}
+        const float Phase=static_cast<float>(FMath::Atan2(D.Y,D.X))+R/M.Radius*5.f*PI;
+        const float Distance=2.f*R*FMath::Abs(FMath::Sin(Phase*.5f))/FMath::Sqrt(1.f+FMath::Square(R/M.Radius*5.f*PI));
+        Best=FMath::Min(Best,Distance);
+    }
+    return Best;
+}
 float ACatnightIsland::GroundHeight(FVector2D P) const
 {
     const float Coast=CoastDistance(P);
@@ -258,11 +275,18 @@ FLinearColor ACatnightIsland::GroundColor(FVector2D P,float Height,float Steep) 
     // Broad lush and sun-dried patches, so no tile reads as one flat colour.
     Color*=1.f+.14f*Fbm(P/3400.f+FVector2D(11.f,3.f),3);
     Color=FMath::Lerp(Color,Color*FLinearColor(1.1f,.98f,.74f),FMath::Max(0.f,Fbm(P/2100.f+FVector2D(2.f,8.f),2))*.9f);
+    // Alpine grass on shoulders and summits; slate bands on the climbable faces.
+    const int32 Tile=TileAt(GetActorLocation()+FVector(P,Height));
+    if(BoardData.hexes[Tile].terrain==Terrain::Peaks && Height>220.f) {
+        const FLinearColor Slate=CatnightUi::Srgb(114,126,137)*(1.f+.10f*FMath::Sin(Height*.025f));
+        const FLinearColor Alpine=CatnightUi::Srgb(115,149,76);
+        Color=FMath::Lerp(Color,FMath::Lerp(Alpine,Slate,FMath::SmoothStep(.10f,.40f,Steep)),FMath::SmoothStep(220.f,520.f,Height)*.85f);
+    }
     // Steep ground is bare stone; the highest crags keep a little snow.
     Color=FMath::Lerp(Color,CatnightUi::Srgb(124,119,110),FMath::SmoothStep(.5f,1.05f,Steep)*.85f);
     Color=FMath::Lerp(Color,CatnightUi::Srgb(236,238,241),FMath::SmoothStep(2600.f,3200.f,Height)*(1.f-.5f*FMath::SmoothStep(1.2f,1.9f,Steep)));
     // Only the hubs' footpaths are worn; unbuilt road corridors keep their biome colour.
-    const float Worn=(1.f-FMath::SmoothStep(60.f,190.f,FootpathDistance(P)))*(.7f+.3f*Fbm(P/650.f,2));
+    const float Worn=(1.f-FMath::SmoothStep(60.f,190.f,FMath::Min(FootpathDistance(P),MountainPathDistance(P))))*(.7f+.3f*Fbm(P/650.f,2));
     Color=FMath::Lerp(Color,CatnightUi::Srgb(163,140,102),FMath::Clamp(Worn,0.f,1.f)*.8f);
     const float Coast=CoastDistance(P);
     Color=FMath::Lerp(Color,CatnightUi::Srgb(222,204,158),FMath::SmoothStep(-650.f,150.f,Coast));
@@ -288,6 +312,28 @@ void ACatnightIsland::Ground()
         V.Add(FVector(P,Height)); SurfaceSamples.Add(Height); UV.Add(P/700.f);
         Colors.Add(GroundColor(P,Height,FMath::Sqrt(DX*DX+DY*DY)/40.f));
         Normals.Add(FVector(-DX,-DY,40).GetSafeNormal()); Tangents.Add(FProcMeshTangent(1,0,DX/40.f));
+    }
+    // Bound the actual collision triangles, not the character's walkable angle. Four directional
+    // relaxation sweeps turn the inaccessible spikes into connected, climbable mountain slopes.
+    const float Rise=Step*.48f;
+    for(int32 Pass=0;Pass<4;Pass++) {
+        for(int32 Y=0;Y<=N;Y++) for(int32 X=0;X<=N;X++) {
+            const int32 I=Y*(N+1)+X;
+            if(X>0) SurfaceSamples[I]=FMath::Min(SurfaceSamples[I],SurfaceSamples[I-1]+Rise);
+            if(Y>0) SurfaceSamples[I]=FMath::Min(SurfaceSamples[I],SurfaceSamples[I-N-1]+Rise);
+        }
+        for(int32 Y=N;Y>=0;Y--) for(int32 X=N;X>=0;X--) {
+            const int32 I=Y*(N+1)+X;
+            if(X<N) SurfaceSamples[I]=FMath::Min(SurfaceSamples[I],SurfaceSamples[I+1]+Rise);
+            if(Y<N) SurfaceSamples[I]=FMath::Min(SurfaceSamples[I],SurfaceSamples[I+N+1]+Rise);
+        }
+    }
+    for(int32 Y=0;Y<=N;Y++) for(int32 X=0;X<=N;X++) {
+        const int32 I=Y*(N+1)+X; const FVector2D P(V[I]); V[I].Z=SurfaceSamples[I];
+        const float DX=(SurfaceSamples[Y*(N+1)+FMath::Min(N,X+1)]-SurfaceSamples[Y*(N+1)+FMath::Max(0,X-1)])/((X==0 || X==N)?Step:2*Step);
+        const float DY=(SurfaceSamples[FMath::Min(N,Y+1)*(N+1)+X]-SurfaceSamples[FMath::Max(0,Y-1)*(N+1)+X])/((Y==0 || Y==N)?Step:2*Step);
+        Normals[I]=FVector(-DX,-DY,1).GetSafeNormal(); Tangents[I]=FProcMeshTangent(1,0,DX);
+        Colors[I]=GroundColor(P,SurfaceSamples[I],FMath::Sqrt(DX*DX+DY*DY));
     }
     for(int32 Y=0;Y<N;Y++) for(int32 X=0;X<N;X++) {
         const int32 A=Y*(N+1)+X,B=A+1,C=A+N+1,D=C+1;
@@ -363,6 +409,11 @@ UInstancedStaticMeshComponent* ACatnightIsland::Group(const FString& Family,cons
             if(auto* Own=Cast<UMaterialInstance>(Source)) Mat->CopyParameterOverrides(Own);
             Mat->SetScalarParameterValue(TEXT("FadeStart"),CullEnd*.62f);
             Mat->SetScalarParameterValue(TEXT("FadeEnd"),CullEnd*.97f);
+            // Leaves and blades let light through; bark and woody scrub do not. Rooted wind sways
+            // the tops (none with Reduce motion).
+            const bool Woody=Name.Contains(TEXT("Oak")) || Name.Contains(TEXT("Lime")) || Name.Contains(TEXT("Shrub")) || Name==TEXT("Fir") || Name==TEXT("Spruce") || Name==TEXT("Sapling") || Name==TEXT("DryScrub");
+            Mat->SetScalarParameterValue(TEXT("LeafTransmission"),Blend==BLEND_Masked?.6f:Woody?0.f:.6f);
+            Mat->SetScalarParameterValue(TEXT("WindStrength"),FHallSettings::Get().bReduceMotion?0.f:Crop?7.f:5.f);
         }
         if(Tint) Mat->SetVectorParameterValue(TEXT("Color"),*Tint);
         Batch->SetMaterial(I,Mat);
@@ -393,6 +444,28 @@ void ACatnightIsland::Prop(const TCHAR* Family,const TCHAR* Name,FVector2D P,flo
         SolidRadius=FMath::Max(SolidRadius,static_cast<float>(FVector2D(Bounds.GetSize()).Size())*S*.5f);
         if(Reserved(P,SolidRadius)) return;
     }
+    // Compare solid footprints with the actual switchback polyline. The fast painted-path
+    // distance is approximate near a mound's outer turn and cannot decide collision clearance.
+    auto BlocksSummit=[&](FVector2D Q) {
+        for(const auto& M:Hills) if(M.bCrag && FVector2D::Distance(Q,M.P)<M.Radius+SolidRadius+300.f) {
+            FVector2D Last=M.P+FVector2D(M.Radius*.95f,0).GetRotated(-855.f);
+            for(int32 I=1;I<=160;I++) {
+                const float Radius=M.Radius*FMath::Lerp(.95f,.08f,I/160.f);
+                const FVector2D Next=M.P+FVector2D(Radius,0).GetRotated(-Radius/M.Radius*900.f);
+                if(SegmentDistance(Q,Last,Next)<SolidRadius+240.f) return true;
+                Last=Next;
+            }
+        }
+        return false;
+    };
+    if(SolidRadius>0 && BlocksSummit(P)) {
+        const FVector2D Original=P; bool Found=false;
+        for(int32 Ring=1;Ring<=5 && !Found;Ring++) for(int32 Direction=0;Direction<8;Direction++) {
+            const FVector2D Candidate=Original+FVector2D(Ring*300.f,0).GetRotated(Direction*45.f);
+            if(!Reserved(Candidate,SolidRadius) && !BlocksSummit(Candidate) && Slope(Candidate)<.35f) { P=Candidate;Found=true;break; }
+        }
+        if(!Found) return;
+    }
     // On a slope the downhill side of the base would float: sink it by the drop across its footprint.
     const float Sink=FMath::Min(90.f,Slope(P)*static_cast<float>(FVector2D(Bounds.GetSize()).Size())*S*.5f);
     Batch->AddInstance(FTransform(FRotator(0,Yaw,0),FVector(P,SurfaceHeight(P)-Sink-Bounds.Min.Z*S),FVector(S)));
@@ -405,7 +478,7 @@ void ACatnightIsland::Prop(const TCHAR* Family,const TCHAR* Name,FVector2D P,flo
         Wall->SetCollisionProfileName(TEXT("BlockAll")); Wall->RegisterComponent(); Parts.Add(Wall);
         Wall->SetVisibility(false);
         Obstacles.Add({P,static_cast<float>(FVector2D(Bounds.GetSize()).Size())*S*.5f});
-    } else if(SolidRadius>0) Solid(P,SolidRadius,Height);
+    } else if(SolidRadius>0) { Solid(P,SolidRadius,Height);Parts.Last()->ComponentTags.Add(FName(Name)); }
 }
 void ACatnightIsland::Embed(const TCHAR* Family,const TCHAR* Name,FVector2D P,float Height,float Yaw,float Sink,float SolidRadius)
 {
@@ -431,7 +504,7 @@ bool ACatnightIsland::Bare(FVector2D P) const
 {
     // Ground cover has no collision, so it may grow anywhere except where it would poke through
     // something: worn footpaths, building sites, the flush road surfaces and the beach.
-    if(CoastDistance(P)>-450.f || FootpathDistance(P)<150.f) return true;
+    if(CoastDistance(P)>-450.f || FootpathDistance(P)<150.f || MountainPathDistance(P)<180.f) return true;
     for(FVector2D V:Vertices) if(FVector2D::DistSquared(P,V)<FMath::Square(520.f)) return true;
     for(const auto& E:GetTopology().edgeVertices) if(SegmentDistance(P,Vertices[E[0]],Vertices[E[1]])<130.f) return true;
     return false;
@@ -478,7 +551,7 @@ void ACatnightIsland::Cover(int32 H)
 }
 bool ACatnightIsland::Reserved(FVector2D P,float Radius) const
 {
-    if(CoastDistance(P)>-700.f || TrailDistance(P)<340.f+Radius) return true;
+    if(CoastDistance(P)>-700.f || TrailDistance(P)<340.f+Radius || MountainPathDistance(P)<240.f+Radius) return true;
     for(FVector2D V:Vertices) if(FVector2D::Distance(P,V)<900.f+Radius) return true;
     for(FVector2D C:Centers) if(FVector2D::Distance(P,C)<(Radius>30.f?1600.f:450.f)+Radius) return true;
     for(const auto& O:Obstacles) if(FVector2D::Distance(P,O.P)<O.Radius+Radius+100.f) return true;
@@ -525,8 +598,19 @@ void ACatnightIsland::Dress()
             if(Shore>-1500.f && T!=Terrain::Waste && T!=Terrain::Peaks && Rand.FRand()<.45f) {
                 Prop(TEXT("flora"),TEXT("Reeds"),P,Rand.FRandRange(110,170),Yaw);
             } else if(T==Terrain::Witchwood) {
-                const TCHAR* Trees[]={TEXT("Oak"),TEXT("OakB"),TEXT("Lime"),TEXT("Spruce"),TEXT("Fir")};
-                if(Big) Prop(TEXT("flora"),Trees[I%5],P,Rand.FRandRange(850,1500),Yaw,45);
+                // Stands, not a shuffle: broad noise gives dark conifer woods, oak groves with the odd
+                // giant old oak, and airy lime glades, so a walk crosses distinct kinds of forest.
+                const float Stand=Fbm(P/3200.f+FVector2D(H*2.3f,5.7f),2);
+                if(Big) {
+                    const float Pick=Rand.FRand();
+                    const TCHAR* Tree=Stand>.1f?(Pick<.55f?TEXT("Spruce"):TEXT("Fir"))
+                        :Stand<-.1f?(Pick<.6f?TEXT("Oak"):Pick<.9f?TEXT("OakB"):TEXT("LimeB"))
+                        :(Pick<.45f?TEXT("Lime"):Pick<.8f?TEXT("LimeB"):TEXT("OakB"));
+                    const bool Giant=Tree[0]==TEXT('O') && Rand.FRand()<.14f;
+                    const float Height=Rand.FRandRange(850,1500)*(Giant?1.45f:Stand>.1f?1.12f:1.f);
+                    Prop(TEXT("flora"),Tree,P,Height,Yaw,Giant?65.f:45.f);
+                }
+                else if(I%17==0 && Stand<.1f) Prop(TEXT("props"),TEXT("Log"),P,Rand.FRandRange(60,90),Yaw);
                 else if(I%23==0) Prop(TEXT("props"),I%2?TEXT("StumpA"):TEXT("StumpB"),P,Rand.FRandRange(50,80),Yaw);
                 else if(I%31==0) Prop(TEXT("props"),I%2?TEXT("MushRed"):TEXT("MushBrown"),P,Rand.FRandRange(18,30),Yaw);
                 else if(I%11==0) Prop(TEXT("flora"),TEXT("Sapling"),P,Rand.FRandRange(220,380),Yaw);
@@ -555,19 +639,24 @@ void ACatnightIsland::Dress()
         Cover(H);
         if(T==Terrain::Moors) for(int32 F=0;F<3;F++) Flock(C+FVector2D(TileRadius*.42f,0).GetRotated(F*120.f+H*17.f),8,Rand);
     }
-    // Each crag mound is crowned with rock: a tall face on top and shoulders down its flanks.
+    // The terrain itself is the mountain and its collision surface. Small embedded outcrops
+    // add detail away from the summit trails without covering them with non-colliding giant rocks.
     for(const auto& M:Hills) {
         const float Yaw=FMath::Fmod(M.P.X*.37f+M.P.Y*.11f,360.f);
-        if(M.bCrag) {
-            Embed(TEXT("rocks"),M.Height>3000.f?TEXT("CragA"):TEXT("CragB"),M.P,M.Height*.55f,Yaw,M.Height*.2f);
-            for(int32 K=0;K<3;K++) {
-                const FVector2D Q=M.P+FVector2D(M.Radius*.48f,0).GetRotated(Yaw+K*120.f);
-                Embed(TEXT("rocks"),K%2?TEXT("CragC"):TEXT("CragB"),Q,M.Height*.3f,Yaw+K*77.f,M.Height*.1f);
-            }
-        } else {
-            const FVector2D Shoulder=M.P+FVector2D(M.Radius*.35f,0).GetRotated(Yaw);
-            Embed(TEXT("rocks"),M.Height>700.f?TEXT("ClayA"):TEXT("ClayB"),Shoulder,280.f+M.Height*.2f,Yaw,60.f,M.Radius*.12f);
+        for(int32 K=0;K<4;K++) {
+            const FVector2D Q=M.P+FVector2D(M.Radius*.64f,0).GetRotated(Yaw+K*90.f);
+            if(Reserved(Q,80.f)) continue;
+            Embed(TEXT("rocks"),M.bCrag?TEXT("BoulderB"):TEXT("ClayB"),Q,M.bCrag?180.f:140.f,Yaw,45.f);
         }
+    }
+    for(const auto& M:Hills) if(M.bCrag) {
+        // Broken original stone outcrops flank the climb, while the actual route stays open.
+        for(int32 K=0;K<10;K++) {
+            const FVector2D Q=M.P+FVector2D(M.Radius*(.38f+.05f*(K%7)),0).GetRotated(K*137.5f+M.P.X*.01f);
+            Prop(TEXT("rocks"),K%2?TEXT("BoulderA"):TEXT("BoulderC"),Q,220.f+(K%3)*70.f,K*61.f,110.f);
+        }
+        const FVector2D Entry=M.P+FVector2D(M.Radius*.95f,0).GetRotated(-855.f);
+        Prop(TEXT("island"),TEXT("Waystone"),Entry+FVector2D(110,110),170,45);
     }
     // A welcoming hamlet off the central trail, at real cottage/horse scale.
     Prop(TEXT("island"),TEXT("Well"),Plaza+FVector2D(2600,-1800),300,0,100);
@@ -620,24 +709,48 @@ void ACatnightIsland::Lighting()
     PP.bOverride_CameraShutterSpeed=true; PP.CameraShutterSpeed=125;
     PP.bOverride_DepthOfFieldFstop=true; PP.DepthOfFieldFstop=8;
     PP.bOverride_AutoExposureBias=true; PP.AutoExposureBias=0;
+    // Mood: a soft vignette, grounded contact shade, a little more colour and contrast, and
+    // split toning (cool shade, warm light) in place of the neutral, washed-out grade.
+    PP.bOverride_VignetteIntensity=true; PP.VignetteIntensity=.45f;
+    PP.bOverride_AmbientOcclusionIntensity=true; PP.AmbientOcclusionIntensity=.65f;
+    PP.bOverride_BloomIntensity=true; PP.BloomIntensity=.4f;
+    PP.bOverride_ColorSaturation=true; PP.ColorSaturation=FVector4(1,1,1,1.08f);
+    PP.bOverride_ColorContrast=true; PP.ColorContrast=FVector4(1,1,1,1.06f);
+    PP.bOverride_ColorGainShadows=true; PP.ColorGainShadows=FVector4(.97f,.99f,1.05f,1);
+    PP.bOverride_ColorGainHighlights=true; PP.ColorGainHighlights=FVector4(1.03f,1,.96f,1);
     Exposure->RegisterComponent(); Parts.Add(Exposure);
     auto* Sun=NewObject<UDirectionalLightComponent>(this); Sun->SetupAttachment(RootComponent);
-    Sun->SetMobility(EComponentMobility::Movable); Sun->SetRelativeRotation(FRotator(-38,SunYaw,0));
-    Sun->SetIntensity(50000); Sun->SetLightColor(FLinearColor(1,.94f,.84f)); Sun->LightSourceAngle=1.5f;
+    // A low golden sun: long shadows across the meadows and warm light on every trunk and roof,
+    // set against cooler sky shade (the high white sun made the island read flat and lifeless).
+    Sun->SetMobility(EComponentMobility::Movable); Sun->SetRelativeRotation(FRotator(-24,SunYaw,0));
+    Sun->SetIntensity(60000); Sun->SetLightColor(FLinearColor(1,.85f,.64f)); Sun->LightSourceAngle=1.5f;
     Sun->SetForwardShadingPriority(1);
     Sun->DynamicShadowDistanceMovableLight=18000; Sun->bAtmosphereSunLight=true; Sun->RegisterComponent(); Parts.Add(Sun);
     auto* Sky=NewObject<USkyLightComponent>(this); Sky->SetupAttachment(RootComponent);
-    Sky->SetMobility(EComponentMobility::Movable); Sky->bRealTimeCapture=true; Sky->SetIntensity(1.6f);
+    Sky->SetMobility(EComponentMobility::Movable); Sky->bRealTimeCapture=true; Sky->SetIntensity(1.3f);
+    Sky->SetLightColor(FLinearColor(.86f,.93f,1.f));
     Sky->RegisterComponent(); Parts.Add(Sky);
     // A weak, shadowless sky fill keeps painted characters readable under the forest canopy.
     auto* Fill=NewObject<UDirectionalLightComponent>(this); Fill->SetupAttachment(RootComponent);
     Fill->SetMobility(EComponentMobility::Movable); Fill->SetRelativeRotation(FRotator(-24,SunYaw+180,0));
-    Fill->SetIntensity(4500); Fill->SetLightColor(FLinearColor(.65f,.79f,1)); Fill->SetCastShadows(false);
+    Fill->SetIntensity(6000); Fill->SetLightColor(FLinearColor(.65f,.79f,1)); Fill->SetCastShadows(false);
     Fill->RegisterComponent(); Parts.Add(Fill);
     auto* Air=NewObject<USkyAtmosphereComponent>(this); Air->SetupAttachment(RootComponent); Air->RegisterComponent(); Parts.Add(Air);
+    if(auto* SkyMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Generated/Island/M_LivingSky"))) {
+        auto* Dome=NewObject<UStaticMeshComponent>(this); Dome->SetupAttachment(Terrain); Dome->bUseAttachParentBound=true;
+        Terrain->SetBoundsScale(1.4f);
+        Dome->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Sphere.Sphere")));
+        Dome->SetRelativeScale3D(FVector(12000)); Dome->SetMaterial(0,SkyMat);
+        Dome->SetCastShadow(false); Dome->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Dome->RegisterComponent(); Parts.Add(Dome);
+    }
     auto* Fog=NewObject<UExponentialHeightFogComponent>(this); Fog->SetupAttachment(RootComponent);
     Fog->SetFogDensity(.0045f); Fog->SetFogHeightFalloff(.2f); Fog->SetStartDistance(18000);
-    Fog->SetFogInscatteringColor(FLinearColor(.60f,.73f,.84f)); Fog->RegisterComponent(); Parts.Add(Fog);
+    Fog->SetFogInscatteringColor(FLinearColor(.56f,.70f,.86f));
+    // Haze glows warm toward the sun and stays blue away from it: depth with a sense of time of day.
+    Fog->SetDirectionalInscatteringExponent(6.f); Fog->SetDirectionalInscatteringStartDistance(9000.f);
+    Fog->SetDirectionalInscatteringColor(FLinearColor(.95f,.62f,.32f));
+    Fog->RegisterComponent(); Parts.Add(Fog);
 }
 void ACatnightIsland::Line(FVector2D A,FVector2D B,float Width,FLinearColor Color)
 {
@@ -698,4 +811,31 @@ bool ACatnightIsland::ValidateRoutes(FString& Report) const
     }
     Report=FString::Printf(TEXT("ISLAND ROUTES: %d samples, %d failures, %d connected tiles"),Checks,Failures,Centers.Num());
     return Checks>0 && Failures==0 && Centers.Num()==19;
+}
+
+bool ACatnightIsland::ValidateMountains(FString& Report) const
+{
+    int32 Checks=0,Failures=0,Peaks=0;
+    for(const auto& M:Hills) if(M.bCrag) {
+        Peaks++;
+        FVector2D Last=FVector2D::ZeroVector;
+        for(int32 I=0;I<=160;I++) {
+            const float R=M.Radius*FMath::Lerp(.95f,.08f,I/160.f);
+            const FVector2D P=M.P+FVector2D(R,0).GetRotated(-R/M.Radius*900.f);
+            Checks++;
+            const FVector Floor=GetActorLocation()+FVector(P,SurfaceHeight(P));
+            FHitResult Support;
+            if(!GetWorld()->LineTraceSingleByChannel(Support,Floor+FVector(0,0,400),Floor-FVector(0,0,600),ECC_Visibility)
+                || FMath::Abs(Support.ImpactPoint.Z-Floor.Z)>2.f || Support.ImpactNormal.Z<.72f) {
+                Failures++;
+                if(Failures<=12) UE_LOG(LogTemp,Warning,TEXT("Mountain support at %s delta %.2f normal %.2f component %s"),*Floor.ToString(),Support.ImpactPoint.Z-Floor.Z,Support.ImpactNormal.Z,*GetNameSafe(Support.GetComponent()));
+                if(Failures<=12 && Support.GetComponent()) UE_LOG(LogTemp,Warning,TEXT("Blocker location %s tags %s"),*Support.GetComponent()->GetComponentLocation().ToString(),*FString::JoinBy(Support.GetComponent()->ComponentTags,TEXT(","),[](FName N){return N.ToString();}));
+            }
+            if(CoastDistance(P)>0 || Slope(P)>.8f) Failures++;
+            if(I>0 && FMath::Abs(SurfaceHeight(P)-SurfaceHeight(Last))>FVector2D::Distance(P,Last)*.8f+1.f) Failures++;
+            Last=P;
+        }
+    }
+    Report=FString::Printf(TEXT("MOUNTAIN ROUTES: %d peaks, %d supported slope samples, %d failures"),Peaks,Checks,Failures);
+    return Peaks>0 && Failures==0;
 }

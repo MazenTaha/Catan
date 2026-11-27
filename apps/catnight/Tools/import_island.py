@@ -100,12 +100,17 @@ foam=node(unreal.MaterialExpressionOneMinus,-800,-300); link(near,foam,'')
 colour=blend(blend(shallow,middle,mid,-600,-600),far,deep,-400,-500)
 colour=blend(colour,white,foam,-200,-400)
 assert mel.connect_material_property(colour,'',unreal.MaterialProperty.MP_BASE_COLOR)
-clear=node(unreal.MaterialExpressionConstant,-600,100,r=0.45)
-solid=node(unreal.MaterialExpressionConstant,-600,200,r=0.94)
+clear=node(unreal.MaterialExpressionConstant,-600,100,r=0.82)
+solid=node(unreal.MaterialExpressionConstant,-600,200,r=0.96)
 opacity=node(unreal.MaterialExpressionMax,-200,100); link(blend(clear,solid,mid,-400,100),opacity,'A'); link(foam,opacity,'B')
 assert mel.connect_material_property(opacity,'',unreal.MaterialProperty.MP_OPACITY)
-assert mel.connect_material_property(helpers['scalar'](sea,'Roughness',.05,-200,300),'',unreal.MaterialProperty.MP_ROUGHNESS)
-assert mel.connect_material_property(helpers['scalar'](sea,'Specular',.5,-200,400),'',unreal.MaterialProperty.MP_SPECULAR)
+assert mel.connect_material_property(helpers['scalar'](sea,'Roughness',.28,-200,300),'',unreal.MaterialProperty.MP_ROUGHNESS)
+assert mel.connect_material_property(helpers['scalar'](sea,'Specular',.35,-200,400),'',unreal.MaterialProperty.MP_SPECULAR)
+# A small blue ambient term keeps glancing water readable when reflection captures are dark.
+water_fill=node(unreal.MaterialExpressionMultiply,-100,650,const_b=1200.0)
+link(colour,water_fill,'A')
+assert mel.connect_material_property(water_fill,'',unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+helpers['water_ripples'](sea)
 mel.recompile_material(sea); assets.save_loaded_asset(sea)
 
 # Ground cover (grass, flowers, wheat, shrubs): the board's M_Model / M_ModelMasked graph plus a
@@ -142,7 +147,16 @@ def cover(name,build):
     here=add(unreal.MaterialExpressionWorldPosition,-750,850)
     inward=add(unreal.MaterialExpressionSubtract,-450,900); wire(pivot,inward,'A'); wire(here,inward,'B')
     offset=add(unreal.MaterialExpressionMultiply,-300,950); wire(inward,offset,'A'); wire(shrink,offset,'B')
-    assert mel.connect_material_property(offset,'',unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET), f'{name}: offset is not connected'
+    # Rooted wind: the sway grows with height above the mesh's own base, so roots stay put.
+    time=add(unreal.MaterialExpressionTime,-900,1350)
+    local=add(unreal.MaterialExpressionPreSkinnedPosition,-900,1450)
+    strength=helpers['scalar'](mat,'WindStrength',5.0,-900,1550)
+    wind=add(unreal.MaterialExpressionCustom,-600,1400,output_type=unreal.CustomMaterialOutputType.CMOT_FLOAT3,
+        code='float w=saturate(L.z/100.0); float a=sin(P.x*.0017+P.y*.0023+T*1.4); float b=sin(P.y*.002-T*.9); return float3(a,b*.5,0)*S*w;',
+        inputs=[helpers['custom_input'](n) for n in ('P','L','T','S')])
+    wire(pivot,wind,'P'); wire(local,wind,'L'); wire(time,wind,'T'); wire(strength,wind,'S')
+    moved=add(unreal.MaterialExpressionAdd,-150,1000); wire(offset,moved,'A'); wire(wind,moved,'B')
+    assert mel.connect_material_property(moved,'',unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET), f'{name}: offset is not connected'
     # Blades, stalks and leaves are single sheets: lit as plain two-sided surfaces their far side
     # faced away from sun and sky and turned black (half of every wheat field). Foliage shading
     # lets the light through instead, the way thin leaves glow against the sun.
@@ -150,12 +164,15 @@ def cover(name,build):
     mat.set_editor_property('shading_model',foliage)
     paint=mel.get_material_property_input_node(mat,unreal.MaterialProperty.MP_BASE_COLOR)
     assert paint, f'{name}: base colour is not connected'
-    through=add(unreal.MaterialExpressionMultiply,-200,700,const_b=0.75); wire(paint,through,'A')
+    transmission=helpers['scalar'](mat,'LeafTransmission',.6,-500,700)
+    through=add(unreal.MaterialExpressionMultiply,-200,700); wire(paint,through,'A'); wire(transmission,through,'B')
     assert mel.connect_material_property(through,'',unreal.MaterialProperty.MP_SUBSURFACE_COLOR), f'{name}: subsurface colour is not connected'
+    assert mel.connect_material_property(helpers['scalar'](mat,'LeafDensity',.6,-200,800),'',unreal.MaterialProperty.MP_OPACITY), f'{name}: leaf density is not connected'
     mat.set_editor_property('used_with_instanced_static_meshes',True)
     mel.recompile_material(mat); assets.save_loaded_asset(mat)
 cover('M_IslandCover',helpers['model'])
 cover('M_IslandCoverMasked',helpers['model_masked'])
+runpy.run_path(str(project/'Tools/living_world_materials.py'),init_globals={'helpers':helpers})
 assets.save_directory(root+'/Meshes',only_if_is_dirty=False,recursive=True)
 assets.save_directory(root+'/Materials',only_if_is_dirty=False,recursive=True)
 review=root+'/Review/IslandPreview'

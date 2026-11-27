@@ -8,14 +8,14 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
 4. **Muted text and venom tokens lifted slightly** (`#a09986`, `#6fa058`) from the brief's `#9a937f` / `#5f8f4a` so small text passes WCAG AA on surface-2.
 5. **Fonts**: Cinzel, Cinzel Decorative and Crimson Pro, self-hosted through `@fontsource` (OFL).
 6. **RNG lives in `GameState.rng`.** `applyAction(state, action)` takes no RNG argument; it reads the serialized mulberry32 state from `state` and writes the advanced state back. This makes `seed + action log` sufficient for exact replay and keeps the reducer signature simple for a future server.
-7. **Hot-seat hand-off is modelled in the engine** (`state.handoff`, `state.viewer`, `AckPassDevice`). Whenever the seat that must act is a *different human* from the one holding the device, every action except `AckPassDevice` (and the active player's `CancelTrade`) is rejected. Because it is engine state, reloading a saved game can never flash the wrong hand. Privacy defaults on when ≥ 2 humans and can be turned off in Settings ("Open hands").
+7. **Hot-seat hand-off is modelled in the engine** (`state.handoff`, `state.viewer`, `AckPassDevice`). Whenever the seat that must act is a _different human_ from the one holding the device, every action except `AckPassDevice` (and the active player's `CancelTrade`) is rejected. Because it is engine state, reloading a saved game can never flash the wrong hand. Privacy defaults on when ≥ 2 humans and can be turned off in Settings ("Open hands").
 8. **Stealing:** players with empty hands are not steal candidates. A single candidate is robbed automatically (no extra click); several candidates open the `steal` phase.
 9. **Domestic trade flow:** an offer to "everyone" is answered seat by seat in turn order; the first acceptance executes atomically. A counter-offer replaces the open offer and goes back to the other party (remaining targets of the original offer drop out). The active player may withdraw an offer at any time, including while the device is being passed.
 10. **Pathmaker's Decree** cannot be played with no legal causeway spot or no supply; it ends early when no spot/supply remains (so "only 1 legal spot" places 1).
 11. **Harvest Pact** takes `min(2, bank total)` cards, each limited by bank stock.
-12. **Victory** is checked after every action for the *current* player, which includes the moment their turn starts (e.g. Longest Causeway gained off-turn wins at the start of their own turn).
+12. **Victory** is checked after every action for the _current_ player, which includes the moment their turn starts (e.g. Longest Causeway gained off-turn wins at the start of their own turn).
 13. **Undo** is limited to placement, building and bank trades by the same seat, and only while no randomness was consumed and nothing hidden was revealed. Rolls, steals, Omen draws/plays, domestic trades and End turn clear the undo stack. The undo stack is in memory (not autosaved).
-14. **Longest Causeway:** a trail may *end* at a vertex holding an opponent's building but cannot pass through it. Ties and transfers follow the brief exactly; computed by exhaustive edge-DFS (handles branches and cycles).
+14. **Longest Causeway:** a trail may _end_ at a vertex holding an opponent's building but cannot pass through it. Ties and transfers follow the brief exactly; computed by exhaustive edge-DFS (handles branches and cycles).
 15. **Production events** list only hexes that actually paid (after the shortage rule) so the gold rim never lies.
 16. **Bots** derive their randomness from the game state, so the same position always yields the same decision. Bots never counter-offer; they may propose at most one (Warlord) or two (Archdemon) domestic offers per turn (`state.offersThisTurn`). Archdemon estimates opponents' hands from public information only (hand sizes × expected yields).
 17. **Number tokens are click-through** so clicking a tile's number targets the tile (e.g. when moving the Wraith).
@@ -47,7 +47,6 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **3D walk** follows the same direction with the same renderer and controls: golden-hour sky and warm haze instead of indigo/rose, warm sun with a cool fill and an olive ground bounce, softer toon bands, thin olive-charcoal outlines instead of plum, natural ground palettes, restrained wildflowers, rocky snow-capped peaks instead of karst pillars (also on the horizon), stones instead of cacti, iron-grey ore instead of neon cyan, cream clouds and a charcoal robber.
     - Performance rules from #22–23 are unchanged: everything new is static and painted once; motion is still opacity/transform on whole small layers and stops in Lite and reduced motion.
 
-
 30. **A living medieval countryside, and a rebuilt 3D walk** (refines #29: same light, livelier colour).
     - **2D board:** each terrain was retuned on its own with clear light, middle and shadow values instead of one muted, olive-leaning palette:
       - spring-green meadows and varied, cooler forest canopies;
@@ -57,17 +56,20 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
       - pale honey sand.
 
       The grain overlay is neutral grey instead of brown, and the sunlight washes are lighter. The broad blurred turquoise halo around the island became a narrow, lightly blurred shelf of shallows on a clearer blue sea. Settlements, cities and roads have a thin dark outline around the whole piece, so player colours separate from any terrain, white pieces on wheat included.
+
     - **3D renderer:** the cel-shaded toon materials and the ink-outline pass (which drew the whole scene a second time) were replaced by physically based materials with a finish per material:
       - rough foliage, cloth and plaster;
       - slightly glossier timber and stone;
       - controlled metal on small parts.
 
       Lighting is a late-afternoon sun (about 30° up) plus image-based fill from a small generated sky (PMREM), with a deliberately neutral, less blue fill so shade keeps its colour. Neutral tone mapping keeps saturated colours, and light haze leaves the island clear. Shadows: one 2048 px map covering 80 m around the walker, snapped to texels so edges don't crawl. Wheat, grass and flowers receive shadows but don't cast them.
+
     - **Ground:** each tile is now a shaped, vertex-coloured surface (`components/world/terrain.ts`) over a neutral detail texture:
       - pastures roll, hills mound, dunes ripple, fields stay flat;
       - paths are worn in, clay pits are stepped, and there is scree with alpine grass.
 
       Heights are zero along tile edges, where roads and settlements stand, calm at the centre sign, and flattened under props, so placement never depends on the mesh. The walker's eye follows the ground, smoothed, and the head bob was removed.
+
     - **Water:** a single sea plane coloured in the shader by distance to the island: pale turquoise over the sand, a blue-green shelf, then deep blue, reflecting the sky. A narrow sand ring and soft foam make the shore.
     - **Wheat** (`wheat.ts`):
       - each clump is five stalks, each with a stem, two leaves and a kernel head with awns (about 90 triangles a stalk), plus a 6-triangle far version;
@@ -75,6 +77,7 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
       - instancing is in 7 m cells that swap between near and far detail by distance.
 
       Wind runs in the vertex shader (gust envelope, travelling wave, per-stalk flutter, bending more toward the tips) in one world direction. It stops under reduced motion and in Lite.
+
     - **Biomes and pieces:**
       - **Mountains and hills** are angular rock masses in strata (`makeCrag`), with grass on the ledges and snow above a line; hills get flat-topped clay banks.
       - **Trees** are lumpy broadleaves and star-rimmed conifers of varied size, in groves with undergrowth.
@@ -84,13 +87,14 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
       - **The barn** became a thatched timber byre.
     - **Performance (Intel UHD, Full, same views):** the main reductions were the static props across the whole island merged into one mesh per finish (colour carried as vertex colour), sheep parts merged, no outline pass, a cheap chamfered box instead of `RoundedBoxGeometry`, and shaders compiled in parallel before the first frame.
 
-      | | Before | After |
-      |---|---|---|
-      | Frame rate | 27–60 fps | 60 fps |
-      | Draw calls per frame | up to 3,100 | 200–700 |
-      | Opening the walk | 1.5–2 s | 2.4–2.9 s (much more content) |
+      |                      | Before      | After                         |
+      | -------------------- | ----------- | ----------------------------- |
+      | Frame rate           | 27–60 fps   | 60 fps                        |
+      | Draw calls per frame | up to 3,100 | 200–700                       |
+      | Opening the walk     | 1.5–2 s     | 2.4–2.9 s (much more content) |
 
       A world disposed while its shaders are still linking releases them only afterwards: deleting them mid-link made the driver log errors under React's dev double-mount.
+
     - **Blender-ready slots** (`assets.ts`, `docs/BLENDER_ASSET_PIPELINE.md`): trees, wheat (near and far), rocks, sheep, settlements, cities, docks, boats and windmills are typed slots. Each draws its procedural model unless a local GLB is listed in `ASSET_FILES` (empty by default, so nothing is requested). A listed GLB is loaded once per page and swapped in at the same placements; a material named `Owner…` is tinted in the player's colour. A missing or broken file keeps the procedural model, with one warning. Collision comes from each slot's footprint, never from the mesh.
 
 31. **Blender-made models for the 3D walk** (owner's request; supersedes "all art drawn in code" for the walk's models and textures, refines #29–30). The walk is now built from original models generated by Blender scripts, with every procedural model kept as a fallback.
@@ -103,29 +107,30 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **Performance measures, each measured:** (a) **depth pre-pass** for leaf cards and the near wheat, so the lit pass shades one leaf or stalk per pixel (forest 24 → 18 ms GPU; near wheat 4 → 1.75 ms); alpha to coverage is off because the passes must agree on coverage; (b) fewer, larger leaf cards; (c) far horizon crags don't cast or receive shadows; (d) **shadow map redrawn only when needed:** when its box moves (in 100-texel steps), when pieces change, and every third frame for moving casters. The ~30 sheep alone are ~200 shadow draw calls, and redrawing everything each frame held the wheat view to ~44 fps; (e) opaque atlases ship as JPEG (download 8.6 → 3.9 MB).
     - **Measured** with `LOOK=1 pnpm e2e look3d` (Intel UHD, Full, 1440 × 900, same seed and viewpoints, original code measured back to back). GPU ms is the per-frame time of back-to-back renders, each forced to finish and redrawing shadows (worst case); it reads high in absolute terms but compares well.
 
-      | View | GPU ms before → after | Triangles | Draw calls | Frame rate before → after |
-      |---|---|---|---|---|
-      | Inside the wheat | 26.0 → 20.5 | 1,174k → 1,088k* | 536 → 461 | 60 → 60 |
-      | Forest edge | 23.9 → 18.0 | 1,023k → 759k | 733 → 585 | 60 → 60 |
-      | Forest clearing | 21.6 → 17.8 | 941k → 711k | 610 → 506 | 60 → 60 |
-      | Mountains | 15.9 → 13.0 | 660k → 469k | 300 → 313 | 60 → 60 |
-      | Hills | 15.3 → 12.4 | 708k → 508k | 362 → 379 | 60 → 60 |
-      | Pasture | 17.2 → 15.5 | 794k → 643k | 437 → 442 | 60 → 60 |
-      | Desert | 20.0 → 17.0 | 967k → 633k | 728 → 621 | 60 → 60 |
-      | Settlement | 14.1 → 13.7 | 697k → 491k | 338 → 347 | 60 → 60 |
-      | City | 18.4 → 16.8 | 784k → 695k | 426 → 455 | 60 → 60 |
-      | Dock | 13.1 → 12.2 | 641k → 419k | 270 → 295 | 60 → 60 |
-      | Elevated | 25.5 → 20.8 | 1,019k → 742k | 734 → 493 | 55 → 60 |
+      | View             | GPU ms before → after | Triangles        | Draw calls | Frame rate before → after |
+      | ---------------- | --------------------- | ---------------- | ---------- | ------------------------- |
+      | Inside the wheat | 26.0 → 20.5           | 1,174k → 1,088k* | 536 → 461  | 60 → 60                   |
+      | Forest edge      | 23.9 → 18.0           | 1,023k → 759k    | 733 → 585  | 60 → 60                   |
+      | Forest clearing  | 21.6 → 17.8           | 941k → 711k      | 610 → 506  | 60 → 60                   |
+      | Mountains        | 15.9 → 13.0           | 660k → 469k      | 300 → 313  | 60 → 60                   |
+      | Hills            | 15.3 → 12.4           | 708k → 508k      | 362 → 379  | 60 → 60                   |
+      | Pasture          | 17.2 → 15.5           | 794k → 643k      | 437 → 442  | 60 → 60                   |
+      | Desert           | 20.0 → 17.0           | 967k → 633k      | 728 → 621  | 60 → 60                   |
+      | Settlement       | 14.1 → 13.7           | 697k → 491k      | 338 → 347  | 60 → 60                   |
+      | City             | 18.4 → 16.8           | 784k → 695k      | 426 → 455  | 60 → 60                   |
+      | Dock             | 13.1 → 12.2           | 641k → 419k      | 270 → 295  | 60 → 60                   |
+      | Elevated         | 25.5 → 20.8           | 1,019k → 742k    | 734 → 493  | 55 → 60                   |
 
       \* Counts the near wheat twice: once in its depth pre-pass.
 
       Opening the walk: 1.7 s → 1.4 s (local server, models included). Geometries in memory 533 → 93. Lite: 60 fps in every view, 6.5–11.9 ms. Walking and running through the wheat hold 60 fps. Frame rates on this laptop drift with heat; compare GPU ms.
+
     - **2D board unchanged.** Orthographic renders of the Blender pieces were tried at board scale: at ~25 px they turn into dark blobs, would need a render per player colour, and blur under the board's zoom, while the SVG pieces already share the models' silhouettes. Not integrated.
 32. **Browser performance pass and benchmark** (full report: `docs/BROWSER_PERFORMANCE_REPORT.md`). Before a desktop version, the browser build was measured properly and its bottlenecks removed without changing the look.
     - **A real benchmark** (`pnpm bench`): a production build with inspection hooks (`VITE_PERF=1`; normal builds leave them out), fixed saved games from a fixed seed, a scripted 200 m walk, eleven viewpoints, a late-game board, 20 enter/leave cycles, soaks and 2D probes. It reports frame intervals, main-thread time and GPU time per frame from async timer queries (shadow and camera passes apart; disjoint results dropped; nothing waits on the GPU), draw calls and long tasks. Before/after runs alternate between the old and new builds; single changes get interleaved in-page A/B. The old forced-completion number survives only as a labelled synthetic option.
     - **Equal-quality changes** (pixel diff of every viewpoint: identical except a few foam pixels): sky drawn last and sea after the land, so depth testing skips covered pixels; shore distance precomputed into a texture instead of a 19-tile loop per sea pixel; trees, shrubs, rocks, crags and stooks instanced per tile so the camera culls them; static matrices frozen after building; sheep instanced per pasture (≈ 220 → ≤ 28 draws per pass); the environment's PMREM shaders compiled in parallel with the rest (main-thread freeze on opening the walk ~0.8 → ~0.3 s); the robber and one of each piece in the shader precompile (no first-sight hitch); the WebGL context released when the walk closes (Chrome warned past 16 visits). Intel UHD: GPU time per frame −15 to −35% in every view, missed frames ~0 in reachable views. RTX 4050 (far from its limits): unchanged within noise. Main thread: unchanged on the RTX 4050 even at 4 × CPU throttling, where a CPU that slow, not the GPU, is the limit.
     - **Measured and kept:** the depth pre-pass (leaves save ~4 ms in forests, wheat ~1 ms in fields). **Measured and dropped:** a cached static shadow map with only moving casters redrawn (no GPU gain, slower on the RTX 4050 because of the depth copy), skipping shadow redraws with no mover in the box (never triggers), a no-op matrix update override (no gain).
-    - **New, quality-reducing and optional:** a *3D resolution* setting (100/75/50 %, canvas only, UI stays sharp) and adaptive resolution under *Auto* (2 s windows, >10 % late frames steps down, 10 s on time steps up, a failed level is barred for 60 s; the Auto → Lite fallback waits until it has reached its lowest step). Full and fixed settings never adapt, so equal-quality measurements stay fixed.
+    - **New, quality-reducing and optional:** a _3D resolution_ setting (100/75/50 %, canvas only, UI stays sharp) and adaptive resolution under _Auto_ (2 s windows, >10 % late frames steps down, 10 s on time steps up, a failed level is barred for 60 s; the Auto → Lite fallback waits until it has reached its lowest step). Full and fixed settings never adapt, so equal-quality measurements stay fixed.
     - **Stress presets** (dev and benchmark builds, `?stress=density:2,distance:2,sheep:4,scale:1.5,pieces:all`, seeded decorative placement, nothing saved) found the tested ceilings: the Intel UHD at 1440 × 900 carries one of 1.5 × vegetation, 2 × view distance, 8 × sheep or a full board, not two; the RTX 4050 carries every cap at once.
     - **2D board unchanged:** 60 fps with no long tasks in every probe at normal CPU speed.
     - Wallpaper Engine on the owner's PC took ~43 % of the Intel GPU at idle; the earlier GPU numbers in #31 were probably taken with it running.
@@ -139,11 +144,11 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **Fixed on the way**: each world now gets a fresh canvas. #32's `forceContextLoss` on close otherwise left a reused canvas without a context when the world was rebuilt in place (a graphics or reduce-motion change inside the walk), which showed "3D view unavailable"; `e2e/buildings.spec.ts` now covers it.
     - **Measured** (`pnpm bench`, both GPUs, same seed/route/views as before): GPU time unchanged within noise; draws +3–10 %, shadow draws +10–25 %; +0.4 MB download; every reachable prototype view holds 60 Hz on the Intel UHD (GPU p95 ≤ 15 ms), RTX 4050 p95 ≤ 7.5 ms. Development scenario: `?scene=village`.
 34. **Game screen and walk details** (2026-10-26):
-    - **Layout**: the top bar spans only the columns left of the hand, so the hand and actions run from the top of the window. *New game* left the bar; a **leave game** icon ends the icon group and opens one dialog (main menu first, then new game or restart; online games keep their own). The board is sized from the height actually left under it, and the 3D walk fills the whole centre width.
-    - **Walk buttons**: *Board* and *Controls* were removed. Esc and the 2D/3D switch return to the board, and the controls help still shows on entry. *Next land* stays.
+    - **Layout**: the top bar spans only the columns left of the hand, so the hand and actions run from the top of the window. _New game_ left the bar; a **leave game** icon ends the icon group and opens one dialog (main menu first, then new game or restart; online games keep their own). The board is sized from the height actually left under it, and the 3D walk fills the whole centre width.
+    - **Walk buttons**: _Board_ and _Controls_ were removed. Esc and the 2D/3D switch return to the board, and the controls help still shows on entry. _Next land_ stays.
     - **Number signs**: the billboard sprite became a lit signpost: a round plaque with the number on both faces (engraved ivory in a nailed walnut bezel, two iron hoops), a squared post and a stone footing. It faces the tile's footpath in and leans slightly, fixed per tile; the HUD tile card keeps the number readable from any side.
     - **Log pile**: six logs of mixed girth in a 3-2-1 stack with staggered ends, bark and end-grain textures (canvas-painted, one of each per world), stakes and chips. The stump top uses the same end grain.
-35. **Side rails hold everything but the board** (2026-10-26, owner's request): on wide screens there is no top bar. The left rail holds a compact title block (logo, round, first-to), Claims, a *Turn* panel and Recent; the right rail opens with the toolbar (undo, log, rules, sound, settings, leave) above the hand. The *Turn* panel shows only the player playing and the one next up; everyone else's totals are in the log and on the board. The board gets the whole centre column at full height. Between 900 and 1280 px the title block and Turn sit above the board and the toolbar above the hand; below 900 px one bar holds title and toolbar.
+35. **Side rails hold everything but the board** (2026-10-26, owner's request): on wide screens there is no top bar. The left rail holds a compact title block (logo, round, first-to), Claims, a _Turn_ panel and Recent; the right rail opens with the toolbar (undo, log, rules, sound, settings, leave) above the hand. The _Turn_ panel shows only the player playing and the one next up; everyone else's totals are in the log and on the board. The board gets the whole centre column at full height. Between 900 and 1280 px the title block and Turn sit above the board and the toolbar above the hand; below 900 px one bar holds title and toolbar.
 36. **Harbors, boats and the sea on the 2D board** (2026-10-26, `components/board/Scenery.tsx`):
     - **Docks**: each harbor is a timber landing stage parallel to the shore, reached by two short ramps from exactly the edge's two coastal corners (the vertices the harbor serves; topology, ratios and targets unchanged). Planks, edge beams, sunlit edges toward the upper left, posts, a barrel and crate, and one shared offset contact shadow. The badge sits at the stage's seaward edge, where it was.
     - **Boats**: three original medieval traders (a cog with aftcastle and square sail, a fore-and-aft rig with boom and jib, a striped square sail), seen a little from above so the deck shows, moored to the stage's end post. The berth is the nearest spot beside a stage end where every sampled point of the boat clears the beach, badge, timber and board edge (`dockLayout`), so boats never cover trade information or leave the view.
@@ -206,7 +211,7 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **Imports.** Imports convert scene units (Blender metres → Unreal centimetres; the first import was 100× too small). A reused import must have a saved skeleton; the first import's clips had none.
     - **Lid sign.** Chest lid and latch keys use Unreal roll with the Blender sign. The FBX import mirrors Y, so the earlier negation would have swung the lid down through the chest.
     - **Presentation fixes.** The partner turns on yaw only. Reduced motion is a viewer preference applied to every practice character, so partner sparks no longer survive it. Sparks have the instanced-mesh material flag (they rendered grey). The follow camera is 3.6 m back and 1 m right, so a partner 2 m ahead stays visible. HUD text has translucent backing and states that the scene has no inventory, rewards, board rules or online play.
-    - **Validation.** `validate_animation_preview.py` drives real key events through the player controller (`SimulatePracticeKey`, automation only) across four Play sessions. Sound is checked by the mixer-rendered envelope of every voice (`StartedCues`/`RenderedCues`) rather than an output recording: on this machine the mixer recorder produced time-compressed files. It relaxes background audio and CPU throttling in memory only while it runs, with `PropertyAccessChangeNotifyMode.NEVER`. A plain `set_editor_property` fires PostEditChange, which saved *Allow Background Audio* into the owner's editor settings during development; that was restored to the default.
+    - **Validation.** `validate_animation_preview.py` drives real key events through the player controller (`SimulatePracticeKey`, automation only) across four Play sessions. Sound is checked by the mixer-rendered envelope of every voice (`StartedCues`/`RenderedCues`) rather than an output recording: on this machine the mixer recorder produced time-compressed files. It relaxes background audio and CPU throttling in memory only while it runs, with `PropertyAccessChangeNotifyMode.NEVER`. A plain `set_editor_property` fires PostEditChange, which saved _Allow Background Audio_ into the owner's editor settings during development; that was restored to the default.
     - **Performance.** `measure_animation_performance.py` gives a short CsvProfiler comparison in the editor. Alternated runs at the same spawn hold the 60 fps cap; the exchange adds about 0.4–0.7 ms GPU and 1 ms game thread on average. This is an editor measurement, not a packaged budget.
     - **Committed.** The validated imports and `Island_Animations_20261119_231733` are committed with the record and screenshots in `apps/unreal/validation`. Inventory, rewards, board rules and multiplayer remain unported; reveal/contact remain requests for a future authoritative system.
 
@@ -247,7 +252,6 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
 
     - **Production cost.** The final Intel UHD Full/scale-1 entry and eleven-viewpoint benchmark records entry CPU p50 3.2 ms and GPU p50 11.6 ms; forest edge/clearing CPU p50 3.6/3.3 ms and GPU p50 13.1/13.5 ms. The elevated view remains GPU-limited (17.6 ms p50, about 40 fps). These are short samples with the new 2D interface, not a controlled before/after comparison or a frame-rate guarantee. Adaptive resolution remains available. The final `pnpm verify` passes, and generated game files match between the build, UE project and packaged Windows app.
     - **Windows app.** The packaged app was restarted after staging, the existing save resumed through Continue, and the updated 3D map visually checked and left open.
-
 
 56. **Redesigned knight, horse and sheep (2026-11-20).** The owner asked for a much stronger visual upgrade of all three creatures in the app. This changes original Blender geometry and GLBs used by the shared live island, including the Windows Unreal host.
     - **Visual system.** Shaped, faceted steel plate and restrained brass contrast with navy cloth, warm leather, owner-coloured heraldry and ivory fleece. The knight has a vaulted visor helm with a dark sight band, comb and volumetric plume; angular layered shoulders, fuller articulated limbs, a raised breastplate sun and split embroidered coat panels replace the bucket-and-rounded-cap silhouette. The previous longer capes remain, with matte embroidered borders. All helm, outfit and cape profile choices remain available.
@@ -303,8 +307,8 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **Timing.** Short production Intel D3D11 Full-effects entry/wheat/forest/pasture/settlement probes record median main-thread times of 5.2–7.5 ms and GPU times of 9.4–23.1 ms, with no sampled post-entry long tasks. The first walk opens in about 2.9 s in this run. Dense crop vistas remain the heaviest view on the integrated GPU; these desktop-load samples are diagnostics, not a universal frame-rate or controlled improvement claim. Before/intermediate/final reports are retained in `design/island-redesign`.
     - **Windows release.** All 113 files match the verified production build and staged Unreal project/package, including the new supplies and regenerated gate asset. Continued the existing four-player founding table and opened the enlarged island in the packaged Windows app. Island/nearby minimap switching displays the new route network correctly; the saved table is preserved and the island is left open with mouse capture released. `design/island-redesign/validation.json`, `package-validation.json` and `windows-app.jpg` record the release review.
 
-64. **Catnight: rebuild the game natively in Unreal for Steam (2026-11-21).** The owner wants the whole game in Unreal, without the browser inside it, to sell on Steam, under the working title *Catnight*. Plan: `docs/UNREAL_NATIVE_PLAN.md`.
-    - **Name gate first.** *Catnight* is already a Steam game (a shooter by Rubber Croc, app 1779070), and "Catan" is a trademark the fan project only used privately. No store page, trailer or playtest until a free name, original terms and a legal review are settled. Engine keys are already original, so terms change in display text only.
+64. **Catnight: rebuild the game natively in Unreal for Steam (2026-11-21).** The owner wants the whole game in Unreal, without the browser inside it, to sell on Steam, under the working title _Catnight_. Plan: `docs/UNREAL_NATIVE_PLAN.md`.
+    - **Name gate first.** _Catnight_ is already a Steam game (a shooter by Rubber Croc, app 1779070), and "Catan" is a trademark the fan project only used privately. No store page, trailer or playtest until a free name, original terms and a legal review are settled. Engine keys are already original, so terms change in display text only.
     - **Rules ported to C++, proven against TypeScript.** A plain C++20 rules library (`CatnightRules`) mirrors `packages/engine`, including the mulberry32 RNG and every ordering the TypeScript relies on. Recorded games from the TypeScript engine are replayed in C++ and compared after every action; the bots must choose the same moves. Rule changes in TypeScript freeze once the port starts, except fixes made in both.
     - **Steam online with the host as referee.** A listen server with Steam lobbies and invites replaces the Node server; hidden hands and deck order never replicate to other clients.
     - **New project, old ones kept.** `apps/catnight` starts clean with Git LFS; `apps/unreal`, the web game and the browser wrapper stay working until the Unreal game replaces them, then the web code is tagged and retired.
@@ -359,3 +363,11 @@ Decisions made where the brief was silent or ambiguous. Newest at the bottom.
     - **Frame rate settings.** The table's root widget applied the frame-rate setting only while visible; entering the walk now applies it too. "Up to 60" was a 60 fps limiter on top of vsync, which on a 60 Hz panel alternated 16 and 33 ms frames (46 fps); with vsync, caps are whole vblank intervals (`rhi.SyncInterval`: 60 at 60/120 Hz, 72 at 144 Hz).
     - **Entry.** The first half second builds distance fields and shadows for the new scenery; the walk rises out of black over 0.8 s and collects the table's garbage under the fade (the engine's 61 s timer otherwise landed a few seconds into the walk as a 40–80 ms hitch).
     - **Result.** Five 30–40 s tours at 60 Hz vsync (meadow, wheat, forest, hills): 60.0 fps, GPU p99 6.5–6.7 ms, no hitch from the game. Remaining spikes came from other GPU users (Wallpaper Engine) and the probe itself. The owner's panel was set to 60 Hz in Windows although it supports 144 Hz.
+
+75. **Natural locomotion and readable native presentation (2026-11-27).** Apply the owner's request to Catnight's native Unreal table and island. Keep the medieval original artwork and Hall & Chart components while replacing match flags with stationary player cards, removing the instruction ribbon and physical dice/tray, scaling the UI from actual window geometry and bounding the log. Cache the last accepted DiceRolled event in the match presentation layer; rebuild it during replay and display both faces plus total on the table, island HUD and log without changing rules, RNG or record format.
+    - Rebuild original Blender knight/horse loops with reach-driven pelvis/body height, matched stride cadence, restrained cape motion, subdivided horse geometry and smooth joint weights. Walking/running/crouching and mounted walking/galloping are 1.6/5.5/0.85 and 2/7 m/s. Native knight foot IK copies ground traces on the game thread and solves transforms on the animation worker; skip mounted poses so saddle and reins remain authoritative. Tighten imported animation compression to preserve the long cape chain's loop seam.
+    - Make mountain relief the rendered collision surface, bound neighboring grid heights and reserve marked summit switchbacks against actual solid footprints. Preserve trail/building-site clearance and deterministic scattering. Retain the original varied woodland instead of importing commercial asset packs.
+    - Generate rooted foliage wind, drifting cloud and rippled-water material graphs reproducibly. Reduce acrylic-like transparency/glare, preserve depth/shore foam, use warm key and cool fill light, and connect miniature roads and supported timber harbor landings to the island. These are stylized medieval movement and lighting improvements inspired by the requested feel, not copied Fortnite models or animations.
+    - Merged after #74: plant wind and leaf transmission joined `M_IslandCover(Masked)` (distance shrink, foliage shading) so every plant has one material; `living_world_materials.py` keeps the cloud sky.
+
+76. **Table light with mood, friendly water, forest stands and hoof IK (2026-11-27).** Follow-up to #75 against the owner's list. Table: by day a warm key over a cooler, weaker sky light (warm lit faces, blue shade), exposure keyed per hour (noon a little darker, low sun a little brighter), "Always day" at 16.7 h for long golden shadows, a vignette, stronger ambient occlusion, contact shadows on the sun and split toning. The table sea (`M_Water`) drops the fine colour noise that read as carpet for a radial depth gradient (turquoise shallows round the island, deep blue toward the rim) with broad slow drift, larger crossing ripples and lower roughness for sun glints; colours are blue enough to stay water under warm light. Island: low golden sun, cooler sky light, warm directional haze, vignette and split toning; forest tiles grow in noise-chosen stands (conifer woods, oak groves with giant oaks and fallen logs, lime glades). Horse: per-hoof ground traces on the game thread and a two-bone solve (Upper, Cannon, Pastern) on the animation worker, keeping the animated bend plane; `test-heroes.ps1` adds a mounted ramp view (`ride-slope`). The native knight no longer wears a cape (owner's request): the cloth mesh, its four-bone chain and its posing are gone from `build_heroes.py`; the shared web rig is unchanged. Measured: island tours 60.0 fps at 60 Hz, GPU p99 about 6 ms, 163 fps uncapped.

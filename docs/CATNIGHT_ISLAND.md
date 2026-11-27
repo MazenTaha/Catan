@@ -171,3 +171,11 @@ and animated sheep, moving mill sails, crop wind, complete minimap modes, footst
 terrain IK, physical-controller acceptance, streaming/LOD refinement and Steam multiplayer remain.
 The board's existing construction/dice/production effects stay intact; historical builds appear
 settled when entering the walk.
+
+## Summit paths and living atmosphere (2026-11-27)
+
+Mountain shapes are the rendered collision terrain, with four directional relaxation passes bounding grid edge rise to 0.48 times the grid spacing. Marked switchback paths reach the crag summits; solid scenery tests clearance against their actual polylines, including the outer approach. The `Catnight.Island` automation checks 2,415 physical floor/slope samples across 15 peaks on the review seed, alongside the original 5,453 route samples and match preservation.
+
+`Tools/living_world_materials.py`, run by the island importer, generates root-pinned foliage wind and an original drifting-cloud sky. Water has depth color, shore foam and animated ripple normals with stronger opacity and less specular glare. A warmer key, cool fill and restrained distance fog keep the original painted models readable. These are generated local assets; the package preflight requires all living-world material masters. Knight feet and horse hooves are placed on the terrain (two-bone IK per leg; the horse's body already tilts to the smoothed slope, each hoof corrects for the ground under it). The other uncompleted island gameplay systems remain open.
+
+**Light and woods (2026-11-27).** The island's sun is low and golden (24°, warm) over a cooler, weaker sky light; haze glows warm toward the sun (directional inscattering) and stays blue away from it; a soft vignette, ambient occlusion and split toning (cool shade, warm light) replace the neutral grade. Forest tiles grow in stands chosen by broad noise: dark spruce and fir woods, oak groves with the odd giant old oak and fallen logs, and lime glades, using all seven tree models from the concept sheet instead of a fixed five-tree rotation.

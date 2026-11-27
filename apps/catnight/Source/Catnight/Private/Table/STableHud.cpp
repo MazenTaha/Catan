@@ -1,6 +1,7 @@
-// The table's Hall & Chart presentation (docs/CATNIGHT_UI_PLAN.md §5–8). The rules logic, the
+﻿// The table's Hall & Chart presentation (docs/CATNIGHT_UI_PLAN.md §5–8). The rules logic, the
 // board widget and the 3D board hookup stay in STable.cpp; this file only draws.
 #include "Table/STable.h"
+#include "Ui/SDiceResult.h"
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "CatnightRules/Rules.h"
@@ -28,8 +29,8 @@ namespace C = Hall::Color;
 namespace
 {
 	/** Widths of the Lists (top left) and the Herald (bottom left) over the island. */
-	constexpr float kListsWidth = 330.f;
-	constexpr float kHeraldWidth = 420.f;
+	constexpr float kListsWidth = 315.f;
+	constexpr float kHeraldWidth = 350.f;
 
 	PartialCounts Partial(const Counts& Cnt)
 	{
@@ -143,83 +144,11 @@ FString STable::Instruction() const
 
 TSharedRef<SWidget> STable::BuildHud()
 {
-	if (!Match->HasGame()) return SNullWidget::NullWidget;
-	// The Lists (top left) and the Herald (bottom left) take this much of the island's width.
-	const float ListsEdge = 26.f + kListsWidth + 14.f;
-	const float HeraldEdge = 26.f + kHeraldWidth + 14.f;
-	TWeakPtr<SBox> WeakHud = HudSlot;
-	auto HudWidth = [WeakHud]
-	{
-		const TSharedPtr<SBox> H = WeakHud.Pin();
-		return H ? static_cast<float>(H->GetCachedGeometry().GetLocalSize().X) : 0.f;
-	};
-	// Centred over the island when there is room; on narrow screens, centred in the space beside the
-	// Lists or the Herald, so nothing is drawn over them.
-	auto Beside = [HudWidth](TSharedRef<SWidget> W, float LeftEdge) -> TSharedRef<SWidget>
-	{
-		TWeakPtr<SWidget> Weak = W;
-		return SNew(SBox).Visibility(EVisibility::SelfHitTestInvisible)
-			.Padding_Lambda([Weak, HudWidth, LeftEdge]
-			{
-				const TSharedPtr<SWidget> Pin = Weak.Pin();
-				const float Avail = HudWidth();
-				if (!Pin || Avail <= 0.f) return FMargin(0);
-				const float Need = Pin->GetDesiredSize().X;
-				return FMargin(FMath::Clamp(2.f * LeftEdge + Need - Avail, 0.f, FMath::Max(0.f, Avail - Need)), 0, 0, 0);
-			})
-			[W];
-	};
-	// The room the instruction and hints have beside the Herald (they wrap or shrink to it).
-	auto BottomRoom = [HudWidth, HeraldEdge] { const float Avail = HudWidth(); return Avail > 0.f ? FMath::Max(320.f, Avail - HeraldEdge - 14.f) : 1200.f; };
-
-	TSharedRef<SVerticalBox> Bottom = SNew(SVerticalBox).Visibility(EVisibility::SelfHitTestInvisible);
-	if (!Match->LastError.IsEmpty())
-	{
-		Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 10)[Slip(Match->LastError, C::Rubric)];
-	}
-	Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center)[Ribbon(Instruction(), 25, 420.f, true)];
-	// Button prompts for the device in use (plan §4.5, §9): glyphs, not key names in the text.
-	TSharedRef<SWrapBox> Hints = SNew(SWrapBox).Visibility(EVisibility::HitTestInvisible).PreferredSize_Lambda(BottomRoom).HAlign(HAlign_Center).InnerSlotPadding(FVector2D(0, 4));
-	auto AddHint = [&Hints](Hall::EPrompt P, const FString& Label)
-	{
-		Hints->AddSlot().VAlign(VAlign_Center).Padding(FMargin(9, 0))[PromptHint(P, Label, 30.f)];
-	};
-	const bool bActing = Match->IsHumanToAct() && !Match->NeedsHandoff();
-	if (bActing && Targets->Kind != FBoardTargets::EKind::None)
-	{
-		AddHint(Hall::EPrompt::Cycle, TEXT("choose a spot"));
-		AddHint(Hall::EPrompt::Confirm, TEXT("place"));
-	}
-	const GameState& HS = Match->State();
-	if (bActing && HS.currentPlayer == Me() && (HS.phase.kind == PhaseKind::Roll || (HS.phase.kind == PhaseKind::Main && Build == EBuild::None)))
-	{
-		AddHint(Hall::EPrompt::Primary, HS.phase.kind == PhaseKind::Roll ? TEXT("roll") : TEXT("end turn"));
-	}
-	if (bActing && Build != EBuild::None) AddHint(Hall::EPrompt::Back, TEXT("cancel"));
-	if (View->b3D)
-	{
-		AddHint(Hall::EPrompt::Turn, TEXT("turn the table"));
-		AddHint(Hall::EPrompt::Zoom, TEXT("zoom"));
-	}
-	// On a soft dark plate so the prompts read over bright sea and meadows.
-	Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8, 0, 0)
-	[
-		SNew(SBorder).Visibility(EVisibility::HitTestInvisible)
-		.BorderImage([] { static const FSlateRoundedBoxBrush Plate(FLinearColor(0.02f, 0.015f, 0.01f, 0.66f), 16.f); return &Plate; }())
-		.Padding(FMargin(8, 5))
-		[Hints]
-	];
-
-	Bottom->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 0)[OnDark(CatnightText::InspectionHint(), 16, C::OnDarkMuted, true)];
-
-	return SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(26, 22, 0, 0))[ListsBox()]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0, 4, 0, 0))[Beside(BannersRow(), ListsEdge)]
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(26, 0, 0, 26))[HeraldBox()]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 22))
-		[
-			Beside(SNew(SBox).Visibility(EVisibility::SelfHitTestInvisible).MaxDesiredWidth_Lambda([BottomRoom] { return FOptionalSize(BottomRoom()); })[Bottom], HeraldEdge)
-		];
+    if (!Match->HasGame()) return SNullWidget::NullWidget;
+    return SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
+        + SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(18,18,0,0)[ListsBox()]
+        + SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(360,18,18,0)[BannersRow()]
+        + SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(18,0,0,18)[HeraldBox()];
 }
 
 TSharedRef<SWidget> STable::ListsBox()
@@ -274,7 +203,7 @@ TSharedRef<SWidget> STable::ListsBox()
 					]
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Meter(static_cast<float>(Lead) / S.config.targetVp, C::Gold)]
 				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)[Ink(CatnightText::DiceResult(S), 18)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)[SNew(SDiceResult).Match(Match)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[Rule()]
 				+ SVerticalBox::Slot().AutoHeight()[Claim(TEXT("Longest Road"), S.longestHolder, BestRoad, kLongestMin, TEXT("long"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)[Claim(TEXT("Largest Army"), S.hostHolder, BestArmy, kHostMin, TEXT("Knights"))],
@@ -284,39 +213,28 @@ TSharedRef<SWidget> STable::ListsBox()
 
 TSharedRef<SWidget> STable::BannersRow()
 {
-	const GameState& S = Match->State();
-	const float W = 104.f;
-	const float Gap = 38.f;
-	const int32 N = static_cast<int32>(S.players.size());
-	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
-	for (const PlayerState& P : S.players)
-	{
-		const bool bMine = P.id == Me() && !Match->NeedsHandoff();
-		const int32 Vp = VictoryPoints(S, P.id, bMine || Match->IsEnded());
-		FString Name = UTF8_TO_TCHAR(P.name.c_str());
-		if (P.id == Me() && Match->HumanCount() == 1 && Name != TEXT("You")) Name += TEXT(" · you");
-		FString Gloss = FString::Printf(TEXT("%d cards"), HandTotal(P));
-		if (!Match->IsEnded() && P.id == Match->Actor() && P.kind == SeatKind::Bot) Gloss = TEXT("thinking…");
-		Row->AddSlot().AutoWidth().Padding(FMargin(Gap * 0.5f, 0))
-		[
-			SNew(SBanner).Cloth(Hall::PlayerBannerName(P.color)).ArmsImage(Hall::ArmsName(P.color, P.sigil))
-			.Numeral(FString::FromInt(Vp)).Label(Name).LabelPx(19).Gloss(Gloss).Width(W)
-			.Lit(P.id == S.currentPlayer && !Match->IsEnded()).Seed(P.id * 1.7f)
-			.ToolTipText(FText::FromString(FString::Printf(TEXT("%s: %d points, %d cards, %d development cards, %d Knights, road %d"),
-				UTF8_TO_TCHAR(P.name.c_str()), Vp, HandTotal(P), static_cast<int32>(P.omens.size()), P.playedWardens,
-				P.id < static_cast<int32>(S.longestLengths.size()) ? S.longestLengths[P.id] : 0)))
-		];
-	}
-	const float PoleW = N * (W + Gap) + 70.f, PoleH = PoleW * 0.1f;
-	return SNew(SOverlay)
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top)[Picture(TEXT("ornaments/banner-pole-800"), PoleW, PoleH)]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, PoleH * 0.44f - W * 0.093f, 0, 0)[Row];
+    const GameState& S=Match->State();
+    TSharedRef<SHorizontalBox> Row=SNew(SHorizontalBox);
+    for(const PlayerState& P:S.players) {
+        const bool Mine=P.id==Me() && !Match->NeedsHandoff();
+        const int Vp=VictoryPoints(S,P.id,Mine || Match->IsEnded());
+        const bool Current=P.id==S.currentPlayer && !Match->IsEnded();
+        Row->AddSlot().FillWidth(1).Padding(3,0)[SNew(SBox).WidthOverride(122)
+            [Paper(SNew(SVerticalBox)
+                + SVerticalBox::Slot().AutoHeight()[SNew(SHorizontalBox)
+                    + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0,0,6,0)[ArmsOf(P,28)]
+                    + SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)[SNew(STextBlock).Text(FText::FromString(UTF8_TO_TCHAR(P.name.c_str()))).Font(Hall::Label(18)).ColorAndOpacity(C::Ink).OverflowPolicy(ETextOverflowPolicy::Ellipsis).ToolTipText(FText::FromString(UTF8_TO_TCHAR(P.name.c_str())))]
+                    + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[LabelText(FString::FromInt(Vp),26,C::RubricDark)]]
+                + SVerticalBox::Slot().AutoHeight().Padding(0,5,0,0)[Ink(Current?TEXT("Playing"):FString::Printf(TEXT("%d cards"),HandTotal(P)),16)],
+                EPaper::Vellum,FMargin(10,8))]];
+    }
+    return Row;
 }
 
 TSharedRef<SWidget> STable::HeraldBox()
 {
 	const TArray<FString>& Log = Match->Log;
-	const int32 Count = bFullLog ? 14 : 6;
+	const int32 Count = bFullLog ? 12 : 4;
 	TSharedRef<SVerticalBox> Lines = SNew(SVerticalBox);
 	int32 Shown = 0;
 	for (int32 I = Log.Num() - 1; I >= 0 && Shown < Count; I--, Shown++)
@@ -330,7 +248,7 @@ TSharedRef<SWidget> STable::HeraldBox()
 			+ SHorizontalBox::Slot().FillWidth(1.f)[Ink(Log[I], 18, FLinearColor(C::MapInk.R, C::MapInk.G, C::MapInk.B, Fade))]
 		];
 	}
-	return SNew(SBox).WidthOverride(kHeraldWidth)
+	return SNew(SBox).WidthOverride(kHeraldWidth).HeightOverride(bFullLog?460.f:230.f)
 		[
 			Paper(SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()
@@ -340,7 +258,7 @@ TSharedRef<SWidget> STable::HeraldBox()
 					+ SHorizontalBox::Slot().AutoWidth()[Button(bFullLog ? TEXT("Less") : TEXT("More"), [this] { bFullLog = !bFullLog; return Redraw(); }, EButton::Paper, true, nullptr, TEXT("scroll"), 17)]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)[Rule()]
-				+ SVerticalBox::Slot().AutoHeight()[Lines],
+				+ SVerticalBox::Slot().FillHeight(1.f)[SNew(SScrollBox)+SScrollBox::Slot()[Lines]],
 				EPaper::Parchment, FMargin(18, 12))
 		];
 }
@@ -369,6 +287,7 @@ TSharedRef<SWidget> STable::BuildPanel()
 		+ SHorizontalBox::Slot().FillWidth(1.f)[SNullWidget::NullWidget]
 		+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("Menu"), [this] { bLeaving = true; return Redraw(); }, EButton::Plaque, true, nullptr, TEXT("door"), 18)]
 	];
+    if(!Match->LastError.IsEmpty()) Box->AddSlot().AutoHeight().Padding(0,8,0,0)[Slip(Match->LastError,C::Rubric)];
 	if (!Match->NeedsHandoff())
 	{
 		Box->AddSlot().AutoHeight().Padding(0, 10, 0, 0)
@@ -433,10 +352,6 @@ TSharedRef<SWidget> STable::PrimaryBox()
 	else if (bMyTurn && S.phase.kind == PhaseKind::Main)
 	{
 		Box->AddSlot().AutoHeight().HAlign(HAlign_Center)[Button(TEXT("End turn"), [this] { Build = EBuild::None; return Do(Action::Make(ActionType::EndTurn, Me())); }, EButton::SealOnDark, true, Primary ? nullptr : &Primary, TEXT("hourglass"), 28)];
-	}
-	if (bMyTurn && (S.phase.kind == PhaseKind::Roll || S.phase.kind == PhaseKind::Main))
-	{
-		Box->AddSlot().AutoHeight().HAlign(HAlign_Center).Padding(0, 2, 0, 0)[Prompt(Hall::EPrompt::Primary, 28.f)];
 	}
 	const int32 N = static_cast<int32>(S.players.size());
 	const PlayerState& Next = S.players[(S.currentPlayer + 1) % N];

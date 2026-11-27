@@ -1,4 +1,4 @@
-#include "Table/STable.h"
+﻿#include "Table/STable.h"
 
 #include "CatnightRules/Rules.h"
 #include "Board/CatnightBoardActor.h"
@@ -640,6 +640,8 @@ STable::~STable()
 void STable::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+    View->LeftHudShare=368.f/FMath::Max(1.f,static_cast<float>(GetCachedGeometry().GetLocalSize().X));
+	if(Board && Board->GetCachedGeometry().GetAbsoluteSize().X>0 && AllottedGeometry.GetAbsoluteSize().X>0) View->PanelShare=FMath::Clamp(1.f-static_cast<float>(Board->GetCachedGeometry().GetAbsoluteSize().X/AllottedGeometry.GetAbsoluteSize().X),0.f,.6f);
 	if (Match->EventSerial != SeenSerial) Present();
 	// Held camera input, by time: 120°/s turning, 60°/s tilting, zoom ×2 per second at full press.
 	// Keys let go while the window was in the background never send their release: drop them.

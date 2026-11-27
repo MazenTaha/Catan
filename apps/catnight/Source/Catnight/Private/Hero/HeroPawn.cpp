@@ -1,4 +1,4 @@
-#include "Hero/HeroPawn.h"
+﻿#include "Hero/HeroPawn.h"
 #include "Hero/HeroAnim.h"
 #include "CatnightGameMode.h"
 #include "Animation/Skeleton.h"
@@ -53,11 +53,11 @@ ACatnightHero::ACatnightHero()
 	auto* Move = GetCharacterMovement();
 	Move->bOrientRotationToMovement = true;
 	Move->RotationRate = FRotator(0, 540, 0);
-	Move->MaxAcceleration = 1800;
-	Move->BrakingDecelerationWalking = 1600;
+	Move->MaxAcceleration = 2200;
+	Move->BrakingDecelerationWalking = 2200;
 	Move->GroundFriction = 8;
-	Move->MaxWalkSpeed = 240;
-	Move->MaxWalkSpeedCrouched = 110;
+	Move->MaxWalkSpeed = 160;
+	Move->MaxWalkSpeedCrouched = 85;
 	Move->SetCrouchedHalfHeight(80);
 	Move->GetNavAgentPropertiesRef().bCanCrouch = true;
 	Move->MaxStepHeight = 38;
@@ -89,7 +89,7 @@ ACatnightHero::ACatnightHero()
 	Arm->AddTickPrerequisiteActor(this);
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	Camera->SetupAttachment(Arm);
-	Camera->SetFieldOfView(70);
+	Camera->SetFieldOfView(76);
     auto& PP = Camera->PostProcessSettings;
     PP.bOverride_AutoExposureMethod = true; PP.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
     PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true; PP.AutoExposureApplyPhysicalCameraExposure = true;
@@ -145,7 +145,7 @@ void ACatnightHero::BeginPlay()
 	}
 }
 
-float ACatnightHero::DesiredSpeed() const { return bMounted ? (bSprint ? 800.f : 250.f) : (bIsCrouched ? 110.f : bSprint ? 620.f : 240.f); }
+float ACatnightHero::DesiredSpeed() const { return bMounted ? (bSprint ? 700.f : 200.f) : (bIsCrouched ? 85.f : bSprint ? 550.f : 160.f); }
 void ACatnightHero::SetSprint(bool Value) { bSprint = Value; GetCharacterMovement()->MaxWalkSpeed = DesiredSpeed(); }
 void ACatnightHero::SetSneak(bool Value) { if (!bMounted) { if (Value) Crouch(); else UnCrouch(); } }
 void ACatnightHero::OnStartCrouch(float Height, float ScaledHeight) { Super::OnStartCrouch(Height, ScaledHeight); CameraCompensation += Height; }
@@ -157,17 +157,21 @@ void ACatnightHero::Tick(float Dt)
 	if (!ReviewMode.IsEmpty() && ReviewMode != TEXT("test") && ReviewMode != TEXT("island-test"))
 	{
 		if ((ReviewMode == TEXT("ride") || ReviewMode == TEXT("gallop")) && !bMounted) { SetActorLocation(Parked + FVector(-100, 0, 98)); ToggleMount(); }
+		// Mount at the horse, then ride from the slope start the game mode chose: hooves on a ramp.
+		if (ReviewMode == TEXT("ride-slope") && !bMounted) { const FVector Start = GetActorLocation(); SetActorLocation(Parked + FVector(-100, 0, 98)); ToggleMount(); SetActorLocation(Start + FVector(0, 0, 40)); }
 		if (ReviewMode == TEXT("crouch")) SetSneak(true);
 		SetSprint(ReviewMode == TEXT("run") || ReviewMode == TEXT("gallop"));
-		if (ReviewMode == TEXT("walk") || ReviewMode == TEXT("run") || ReviewMode == TEXT("gallop") || ReviewMode == TEXT("crouch")) Travel(FVector::ForwardVector, 1);
+		if (ReviewMode == TEXT("slope") || ReviewMode == TEXT("ride-slope") || ReviewMode == TEXT("walk") || ReviewMode == TEXT("run") || ReviewMode == TEXT("gallop") || ReviewMode == TEXT("crouch")) Travel(FVector::ForwardVector, 1);
 		if (ReviewMode == TEXT("tour")) TickTour(Dt);
 	}
 	GetCharacterMovement()->MaxWalkSpeed = DesiredSpeed();
 	const float Speed = GetVelocity().Size2D();
 	const bool Moving = Speed > 8;
+	const float TargetFov=bMounted?78.f:bIsCrouched?72.f:bSprint && Moving?82.f:76.f;
+	Camera->SetFieldOfView(FMath::Lerp(Camera->FieldOfView,TargetFov,1.f-FMath::Exp(-6.f*Dt)));
 	const float Moved = FVector::Dist2D(PreviousPosition, GetActorLocation());
 	PreviousPosition = GetActorLocation();
-	Phase = FMath::Fmod(Phase + (Moving ? Moved / (bMounted ? (bSprint ? 315.8f : 125.f) : bIsCrouched ? 77.4f : bSprint ? 226.2f : 116.1f) : Dt * .5f), 1.f);
+	Phase = FMath::Fmod(Phase + (Moving ? Moved / (bMounted ? (bSprint ? 346.15f : 144.83f) : bIsCrouched ? 70.59f : bSprint ? 306.25f : 124.14f) : Dt * .5f), 1.f);
 	if (auto* Anim = Cast<UCatnightHeroAnim>(GetMesh()->GetAnimInstance()))
 	{
 		Anim->State = bMounted ? (Moving ? bSprint ? 7 : 6 : 5) : bIsCrouched ? (Moving ? 4 : 3) : Moving ? (bSprint ? 2 : 1) : 0;

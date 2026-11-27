@@ -1,4 +1,4 @@
-#include "Board/CatnightBoardActor.h"
+﻿#include "Board/CatnightBoardActor.h"
 
 #include "Camera/CameraComponent.h"
 #include "CatnightMatch.h"
@@ -99,7 +99,7 @@ ACatnightBoardActor::ACatnightBoardActor()
 	Camera->SetupAttachment(Root);
 	Camera->SetFieldOfView(38.f);
 	Camera->PostProcessSettings.bOverride_AutoExposureBias = true;
-	Camera->PostProcessSettings.AutoExposureBias = 0.6f;
+	Camera->PostProcessSettings.AutoExposureBias = 0.15f;
 	Camera->PostProcessSettings.bOverride_VignetteIntensity = true;
 	Camera->PostProcessSettings.VignetteIntensity = 0.35f;
 	Tiles = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Tiles"));
@@ -500,16 +500,28 @@ void ACatnightBoardActor::BuildIsland()
 		const FVector M = (A + B) * 0.5f;
 		const FVector Out = (M - HexWorld(Hb.hex)).GetSafeNormal2D();
 		const float OutYaw = FMath::RadiansToDegrees(FMath::Atan2(Out.Y, Out.X));
-		if (UStaticMesh* Dock = Model(TEXT("village"), TEXT("Dock")))
-		{
-			AddMesh(IslandParts, Dock, Fit(Dock, M + Out * 0.42f * R + FVector(0, 0, -0.1f * R), OutYaw, 0.42f, true));
-		}
+        // An attached timber landing: overlap the sand, then continue over the water on piles.
+        const FVector Side=FVector::CrossProduct(Out,FVector::UpVector);
+        UMaterialInterface* Timber=Tint(CatnightUi::Srgb(125,86,48),.88f);
+        UMaterialInterface* Pale=Tint(CatnightUi::Srgb(177,137,84),.9f);
+        const FVector Start=M-Out*.22f*R+FVector(0,0,.025f*R);
+        const FVector End=M+Out*.94f*R+FVector(0,0,.015f*R);
+        for(int32 I=0;I<=18;I++) {
+            const FVector P=FMath::Lerp(Start,End,I/18.f);
+            AddMesh(IslandParts,Shape(TEXT("Cube")),FTransform(FRotator(0,OutYaw,0),P,FVector(.067f*R/100.f,.24f*R/100.f,.024f*R/100.f)),I%3?Timber:Pale);
+            if(I%3==0 && I>3) for(int32 Sign:{-1,1}) {
+                const FVector Post=P+Side*Sign*.105f*R;
+                AddMesh(IslandParts,Shape(TEXT("Cylinder")),FTransform(FRotator::ZeroRotator,Post+FVector(0,0,-.035f*R),FVector(.032f*R/100.f,.032f*R/100.f,.34f*R/100.f)),Timber);
+            }
+        }
+        for(int32 Sign:{-1,1}) AddMesh(IslandParts,Shape(TEXT("Cube")),FTransform(FRotator(0,OutYaw,0),(Start+End)*.5f+Side*Sign*.11f*R+FVector(0,0,.1f*R),FVector(1.15f*R/100.f,.018f*R/100.f,.018f*R/100.f)),Pale);
 		FRandomStream Rng(Hb.hex * 31 + Hb.vertices[0]);
 		static const TCHAR* Boats[] = {TEXT("Boat"), TEXT("BoatSloop"), TEXT("BoatStriped")};
 		if (UStaticMesh* Boat = Model(TEXT("village"), Boats[Rng.RandRange(0, 2)]))
 		{
-			const FVector Side = FVector::CrossProduct(Out, FVector::UpVector);
-			AddMesh(IslandParts, Boat, Fit(Boat, M + Out * 0.95f * R + Side * 0.3f * R + FVector(0, 0, -0.11f * R), OutYaw + 90.f, 0.3f, true));
+			FTransform Hull=Fit(Boat,M+Out*.95f*R+Side*.3f*R,OutYaw+90.f,.3f,true);
+            FVector BoatPosition=Hull.GetLocation(); BoatPosition.Z=-.1f*R; Hull.SetLocation(BoatPosition);
+            AddMesh(IslandParts,Boat,Hull);
 		}
 		const FVector Plaque = M + Out * 0.72f * R + FVector(0, 0, 0.02f * R);
 		AddMesh(IslandParts, Shape(TEXT("Cylinder")), FTransform(FRotator::ZeroRotator, Plaque, FVector(0.36f * R / 100.f, 0.36f * R / 100.f, 0.04f * R / 100.f)), Ivory);
@@ -564,7 +576,7 @@ void ACatnightBoardActor::BuildPieces()
 		const FVector B = VertexWorld(T.edgeVertices[E][1]);
 		const FVector Mid = (A + B) * 0.5f;
 		const float EdgeYaw = FMath::RadiansToDegrees(FMath::Atan2(B.Y - A.Y, B.X - A.X));
-		const float Len = FVector::Dist(A, B) * 0.62f;
+		const float Len = FVector::Dist(A, B) - .06f * R;
 		AddMesh(PieceParts, Cube, FTransform(FRotator(0, EdgeYaw, 0), Mid + FVector(0, 0, 0.03f * R), FVector(Len / 100.f, 0.1f * R / 100.f, 0.05f * R / 100.f)), Ink);
 		AddMesh(PieceParts, Cube, FTransform(FRotator(0, EdgeYaw, 0), Mid + FVector(0, 0, 0.045f * R), FVector((Len - 0.03f * R) / 100.f, 0.075f * R / 100.f, 0.05f * R / 100.f)), Colors[RoadOwner]);
 	}
@@ -667,21 +679,19 @@ void ACatnightBoardActor::UpdateCamera(float DeltaSeconds)
 	Distance += (GoalDistance - Distance) * K;
 	const FRotator Rot(Pitch, Yaw, 0.f);
 	// Keep the island in the part of the screen the side panel leaves free.
-	float PanelShare = 0.f;
-	if (GEngine && GEngine->GameViewport && View && View->b3D)
-	{
-		FVector2D Size;
-		GEngine->GameViewport->GetViewportSize(Size);
-		if (Size.X > 0)
-		{
-			const float Dpi = GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(FIntPoint(FMath::RoundToInt(Size.X), FMath::RoundToInt(Size.Y)));
-			PanelShare = FMath::Clamp(420.f * Dpi / static_cast<float>(Size.X), 0.f, 0.6f);
-		}
-	}
-	const float HalfWidth = Distance * FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView * 0.5f));
-	const FVector Right = FRotationMatrix(Rot).GetUnitAxis(EAxis::Y);
-	const FVector Focus = Right * HalfWidth * PanelShare + (bReviewCloseup ? ReviewFocus : FVector(-0.2f * R, 0, 0));
-	Camera->SetWorldLocationAndRotation(Focus - Rot.Vector() * Distance, Rot);
+	const float PanelShare=View && View->b3D?View->PanelShare:0.f;
+    const float LeftShare=View && View->b3D && !bReviewCloseup?View->LeftHudShare:0.f;
+    const float TanHalf=FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView*.5f));
+    int32 Width=1280,Height=720;
+    if(auto* PC=GetWorld()->GetFirstPlayerController()) PC->GetViewportSize(Width,Height);
+    const float Aspect=static_cast<float>(Width)/FMath::Max(1,Height);
+    // Frame the whole coastline between the HUD and action panel; wheel zoom stays relative.
+    const float FitDistance=FMath::Max(5.7f*R/(TanHalf*FMath::Max(.28f,1.f-PanelShare-LeftShare)),4.6f*R*Aspect/TanHalf);
+    const float FramedDistance=bReviewCloseup?Distance:FitDistance*Distance/(20.5f*R);
+    const float HalfWidth=FramedDistance*TanHalf;
+    const FVector Right=FRotationMatrix(Rot).GetUnitAxis(EAxis::Y);
+    const FVector Focus=Right*HalfWidth*(PanelShare-LeftShare)+(bReviewCloseup?ReviewFocus:FVector(-.2f*R,0,0));
+    Camera->SetWorldLocationAndRotation(Focus-Rot.Vector()*FramedDistance,Rot);
 }
 
 int32 ACatnightBoardActor::PickUnderMouse() const

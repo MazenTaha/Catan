@@ -16,8 +16,8 @@ placed in the world or downloaded character packs.
 anatomical horse builders, then authors the native family:
 
 - A peaked, riveted armet with a narrow visor, layered plate, fluted breastplate, articulated
-  gauntlets, olive cloth and a long, gold-edged crimson cape. The cape has four controlled
-  segments and bounded poses for standing, crouching and riding.
+  gauntlets and olive cloth. No cape (owner's request, 2026-11-27; DECISIONS #76): the base
+  rig's two cape bones remain but carry no geometry.
 - A bay horse with a blaze, dark mane/tail, shaped hooves, fitted bridle, saddle, embroidered
   blanket and stirrups sized to the rider. The shared horse builder accepts an optional
   stirrup height; its browser default stays unchanged.
@@ -66,15 +66,15 @@ or a stalled frame does not keep the feet running at an unrelated speed. Camera 
 after movement, independent of animated bone bobbing. Physical exposure is fixed for the
 sunlit yard so a dark wall does not wash out the character colours.
 
-| Action | Keyboard / mouse | Gamepad |
-|---|---|---|
-| Move | WASD / arrows | Left stick |
-| Look | Mouse | Right stick |
-| Sprint / gallop | Hold Shift | Hold left-stick button |
-| Crouch | Hold Ctrl or C | Hold right-stick button |
-| Mount / safe dismount | E | Top face button |
-| Camera distance | Wheel | — |
-| Return to hall | Esc | Start |
+| Action                | Keyboard / mouse | Gamepad                 |
+| --------------------- | ---------------- | ----------------------- |
+| Move                  | WASD / arrows    | Left stick              |
+| Look                  | Mouse            | Right stick             |
+| Sprint / gallop       | Hold Shift       | Hold left-stick button  |
+| Crouch                | Hold Ctrl or C   | Hold right-stick button |
+| Mount / safe dismount | E                | Top face button         |
+| Camera distance       | Wheel            | —                       |
+| Return to hall        | Esc              | Start                   |
 
 Speeds in cm/s: crouch 110, walk 240, sprint 620, horse walk 250, gallop 800. Sprint cannot
 override crouching. Crouching uses a smaller capsule and standing is refused under a low
@@ -138,3 +138,7 @@ smoothed horse/rider body alignment follows terrain normals while preserving sad
 contact. Parked horses retain their ground normal. This supplements the yard's tests with
 95 cross-biome scenarios at three simulation rates. It does not add per-leg foot IK or claim
 that all room/combat/controller acceptance is complete.
+
+## Upright locomotion revision (2026-11-27)
+
+The native loops now use reach-driven pelvis/body height instead of a permanently lowered walking/running pose. Speeds are 160/550/85 cm/s on foot and 200/700 mounted. Distance-driven phases match stance stride lengths. Knight feet use ground traces plus worker-thread two-bone IK, with mounted poses excluded; horse hooves use the same split (traces on the game thread, Upper/Cannon/Pastern solve on the worker). Ride clips keep the reference hips anchor so saddle/rein constraints remain aligned. The horse has a subdivided, smoothly weighted body and warmer natural bay paint. Short clips use full-precision recorder bone compression and disable frame stripping to keep imported loop endpoints continuous. `test-heroes.ps1` includes a rendered slope view.

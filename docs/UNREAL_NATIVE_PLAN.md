@@ -26,30 +26,30 @@ reference that the C++ port is tested against, and the Unreal wrapper keeps work
 
 Nothing goes public (store page, trailer, playtest) until this gate is closed.
 
-| Question | Status |
-|---|---|
-| Working title | **Catnight**, chosen by the owner on 2026-11-21 |
-| Is the name free? | **No.** *Catnight* is already a Steam game: a $4.99 third-person multiplayer shooter by Rubber Croc, app 1779070. Two games with one name hurts search and invites a dispute. Pick another name, or get advice before using it. |
-| Too close to Catan? | "Cat-night" sounds close to "Catan Night". The final name should not suggest the Catan brand. |
-| Terms | Replace every Catan-specific term (table below). Generic words (wood, brick, road, city) can stay. |
-| Rules | Keep the core trading game, and make sure the parts that are already original are what define it (section 3). |
-| Art | All art is original or the owner's (art pack sheets). Keep written proof that the owner holds the rights to the concept-art pack. |
-| Fonts | IM Fell, UnifrakturCook, Cinzel and Crimson Pro are SIL Open Font License: they can ship; include the licences. |
-| Legal review | A lawyer checks the name, terms, rules and store page before release. This plan is not legal advice. |
+| Question            | Status                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Working title       | **Catnight**, chosen by the owner on 2026-11-21                                                                                                                                                                                 |
+| Is the name free?   | **No.** _Catnight_ is already a Steam game: a $4.99 third-person multiplayer shooter by Rubber Croc, app 1779070. Two games with one name hurts search and invites a dispute. Pick another name, or get advice before using it. |
+| Too close to Catan? | "Cat-night" sounds close to "Catan Night". The final name should not suggest the Catan brand.                                                                                                                                   |
+| Terms               | Replace every Catan-specific term (table below). Generic words (wood, brick, road, city) can stay.                                                                                                                              |
+| Rules               | Keep the core trading game, and make sure the parts that are already original are what define it (section 3).                                                                                                                   |
+| Art                 | All art is original or the owner's (art pack sheets). Keep written proof that the owner holds the rights to the concept-art pack.                                                                                               |
+| Fonts               | IM Fell, UnifrakturCook, Cinzel and Crimson Pro are SIL Open Font License: they can ship; include the licences.                                                                                                                 |
+| Legal review        | A lawyer checks the name, terms, rules and store page before release. This plan is not legal advice.                                                                                                                            |
 
 **Terms to decide.** The engine keys are already original (`outpost`, `citadel`, `causeway`,
 `omen`, `wraith`), so this is a display-text change.
 
-| Today (player sees) | Engine key | Catnight term | Notes |
-|---|---|---|---|
-| Catan Night | — | **Catnight** (pending gate 0) | |
-| Settlement / City / Road | `outpost` `citadel` `causeway` | *to decide* | Generic words can stay; only the set as a whole should not copy Catan's |
-| Robber | `wraith` | *to decide* | |
-| Development card | `omen` | *to decide* | |
-| Knight / Victory Point / Road Building / Year of Plenty / Monopoly | `warden` `relic` `decree` `harvest` `tithe` | *to decide* | Year of Plenty, Road Building and Monopoly are the most recognisable |
-| Longest Road / Largest Army | `longestCauseway` `greatestHost` | *to decide* | |
-| Lumber, Brick, Wool, Grain, Ore | `wood` `clay` `wool` `grain` `ore` | can stay | Generic |
-| Forest, Hills, Pasture, Fields, Mountains, Desert | `witchwood` `ashen` `moors` `fields` `peaks` `waste` | can stay | Generic |
+| Today (player sees)                                                | Engine key                                           | Catnight term                 | Notes                                                                   |
+| ------------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| Catan Night                                                        | —                                                    | **Catnight** (pending gate 0) |                                                                         |
+| Settlement / City / Road                                           | `outpost` `citadel` `causeway`                       | _to decide_                   | Generic words can stay; only the set as a whole should not copy Catan's |
+| Robber                                                             | `wraith`                                             | _to decide_                   |                                                                         |
+| Development card                                                   | `omen`                                               | _to decide_                   |                                                                         |
+| Knight / Victory Point / Road Building / Year of Plenty / Monopoly | `warden` `relic` `decree` `harvest` `tithe`          | _to decide_                   | Year of Plenty, Road Building and Monopoly are the most recognisable    |
+| Longest Road / Largest Army                                        | `longestCauseway` `greatestHost`                     | _to decide_                   |                                                                         |
+| Lumber, Brick, Wool, Grain, Ore                                    | `wood` `clay` `wool` `grain` `ore`                   | can stay                      | Generic                                                                 |
+| Forest, Hills, Pasture, Fields, Mountains, Desert                  | `witchwood` `ashen` `moors` `fields` `peaks` `waste` | can stay                      | Generic                                                                 |
 
 If the cat in the name is meant literally (cats at night as the world's people), decide that now:
 it changes character models, card art and every heading.
@@ -60,7 +60,7 @@ These exist today and become the centre of the pitch:
 
 - **The island you walk.** Every road and building on the board stands on a walkable island
   (enterable cottages, halls and mills, horses, docks).
-- **Arms and duels.** A weapon chest, bullets, swords and *Man up* fights that pause the board
+- **Arms and duels.** A weapon chest, bullets, swords and _Man up_ fights that pause the board
   (`rules/arms.ts`).
 - **Day and night** on the island and the board, and the Hall & Chart table look.
 
@@ -179,7 +179,7 @@ native/
 ```
 
 The old projects stay until phase 6 so nothing is lost. Island assets move with the editor's
-*Migrate*. Before large binary assets land, set up **Git LFS** for `*.uasset`, `*.umap`, `*.blend`,
+_Migrate_. Before large binary assets land, set up **Git LFS** for `*.uasset`, `*.umap`, `*.blend`,
 `*.glb`, `*.wav` (the repo has none today, and the old Unreal copy already commits 462 files).
 
 ## 5. Phases
@@ -187,15 +187,15 @@ The old projects stay until phase 6 so nothing is lost. Island assets move with 
 Each phase ends with something you can play or check. Sizes are rough: S is days, M is one to two
 weeks, L is several weeks of focused work.
 
-| # | Phase | Size | Done when |
-|---|---|---|---|
-| 0 | **Identity** | S | Final name cleared, terms table filled, rule changes chosen, lawyer consulted |
-| 1 | **Rules core in C++** — *done 2026-11-21* | L | All golden games match step by step; the C++ bots pick the same moves; the 200-game simulation passes |
-| 2 | **Playable table** — *first part done 2026-11-21 (§8)* | L | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue |
-| 3 | **The look: 3D table and Hall & Chart** | L | The board is a modelled 3D miniature on the war table in a lit hall; every screen in the migration checklist exists in UMG; music and sounds; accessibility settings |
-| 4 | **The island walk (local)** | L | Walk the live island from a match: buildings and roads appear as built, knight, horses, rooms, chest, dummy, minimap, Character and My kingdom |
-| 5 | **Online through Steam, duels** | L | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand; live fights and Man up duels |
-| 6 | **Steam release** | M | Steamworks app (Steam Direct fee), achievements, Steam Cloud, store page and capsule art, trailer, content survey and age rating, EULA and privacy text, crash reports, Steam Deck review, a closed playtest. Then: tag the web version, retire `apps/web`, `apps/server`, `packages/*` and the wrapper project |
+| #   | Phase                                                  | Size | Done when                                                                                                                                                                                                                                                                                                       |
+| --- | ------------------------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Identity**                                           | S    | Final name cleared, terms table filled, rule changes chosen, lawyer consulted                                                                                                                                                                                                                                   |
+| 1   | **Rules core in C++** — _done 2026-11-21_              | L    | All golden games match step by step; the C++ bots pick the same moves; the 200-game simulation passes                                                                                                                                                                                                           |
+| 2   | **Playable table** — _first part done 2026-11-21 (§8)_ | L    | In a packaged build: menu → new game → full game against three bots to the victory screen, with mouse and with a gamepad; hot-seat with the privacy curtain; save and continue                                                                                                                                  |
+| 3   | **The look: 3D table and Hall & Chart**                | L    | The board is a modelled 3D miniature on the war table in a lit hall; every screen in the migration checklist exists in UMG; music and sounds; accessibility settings                                                                                                                                            |
+| 4   | **The island walk (local)**                            | L    | Walk the live island from a match: buildings and roads appear as built, knight, horses, rooms, chest, dummy, minimap, Character and My kingdom                                                                                                                                                                  |
+| 5   | **Online through Steam, duels**                        | L    | Four players on separate PCs: invite from the friends list, full game, one player drops and rejoins, autopilot covers an absence; no client ever sees another player's hand; live fights and Man up duels                                                                                                       |
+| 6   | **Steam release**                                      | M    | Steamworks app (Steam Direct fee), achievements, Steam Cloud, store page and capsule art, trailer, content survey and age rating, EULA and privacy text, crash reports, Steam Deck review, a closed playtest. Then: tag the web version, retire `apps/web`, `apps/server`, `packages/*` and the wrapper project |
 
 **The bar** (owner, 2026-11-21): the same game as the browser game, every feature kept, and
 clearly better in every part, the 3D most of all. `docs/CATNIGHT_PARITY.md` lists every browser
@@ -204,29 +204,29 @@ feature, its status in Unreal and what "better" means for it. The look (phase 3)
 
 ## 6. Risks
 
-| Risk | Answer |
-|---|---|
+| Risk                                                                            | Answer                                                                                 |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | The C++ rules drift from TypeScript in rare cases (key order, sort, RNG floats) | Step-by-step golden comparison over many games; diff prints the first mismatching path |
-| Two games to maintain until phase 6 | Freeze rule changes in TypeScript once phase 1 starts, except bug fixes made in both |
-| The web/3D walk keeps changing in parallel sessions | Port the walk in phase 4 from the state of `components/world` at that time |
-| Name refused or disputed | Gate 0 before any public step |
-| Unreal networking cheats (clients reading hidden data) | Hidden state never leaves the host; owner-only replication; host checks every action |
-| Repo size with binary assets | Git LFS before the first migration |
-| Steam Deck performance with the dense island | Per-platform scalability settings; measure on Deck in phase 5 |
+| Two games to maintain until phase 6                                             | Freeze rule changes in TypeScript once phase 1 starts, except bug fixes made in both   |
+| The web/3D walk keeps changing in parallel sessions                             | Port the walk in phase 4 from the state of `components/world` at that time             |
+| Name refused or disputed                                                        | Gate 0 before any public step                                                          |
+| Unreal networking cheats (clients reading hidden data)                          | Hidden state never leaves the host; owner-only replication; host checks every action   |
+| Repo size with binary assets                                                    | Git LFS before the first migration                                                     |
+| Steam Deck performance with the dense island                                    | Per-platform scalability settings; measure on Deck in phase 5                          |
 
 ## 7. Phase 1 result (2026-11-21)
 
 The rules core is ported: `apps/catnight/Plugins/CatnightRules` (about 4,000 lines of C++).
 
-| Header | Port of |
-|---|---|
-| `Keys.h` | `lexicon-keys.ts`: resources, terrains, cards, costs, constants |
-| `Rng.h` | `rng.ts`: the seed hash and mulberry32, bit for bit |
-| `Board.h` | `board/*`: topology (ids kept, indices inside), generator, harbours, validator |
-| `State.h` | `state/types.ts`: config, state, phases, actions; events as JSON objects |
-| `Rules.h` | `state/setup.ts`, `state/selectors.ts`, `rules/*`: `CreateGame`, `ApplyAction`, `LegalActions` |
-| `Bots.h` | `ai/*`: `DecideAction` for Wanderer, Warlord and Archdemon (with its setup lookahead) |
-| `Serialize.h`, `Json.h` | the engine's JSON shapes: state, config, actions (records and saves) |
+| Header                  | Port of                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `Keys.h`                | `lexicon-keys.ts`: resources, terrains, cards, costs, constants                                |
+| `Rng.h`                 | `rng.ts`: the seed hash and mulberry32, bit for bit                                            |
+| `Board.h`               | `board/*`: topology (ids kept, indices inside), generator, harbours, validator                 |
+| `State.h`               | `state/types.ts`: config, state, phases, actions; events as JSON objects                       |
+| `Rules.h`               | `state/setup.ts`, `state/selectors.ts`, `rules/*`: `CreateGame`, `ApplyAction`, `LegalActions` |
+| `Bots.h`                | `ai/*`: `DecideAction` for Wanderer, Warlord and Archdemon (with its setup lookahead)          |
+| `Serialize.h`, `Json.h` | the engine's JSON shapes: state, config, actions (records and saves)                           |
 
 ```powershell
 pnpm golden
@@ -264,6 +264,7 @@ packaging.
     whole game in about 25 seconds.
 
 **Second part (2026-11-21):**
+
 - **Screens:** title (Continue when a save exists, Play, Quit), new game (3 or 4 seats, each a
   person on this device or an Easy / Medium / Hard bot, names, victory target 8–14, layout, seed
   and reroll), the table, a leave dialog (Main menu, New game, Restart with the same seed, Cancel)
@@ -282,6 +283,7 @@ packaging.
   saved halfway loads to the same state; a road is built and undone exactly.
 
 **Not done yet in phase 2:**
+
 - Clicking through a whole game by hand with a mouse and with a real gamepad (the tests drive the
   same actions; the screenshots show focus landing on the main button).
 - Git LFS (generated Unreal art is still rebuilt rather than committed).
@@ -381,3 +383,29 @@ This supersedes the full-island/minimap foundation items in §12; phase 4 remain
 Closed building shells still need rooms/doors. Chest/combat, customization, animated ambient
 animals, sails/wind, footstep audio, map modes, arbitrary-terrain foot IK, streaming and physical
 controller acceptance remain. Steam/duels and release stay in their later phases.
+
+## Movement, summit routes and presentation rework (2026-11-27)
+
+Current work is on `codex/native-table-feedback` in the isolated Codex worktree. The older
+uncommitted foundation was preserved in the named stash before fast-forwarding to main's
+`297c9c0`; do not pop it over this rework. Another session may still work in `E:/Catan`.
+
+The owner requested upright natural knight walk/run/crouch, a smoother cartoon-realistic horse,
+walkable mountains, livelier water/sky/foliage/light, connected table harbor landings, a fitting UI,
+stationary player cards, no keyboard-instruction strip and no 3D dice/tray. The changes are native
+in `apps/catnight` and its Blender/import tools. `SDiceResult` is shared by table and exploration;
+exact dice faces and total are reconstructed from accepted events on replay and written to the log.
+No rules, RNG, record schema, browser gameplay or online protocol changed.
+
+Knight foot placement uses game-thread traces and worker-thread two-bone IK, disabled while riding.
+Mounted clips preserve the reference hip anchor; the movement suite checks saddle/rein contact.
+Solid scenery reserves the actual summit polyline, including its approach, rather than relying on
+the faster approximate painted-path distance. There are 15 crag summit routes on the review seed;
+all 2,415 floor/slope samples and the existing 5,453 connected route samples pass.
+
+Rebuild original assets with `pnpm catnight:import`, `pnpm catnight:heroes`, `pnpm catnight:island`.
+Living sky/wind/water materials are mandatory in package preflight. Keep generated binary output
+ignored. Final rendered/packaged validation evidence is recorded alongside this milestone when
+completed. Remaining phase 4 work includes interiors, native combat/chest, customization, ambient
+animals, sails, footstep audio, horse per-leg terrain IK, map modes, streaming and physical controller
+acceptance. This does not claim Fortnite fidelity or a complete phase 4. No new push is authorized.

@@ -1,4 +1,4 @@
-#include "CatnightGameMode.h"
+﻿#include "CatnightGameMode.h"
 
 #include "CatnightMatch.h"
 #include "CatnightRules/Bots.h"
@@ -23,6 +23,7 @@
 #include "Hero/HeroYard.h"
 #include "Island/IslandWorld.h"
 #include "Island/IslandMinimap.h"
+#include "Ui/SDiceResult.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -71,6 +72,7 @@ ACatnightGameMode::ACatnightGameMode()
 void ACatnightGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+    if(GEngine) { GEngine->bEnableOnScreenDebugMessages=false; GEngine->bEnableOnScreenDebugMessagesDisplay=false; }
 	UCatnightMatchSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>();
 	TSharedRef<FCatnightMatch> Match = Subsystem->Match();
 	const TCHAR* Cmd = FCommandLine::Get();
@@ -176,7 +178,10 @@ void ACatnightGameMode::BeginPlay()
 		if (HeroReview == TEXT("return"))
 			if (auto* Viewport = GetWorld()->GetGameViewport()) Viewport->bDisableWorldRendering = true;
 		EnterHeroYard();
-		if (Hero) Hero->ReviewMode = HeroReview;
+		if (Hero) {
+            Hero->ReviewMode = HeroReview;
+            if(HeroReview==TEXT("slope") || HeroReview==TEXT("ride-slope")) Hero->SetActorLocation(HeroYard->GetActorLocation()+FVector(900,1000,98));
+        }
 		if (HeroReview == TEXT("return"))
 		{
 			const double Ready = FPlatformTime::Seconds() + 1.0;
@@ -365,11 +370,7 @@ void ACatnightGameMode::EnterWalk(bool bIsland)
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(24)
 		[
-			HallKit::Paper(SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(bIsland ? TEXT("Explore the island") : TEXT("Knight & riding yard"), 23)]
-				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Hall::Body(18)).ColorAndOpacity(Hall::Color::MapInk)
-					.Text_Lambda([Weak = TWeakObjectPtr<ACatnightHero>(Hero)] { return FText::FromString(Weak.IsValid() ? Weak->Status() : FString()); })]
-				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(TEXT("Mouse / right stick: look / Wheel: camera distance / Esc: hall"), 17)], HallKit::EPaper::Vellum)
+            HallKit::Paper(SNew(SDiceResult).Match(GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()),HallKit::EPaper::Vellum,FMargin(16,12))
 		];
 	GetWorld()->GetGameViewport()->AddViewportWidgetContent(HeroHud.ToSharedRef(), 20);
 }

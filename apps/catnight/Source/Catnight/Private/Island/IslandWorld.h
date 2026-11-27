@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "CatnightRules/State.h"
@@ -38,6 +38,8 @@ public:
     float TrailDistance(FVector2D P) const;
     /** Distance to the worn footpaths between hubs (wandering, inside the flattened lanes). */
     float FootpathDistance(FVector2D P) const;
+    float MountainPathDistance(FVector2D P) const;
+    bool ValidateMountains(FString& Report) const;
     /** Rise over run of the walkable surface, from the collision samples. */
     float Slope(FVector2D P) const;
     bool CanWalk(FVector WorldPoint) const;

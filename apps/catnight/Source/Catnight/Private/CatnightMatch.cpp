@@ -1,4 +1,4 @@
-#include "CatnightMatch.h"
+﻿#include "CatnightMatch.h"
 
 #include "CatnightRules/Bots.h"
 #include "CatnightRules/Json.h"
@@ -124,6 +124,7 @@ bool FCatnightMatch::Rebuild(const GameConfig& Config, const TArray<Action>& Act
 	Record.Reset();
 	Undoable.Reset();
 	Log.Reset();
+	LastDice.reset();
 	LastError.Reset();
 	bStarted = true;
 	Waited = 0.f;
@@ -150,6 +151,10 @@ bool FCatnightMatch::ApplyQuiet(const Action& A, FString& Error, std::vector<Gam
 	const int32 Who = Viewer();
 	for (const GameEvent& E : Out.events)
 	{
+		if (E.Get("type") && E.Get("type")->AsStr() == "DiceRolled") {
+			const auto& D = E.Get("dice")->Items();
+			LastDice = std::array<int, 2>{static_cast<int>(D[0].AsInt()), static_cast<int>(D[1].AsInt())};
+		}
 		const FString Line = CatnightText::EventLine(S, E, Who);
 		if (!Line.IsEmpty()) Log.Add(Line);
 	}

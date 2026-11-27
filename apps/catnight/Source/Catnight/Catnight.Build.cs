@@ -1,4 +1,4 @@
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 
 public class Catnight : ModuleRules
 {
@@ -11,6 +11,6 @@ public class Catnight : ModuleRules
 		// loads the imported models from /Game/Generated (pnpm catnight:import).
 		PrivateDependencyModuleNames.AddRange(new string[] { "InputCore", "Slate", "SlateCore", "ProceduralMeshComponent" });
 		// -CatnightPerf reads the engine's frame timings (stat unit's numbers) and draw counts.
-		PrivateDependencyModuleNames.AddRange(new string[] { "RHI", "RenderCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "RHI", "RenderCore", "AnimationCore" });
 	}
 }

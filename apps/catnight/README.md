@@ -4,6 +4,27 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 [`docs/UNREAL_NATIVE_PLAN.md`](../../docs/UNREAL_NATIVE_PLAN.md). The old browser-wrapper app
 (`apps/unreal`) keeps working until this one replaces it.
 
+## Current movement and presentation rework
+
+The native table uses stationary player cards, a 2D last-roll readout and a bounded log;
+there is no physical dice tray or keyboard-instruction ribbon. Dice faces and their total
+are written to the log and remain visible at the bottom left while exploring. The UI scales
+against the actual window dimensions so its panels and resource art fit smaller windows.
+
+The original Blender knight has upright, reach-driven walking/running poses, a controlled cape
+and native two-bone foot placement on terrain. Walk / sprint / crouch are 1.6 / 5.5 / 0.85 m/s;
+mounted walk / gallop are 2 / 7 m/s. Crouch remains silent and cannot be sped up by sprint.
+The horse has a subdivided body, blended joint weights and reach-driven gaits; it retains
+saddle, rein and supported mount/dismount alignment. Horse per-leg terrain IK remains open.
+
+Mountain relief is now collision terrain with bounded slopes and marked summit switchbacks.
+Solid scenery leaves clearance around the actual route polylines. Original five-shape woodland,
+rooted foliage wind, drifting procedural clouds, rippled blue-green water and warm key / cool
+fill lighting bring life to the island. The miniature table has warmer directional light,
+connected roads and supported timber harbor landings. Rebuild generated assets with
+`pnpm catnight:import`, `pnpm catnight:heroes` and `pnpm catnight:island` before packaging;
+model/material outputs are ignored by git.
+
 ## What is here (native table and playable island foundation)
 
 - `Plugins/CatnightRules`: the rules, bots and record format in plain C++20 (no Unreal types), a
@@ -45,7 +66,8 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 
   `render_ui.mjs` reads `design/hall-chart/assets` (the owner's local design pack) and the web
   game's card art; it uses the repo's Playwright Chromium. `node apps/catnight/Tools/render_ui.mjs
-  glyphs/` re-renders only the images whose names start with that prefix.
+glyphs/` re-renders only the images whose names start with that prefix.
+
 - **Sounds:** `node apps/catnight/Tools/render_sfx.mjs` renders the web game's synthesized effects
   (`apps/web/src/audio/synth.ts`, run unchanged in Chromium) and the UI foley to
   `Content/Slate/Sounds/*.wav` (committed). `Ui/HallSound.*` plays them as procedural waves on
@@ -235,12 +257,12 @@ It measures uncapped unless `-CatnightPerfCapped` (with `-CatnightFrameRate=0|1|
 Measured 2026-11-22, packaged Development build, 1920×1080, RTX 4050 Laptop (6 GB), i7-13650HX,
 uncapped:
 
-| Scene | fps | GPU ms | Game thread ms | p99 frame ms | Draws | Memory |
-|---|---|---|---|---|---|---|
-| Title | 1229 | 0.22 | 0.8 | 1.4 | 40 | 0.96 GB |
-| Table, midday (67 moves in) | 169 | 5.45 | 2.2 | 6.8 | 730 | 1.02 GB |
-| Table, night, late game (260 moves) | 156 | 5.93 | 2.2 | 7.4 | 890 | 1.07 GB |
-| Whole bot game (312 moves, to victory) | 160 | 5.77 | 2.2 | 7.5 | 800 | 1.04 → 1.06 GB |
+| Scene                                  | fps  | GPU ms | Game thread ms | p99 frame ms | Draws | Memory         |
+| -------------------------------------- | ---- | ------ | -------------- | ------------ | ----- | -------------- |
+| Title                                  | 1229 | 0.22   | 0.8            | 1.4          | 40    | 0.96 GB        |
+| Table, midday (67 moves in)            | 169  | 5.45   | 2.2            | 6.8          | 730   | 1.02 GB        |
+| Table, night, late game (260 moves)    | 156  | 5.93   | 2.2            | 7.4          | 890   | 1.07 GB        |
+| Whole bot game (312 moves, to victory) | 160  | 5.77   | 2.2            | 7.5          | 800   | 1.04 → 1.06 GB |
 
 Engine start 1.3 s (2.7 s cold). The whole game had one frame over 16.7 ms (19 ms) and no frame over
 33 ms; a move costs no more game-thread time than a quiet frame. The table is GPU-bound: the render

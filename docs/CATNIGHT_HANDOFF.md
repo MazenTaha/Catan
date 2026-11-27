@@ -8,7 +8,7 @@ test).
 
 ## The goal (owner's words, paraphrased)
 
-The browser game rebuilt entirely in Unreal, for Steam, working title **Catnight**: the *same game*
+The browser game rebuilt entirely in Unreal, for Steam, working title **Catnight**: the _same game_
 with every feature kept, and clearly better in every part, the 3D most of all.
 
 ## Rules for whoever continues
@@ -25,10 +25,10 @@ with every feature kept, and clearly better in every part, the 3D most of all.
 
 ## Done and pushed (origin/main)
 
-| Commit | What |
-|---|---|
-| c821d90 | Phase 1: rules, bots, records ported to C++ (`CatnightRules`), proven step by step against TypeScript |
-| 82f730a | Phase 2 part 1: Unreal project `apps/catnight`, match layer, plain Slate table |
+| Commit  | What                                                                                                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| c821d90 | Phase 1: rules, bots, records ported to C++ (`CatnightRules`), proven step by step against TypeScript                                                                                      |
+| 82f730a | Phase 2 part 1: Unreal project `apps/catnight`, match layer, plain Slate table                                                                                                             |
 | ec2a1ef | Phase 2 part 2: title / new-game screens, hot-seat curtain, autosave + Continue, undo, targeted offers and counters, leave and victory dialogs, keys and gamepad on the board; parity list |
 
 ## Completed locally: phase 3, first part (the 3D war table)
@@ -83,6 +83,7 @@ Verified: builds; screenshots in `apps/catnight/validation/board3d-*.png`; pick 
 46 of 46 legal spots from three camera angles.
 
 **Completion check (2026-11-21):**
+
 - The editor-target build succeeds, including the final camera-hint panel edit.
 - `pnpm catnight:test` completes: **PASSED: 3 automation tests**. All 248 golden games match
   (116,078 actions, 2,417 rejected, 96,489 bot moves, 90,531 probes); 12 match games reach a
@@ -172,6 +173,7 @@ checkout's remaining edits are another session's work; do not stage or overwrite
 branch preserves `STableHud.cpp`/HallKit and adds the shared board-view motion flag.
 
 Implemented:
+
 - Carved, bevelled bone dice, a felt/timber tray, a rules-result-driven toss and textual result.
   The toss is kinematic, not a new RNG or physics referee. Real dice physics/camera nudge remain.
 - Five-second masked construction of the original painted cottages/halls, including setup and
@@ -189,6 +191,7 @@ Implemented:
 - Map notes use HallKit vellum beside the board, clear of the Herald; the Lists show dice results.
 
 Validation support:
+
 - `Catnight.Match.TableFeedback` drives the real match + actor: 36 dice pairs, 10/60/144 Hz
   construction, painted atlas/owner-colour preservation, undo/Continue, reduced motion, real
   production events, and an editor shader-graph connection regression. There are now four native
@@ -228,8 +231,8 @@ controls, regeneration and the remaining island gates. DECISIONS #68 records the
 
 - The title's **Knight & riding yard** opens a 120 m local practice area. Esc returns to the
   hall; bots pause while practising. This is phase 4's character foundation, not the live island.
-- Original Blender knight: peaked armet, layered plate, articulated fingers, olive cloth and
-  a long gold-edged crimson cape on four controlled segments. Anatomical bay horse: painted
+- Original Blender knight: peaked armet, layered plate, articulated fingers, olive cloth, no
+  cape (removed 2026-11-27, DECISIONS #76). Anatomical bay horse: painted
   coat, blaze, fitted bridle/saddle/blanket/stirrups. Reference sheets 00/17/19 are hashed.
 - Two skeletal meshes, eleven loops, native pose blending, distance-driven gait phase,
   CharacterMovement collision/crouch, late swept camera, supported safe dismount, and visible
@@ -403,3 +406,29 @@ Phase 4 is partial: closed house shells, static sheep and sails, no crop wind, f
 modes/markers, footstep audio, chest/combat/customization, per-leg terrain IK or Steam yet.
 Continue from those gates rather than claiming parity is complete. This rework is local;
 no new push was requested. Stage named files only if committing, and ask before any new push.
+
+## Movement, summit routes and presentation rework (2026-11-27)
+
+Current work is on `codex/native-table-feedback` in the isolated Codex worktree. The older
+uncommitted foundation was preserved in the named stash before fast-forwarding to main's
+`297c9c0`; do not pop it over this rework. Another session may still work in `E:/Catan`.
+
+The owner requested upright natural knight walk/run/crouch, a smoother cartoon-realistic horse,
+walkable mountains, livelier water/sky/foliage/light, connected table harbor landings, a fitting UI,
+stationary player cards, no keyboard-instruction strip and no 3D dice/tray. The changes are native
+in `apps/catnight` and its Blender/import tools. `SDiceResult` is shared by table and exploration;
+exact dice faces and total are reconstructed from accepted events on replay and written to the log.
+No rules, RNG, record schema, browser gameplay or online protocol changed.
+
+Knight foot placement uses game-thread traces and worker-thread two-bone IK, disabled while riding.
+Mounted clips preserve the reference hip anchor; the movement suite checks saddle/rein contact.
+Solid scenery reserves the actual summit polyline, including its approach, rather than relying on
+the faster approximate painted-path distance. There are 15 crag summit routes on the review seed;
+all 2,415 floor/slope samples and the existing 5,453 connected route samples pass.
+
+Rebuild original assets with `pnpm catnight:import`, `pnpm catnight:heroes`, `pnpm catnight:island`.
+Living sky/wind/water materials are mandatory in package preflight. Keep generated binary output
+ignored. Final rendered/packaged validation evidence is recorded alongside this milestone when
+completed. Remaining phase 4 work includes interiors, native combat/chest, customization, ambient
+animals, sails, footstep audio, horse per-leg terrain IK, map modes, streaming and physical controller
+acceptance. This does not claim Fortnite fidelity or a complete phase 4. No new push is authorized.

@@ -1,4 +1,4 @@
-#include "Board/CatnightDaylightActor.h"
+﻿#include "Board/CatnightDaylightActor.h"
 
 #include "Board/CatnightBoardActor.h"
 #include "CatnightMatch.h"
@@ -23,8 +23,9 @@ namespace
 
 	/** The exposure (EV100) of the table at full day; every key is relative to it. */
 	constexpr float DayEV = 0.f;  // measured: a touch richer than the old adapted exposure
-	/** The hour shown when Settings → Day and night is "Always day": the warm afternoon. */
-	constexpr float AlwaysDayHour = 14.5f;
+	/** The hour shown when Settings → Day and night is "Always day": the golden late afternoon,
+	 *  a low warm sun with long cool shadows (the plain high sun read as flat and lifeless). */
+	constexpr float AlwaysDayHour = 16.7f;
 
 	FLinearColor Hex(uint32 Rgb) { return FLinearColor(FColor((Rgb >> 16) & 255, (Rgb >> 8) & 255, Rgb & 255)); }
 
@@ -43,15 +44,17 @@ namespace
 		float Warmth;   // colour grade: + warmer, - cooler
 	};
 	// Night is darker than day and blue (moonlight), with warm pools at the buildings; the exposure
-	// opens only a little, so it still reads as night and the board stays legible.
+	// opens only a little, so it still reads as night and the board stays legible. By day a warm
+	// key over a cooler, weaker sky keeps lit faces golden and shade blue: that contrast is what
+	// gives the table its mood, where an even white fill flattened it.
 	const FKey Keys[] = {
 		{0.f, 0x9fb4ff, 0.7f, 0x6f86c8, 0.18f, 0x0b1226, -1.0f, 1.f, -0.6f},
 		{4.5f, 0xa8b8ff, 0.65f, 0x7486c0, 0.18f, 0x121a30, -1.0f, 1.f, -0.6f},
-		{6.f, 0xffd2ac, 3.6f, 0xd0ccd8, 0.65f, 0x9aa4bc, -0.3f, 0.3f, 0.35f},
-		{9.f, 0xffefd6, 6.6f, 0xd6e2f0, 1.05f, 0xa9bfd6, 0.f, 0.f, 0.35f},
-		{13.f, 0xfff3e2, 7.5f, 0xdce6f0, 1.15f, 0xa8c4dc, 0.f, 0.f, 0.25f},
-		{16.5f, 0xffe0b4, 7.0f, 0xe6dccc, 1.05f, 0xb4bccc, 0.f, 0.f, 0.6f},
-		{18.3f, 0xffc49a, 4.4f, 0xd8b4b0, 0.72f, 0x8c8aa4, -0.25f, 0.4f, 0.5f},
+		{6.f, 0xffc59c, 4.6f, 0x9cb4e2, 0.55f, 0x9aa0bc, -0.55f, 0.35f, 0.5f},
+		{9.f, 0xffe0b4, 7.8f, 0x9dbbe6, 0.58f, 0xa9bfd6, 0.05f, 0.f, 0.35f},
+		{13.f, 0xffe8c8, 7.4f, 0x9cbfe9, 0.55f, 0xa8c4dc, 0.15f, 0.f, 0.3f},
+		{16.5f, 0xffdcb2, 8.6f, 0x92ade0, 0.64f, 0xc2b6ae, -0.25f, 0.05f, 0.55f},
+		{18.3f, 0xffbc8a, 5.4f, 0xa59ccc, 0.52f, 0x8c7f9c, -0.5f, 0.45f, 0.75f},
 		{20.2f, 0xb8b6ee, 0.9f, 0x8a86c0, 0.25f, 0x2a2a4a, -0.9f, 0.9f, -0.3f},
 	};
 	constexpr int32 NumKeys = UE_ARRAY_COUNT(Keys);
@@ -126,7 +129,10 @@ void ACatnightDaylightActor::Setup(TSharedPtr<FCatnightMatch> InMatch)
 	Sun->SetAtmosphereSunLight(true);
 	Sun->SetDynamicShadowDistanceMovableLight(40.f * R);
 	// A larger disc than the sun's: softer shadow edges, the cozy miniature look.
-	Sun->LightSourceAngle = 2.2f;
+	Sun->LightSourceAngle = 1.25f;
+	Sun->SetForwardShadingPriority(1);
+	// Screen-space contact shadows seat small pieces (roads, harbours, tokens) on the board.
+	Sun->ContactShadowLength = 0.04f;
 	Sun->RegisterComponent();
 
 	Atmosphere = NewObject<USkyAtmosphereComponent>(this);
@@ -141,7 +147,7 @@ void ACatnightDaylightActor::Setup(TSharedPtr<FCatnightMatch> InMatch)
 
 	Fog = NewObject<UExponentialHeightFogComponent>(this);
 	Fog->SetupAttachment(Root);
-	Fog->SetFogDensity(0.004f);
+	Fog->SetFogDensity(0.0025f);
 	Fog->SetRelativeLocation(FVector(0, 0, -6.f * R));
 	Fog->RegisterComponent();
 
@@ -156,7 +162,16 @@ void ACatnightDaylightActor::Setup(TSharedPtr<FCatnightMatch> InMatch)
 	P.bOverride_AutoExposureSpeedUp = P.bOverride_AutoExposureSpeedDown = true;
 	P.AutoExposureSpeedUp = P.AutoExposureSpeedDown = 20.f;
 	P.bOverride_BloomIntensity = true;
-	P.BloomIntensity = 0.55f;
+	P.BloomIntensity = 0.3f;
+	// Framing and depth: a vignette draws the eye to the island, ambient occlusion grounds the
+	// miniatures, and a gentle contrast lift with split toning (cool shade, warm light).
+	P.bOverride_VignetteIntensity = true;
+	P.VignetteIntensity = 0.55f;
+	P.bOverride_AmbientOcclusionIntensity = true;
+	P.AmbientOcclusionIntensity = 0.7f;
+	P.bOverride_ColorContrast = true;
+	P.ColorContrast = FVector4(1.f, 1.f, 1.f, 1.07f);
+	P.bOverride_ColorGainShadows = P.bOverride_ColorGainHighlights = true;
 	P.bOverride_ColorSaturation = P.bOverride_ColorGain = true;
 	Post->RegisterComponent();
 
@@ -230,7 +245,10 @@ void ACatnightDaylightActor::Apply(float InHour)
 	// A gentle grade: warm by day and at the golden hours, a touch cooler and calmer at night.
 	const float W = L.Warmth * 0.05f;
 	P.ColorGain = FVector4(1.f + W, 1.f, 1.f - W * 1.4f, 1.f);
-	P.ColorSaturation = FVector4(1.f, 1.f, 1.f, L.Lamp > 0.5f ? 0.9f : 1.05f);
+	const float Split = FMath::Clamp(L.Warmth, 0.f, 1.f) * 0.04f;
+	P.ColorGainShadows = FVector4(1.f - Split, 1.f, 1.f + Split * 1.5f, 1.f);
+	P.ColorGainHighlights = FVector4(1.f + Split, 1.f, 1.f - Split, 1.f);
+	P.ColorSaturation = FVector4(1.f, 1.f, 1.f, L.Lamp > 0.5f ? 0.9f : 1.f);
 
 	Lamp->SetIntensity(L.Lamp * 650.f);
 	Lamp->SetVisibility(L.Lamp > 0.01f);

@@ -14,4 +14,5 @@ public:
 	UPROPERTY(Transient) TArray<TObjectPtr<class UAnimSequence>> Clips;
 	int32 State = 0;
 	float Phase = 0.f;
+	bool bHorse = false;
 };

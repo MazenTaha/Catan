@@ -1,4 +1,4 @@
-// Opt-in functional route through the actual movement component, collisions, rig and camera.
+﻿// Opt-in functional route through the actual movement component, collisions, rig and camera.
 #include "Hero/HeroPawn.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -10,7 +10,7 @@
 
 void ACatnightHero::TickValidation(float Dt)
 {
-	static const float Durations[] = {.8f, 2, 2, 2, 1, 1, 2, 2, 1, 2, 3, 1, 4};
+	static const float Durations[] = {.8f, 2, 2, 2, 1, 1, 2, 2, 1, 2, 3, 1, 7};
 	ValidationTime += Dt;
 	float Within = ValidationTime;
 	int32 Stage = 0;
@@ -53,7 +53,7 @@ void ACatnightHero::TickValidation(float Dt)
 		const float Speed = GetVelocity().Size2D();
 		if (Stage == 1 || Stage == 2 || Stage == 3 || Stage == 6 || Stage == 7)
 		{
-			const float Expected = Stage == 1 ? 240.f : Stage == 2 ? 620.f : Stage == 3 ? 110.f : Stage == 6 ? 250.f : 800.f;
+			const float Expected = Stage == 1 ? 160.f : Stage == 2 ? 550.f : Stage == 3 ? 85.f : Stage == 6 ? 200.f : 700.f;
 			Check(FMath::Abs(Speed - Expected) < 25, TEXT("actual movement speed matches gait and stance"));
 		}
 		if (Stage == 3) Check(bIsCrouched && Speed < 150, TEXT("sprint cannot override silent crouch speed"));
@@ -64,7 +64,7 @@ void ACatnightHero::TickValidation(float Dt)
 			Check(FVector::Dist(Camera->GetComponentLocation(), Arm->GetComponentLocation()) < 250, TEXT("camera pulls in at an obstruction"));
 		}
 		if (Stage == 11) Check(bIsCrouched, TEXT("standing is refused under the low lintel"));
-		if (Stage == 12 && Within > 3.6f) Check(!bIsCrouched, TEXT("standing resumes after leaving the lintel"));
+		if (Stage == 12 && Within > 6.2f) Check(!bIsCrouched, TEXT("standing resumes after leaving the lintel"));
 		Check(!GetActorLocation().ContainsNaN() && !Camera->GetComponentLocation().ContainsNaN(), TEXT("finite movement and camera transforms"));
 		if (bMounted && ReinSegments.Num() == 24)
 		{

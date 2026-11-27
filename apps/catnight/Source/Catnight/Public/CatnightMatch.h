@@ -1,4 +1,4 @@
-// A local match: the rules state, the action record, the log and the bots' clock.
+﻿// A local match: the rules state, the action record, the log and the bots' clock.
 // Plain C++ (no UObject) so tests can drive it; UCatnightMatchSubsystem owns and ticks one.
 #pragma once
 
@@ -82,6 +82,8 @@ public:
 	float BotDelay = 0.7f;
 	bool bPresentationPaused = false;
 	TArray<FString> Log;
+	/** Public presentation cache, reconstructed from accepted events on Continue/undo. */
+	std::optional<std::array<int, 2>> LastDice;
 	FString LastError;
 	FSimpleMulticastDelegate OnChanged;
 	FCatnightActionApplied OnActionApplied;

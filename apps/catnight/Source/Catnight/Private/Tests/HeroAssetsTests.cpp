@@ -1,4 +1,4 @@
-#include "Misc/AutomationTest.h"
+﻿#include "Misc/AutomationTest.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
@@ -41,8 +41,8 @@ bool FCatnightHeroAssetsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("human-scale imported geometry"), Mesh->GetBounds().BoxExtent.Z > 70 && Mesh->GetBounds().BoxExtent.Z < 150);
 		for (const auto& Material : Mesh->GetMaterials()) TestNotNull(TEXT("every hero material is bound"), Material.MaterialInterface.Get());
 		for (FName Bone : Horse ? TArray<FName>{TEXT("Seat"), TEXT("BitL"), TEXT("BitR"), TEXT("Forward")}
-			: TArray<FName>{TEXT("GripL"), TEXT("GripR"), TEXT("Cape4"), TEXT("Forward")})
-			TestTrue(TEXT("mount/cloth/hand anchors exist"), Mesh->GetRefSkeleton().FindBoneIndex(Bone) != INDEX_NONE);
+			: TArray<FName>{TEXT("GripL"), TEXT("GripR"), TEXT("Forward")})
+			TestTrue(TEXT("mount/hand anchors exist"), Mesh->GetRefSkeleton().FindBoneIndex(Bone) != INDEX_NONE);
 		const TArray<FString> Modes = Horse ? TArray<FString>{TEXT("Idle"), TEXT("Walk"), TEXT("Gallop")}
 			: TArray<FString>{TEXT("Idle"), TEXT("Walk"), TEXT("Run"), TEXT("CrouchIdle"), TEXT("CrouchWalk"), TEXT("RideIdle"), TEXT("RideWalk"), TEXT("RideGallop")};
 		for (const FString& Mode : Modes)
@@ -78,6 +78,24 @@ bool FCatnightHeroAssetsTest::RunTest(const FString& Parameters)
 					TestTrue(FString::Printf(TEXT("%s/%s/%s t%d height %.3f cm"), *Family, *Mode, *Foot.ToString(), I, Height), Height > (Horse ? 14.f : 7.f) && Height < 65.f);
 				}
 			}
+            if(!Horse && (Mode==TEXT("Walk") || Mode==TEXT("Run") || Mode==TEXT("CrouchWalk"))) {
+                float PelvisSum=0;
+                for(int32 I=0;I<30;I++) {
+                    const float T=Clip->GetPlayLength()*I/30.f;
+                    const float Pelvis=At(Clip,TEXT("Hips"),T).GetLocation().Z; PelvisSum+=Pelvis;
+                    TestTrue(TEXT("walk/run keep an upright, naturally supported pelvis"),Pelvis>(Mode==TEXT("Walk")?79.f:Mode==TEXT("Run")?71.f:55.f));
+                    const FVector L=At(Clip,TEXT("FootL"),T).GetLocation(),R=At(Clip,TEXT("FootR"),T).GetLocation();
+                    TestTrue(TEXT("feet keep their own lane"),FVector::Dist2D(L,R)>15.f);
+                }
+                if(Mode==TEXT("Walk")) TestTrue(TEXT("walking does not hold a permanent crouch"),PelvisSum/30.f>84.f);
+            }
+            if(!Horse && Mode.StartsWith(TEXT("Ride"))) {
+                const int32 HipsIndex=Mesh->GetRefSkeleton().FindBoneIndex(TEXT("Hips"));
+                FTransform ReferenceHips=FTransform::Identity;
+                for(int32 B=HipsIndex;B!=INDEX_NONE;B=Mesh->GetRefSkeleton().GetParentIndex(B)) ReferenceHips=ReferenceHips*Mesh->GetRefSkeleton().GetRefBonePose()[B];
+                const float ReferenceHeight=ReferenceHips.GetLocation().Z;
+                for(int32 I=0;I<30;I++) TestTrue(TEXT("mounted hips preserve saddle reference"),FMath::Abs(At(Clip,TEXT("Hips"),Clip->GetPlayLength()*I/30.f).GetLocation().Z-ReferenceHeight)<.4f);
+            }
 			Checked++;
 		}
 	}

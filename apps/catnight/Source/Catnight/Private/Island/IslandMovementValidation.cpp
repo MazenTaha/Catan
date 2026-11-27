@@ -1,4 +1,4 @@
-// Opt-in route through actual CharacterMovement, floor collision, camera and mounted rig.
+﻿// Opt-in route through actual CharacterMovement, floor collision, camera and mounted rig.
 #include "Hero/HeroPawn.h"
 #include "Island/IslandWorld.h"
 #include "Camera/CameraComponent.h"
@@ -50,7 +50,7 @@ void ACatnightHero::TickIslandValidation(float Dt)
         Travel(FVector::ForwardVector,1);
     }
     if(Within>1.2f) {
-        const float Want=Mode==0?240.f:Mode==1?620.f:Mode==2?110.f:Mode==3?250.f:800.f;
+        const float Want=Mode==0?160.f:Mode==1?550.f:Mode==2?85.f:Mode==3?200.f:700.f;
         Check(GetVelocity().Size2D()>Want*.8f && GetVelocity().Size2D()<Want*1.12f,TEXT("walk / sprint / crouch / riding speed"));
         Check(GetCharacterMovement()->IsMovingOnGround(),TEXT("supported by island terrain"));
         Check(ExplorationIsland->CanWalk(GetActorLocation()),TEXT("remains on land"));

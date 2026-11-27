@@ -96,15 +96,15 @@ How each of these is designed and built in Unreal: `docs/CATNIGHT_UI_PLAN.md`.
 
 | Browser feature | Unreal today | Better in Unreal | Phase |
 |---|---|---|---|
-| The live island: approximately 294 m wide, 38 work yards and connected trails; every building and road from the match stands there | to do in Catnight; a static island prototype exists in `apps/unreal 5.8` (`Island_*` maps, 424 files) | Nanite and Lumen: real global light, far more vegetation, proper shadows, volumetric fog | 4 |
-| Third-person knight over the shoulder, walk 2.4 / sprint 6.2 m/s, silent crouch 1.1 m/s, momentum, footfalls and dust | part: original rebuilt Blender knight, blended native loops, 2.4/6.2/1.1 m/s CharacterMovement, crouch clearance and swept camera in the title's practice yard; full island, footfalls/dust pending | Blended locomotion, camera collision, controller support | 4 |
-| Horses: graze, mount with E, walk/gallop 5.5/12 m/s with matched rider grip and reins | part: rebuilt skeletal bay horse, synchronized rider/saddle, visible hand-to-bit reins, fitted stirrups, safe mount/dismount and 2.5/8 m/s practice gaits; grazing/live island pending | Native pose blending and physical clearance | 4 |
-| Enterable cottage, hall, mill with furnished rooms and hinged doors | to do (room plans in `buildings.json`) | Lit interiors with Lumen; doors with physics | 4 |
-| Trees, shrubs, grass, flowers, wheat with wind; boulders, crags, clay banks, ruin | prototype island has foliage | Dense foliage with wind, distance fields, no pop-in | 4 |
-| Sheep that graze, look, bleat; pasture horses | to do | Same, with real animation | 4 |
-| Sky, clouds, sun/moon, stars, day stages from game progress | to do | Sky atmosphere, volumetric clouds, moonlight | 4 |
-| Minimap (island / nearby, M), view cone, markers | to do | Same | 4 |
-| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword, E, M, Esc | part: WASD/arrows, mouse orbit, Shift, Ctrl/C, E, wheel and Esc in the practice yard; combat/minimap/rebinding pending | Plus gamepad, rebindable keys | 4 |
+| The live island: approximately 294 m wide, 38 work yards and connected trails; every building and road from the match stands there | part: Explore island opens the match's 19 tiles at about 520 × 563 m, with actual owner buildings/roads/harbours and deterministic instanced scenery; bots pause and Escape restores the same table | Nanite and Lumen: real global light, far more vegetation, proper shadows, volumetric fog | 4 |
+| Third-person knight over the shoulder, walk 2.4 / sprint 6.2 m/s, silent crouch 1.1 m/s, momentum, footfalls and dust | part: rebuilt Blender knight, blended native loops, 2.4/6.2/1.1 m/s CharacterMovement, crouch clearance and swept camera in both live island and practice yard; footfalls/dust pending | Blended locomotion, camera collision, controller support | 4 |
+| Horses: graze, mount with E, walk/gallop 5.5/12 m/s with matched rider grip and reins | part: rebuilt skeletal horse in the live island and yard, synchronized rider/saddle and reins, supported mounting, safe dismount and 2.5/8 m/s gaits; smoothed body alignment to slopes, per-leg IK/grazing pending | Native pose blending and physical clearance | 4 |
+| Enterable cottage, hall, mill with furnished rooms and hinged doors | to do: live-island cottages/halls/mills have closed collision shells; furnished rooms and hinged doors remain (reference plans in `buildings.json`) | Lit interiors with Lumen; doors with physics | 4 |
+| Trees, shrubs, grass, flowers, wheat with wind; boulders, crags, clay banks, ruin | part: roughly 19,700 original Blender scenery instances in six biomes, native HISM batches, bounded draw distance and clear walking corridors; wind/streaming refinement pending | Dense foliage with wind, distance fields, no pop-in | 4 |
+| Sheep that graze, look, bleat; pasture horses | part: original sheep placed in pastures; animated grazing, voices and ambient horse herds pending | Same, with real animation | 4 |
+| Sky, clouds, sun/moon, stars, day stages from game progress | part: island atmosphere, warm sun, soft shadow fill and fog; clouds/moon/stars/live day stages pending | Sky atmosphere, volumetric clouds, moonlight | 4 |
+| Minimap (island / nearby, M), view cone, markers | part: native public biome chart, heading arrow and 100 m scale; nearby/expanded modes, M and markers pending | Same | 4 |
+| Dive in mouse look; WASD, Shift, Ctrl/C crouch, F, RMB guard, 1 hands / 2 sword, E, M, Esc | part: WASD/arrows, mouse orbit, Shift, Ctrl/C, E, wheel and Esc in live island and yard; combat/map modes/rebinding pending | Plus gamepad, rebindable keys | 4 |
 | Training dummy | to do | Same | 4 |
 | Graphics Auto / Full / Lite, 3D resolution 100/75/50 % | to do | Unreal scalability, TSR/DLSS/FSR upscaling, Steam Deck preset | 4 |
 

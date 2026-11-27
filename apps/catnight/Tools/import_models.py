@@ -259,4 +259,5 @@ def main():
     unreal.log(f"Catnight import: {sum(len(m) for m in report.values())} meshes, report {out}")
 
 
-main()
+if __name__ == "__main__":
+    main()

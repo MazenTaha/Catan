@@ -43,9 +43,14 @@ foreach($family in $heroes.models.PSObject.Properties){
   }
 }
 Write-Host "Artwork preflight: $modelCount meshes and 7 base materials present."
+foreach($name in @('Well','MarketStall','Waystone','Handcart','LanternPost','Flowerbed')) {
+  if(-not(Test-Path -LiteralPath "$PSScriptRoot/Content/Generated/Island/Meshes/island/StaticMeshes/$name.uasset")){throw 'Island artwork missing. Run pnpm catnight:island.'}
+}
+if(-not(Test-Path -LiteralPath "$PSScriptRoot/Content/Generated/Island/M_Ground.uasset")){throw 'Island ground missing. Run pnpm catnight:island.'}
 
 & $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Configuration" `
-  -build -cook -stage -pak -archive "-archivedirectory=$OutputDir" -unattended -utf8output -nocompileeditor
+  -build -cook -stage -pak -archive "-archivedirectory=$OutputDir" -unattended -utf8output -nocompileeditor `
+  '-AdditionalCookerOptions=-DisablePlugins=AllToolsets,ModelContextProtocol'
 if ($LASTEXITCODE -ne 0) { throw "Packaging failed ($LASTEXITCODE)." }
 $exe = Join-Path $OutputDir 'Windows/Catnight.exe'
 if (-not (Test-Path -LiteralPath $exe)) { throw "Packaging did not produce $exe" }

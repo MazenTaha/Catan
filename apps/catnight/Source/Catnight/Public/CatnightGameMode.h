@@ -39,9 +39,12 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	void EnterHeroYard();
+	void EnterIsland();
 	void LeaveHeroYard();
 
 private:
+	void EnterWalk(bool bIsland);
+	UPROPERTY() TObjectPtr<class ACatnightIsland> Island;
 	TSharedPtr<class SCatnightRoot> Root;
 	TSharedPtr<class SWidget> HeroHud;
 	UPROPERTY() TObjectPtr<class ACatnightHero> Hero;

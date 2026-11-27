@@ -368,3 +368,16 @@ browser. Local practice preserves the running table and pauses its bot clock.
 This does not complete phase 4: connecting the hero to the match's live terrain and buildings,
 rooms/chest/combat, minimap, Character/My kingdom, arbitrary-terrain foot placement and wider
 controller/performance acceptance remain. The packaged hero check records the verified scope.
+
+## 13. Playable local island foundation (2026-11-27)
+
+Explore island now connects the running match to a roughly 520 × 563 m native world with all
+19 tiles across six biomes, actual buildings/roads/harbours, original Blender scenery, a native island chart and
+the existing knight/horse controls. The table and bot clock pause during exploration and resume
+on Escape. Continuous collision terrain and supported mounting replace the yard's flat-floor
+assumptions. `docs/CATNIGHT_ISLAND.md` covers the reproducible art pipeline and actual MCP review.
+
+This supersedes the full-island/minimap foundation items in §12; phase 4 remains partial.
+Closed building shells still need rooms/doors. Chest/combat, customization, animated ambient
+animals, sails/wind, footstep audio, map modes, arbitrary-terrain foot IK, streaming and physical
+controller acceptance remain. Steam/duels and release stay in their later phases.

@@ -371,6 +371,10 @@ TSharedRef<SWidget> STable::BuildPanel()
 	];
 	if (!Match->NeedsHandoff())
 	{
+		Box->AddSlot().AutoHeight().Padding(0, 10, 0, 0)
+		[
+			Button(TEXT("Explore island"), [this] { View->ExploreIsland.ExecuteIfBound(); return FReply::Handled(); }, EButton::Plaque, View->ExploreIsland.IsBound(), nullptr, TEXT("hex"), 18)
+		];
 		// Spacing sized so the whole column fits a 720p window (900 units at its UI scale) unscrolled.
 		Box->AddSlot().AutoHeight().Padding(0, 20, 0, 0)[TreasuryBox()];
 		const TSharedPtr<SWidget> Decision = DecreeBox();

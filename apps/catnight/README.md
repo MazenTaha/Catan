@@ -4,7 +4,7 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 [`docs/UNREAL_NATIVE_PLAN.md`](../../docs/UNREAL_NATIVE_PLAN.md). The old browser-wrapper app
 (`apps/unreal`) keeps working until this one replaces it.
 
-## What is here (phase 2 and the first 3D-table milestone)
+## What is here (native table and playable island foundation)
 
 - `Plugins/CatnightRules`: the rules, bots and record format in plain C++20 (no Unreal types), a
   port of `packages/engine` proven step by step against it (see the plan, §4.1).
@@ -60,7 +60,13 @@ The game rebuilt natively in Unreal Engine 5.8, without the browser inside it. P
 - **Dice:** the board owns one carved pair and its result-driven toss; the hall's optional
   dice are disabled in the integrated game, preventing duplicate throws.
 - **Card flights:** `Private/Table/SCardFlights.*` (gained cards fly into Materials (was Thy Treasury)).
-- The Blender hall with its own cameras, music and the island walk remain later milestones. The Development package passes cooked-asset and match checks; a full manual
+- **Explore island** on the match screen opens the live 19-tile world at roughly 520 × 563 m,
+  with the match's buildings, roads and harbours, original Blender scenery, a native knight,
+  riding horse and island chart. WASD moves, Shift sprints/gallops, Ctrl/C crouches, E mounts or
+  dismounts, the mouse turns the camera, the wheel changes distance, and Escape returns to the
+  same paused table. See [`docs/CATNIGHT_ISLAND.md`](../../docs/CATNIGHT_ISLAND.md) for Blender,
+  actual Unreal MCP review, validation and the remaining interiors/combat/animation work.
+- The Blender hall with its own cameras and music remain later milestones. The Development package passes cooked-asset and match checks; a full manual
   mouse/real-gamepad playthrough is still required.
 
 ## Rebuild the board artwork
@@ -74,7 +80,7 @@ pnpm catnight:import
 
 `Tools/split_models.py` uses `E:/Blender/blender.exe` to join each root model from the original
 `apps/web/public/models/{village,flora,rocks,props,supplies}.glb` files into a single origin-centred
-mesh. `Tools/import_models.py` imports 92 meshes and their textures/materials into Unreal using
+mesh. `Tools/import_models.py` imports 91 meshes and their textures/materials into Unreal using
 `E:/UE_5.8`. The intermediate files in `SourceArt/Models` and output in `Content/Generated`
 are ignored; the original web GLBs remain tracked. A fresh checkout needs this command. The import report is `Saved/catnight-import.json` and its
 Unreal log is `Saved/Logs/catnight-import.log`. Regenerate after changing the Blender GLBs.
@@ -94,7 +100,7 @@ Close the Unreal editor before building. Paths are this PC's (`E:/UE_5.8`).
 ```
 
 ```powershell
-& 'E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe' 'E:/Catan/apps/catnight/Catnight.uproject' -game -windowed -ResX=1600 -ResY=900
+& 'E:/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe' 'E:/Catan/apps/catnight/Catnight.uproject' -game '-DisablePlugins=AllToolsets,ModelContextProtocol' -windowed -ResX=1600 -ResY=900
 ```
 
 Options for the game (also used for automated screenshots); any match option skips the title:
@@ -263,6 +269,8 @@ The project enables it with All Toolsets, for the Editor target only, so the gam
   (or run `ModelContextProtocol.GenerateClientConfig ClaudeCode` in the editor console for a `.mcp.json`).
 - The tools exist only while the editor is open. `claude mcp get unreal-mcp` shows whether it connects.
 - The server lists three tools (`list_toolsets`, `describe_toolset`, `call_tool`) and finds the rest on demand.
+- Command-line imports, tests and packaging pass `-DisablePlugins=AllToolsets,ModelContextProtocol`:
+  in a commandlet the Game Features toolset logs an error, which made `pnpm catnight:import` fail.
 
 Codex uses the same endpoint. Register it with
 `codex mcp add unreal-mcp --url http://127.0.0.1:8000/mcp`, or add this section to the existing
@@ -284,7 +292,8 @@ Rebuild it with `pnpm catnight:heroes`; `pnpm catnight:import` now includes that
 pipeline too. `pnpm catnight:test-heroes` checks imported rigs, physical movement and rendered
 poses in the packaged executable. Editable Blender files are generated in `SourceArt/Heroes`.
 See [`docs/CATNIGHT_HEROES.md`](../../docs/CATNIGHT_HEROES.md) for controls and scope. This yard
-prepares the knight and horse for phase 4; the complete live-island walk is still pending.
+shares its knight/horse controls with **Explore island** in the match. The live island is now
+playable; interiors, combat, ambient animation and the other phase 4 parity gates remain open.
 
 - `CatnightRules.Build.cs` sets `FPSemantics = Precise` and turns unity builds off. Unreal compiles
   game modules with `/fp:fast` by default, which would let the bots' scores round differently from
@@ -305,7 +314,7 @@ from foundation through walls to roof over five seconds, with temporary timber s
 short-lived dust. Subsequent actions do not restart a construction. Undo, a new game and
 Continue clear presentation history. Reduced motion shows the completed model immediately.
 The Hall Settings reduced-motion preference controls both the UI and board; no separate table
-preference is stored. Map notes use HallKit vellum, reached by hover or I / gamepad X.
+preference is stored. Map notes use HallKit vellum, reached by hover or I / left-stick click.
 Buildings face their strongest producing neighbour; number tokens and pips turn toward the
 orbit camera. The production event's actual paid hexes get a warm marker and `+`; a blocked
 hex gets `X`. The indicators wait for the dice to settle and then expire, and respect the
@@ -325,10 +334,10 @@ frames the building or dice. `-CatnightInspect=<hex index>`, `-CatnightReduceMot
 `-CatnightFullMotion` support repeatable inspection without changing saved preferences.
 
 The new construction shader is `/Game/Generated/Materials/M_Construction`: run the art import
-after updating, even if the previous 92 meshes are already present. There are now seven base
-materials and 157 generated asset packages. The importer asserts every construction graph
+after updating, even if the 91 board meshes are already present. There are seven base
+materials, plus the hero and island imports. The importer asserts every construction graph
 connection. Packaged smoke tests reject shader compilation/default-material fallbacks.
 
 Validation scope and selected captures: [`validation/table-feedback.json`](validation/table-feedback.json).
 The table milestone is integrated with the Hall/UI first pass; the real hall, remaining UI and
-audio, island walking and Steam multiplayer remain in the native plan.
+audio, further island parity and Steam multiplayer remain in the native plan.

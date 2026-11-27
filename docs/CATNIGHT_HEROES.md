@@ -129,3 +129,12 @@ Connect this character foundation to the match's full-sized live island, terrain
 interiors; add the weapon chest/combat/duels, customization, minimap and kingdom furnishings.
 Animation/terrain foot IK on arbitrary slopes, further LOD/performance work, input rebinding,
 complete physical-gamepad testing and broader player acceptance remain gates for that port.
+
+## Live island integration (2026-11-27)
+
+The knight and horse now also explore the match's native 19-tile island through Explore island.
+See `CATNIGHT_ISLAND.md`. Mounting sweeps the full riding capsule onto a supported surface;
+smoothed horse/rider body alignment follows terrain normals while preserving saddle/rein
+contact. Parked horses retain their ground normal. This supplements the yard's tests with
+95 cross-biome scenarios at three simulation rates. It does not add per-leg foot IK or claim
+that all room/combat/controller acceptance is complete.

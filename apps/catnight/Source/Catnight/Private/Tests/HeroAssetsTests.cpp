@@ -2,6 +2,9 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
+#if WITH_EDITOR
+#include "AssetCompilingManager.h"
+#endif
 
 #if WITH_DEV_AUTOMATION_TESTS
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCatnightHeroAssetsTest, "Catnight.Hero.Assets",
@@ -31,6 +34,10 @@ bool FCatnightHeroAssetsTest::RunTest(const FString& Parameters)
 		const bool Horse = Family == TEXT("Horse");
 		auto* Mesh = LoadObject<USkeletalMesh>(nullptr, *FString::Printf(TEXT("/Game/Generated/Heroes/SK_%s"), *Family));
 		if (!TestNotNull(TEXT("native skeletal mesh exists"), Mesh)) return false;
+#if WITH_EDITOR
+		UObject* MeshAssets[] = {Mesh};
+		FAssetCompilingManager::Get().FinishCompilationForObjects(MeshAssets);
+#endif
 		TestTrue(TEXT("human-scale imported geometry"), Mesh->GetBounds().BoxExtent.Z > 70 && Mesh->GetBounds().BoxExtent.Z < 150);
 		for (const auto& Material : Mesh->GetMaterials()) TestNotNull(TEXT("every hero material is bound"), Material.MaterialInterface.Get());
 		for (FName Bone : Horse ? TArray<FName>{TEXT("Seat"), TEXT("BitL"), TEXT("BitR"), TEXT("Forward")}
@@ -42,6 +49,11 @@ bool FCatnightHeroAssetsTest::RunTest(const FString& Parameters)
 		{
 			auto* Clip = LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Generated/Heroes/A_%s_%s"), *Family, *Mode));
 			if (!TestNotNull(TEXT("baked native animation exists"), Clip)) return false;
+#if WITH_EDITOR
+			// Cold loads can still be compressing. Sample the final clip, not transient build data.
+			UObject* ClipAssets[] = {Clip};
+			FAssetCompilingManager::Get().FinishCompilationForObjects(ClipAssets);
+#endif
 			TestEqual(TEXT("clip uses this mesh skeleton"), Clip->GetSkeleton(), Mesh->GetSkeleton());
 			TestTrue(TEXT("non-empty clip"), Clip->GetPlayLength() >= .4f);
 			const FReferenceSkeleton& Ref = Clip->GetSkeleton()->GetReferenceSkeleton();
@@ -49,7 +61,9 @@ bool FCatnightHeroAssetsTest::RunTest(const FString& Parameters)
 			{
 				const FName Name = Ref.GetBoneName(Bone);
 				const FTransform First = At(Clip, Name, 0), Last = At(Clip, Name, Clip->GetPlayLength());
-				TestTrue(TEXT("loop closes without a bone pop"), First.Equals(Last, .05f));
+				TestTrue(FString::Printf(TEXT("%s/%s/%s loop closes (position delta %.4f cm, angle %.4f degrees)"),
+					*Family, *Mode, *Name.ToString(), FVector::Distance(First.GetLocation(), Last.GetLocation()),
+					FMath::RadiansToDegrees(First.GetRotation().AngularDistance(Last.GetRotation()))), First.Equals(Last, .05f));
 				for (int32 Sample = 0; Sample < 12; Sample++)
 					TestFalse(TEXT("finite bone transforms throughout clip"), At(Clip, Name, Clip->GetPlayLength() * Sample / 12.f).ContainsNaN());
 			}

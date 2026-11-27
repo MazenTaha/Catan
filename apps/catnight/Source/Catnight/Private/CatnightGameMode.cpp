@@ -21,6 +21,8 @@
 #include "Hero/HeroPawn.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Hero/HeroYard.h"
+#include "Island/IslandWorld.h"
+#include "Island/IslandMinimap.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -92,6 +94,7 @@ void ACatnightGameMode::BeginPlay()
 	}
 
 	View = MakeShared<FCatnightBoardView>();
+	View->ExploreIsland = FSimpleDelegate::CreateUObject(this, &ACatnightGameMode::EnterIsland);
 	View->b3D = !FParse::Param(Cmd, TEXT("CatnightFlat"));
 	View->bReducedMotion = FHallSettings::Get().bReduceMotion;
 	if (FParse::Param(Cmd, TEXT("CatnightFullMotion"))) View->bReducedMotion = false;
@@ -188,6 +191,46 @@ void ACatnightGameMode::BeginPlay()
 		});
 	}
 	PerfHandle = CatnightPerf::StartFromCommandLine(GetWorld(), Match);
+	FString IslandReview;
+	if (FParse::Value(Cmd, TEXT("CatnightIsland="), IslandReview))
+	{
+		if (!Match->HasGame()) { FCatnightMatchSetup Demo; Demo.Seed = TEXT("island-rework"); Match->Start(Demo); }
+		EnterIsland();
+		if (Hero && IslandReview == TEXT("movement")) Hero->ReviewMode = TEXT("island-test");
+		if (Island && Hero && IslandReview.IsNumeric())
+		{
+			const int32 H = FMath::Clamp(FCString::Atoi(*IslandReview), 0, 18);
+			FVector P = Island->HexPoint(H) + FVector(-1200, -900, 0);
+			P.Z = Island->GetActorLocation().Z + Island->SurfaceHeight(FVector2D(P - Island->GetActorLocation())) + 105;
+			Hero->SetActorLocation(P);
+		}
+		if (IslandReview == TEXT("test") && Island)
+		{
+			FString Result; const bool Passed = Island->ValidateRoutes(Result);
+			UE_LOG(LogTemp, Display, TEXT("%s"), *Result);
+			FPlatformMisc::RequestExitWithStatus(false, Passed ? 0 : 1);
+		}
+		if (IslandReview == TEXT("return"))
+		{
+			const FString Record = Match->RecordJson();
+			ReviewHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("CatnightIslandReturn"), 1.f,
+				[this, Match, Record, Cycles = 0](float) mutable
+				{
+					const auto* PC = GetWorld()->GetFirstPlayerController();
+					bool bOK = Island && Hero && !HeroYard && !Hall && !Daylight && Match->bPresentationPaused
+						&& GetWorld()->GetGameViewport() && !GetWorld()->GetGameViewport()->bDisableWorldRendering;
+					LeaveHeroYard();
+					bOK &= !Island && !Hero && !HeroYard && Hall && Daylight && !Hall->HasDice()
+						&& !Match->bPresentationPaused && Root->GetVisibility() == EVisibility::Visible
+						&& PC && PC->bShowMouseCursor && PC->GetViewTarget() == Board && Match->RecordJson() == Record;
+					if (bOK && ++Cycles < 3) { EnterIsland(); return true; }
+					if (bOK) { UE_LOG(LogTemp, Display, TEXT("ISLAND RETURN PASSED: 3 cycles, unchanged record, restored table camera/input and hall")); }
+					else { UE_LOG(LogTemp, Error, TEXT("ISLAND RETURN FAILED")); }
+					FPlatformMisc::RequestExitWithStatus(false, bOK ? 0 : 1);
+					return false;
+				});
+		}
+	}
 
 	FString Shot;
 	if (FParse::Value(Cmd, TEXT("CatnightShot="), Shot))
@@ -221,6 +264,18 @@ void ACatnightGameMode::BeginPlay()
 
 void ACatnightGameMode::EnterHeroYard()
 {
+	EnterWalk(false);
+}
+
+void ACatnightGameMode::EnterIsland()
+{
+	const auto Match = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match();
+	if (!Match->HasGame() || Match->NeedsHandoff()) return;
+	EnterWalk(true);
+}
+
+void ACatnightGameMode::EnterWalk(bool bIsland)
+{
 	if (Hero || !Root) return;
 	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = true;
 	Root->SetVisibility(EVisibility::Collapsed);
@@ -231,8 +286,20 @@ void ACatnightGameMode::EnterHeroYard()
 	if (Daylight) { Daylight->Destroy(); Daylight = nullptr; }
 	if (Hall) { Hall->Destroy(); Hall = nullptr; }
 	const FVector Origin(500000, 0, 0);
-	HeroYard = GetWorld()->SpawnActor<ACatnightHeroYard>(Origin, FRotator::ZeroRotator);
-	Hero = GetWorld()->SpawnActor<ACatnightHero>(Origin + FVector(0, 0, 98), FRotator::ZeroRotator);
+	FVector Start = Origin + FVector(0, 0, 98);
+	if (bIsland)
+	{
+		Island = GetWorld()->SpawnActor<ACatnightIsland>(Origin, FRotator::ZeroRotator);
+		Island->Setup(GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match());
+		Start = Island->EntryPoint();
+	}
+	else HeroYard = GetWorld()->SpawnActor<ACatnightHeroYard>(Origin, FRotator::ZeroRotator);
+	Hero = GetWorld()->SpawnActor<ACatnightHero>(Start, FRotator::ZeroRotator);
+	if (Island)
+	{
+		Hero->ExplorationIsland = Island;
+		Hero->WalkBoundary = [Weak = TWeakObjectPtr<ACatnightIsland>(Island)](FVector P) { return Weak.IsValid() && Weak->CanWalk(P); };
+	}
 	if (auto* PC = GetWorld()->GetFirstPlayerController())
 	{
 		PC->Possess(Hero);
@@ -246,10 +313,14 @@ void ACatnightGameMode::EnterHeroYard()
 		PC->SetInputMode(FInputModeGameOnly());
 	}
 	HeroHud = SNew(SOverlay).Visibility(EVisibility::HitTestInvisible)
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(24)
+		[
+			SNew(SIslandMinimap).Island(Island).Hero(Hero)
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(24)
 		[
 			HallKit::Paper(SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(TEXT("Knight & riding yard"), 23)]
+				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(bIsland ? TEXT("Explore the island") : TEXT("Knight & riding yard"), 23)]
 				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Hall::Body(18)).ColorAndOpacity(Hall::Color::MapInk)
 					.Text_Lambda([Weak = TWeakObjectPtr<ACatnightHero>(Hero)] { return FText::FromString(Weak.IsValid() ? Weak->Status() : FString()); })]
 				+ SVerticalBox::Slot().AutoHeight()[HallKit::Ink(TEXT("Mouse / right stick: look / Wheel: camera distance / Esc: hall"), 17)], HallKit::EPaper::Vellum)
@@ -274,6 +345,7 @@ void ACatnightGameMode::LeaveHeroYard()
 	}
 	Hero->Destroy(); Hero = nullptr;
 	if (HeroYard) { HeroYard->Destroy(); HeroYard = nullptr; }
+	if (Island) { Island->Destroy(); Island = nullptr; }
 	const TSharedRef<FCatnightMatch> Match = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match();
 	Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
 	if (Hall) Hall->Setup(Match, false);

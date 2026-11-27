@@ -34,8 +34,12 @@ public:
 	bool bMounted = false, bSprint = false;
 	float Phase = 0.f;
 	FString ReviewMode;
+	/** Optional exploration boundary; the practice yard keeps its physical fixtures. */
+	TFunction<bool(FVector)> WalkBoundary;
+	TWeakObjectPtr<class ACatnightIsland> ExplorationIsland;
 private:
 	void TickValidation(float Dt);
+	void TickIslandValidation(float Dt);
 	void Travel(const FVector& Direction, float Value);
 	void Forward(float Value);
 	void Right(float Value);
@@ -55,6 +59,10 @@ private:
 	int32 ValidationStage = -1, ValidationChecks = 0, ValidationFailures = 0;
 	FVector YardOrigin = FVector::ZeroVector;
 	float ParkedHeading = 0.f;
+	FVector ParkedUp = FVector::UpVector;
+	FVector RidingUp = FVector::UpVector;
+	float RidingFloor = 0.f;
+	bool bRidingFloorReady = false;
 	FVector PreviousPosition = FVector::ZeroVector;
 	FVector HipsRef = FVector::ZeroVector;
 	FVector SeatRef = FVector::ZeroVector;

@@ -90,6 +90,9 @@ ACatnightHero::ACatnightHero()
     PP.bOverride_CameraShutterSpeed = true; PP.CameraShutterSpeed = 125;
     PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = 8;
     PP.bOverride_AutoExposureBias = true; PP.AutoExposureBias = 0;
+    // The engine's default motion blur smears the knight and the near ground whenever the
+    // camera turns; a painted, third-person world reads better crisp.
+    PP.bOverride_MotionBlurAmount = true; PP.MotionBlurAmount = 0;
 }
 
 void ACatnightHero::BeginPlay()
@@ -120,7 +123,7 @@ void ACatnightHero::BeginPlay()
 	Parked += GetActorLocation() - FVector(0, 0, 96);
     FHitResult ParkFloor;
     FCollisionQueryParams ParkQuery(SCENE_QUERY_STAT(ParkedHorseFloor), false, this);
-    if (GetWorld()->LineTraceSingleByChannel(ParkFloor, Parked + FVector(0,0,200), Parked-FVector(0,0,300), ECC_Visibility, ParkQuery)) Parked.Z=ParkFloor.ImpactPoint.Z;
+    if (GetWorld()->LineTraceSingleByChannel(ParkFloor, Parked + FVector(0,0,200), Parked-FVector(0,0,300), ECC_Visibility, ParkQuery)) { Parked.Z=ParkFloor.ImpactPoint.Z; ParkedUp=ParkFloor.ImpactNormal; }
 	UE_LOG(LogTemp, Display, TEXT("HERO rigs Knight yaw %.1f hips %s; Horse yaw %.1f seat %s"), KnightYaw, *HipsRef.ToString(), HorseYaw, *SeatRef.ToString());
 	auto* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	auto* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Generated/Materials/M_Tint"));
@@ -144,7 +147,7 @@ void ACatnightHero::OnEndCrouch(float Height, float ScaledHeight) { Super::OnEnd
 void ACatnightHero::Tick(float Dt)
 {
 	Super::Tick(Dt);
-	if (!ReviewMode.IsEmpty() && ReviewMode != TEXT("test"))
+	if (!ReviewMode.IsEmpty() && ReviewMode != TEXT("test") && ReviewMode != TEXT("island-test"))
 	{
 		if ((ReviewMode == TEXT("ride") || ReviewMode == TEXT("gallop")) && !bMounted) { SetActorLocation(Parked + FVector(-100, 0, 98)); ToggleMount(); }
 		if (ReviewMode == TEXT("crouch")) SetSneak(true);
@@ -169,13 +172,30 @@ void ACatnightHero::Tick(float Dt)
 	}
 	if (bMounted)
 	{
-		Horse->SetRelativeLocationAndRotation(FVector(0, 0, -GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() - 2.15f), FRotator(0, HorseYaw, 0));
-		const FRotator Rotation(0, GetActorRotation().Yaw + KnightYaw, 0);
+		FHitResult Floor;
+		FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(RidingSurface), false, this);
+		GroundQuery.AddIgnoredActor(ParkedCollision);
+		if (!GetCharacterMovement()->IsMovingOnGround())
+		{
+			// On a drop, follow the falling physics body rather than snapping down to the distant floor.
+			RidingFloor=GetActorLocation().Z-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+			bRidingFloorReady=false;
+		}
+		else if (GetWorld()->LineTraceSingleByChannel(Floor, GetActorLocation(), GetActorLocation()-FVector(0,0,500), ECC_Visibility, GroundQuery))
+		{
+			const float Blend = 1.f-FMath::Exp(-14.f*Dt);
+			RidingUp = bRidingFloorReady ? FMath::Lerp(RidingUp, Floor.ImpactNormal, Blend).GetSafeNormal() : Floor.ImpactNormal;
+			RidingFloor = bRidingFloorReady ? FMath::Lerp(RidingFloor, static_cast<float>(Floor.ImpactPoint.Z), Blend) : Floor.ImpactPoint.Z;
+			bRidingFloorReady = true;
+		}
+		const FQuat Surface = FQuat::FindBetweenNormals(FVector::UpVector, RidingUp);
+		const FQuat Rotation = Surface * FQuat(FRotator(0, GetActorRotation().Yaw + KnightYaw, 0));
+		Horse->SetWorldLocationAndRotation(FVector(GetActorLocation().X,GetActorLocation().Y,RidingFloor-2.15f), Surface * FQuat(FRotator(0,GetActorRotation().Yaw+HorseYaw,0)));
 		GetMesh()->SetWorldLocationAndRotation(Horse->GetSocketLocation(TEXT("Seat")) - Rotation.RotateVector(FRotator(0, -KnightYaw, 0).RotateVector(HipsRef)), Rotation);
 	}
 	else
 	{
-		Horse->SetWorldLocationAndRotation(Parked, FRotator(0, ParkedHeading + HorseYaw, 0));
+		Horse->SetWorldLocationAndRotation(Parked, FQuat::FindBetweenNormals(FVector::UpVector,ParkedUp) * FQuat(FRotator(0, ParkedHeading + HorseYaw, 0)));
 		HorseBlocker->SetWorldLocationAndRotation(Parked + FRotator(0, ParkedHeading, 0).RotateVector(FVector(20, 0, 105)), FRotator(90, ParkedHeading, 0));
 	}
 	CameraCompensation *= FMath::Exp(-12.f * Dt);
@@ -191,6 +211,7 @@ void ACatnightHero::Tick(float Dt)
 	}
 	// Validate the completed pose/attachment, after this frame's saddle and strap updates.
 	if (ReviewMode == TEXT("test")) TickValidation(Dt);
+	if (ReviewMode == TEXT("island-test")) TickIslandValidation(Dt);
 }
 
 void ACatnightHero::UpdateReins()
@@ -222,11 +243,18 @@ bool ACatnightHero::ToggleMount()
 		if (FVector::Dist2D(GetActorLocation(), Parked) > 230 || bIsCrouched || GetCharacterMovement()->IsFalling()) return false;
 		HorseBlocker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		FCollisionQueryParams MountQuery(SCENE_QUERY_STAT(HeroMountClearance), false, this);
-		if (GetWorld()->OverlapBlockingTestByChannel(Parked + FVector(0, 0, 137), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(70, 135), MountQuery)) { HorseBlocker->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); return false; }
+		MountQuery.AddIgnoredActor(ParkedCollision);
+		FHitResult Support;
+		const FCollisionShape MountedShape=FCollisionShape::MakeCapsule(70,135);
+		const bool Supported=GetWorld()->SweepSingleByChannel(Support,Parked+FVector(0,0,300),Parked+FVector(0,0,100),FQuat::Identity,ECC_Pawn,MountedShape,MountQuery);
+		const FVector MountedPosition=Support.Location+FVector(0,0,2);
+		if (!Supported || Support.bStartPenetrating || Support.ImpactNormal.Z<GetCharacterMovement()->GetWalkableFloorZ()
+			|| GetWorld()->OverlapBlockingTestByChannel(MountedPosition,FQuat::Identity,ECC_Pawn,MountedShape,MountQuery)) { HorseBlocker->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); return false; }
 		StopControls(); bMounted = true;
+		bRidingFloorReady=false;
 		HorseBlocker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		GetCapsuleComponent()->SetCapsuleSize(70, 135);
-		SetActorLocation(Parked + FVector(0, 0, 137), false, nullptr, ETeleportType::TeleportPhysics);
+		SetActorLocation(MountedPosition, false, nullptr, ETeleportType::TeleportPhysics);
 		SetActorRotation(FRotator(0, ParkedHeading, 0));
 		PreviousPosition = GetActorLocation();
 		GetCharacterMovement()->StopMovementImmediately();
@@ -241,11 +269,17 @@ bool ACatnightHero::ToggleMount()
 		const FVector P = Ground + GetActorRotation().RotateVector(Local);
 		FHitResult Floor;
 		if (!GetWorld()->LineTraceSingleByChannel(Floor, P + FVector(0, 0, 200), P - FVector(0, 0, 250), ECC_Visibility, Query) || Floor.ImpactNormal.Z < .72f) continue;
-		const FVector Candidate = Floor.ImpactPoint + FVector(0, 0, 98);
+		FHitResult Landing;
+		const FCollisionShape FootShape = FCollisionShape::MakeCapsule(34, 96);
+		if (!GetWorld()->SweepSingleByChannel(Landing, Floor.ImpactPoint + FVector(0, 0, 220),
+			Floor.ImpactPoint + FVector(0, 0, 80), FQuat::Identity, ECC_Pawn, FootShape, Query)
+			|| Landing.bStartPenetrating || Landing.ImpactNormal.Z < GetCharacterMovement()->GetWalkableFloorZ()) continue;
+		const FVector Candidate = Landing.Location + FVector(0, 0, 2);
+		if (WalkBoundary && !WalkBoundary(Candidate)) continue;
 		if (GetWorld()->OverlapBlockingTestByChannel(Candidate, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(34, 96), Query)) continue;
 		Parked = Ground;
         FHitResult ParkSupport;
-        if (GetWorld()->LineTraceSingleByChannel(ParkSupport, Ground + FVector(0,0,40), Ground-FVector(0,0,120), ECC_Visibility, Query)) Parked.Z = ParkSupport.ImpactPoint.Z;
+        if (GetWorld()->LineTraceSingleByChannel(ParkSupport, Ground + FVector(0,0,40), Ground-FVector(0,0,120), ECC_Visibility, Query)) { Parked.Z = ParkSupport.ImpactPoint.Z; ParkedUp = ParkSupport.ImpactNormal; }
         ParkedHeading = GetActorRotation().Yaw;
 		StopControls(); bMounted = false;
 		GetCapsuleComponent()->SetCapsuleSize(34, 96);
@@ -263,6 +297,11 @@ bool ACatnightHero::ToggleMount()
 
 void ACatnightHero::Travel(const FVector& Direction, float V)
 {
+	if (WalkBoundary && !FMath::IsNearlyZero(V) && !WalkBoundary(GetActorLocation() + Direction * FMath::Sign(V) * ((bMounted ? 300.f : 100.f) + DesiredSpeed() * GetWorld()->GetDeltaSeconds())))
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		return;
+	}
     if (bMounted && !FMath::IsNearlyZero(V))
     {
         const FVector Head = Horse->GetSocketLocation(TEXT("Head"));

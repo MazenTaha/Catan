@@ -364,3 +364,42 @@ the yard-return lifecycle and seven rendered views. Idle, crouch and mounted cap
 visually reviewed. Evidence: `apps/catnight/Saved/HeroValidation/20261127-045550-894` (ignored).
 The existing packaged executable was not rebuilt for this integration; package again before
 validating or distributing the merged app.
+
+## Native island rework (2026-11-27, local work after 5a6ef3c)
+
+The owner approved rebuilding the native world using Blender and actual Unreal MCP. The new
+`Private/Island` code connects Explore island to the match: 19 continuous collision tiles at a
+65 m radius, roughly 520 × 563 m, about 19,710 scenery instances for `island-rework`, existing
+owner buildings/roads/harbours, native chart, knight and horse. Escape restores the paused table.
+No rules/record change and no browser work. See `CATNIGHT_ISLAND.md` for scope and commands.
+
+Six original Blender furnishings and ground detail are in `assets/blender/native_island.py`;
+`pnpm catnight:island` exports/imports them without deleting board or hero assets. Full
+`catnight:import` includes that step. Interchange mesh paths stay stable across reimports. The
+editable generated IslandPreview map is explicitly excluded from cooking. Refresh only with
+`-CatnightRefreshIslandPreview`; normal imports preserve any hand edits. Generated files remain
+ignored and need rebuilding in fresh checkouts.
+
+Actual Epic MCP on an isolated editor at port 8001 inspected/edited this worktree's island,
+sun, cameras and ground material. It discovered and repaired a disconnected vertex-colour
+input; the importer now asserts that wiring. Final exposure matches the player camera. MCP
+captures/proofs live in Saved/MCP, with selected images retained under validation. The shared
+`E:/Catan` editor at port 8000 was left unchanged. Do not reconnect to it for edits to this tree.
+
+Ground support now samples the actual terrain triangles; mounted capsules sweep onto slopes,
+dismounts also sweep onto supported floor, and the horse/rider body follows the floor while
+retaining saddle/rein contact. Do not describe
+this as per-leg foot IK. Hero asset tests wait for cold-load asset compilation before sampling
+compressed loops and identify the exact clip/bone if a loop fails.
+
+Checks already completed before packaging: `pnpm verify` (133 unit tests), seven editor
+automation tests (including 248/248 goldens and 116,509 actions), 5,453 route samples, 38 real
+surface-height probes, 116,925 movement checks across 95 scenarios at 10/60/144 Hz, six biome
+renders, three island/table return cycles, and the existing yard's 7,910 movement checks,
+return lifecycle and seven rendered poses. See `validation/island-rework.json` for final
+packaged evidence and the exact scope/revision. Fixed simulation rates are not rendering FPS.
+
+Phase 4 is partial: closed house shells, static sheep and sails, no crop wind, full minimap
+modes/markers, footstep audio, chest/combat/customization, per-leg terrain IK or Steam yet.
+Continue from those gates rather than claiming parity is complete. This rework is local;
+no new push was requested. Stage named files only if committing, and ask before any new push.

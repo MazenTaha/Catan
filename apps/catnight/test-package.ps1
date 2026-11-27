@@ -25,6 +25,9 @@ Import-Csv -LiteralPath $csv | ForEach-Object { $cooked[$_.Filename] = $true }
 if (@($cooked.Keys | Where-Object { $_ -match '/SM_Revolver\.uasset$' }).Count) {
   throw 'Cook still contains the retired revolver model. Reimport artwork and rebuild the package.'
 }
+if (@($cooked.Keys | Where-Object { $_ -match '/Generated/Island/Review/' }).Count) {
+  throw 'Editor-only island composition map was included in the game.'
+}
 $content = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'Content')).Path
 $sourceAssets = @(Get-ChildItem -LiteralPath (Join-Path $content 'Generated') -Recurse -Filter '*.uasset')
 if (-not $sourceAssets.Count) { throw 'No imported artwork to compare; run pnpm catnight:import.' }
@@ -75,6 +78,12 @@ if ($melee -notmatch 'Test Completed. Result=\{Success\} Name=\{MeleeOnlyRules\}
   throw "Packaged hero assets or melee-only rules did not pass. See $out/melee-only.log"
 }
 $results += @{ scenario = 'hero-assets-and-melee-only'; passed = 2 }
+
+$island = Run-Game 'island-routes' @('-nullrhi', '-ExecCmds="Automation RunTests Catnight.Island"', '-TestExit="Automation Test Queue Empty"')
+if ($island -notmatch 'Test Completed. Result=\{Success\} Name=\{RoutesAndMatch\}') {
+  throw "Packaged island terrain/routes did not pass. See $out/island-routes.log"
+}
+$results += @{ scenario = 'island-terrain-routes-and-match'; passed = 1 }
 
 $angles = @('0,0,1', '40,12,0.9', '-55,-18,1.1')
 for ($i = 0; $i -lt $angles.Count; $i++) {

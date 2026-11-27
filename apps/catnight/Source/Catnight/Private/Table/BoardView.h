@@ -23,6 +23,8 @@ struct FCatnightBoardView
 	/** True: the 3D table shows through the UI; false: the flat chart is drawn over it. */
 	bool b3D = true;
 	bool bReducedMotion = false;
+	/** The live match's human-scale island; never bypass a hot-seat privacy curtain. */
+	FSimpleDelegate ExploreIsland;
 	int32 InspectedHex = INDEX_NONE;
 	uint32 InspectionRevision = 0;
 	/** Public terrain information, independent of legal placement targets. */

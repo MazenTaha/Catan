@@ -107,6 +107,55 @@ assert mel.connect_material_property(opacity,'',unreal.MaterialProperty.MP_OPACI
 assert mel.connect_material_property(helpers['scalar'](sea,'Roughness',.05,-200,300),'',unreal.MaterialProperty.MP_ROUGHNESS)
 assert mel.connect_material_property(helpers['scalar'](sea,'Specular',.5,-200,400),'',unreal.MaterialProperty.MP_SPECULAR)
 mel.recompile_material(sea); assets.save_loaded_asset(sea)
+
+# Ground cover (grass, flowers, wheat, shrubs): the board's M_Model / M_ModelMasked graph plus a
+# shrink with distance. Each plant sinks into its own pivot between FadeStart and FadeEnd, so the
+# edge of the drawn cover thins out instead of popping as a ring that travels with the walker.
+# Separate parents, so the board's materials stay exactly as they are.
+def space(word):
+    E=unreal.MaterialPositionTransformSource
+    return next(getattr(E,n) for n in dir(E) if n.upper() in ('TRANSFORMPOSSOURCE_'+word,word))
+instance_space=space('INSTANCE'); world_space=space('WORLD')
+def cover(name,build):
+    mat=unreal.load_asset(root+'/'+name)
+    if not mat: mat=tools.create_asset(name,root,unreal.Material,unreal.MaterialFactoryNew())
+    mel.delete_all_material_expressions(mat)
+    build(mat)
+    def add(cls,x,y,**props):
+        e=mel.create_material_expression(mat,cls,x,y)
+        for k,v in props.items(): e.set_editor_property(k,v)
+        return e
+    def wire(a,b,pin,out=''):
+        assert mel.connect_material_expressions(a,out,b,pin), f'{name}: {pin} is not connected'
+    origin=add(unreal.MaterialExpressionConstant3Vector,-1500,900)
+    pivot=add(unreal.MaterialExpressionTransformPosition,-1300,900,transform_source_type=instance_space,transform_type=world_space)
+    wire(origin,pivot,'')
+    camera=add(unreal.MaterialExpressionCameraPositionWS,-1300,1050)
+    far=add(unreal.MaterialExpressionDistance,-1100,950); wire(pivot,far,'A'); wire(camera,far,'B')
+    start=helpers['scalar'](mat,'FadeStart',6500.0,-1100,1100)
+    end=helpers['scalar'](mat,'FadeEnd',9000.0,-1100,1200)
+    left=add(unreal.MaterialExpressionSubtract,-900,1000); wire(end,left,'A'); wire(far,left,'B')
+    span=add(unreal.MaterialExpressionSubtract,-900,1150); wire(end,span,'A'); wire(start,span,'B')
+    ratio=add(unreal.MaterialExpressionDivide,-750,1050); wire(left,ratio,'A'); wire(span,ratio,'B')
+    keep=add(unreal.MaterialExpressionSaturate,-600,1050); wire(ratio,keep,'')
+    shrink=add(unreal.MaterialExpressionOneMinus,-450,1050); wire(keep,shrink,'')
+    here=add(unreal.MaterialExpressionWorldPosition,-750,850)
+    inward=add(unreal.MaterialExpressionSubtract,-450,900); wire(pivot,inward,'A'); wire(here,inward,'B')
+    offset=add(unreal.MaterialExpressionMultiply,-300,950); wire(inward,offset,'A'); wire(shrink,offset,'B')
+    assert mel.connect_material_property(offset,'',unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET), f'{name}: offset is not connected'
+    # Blades, stalks and leaves are single sheets: lit as plain two-sided surfaces their far side
+    # faced away from sun and sky and turned black (half of every wheat field). Foliage shading
+    # lets the light through instead, the way thin leaves glow against the sun.
+    foliage=next(getattr(unreal.MaterialShadingModel,n) for n in dir(unreal.MaterialShadingModel) if n.upper().replace('_','')=='MSMTWOSIDEDFOLIAGE')
+    mat.set_editor_property('shading_model',foliage)
+    paint=mel.get_material_property_input_node(mat,unreal.MaterialProperty.MP_BASE_COLOR)
+    assert paint, f'{name}: base colour is not connected'
+    through=add(unreal.MaterialExpressionMultiply,-200,700,const_b=0.75); wire(paint,through,'A')
+    assert mel.connect_material_property(through,'',unreal.MaterialProperty.MP_SUBSURFACE_COLOR), f'{name}: subsurface colour is not connected'
+    mat.set_editor_property('used_with_instanced_static_meshes',True)
+    mel.recompile_material(mat); assets.save_loaded_asset(mat)
+cover('M_IslandCover',helpers['model'])
+cover('M_IslandCoverMasked',helpers['model_masked'])
 assets.save_directory(root+'/Meshes',only_if_is_dirty=False,recursive=True)
 assets.save_directory(root+'/Materials',only_if_is_dirty=False,recursive=True)
 review=root+'/Review/IslandPreview'

@@ -28,6 +28,40 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Ui/HallKit.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/IConsoleManager.h"
+
+namespace
+{
+	// The island's frame must fit a 144 Hz display (6.9 ms) with room to spare, or vsync shows
+	// some frames twice and turning judders. Measured on the RTX 4050 laptop at 1080p while
+	// walking: GPU 6.3 -> 5.5 ms. TSR's flicker and resurrection heuristics cost 0.6 ms on the
+	// meadows, and the island has no volume-lit translucency (its sea lights per pixel).
+	// The game thread waits for the RHI thread's previous frame, so each frame's time step tracks
+	// what reaches the screen: with vsync at 60 Hz the step's spread fell from 1.3 to 0.5 ms
+	// (the camera's swing across the mountains stopped stepping unevenly).
+	// Set only while walking the island and put back on the way out, so the table keeps its look.
+	// Scalability priority (the level these come from), so leaving can restore them.
+	const TCHAR* const IslandRenderSettings[][2] = {
+		{TEXT("r.TSR.ShadingRejection.Flickering"), TEXT("0")},
+		{TEXT("r.TSR.Resurrection"), TEXT("0")},
+		{TEXT("r.TranslucencyLightingVolume"), TEXT("0")},
+		{TEXT("r.GTSyncType"), TEXT("1")},
+	};
+	TMap<FString, FString> TableRenderSettings;
+
+	void SetIslandRendering(bool bOn)
+	{
+		if (bOn == !TableRenderSettings.IsEmpty()) return;
+		for (const auto& Setting : IslandRenderSettings)
+		{
+			IConsoleVariable* Var = IConsoleManager::Get().FindConsoleVariable(Setting[0]);
+			if (!Var) continue;
+			if (bOn) { TableRenderSettings.Add(Setting[0], Var->GetString()); Var->Set(Setting[1], ECVF_SetByScalability); }
+			else if (const FString* Old = TableRenderSettings.Find(Setting[0])) Var->Set(**Old, ECVF_SetByScalability);
+		}
+		if (!bOn) TableRenderSettings.Reset();
+	}
+}
 
 ACatnightGameMode::ACatnightGameMode()
 {
@@ -197,6 +231,9 @@ void ACatnightGameMode::BeginPlay()
 		if (!Match->HasGame()) { FCatnightMatchSetup Demo; Demo.Seed = TEXT("island-rework"); Match->Start(Demo); }
 		EnterIsland();
 		if (Hero && IslandReview == TEXT("movement")) Hero->ReviewMode = TEXT("island-test");
+		// -CatnightIslandDrive=tour: a scripted walk for frame pacing checks (with -CatnightPerf).
+		FString Drive;
+		if (Hero && FParse::Value(Cmd, TEXT("CatnightIslandDrive="), Drive)) Hero->ReviewMode = Drive;
 		if (Island && Hero && IslandReview.IsNumeric())
 		{
 			const int32 H = FMath::Clamp(FCString::Atoi(*IslandReview), 0, 18);
@@ -292,6 +329,9 @@ void ACatnightGameMode::EnterWalk(bool bIsland)
 		Island = GetWorld()->SpawnActor<ACatnightIsland>(Origin, FRotator::ZeroRotator);
 		Island->Setup(GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match());
 		Start = Island->EntryPoint();
+		SetIslandRendering(true);
+		// The table's root widget applies the frame-rate setting as it ticks; collapsed, it no longer does.
+		FHallSettings::Get().ApplyFrameRate(true);
 	}
 	else HeroYard = GetWorld()->SpawnActor<ACatnightHeroYard>(Origin, FRotator::ZeroRotator);
 	Hero = GetWorld()->SpawnActor<ACatnightHero>(Start, FRotator::ZeroRotator);
@@ -311,6 +351,12 @@ void ACatnightGameMode::EnterWalk(bool bIsland)
 		FParse::Value(FCommandLine::Get(), TEXT("CatnightHeroAngle="), Angle);
 		PC->SetControlRotation(FRotator(-12, Angle, 0));
 		PC->SetInputMode(FInputModeGameOnly());
+		// The first half second on the island is rough (distance fields and shadows for 200,000
+		// instances are built as it first draws): rise out of black instead of showing it.
+		if (bIsland) PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, .8f, FLinearColor::Black, false, false);
+		// Collect the table's hall and light now, under the fade: the engine's next timed
+		// collection (every 61 s) otherwise fell a few seconds into the walk as a 40-80 ms hitch.
+		if (bIsland && GEngine) GEngine->ForceGarbageCollection(true);
 	}
 	HeroHud = SNew(SOverlay).Visibility(EVisibility::HitTestInvisible)
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(24)
@@ -345,7 +391,7 @@ void ACatnightGameMode::LeaveHeroYard()
 	}
 	Hero->Destroy(); Hero = nullptr;
 	if (HeroYard) { HeroYard->Destroy(); HeroYard = nullptr; }
-	if (Island) { Island->Destroy(); Island = nullptr; }
+	if (Island) { Island->Destroy(); Island = nullptr; SetIslandRendering(false); }
 	const TSharedRef<FCatnightMatch> Match = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match();
 	Hall = GetWorld()->SpawnActor<ACatnightHallActor>();
 	if (Hall) Hall->Setup(Match, false);
@@ -363,6 +409,7 @@ void ACatnightGameMode::EndPlay(const EEndPlayReason::Type Reason)
         HeroHud.Reset();
     }
     if (GetGameInstance()) if (auto* Subsystem = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()) Subsystem->Match()->bPresentationPaused = false;
+    if (Island) SetIslandRendering(false);
     FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ReviewHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(PerfHandle);

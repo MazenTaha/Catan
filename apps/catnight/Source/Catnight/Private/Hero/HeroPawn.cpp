@@ -15,6 +15,13 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "InputCoreTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Island/IslandWorld.h"
+#include "Misc/CommandLine.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "UnrealClient.h"
 
 namespace
 {
@@ -153,6 +160,7 @@ void ACatnightHero::Tick(float Dt)
 		if (ReviewMode == TEXT("crouch")) SetSneak(true);
 		SetSprint(ReviewMode == TEXT("run") || ReviewMode == TEXT("gallop"));
 		if (ReviewMode == TEXT("walk") || ReviewMode == TEXT("run") || ReviewMode == TEXT("gallop") || ReviewMode == TEXT("crouch")) Travel(FVector::ForwardVector, 1);
+		if (ReviewMode == TEXT("tour")) TickTour(Dt);
 	}
 	GetCharacterMovement()->MaxWalkSpeed = DesiredSpeed();
 	const float Speed = GetVelocity().Size2D();
@@ -212,6 +220,40 @@ void ACatnightHero::Tick(float Dt)
 	// Validate the completed pose/attachment, after this frame's saddle and strap updates.
 	if (ReviewMode == TEXT("test")) TickValidation(Dt);
 	if (ReviewMode == TEXT("island-test")) TickIslandValidation(Dt);
+}
+
+void ACatnightHero::TickTour(float Dt)
+{
+	auto* PC = Cast<APlayerController>(Controller);
+	if (!PC) return;
+	if (TourTime < 0)
+	{
+		// Head for the island's middle so the tour crosses several biomes.
+		const FVector To = ExplorationIsland.IsValid() ? ExplorationIsland->GetActorLocation() - GetActorLocation() : FVector::ForwardVector;
+		TourYaw = To.Rotation().Yaw;
+		TourTime = 0;
+	}
+	else
+	{
+		// Last frame's final view (the camera manager updates after every tick group).
+		const FMinimalViewInfo& View = PC->PlayerCameraManager->GetCameraCacheView();
+		TourLog += FString::Printf(TEXT("%.5f,%.6f,%.2f,%.2f,%.2f,%.4f,%.4f,%.2f,%.2f,%.2f\n"), TourTime, Dt,
+			View.Location.X, View.Location.Y, View.Location.Z, View.Rotation.Yaw, View.Rotation.Pitch,
+			GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z);
+		TourTime += Dt;
+		// -CatnightTourShots=<dir>: a burst of frames in motion (pop-in, shimmer), one every 0.2 s from 10 s.
+		FString ShotDir;
+		const int32 Shot = FMath::FloorToInt32((TourTime - 10.f) / .2f);
+		if (Shot >= 0 && Shot < 12 && Shot != TourShot && FParse::Value(FCommandLine::Get(), TEXT("CatnightTourShots="), ShotDir))
+		{
+			TourShot = Shot;
+			FScreenshotRequest::RequestScreenshot(FPaths::Combine(ShotDir, FString::Printf(TEXT("tour-%02d.png"), Shot)), false, false);
+		}
+	}
+	// Six seconds walking, six sprinting; the view swings 70 degrees either way like a player looking round.
+	SetSprint(FMath::Fmod(TourTime, 12.f) >= 6.f);
+	PC->SetControlRotation(FRotator(-10, TourYaw + 70.f * FMath::Sin(TourTime * .6f), 0));
+	Forward(1);
 }
 
 void ACatnightHero::UpdateReins()
@@ -350,6 +392,9 @@ void ACatnightHero::SetupPlayerInputComponent(UInputComponent* Input)
 void ACatnightHero::EndPlay(const EEndPlayReason::Type Reason)
 {
     if (ParkedCollision) ParkedCollision->Destroy();
+    FString TourFile;
+    if (!TourLog.IsEmpty() && FParse::Value(FCommandLine::Get(), TEXT("CatnightTourLog="), TourFile))
+        FFileHelper::SaveStringToFile(TEXT("t,dt,cx,cy,cz,yaw,pitch,ax,ay,az\n") + TourLog, *TourFile);
     Super::EndPlay(Reason);
 }
 

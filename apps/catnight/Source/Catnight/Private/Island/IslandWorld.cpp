@@ -6,7 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
-#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
@@ -334,25 +334,47 @@ UStaticMesh* ACatnightIsland::Asset(const FString& Family,const FString& Name)
     if(!Mesh) UE_LOG(LogTemp,Error,TEXT("ISLAND missing %s"),*Path);
     return Mesh;
 }
-UHierarchicalInstancedStaticMeshComponent* ACatnightIsland::Group(const FString& Family,const FString& Name,const FLinearColor* Tint)
+UInstancedStaticMeshComponent* ACatnightIsland::Group(const FString& Family,const FString& Name,const FLinearColor* Tint)
 {
     const FString Key=Family+TEXT("/")+Name+(Tint?TEXT("#")+Tint->ToFColor(true).ToHex():FString());
     if(auto* Cached=Groups.Find(Key)) return *Cached;
     auto* Mesh=Asset(Family,Name); if(!Mesh) return nullptr;
-    auto* Batch=NewObject<UHierarchicalInstancedStaticMeshComponent>(this); Batch->SetupAttachment(RootComponent);
+    auto* Batch=NewObject<UInstancedStaticMeshComponent>(this); Batch->SetupAttachment(RootComponent);
     Batch->SetStaticMesh(Mesh); Batch->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    // Meadow tufts are painted white in Blender and tinted where they grow, as in the web walk.
-    if(Tint) for(int32 I=0;I<Mesh->GetStaticMaterials().Num();I++) {
-        auto* Mat=UMaterialInstanceDynamic::Create(Mesh->GetMaterial(I),this);
-        Mat->SetVectorParameterValue(TEXT("Color"),*Tint); Batch->SetMaterial(I,Mat);
-    }
     const bool Small=Family==TEXT("flora") && !Name.Contains(TEXT("Oak")) && !Name.Contains(TEXT("Lime")) && Name!=TEXT("Fir") && Name!=TEXT("Spruce") && Name!=TEXT("Sapling");
     // Crags are the island's skyline: they stay drawn across the whole island.
     const bool Skyline=Family==TEXT("rocks") && Name.StartsWith(TEXT("Crag"));
     // Ground cover is dense, so it stops at 70-120 m; the ground colour carries the distance.
     const bool Crop=Name.StartsWith(TEXT("Wheat"));
-    Batch->SetCullDistances(Crop?9000:Small?6500:Skyline?70000:30000,Crop?12000:Small?9000:Skyline?90000:45000);
-    Batch->SetCastShadow(!Small); Batch->RegisterComponent(); Parts.Add(Batch); Groups.Add(Key,Batch); return Batch;
+    const float CullEnd=Crop?12000.f:Small?9000.f:Skyline?90000.f:45000.f;
+    // Cover sinks into the ground over the last stretch before it is culled (M_IslandCover), so
+    // the edge thins out instead of popping. Meadow tufts are painted white in Blender and
+    // tinted where they grow, as in the web walk.
+    static const TCHAR* const CoverPaths[2]={TEXT("/Game/Generated/Island/M_IslandCover"),TEXT("/Game/Generated/Island/M_IslandCoverMasked")};
+    for(int32 I=0;I<Mesh->GetStaticMaterials().Num();I++) {
+        UMaterialInterface* Source=Mesh->GetMaterial(I);
+        if(!Source) continue;
+        const EBlendMode Blend=Source->GetBlendMode();
+        // Every plant (trees too) takes the foliage-lit cover material; rocks and buildings keep theirs.
+        UMaterialInterface* Fade=Family==TEXT("flora")&&(Blend==BLEND_Opaque||Blend==BLEND_Masked)?LoadObject<UMaterialInterface>(nullptr,CoverPaths[Blend==BLEND_Masked]):nullptr;
+        if(!Fade&&!Tint) continue;
+        auto* Mat=UMaterialInstanceDynamic::Create(Fade?Fade:Source,this);
+        if(Fade) {
+            if(auto* Own=Cast<UMaterialInstance>(Source)) Mat->CopyParameterOverrides(Own);
+            Mat->SetScalarParameterValue(TEXT("FadeStart"),CullEnd*.62f);
+            Mat->SetScalarParameterValue(TEXT("FadeEnd"),CullEnd*.97f);
+        }
+        if(Tint) Mat->SetVectorParameterValue(TEXT("Color"),*Tint);
+        Batch->SetMaterial(I,Mat);
+    }
+    // Plain instanced meshes are culled per instance on the GPU; hierarchical ones walked every
+    // cluster of 200,000 plants on the CPU for the view and each shadow cascade (5 ms a frame).
+    Batch->SetCullDistances(static_cast<int32>(CullEnd*.75f),static_cast<int32>(CullEnd));
+    // Leaf cards have no real inside: their distance fields turned bushes and trees black.
+    Batch->bAffectDistanceFieldLighting=Family!=TEXT("flora");
+    // Two stalks a square metre shadowed one another nearly black whenever the walker faced the
+    // sun; the field reads as gold without them (and the shadow pass is cheaper).
+    Batch->SetCastShadow(!Small&&!Crop); Batch->RegisterComponent(); Parts.Add(Batch); Groups.Add(Key,Batch); return Batch;
 }
 void ACatnightIsland::Solid(FVector2D P,float Radius,float Height)
 {
@@ -620,7 +642,7 @@ void ACatnightIsland::Lighting()
 void ACatnightIsland::Line(FVector2D A,FVector2D B,float Width,FLinearColor Color)
 {
     if(!RoadSurface) {
-        RoadSurface=NewObject<UHierarchicalInstancedStaticMeshComponent>(this); RoadSurface->SetupAttachment(RootComponent);
+        RoadSurface=NewObject<UInstancedStaticMeshComponent>(this); RoadSurface->SetupAttachment(RootComponent);
         RoadSurface->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
         auto* Mat=UMaterialInstanceDynamic::Create(LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Generated/Materials/M_Tint")),this);
         Mat->SetVectorParameterValue(TEXT("Color"),Color); Mat->SetScalarParameterValue(TEXT("Roughness"),.95f);

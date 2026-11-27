@@ -4,7 +4,7 @@
 #include "CatnightRules/State.h"
 #include "IslandWorld.generated.h"
 
-class UHierarchicalInstancedStaticMeshComponent;
+class UInstancedStaticMeshComponent;
 class UProceduralMeshComponent;
 class UStaticMesh;
 class UMaterialInstanceDynamic;
@@ -56,7 +56,7 @@ private:
     void RefreshBuildings();
     void ClearParts();
     UStaticMesh* Asset(const FString& Family, const FString& Name);
-    UHierarchicalInstancedStaticMeshComponent* Group(const FString& Family, const FString& Name, const FLinearColor* Tint=nullptr);
+    UInstancedStaticMeshComponent* Group(const FString& Family, const FString& Name, const FLinearColor* Tint=nullptr);
     void Prop(const TCHAR* Family, const TCHAR* Name, FVector2D P, float Height, float Yaw=0, float SolidRadius=0, const FLinearColor* Tint=nullptr);
     /** Like Prop, but sunk into the ground (rock crowning a mound). */
     void Embed(const TCHAR* Family, const TCHAR* Name, FVector2D P, float Height, float Yaw, float Sink, float SolidRadius=0);
@@ -82,8 +82,8 @@ private:
     UPROPERTY() TArray<TObjectPtr<UActorComponent>> Parts;
     UPROPERTY() TArray<TObjectPtr<UActorComponent>> BuildingParts;
     UPROPERTY() TMap<FString,TObjectPtr<UStaticMesh>> Assets;
-    UPROPERTY() TMap<FString,TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Groups;
-    UPROPERTY() TObjectPtr<UHierarchicalInstancedStaticMeshComponent> RoadSurface;
+    UPROPERTY() TMap<FString,TObjectPtr<UInstancedStaticMeshComponent>> Groups;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RoadSurface;
     UPROPERTY() TArray<float> SurfaceSamples;
     UPROPERTY() int32 SurfaceN = 0;
     UPROPERTY() float SurfaceExtent = 0;

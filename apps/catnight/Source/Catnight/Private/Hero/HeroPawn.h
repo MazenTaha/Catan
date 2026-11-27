@@ -66,4 +66,9 @@ private:
 	FVector PreviousPosition = FVector::ZeroVector;
 	FVector HipsRef = FVector::ZeroVector;
 	FVector SeatRef = FVector::ZeroVector;
+	/** ReviewMode "tour": a scripted walk/sprint with the camera swinging, for frame pacing checks. */
+	void TickTour(float Dt);
+	float TourTime = -1.f, TourYaw = 0.f;
+	int32 TourShot = -1;
+	FString TourLog;
 };

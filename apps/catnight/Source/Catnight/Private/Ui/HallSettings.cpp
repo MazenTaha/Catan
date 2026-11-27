@@ -5,6 +5,12 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
 #include "Ui/HallStyle.h"
+#include "HAL/PlatformTime.h"
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <windows.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 namespace
 {
@@ -62,18 +68,45 @@ FString FHallSettings::FrameRateName(int32 Rate)
 	return Names[FMath::Clamp(Rate, 0, 2)];
 }
 
+int32 FHallSettings::DisplayHz()
+{
+	// Re-read now and then: the player can switch the panel between 60 and 144 Hz while playing.
+	static int32 Hz = 60;
+	static double CheckedAt = -100.0;
+	const double Now = FPlatformTime::Seconds();
+	if (Now - CheckedAt < 2.0) return Hz;
+	CheckedAt = Now;
+#if PLATFORM_WINDOWS
+	DEVMODEW Mode = {};
+	Mode.dmSize = sizeof(Mode);
+	if (EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &Mode) && Mode.dmDisplayFrequency > 1) Hz = static_cast<int32>(Mode.dmDisplayFrequency);
+#endif
+	return Hz;
+}
+
 void FHallSettings::ApplyFrameRate(bool bForeground) const
 {
 	if (bProfiling) return;
 	IConsoleVariable* VSync = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
 	IConsoleVariable* MaxFps = IConsoleManager::Get().FindConsoleVariable(TEXT("t.MaxFPS"));
+	IConsoleVariable* Interval = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.SyncInterval"));
 	const int32 Rate = FMath::Clamp(FrameRate, 0, 2);
 	const int32 WantVSync = Rate == 2 ? 0 : 1;
-	float WantMax = Rate == 1 ? 60.f : 0.f;
 	// Behind another window the table still plays (bots, hot-seat timers), just drawn less often.
-	if (!bForeground) WantMax = WantMax > 0.f ? FMath::Min(WantMax, 30.f) : 30.f;
+	const int32 Target = !bForeground ? 30 : Rate == 1 ? 60 : 0;
+	// With vsync, a cap is a whole number of vblanks: a frame limiter on top of vsync misses every
+	// other vblank (60 a second on a 60 Hz panel alternated 16 and 33 ms frames, 46 fps, and the
+	// island walk juddered). Up to 60 is every vblank at 60 Hz, every second one at 120 or 144 Hz.
+	int32 WantInterval = 1;
+	float WantMax = 0.f;
+	if (Target > 0)
+	{
+		if (WantVSync) WantInterval = FMath::Max(1, FMath::FloorToInt32(DisplayHz() / static_cast<float>(Target) + .05f));
+		else WantMax = static_cast<float>(Target);
+	}
 	if (VSync && VSync->GetInt() != WantVSync) VSync->Set(WantVSync, ECVF_SetByGameSetting);
 	if (MaxFps && MaxFps->GetFloat() != WantMax) MaxFps->Set(WantMax, ECVF_SetByGameSetting);
+	if (Interval && Interval->GetInt() != WantInterval) Interval->Set(WantInterval, ECVF_SetByGameSetting);
 }
 
 float FHallSettings::BotDelay() const

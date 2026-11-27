@@ -28,7 +28,7 @@ the match record. Hot-seat hand-off must be acknowledged before entering.
   keeps its opaque `M_Water`.
 - Forest groves, wheat, wildflowers, sheep, farms, mills, clay works, mines, ruins, a small
   public hamlet, docks and boats use the project's original Blender artwork. Scenery batches
-  by mesh with hierarchical instancing. **Ground cover** (`Cover`) fills each tile's nearest-centre
+  by mesh with GPU-culled instancing. **Ground cover** (`Cover`) fills each tile's nearest-centre
   cell on a jittered grid: wheat 2/m², meadow 1.3/m² with flower patches, forest grass and
   shrubs, clay-hill lavender, sparse alpine grass, desert scrub. White Blender grass tufts get a
   green per biome, as in the web walk. Cover stays off footpaths, building sites, road corridors
@@ -138,6 +138,30 @@ If a separate checkout's editor is open, build this editor target with
 `-NoHotReloadFromIDE`, then use `pnpm catnight:test -NoBuild`. Never close another session's editor
 or connect its MCP endpoint for edits. Cold hero-asset checks wait for asynchronous asset
 compilation before sampling the imported animation loops.
+
+## Smooth walking (2026-11-27)
+
+The walk stuttered and juddered while turning, and the edge of the drawn cover travelled with the
+walker. DECISIONS #74 has the measurements; in short:
+
+- Scenery batches are plain instanced meshes (GPU culling per instance). Hierarchical ones cost
+  about 5 ms of CPU visibility work a frame for the view and each shadow cascade.
+- Plants use `M_IslandCover` / `M_IslandCoverMasked` (built by `import_island.py`): two-sided
+  foliage shading and a shrink into each plant's pivot between `FadeStart` and `FadeEnd`, set per
+  batch to 62–97 % of its cull distance. Plants do not feed distance-field lighting.
+- While the island is open the game mode turns off TSR's flicker and resurrection heuristics and
+  the translucency lighting volume and sets `r.GTSyncType 1`; leaving puts them back.
+- Entering fades up from black over 0.8 s and collects garbage under the fade.
+
+Measure with a scripted tour (walk and sprint, the view swinging 70° either way):
+
+```powershell
+UnrealEditor.exe Catnight.uproject -game -CatnightIsland=0 -CatnightIslandDrive=tour -CatnightPerf=<file.csv> -CatnightPerfSeconds=30 -CatnightTourLog=<camera.csv>
+```
+
+Add `-CatnightPerfCapped` to keep the player's frame-rate setting (vsync) and
+`-CatnightTourShots=<dir>` for twelve frames in motion from 10 s. Pause other GPU users first
+(Wallpaper Engine on the owner's PC took the GPU for seconds at a time).
 
 ## Still open
 

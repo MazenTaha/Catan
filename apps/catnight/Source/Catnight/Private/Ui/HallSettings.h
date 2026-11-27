@@ -21,8 +21,10 @@ struct FHallSettings
 
 	static FHallSettings& Get();
 	static FString FrameRateName(int32 Rate);
-	/** Sets r.VSync and t.MaxFPS from FrameRate; in the background the game draws at most 30 a second. */
+	/** Sets r.VSync, rhi.SyncInterval and t.MaxFPS from FrameRate; in the background the game draws at most 30 a second. */
 	void ApplyFrameRate(bool bForeground) const;
+	/** The primary display's refresh rate (60 when unknown). */
+	static int32 DisplayHz();
 	/** -CatnightPerf measures uncapped: the setting is not applied while it records. */
 	static bool bProfiling;
 	void Load();

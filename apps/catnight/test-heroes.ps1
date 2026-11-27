@@ -4,7 +4,8 @@ $ErrorActionPreference='Stop'
 $out=Join-Path $PSScriptRoot ('Saved/HeroValidation/'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $exe=if($Editor){"$Engine/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"}else{"$PSScriptRoot/Packaged/Windows/Catnight/Binaries/Win64/Catnight.exe"}
-$prefix=if($Editor){@("`"$PSScriptRoot/Catnight.uproject`"",'-game')}else{@()}
+# Match packaged play: experimental editor toolsets have no role in the game-only process.
+$prefix=if($Editor){@("`"$PSScriptRoot/Catnight.uproject`"",'-game','-DisablePlugins=AllToolsets,ModelContextProtocol')}else{@()}
 function Run-Hero([string]$name,[string[]]$options){
   $log=Join-Path $out "$name.log"
   $args=$prefix+@('-windowed','-ResX=1280','-ResY=800','-unattended','-nosplash','-nosound','-CatnightNoSave',"-abslog=`"$log`"")+ $options

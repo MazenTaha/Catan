@@ -875,6 +875,19 @@ via `-CatnightTab`, `-CatnightFullLog`, `-CatnightLeave`). Fixed:
   outside the window kept turning the table (capture lost now ends it). Trackpad scrolling zooms by
   its fraction. Home or a right-stick click brings back the starting view.
 
+### Title banners redrawn (2026-11-22)
+
+The owner found the title's banners poor and their words half hidden. The menu now has its own
+cloth (`render_ui.mjs` `menuCloth` → `banners/menu-cloth-<tincture>`): wider, hung by four loops
+over the rod, a gold border with stitching, a faint damask, fringe and a tassel at the point, and
+two embroidered rules with the label lettered in gold between them (`SBanner` `Embroidered`), the
+gloss under it on the cloth. No paper ribbon, so nothing can be cut; long words shrink to fit. The
+pole is three slices (`HallKit::Pole`), so the finials keep their shape at any length. A saved game
+adds **Continue** as a black banner beside Play (lit, focused first) instead of the sealed letter,
+which reverses the earlier deviation above: the letter pushed the pole down and read as a note, not a
+choice. The title column scales down to fit a short window. The seat banners on "Muster a new
+table" are larger and stand over their boards.
+
 Next: real UI materials, the Blender hall and per-screen cameras, toasts, the
 Chronicle scroll, CommonUI and focus navigation tests, string table, music, a Text size setting.
 

@@ -9,6 +9,7 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "PerfProbe.h"
 #include "Board/CatnightBoardActor.h"
 #include "Board/CatnightDaylightActor.h"
 #include "Board/CatnightHallActor.h"
@@ -134,6 +135,9 @@ void ACatnightGameMode::BeginPlay()
 	FString HeroReview;
 	if (FParse::Value(Cmd, TEXT("CatnightHero="), HeroReview))
 	{
+		// Exercise entering after the menu has already stopped world drawing.
+		if (HeroReview == TEXT("return"))
+			if (auto* Viewport = GetWorld()->GetGameViewport()) Viewport->bDisableWorldRendering = true;
 		EnterHeroYard();
 		if (Hero) Hero->ReviewMode = HeroReview;
 		if (HeroReview == TEXT("return"))
@@ -143,7 +147,8 @@ void ACatnightGameMode::BeginPlay()
 				[this, Match, Ready](float)
 				{
 					if (FPlatformTime::Seconds() < Ready) return true;
-					bool bOK = Hero && HeroYard && !Hall && !Daylight && Match->bPresentationPaused;
+					bool bOK = Hero && HeroYard && !Hall && !Daylight && Match->bPresentationPaused
+						&& GetWorld()->GetGameViewport() && !GetWorld()->GetGameViewport()->bDisableWorldRendering;
 					LeaveHeroYard();
 					const auto* PC = GetWorld()->GetFirstPlayerController();
 					bOK &= !Hero && !HeroYard && Hall && Daylight && !Hall->HasDice()
@@ -182,6 +187,7 @@ void ACatnightGameMode::BeginPlay()
 			return Steps < 6000;
 		});
 	}
+	PerfHandle = CatnightPerf::StartFromCommandLine(GetWorld(), Match);
 
 	FString Shot;
 	if (FParse::Value(Cmd, TEXT("CatnightShot="), Shot))
@@ -218,6 +224,8 @@ void ACatnightGameMode::EnterHeroYard()
 	if (Hero || !Root) return;
 	GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()->Match()->bPresentationPaused = true;
 	Root->SetVisibility(EVisibility::Collapsed);
+	// The title/flat chart stops world drawing; the collapsed table no longer owns it in the yard.
+	if (auto* Viewport = GetWorld()->GetGameViewport()) Viewport->bDisableWorldRendering = false;
 	if (Board) Board->SetActorHiddenInGame(true);
 	// Table sun, sky, fog and unbound grading must leave the yard's physical daylight alone.
 	if (Daylight) { Daylight->Destroy(); Daylight = nullptr; }
@@ -285,6 +293,7 @@ void ACatnightGameMode::EndPlay(const EEndPlayReason::Type Reason)
     if (GetGameInstance()) if (auto* Subsystem = GetGameInstance()->GetSubsystem<UCatnightMatchSubsystem>()) Subsystem->Match()->bPresentationPaused = false;
     FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ReviewHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(PerfHandle);
 	if (Root)
 	{
 		if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport()) Viewport->RemoveViewportWidgetContent(Root.ToSharedRef());

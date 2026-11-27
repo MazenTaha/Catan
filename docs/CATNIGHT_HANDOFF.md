@@ -338,3 +338,29 @@ local evidence; the normal Continue save is untouched.
 - Final checks: verify (133 tests), native rules (261 checks, 248 goldens), six editor tests and
   all 7,910 movement checks pass. Wallpaper was restored. This is not Shipping/144-Hz, Steam,
   network-latency, CEF-wrapper or cross-machine certification.
+
+## Owner-approved integration and push (2026-11-27)
+
+The revolver removal and performance audit are committed as `3c4963f`. Before pushing the
+existing `codex/native-table-feedback` branch, merge main through `2d91eef`: keep its title
+banners, frame-rate settings, profiler, TSR history setting, cascaded shadows and editor-only
+MCP setup alongside the native character/riding yard. Codex registration is documented in
+`apps/catnight/README.md`; the user's personal MCP configuration stays outside Git.
+
+The menu/flat-chart optimization disables world rendering, so entering the yard now explicitly
+resumes it, and the collapsed table UI no longer changes viewport rendering. The return
+regression simulates entering after the menu has disabled drawing. Game-only editor test
+launches exclude experimental MCP toolsets: these are absent from packaged play, and otherwise
+raise Python startup errors or attempt a second listener on the editor's port. Normal editor
+MCP remains enabled. The separate editor open from `E:/Catan` was left running and unchanged.
+
+Fresh checks: `pnpm verify` passes all 133 unit tests, typechecking, zero-warning lint and the
+web production build. `pnpm golden` regenerates 248 games; `pnpm native:test` passes all 261
+checks, matching all 248 games and 116,509 actions. The merged editor target builds;
+`pnpm catnight:test -NoBuild` passes six automation tests with no error log entries.
+
+`pnpm catnight:test-heroes -Editor` also passes: 7,910 movement checks across 10/60/144 Hz,
+the yard-return lifecycle and seven rendered views. Idle, crouch and mounted captures were
+visually reviewed. Evidence: `apps/catnight/Saved/HeroValidation/20261127-045550-894` (ignored).
+The existing packaged executable was not rebuilt for this integration; package again before
+validating or distributing the merged app.

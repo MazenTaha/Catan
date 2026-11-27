@@ -20,6 +20,8 @@
 //   -CatnightGamepad          start with gamepad prompts (screenshots)
 //   -CatnightUiDrive=mouse|pad  plays the person's seats through the UI with simulated input
 //                             (Table/UiDriver.cpp), logging CATNIGHT UIDRIVE lines
+//   -CatnightPerf=<file.csv>  record frame timings, log CATNIGHT PERF lines and quit (PerfProbe.h)
+//   -CatnightFrameRate=0|1|2  frame-rate setting for this run: match the display, up to 60, unlimited
 #pragma once
 
 #include "CoreMinimal.h"
@@ -50,4 +52,5 @@ private:
 	UPROPERTY() TObjectPtr<class ACatnightDaylightActor> Daylight;
 	FTSTicker::FDelegateHandle ShotHandle;
 	FTSTicker::FDelegateHandle ReviewHandle;
+	FTSTicker::FDelegateHandle PerfHandle;
 };

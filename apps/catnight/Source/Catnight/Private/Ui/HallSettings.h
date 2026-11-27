@@ -16,8 +16,15 @@ struct FHallSettings
 	bool bHall = true;
 	/** The 3D table's light follows the game's clock through day and night (false: always afternoon). */
 	bool bDayNight = true;
+	/** 0 match the display (VSync), 1 up to 60 a second, 2 unlimited. Without a cap the GPU ran flat out. */
+	int32 FrameRate = 0;
 
 	static FHallSettings& Get();
+	static FString FrameRateName(int32 Rate);
+	/** Sets r.VSync and t.MaxFPS from FrameRate; in the background the game draws at most 30 a second. */
+	void ApplyFrameRate(bool bForeground) const;
+	/** -CatnightPerf measures uncapped: the setting is not applied while it records. */
+	static bool bProfiling;
 	void Load();
 	void Save() const;
 	float BotDelay() const;

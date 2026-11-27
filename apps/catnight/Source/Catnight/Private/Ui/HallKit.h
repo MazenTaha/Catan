@@ -37,6 +37,8 @@ namespace HallKit
 	TSharedRef<SWidget> Picture(const FString& Image, float Width, float Height = 0.f);
 	TSharedRef<SWidget> Arms(catnight::PlayerColor C, catnight::Sigil S, float Height);
 	TSharedRef<SWidget> Icon(const FString& Name, float Size);
+	/** The banner pole at any length (finials unstretched); the rod's centre is 0.444 of Height down. */
+	TSharedRef<SWidget> Pole(float Width, float Height = 90.f);
 	/** A resource card with its art, count corner and name; `Badge` (e.g. "+1") as a wax seal. */
 	TSharedRef<SWidget> ResourceCard(catnight::Resource R, int32 Count, float Width, const FString& Badge = FString(), bool bLift = false);
 	TSharedRef<SWidget> Die(int32 Face, float Size);
@@ -85,8 +87,11 @@ namespace HallKit
 	class SBanner : public SCompoundWidget
 	{
 	public:
-		SLATE_BEGIN_ARGS(SBanner) : _Width(150.f), _LabelPx(20.f), _Seed(0.f), _Clickable(false) {}
+		SLATE_BEGIN_ARGS(SBanner) : _Embroidered(false), _Width(150.f), _LabelPx(20.f), _Seed(0.f), _Clickable(false) {}
 			SLATE_ARGUMENT(FString, Cloth)        // image name, e.g. "banners/plain-gules"
+			/** The title menu's cloth ("banners/menu-cloth-*"): the label is lettered in gold between the
+			 *  cloth's embroidered rules instead of on a paper ribbon. */
+			SLATE_ARGUMENT(bool, Embroidered)
 			SLATE_ARGUMENT(float, Width)
 			SLATE_ARGUMENT(FString, Charge)       // image drawn in a roundel (menu), or empty
 			SLATE_ARGUMENT(FString, ArmsImage)    // coat of arms (players), or empty
@@ -109,6 +114,7 @@ namespace HallKit
 		TSharedPtr<SWidget> Cloth;
 		float Seed = 0.f;
 		float Lift = 0.f;
+		bool bEmbroidered = false;
 		bool bHot() const;
 	};
 

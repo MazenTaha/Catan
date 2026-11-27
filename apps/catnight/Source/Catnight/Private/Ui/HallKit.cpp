@@ -323,6 +323,30 @@ namespace HallKit
 		return SNew(SBox).WidthOverride(Width).HeightOverride(H)[SNew(SImage).Image(Hall::Image(Image))];
 	}
 
+	TSharedRef<SWidget> Pole(float Width, float Height)
+	{
+		// Three UV slices of the pole art: the finials keep their shape and only the rod stretches.
+		static TSharedPtr<FSlateBrush> Parts[3];
+		static const float U0[] = {0.f, 0.1f, 0.9f}, U1[] = {0.1f, 0.9f, 1.f};
+		auto Part = [](int32 I)
+		{
+			if (!Parts[I])
+			{
+				Parts[I] = MakeShared<FSlateBrush>(*Hall::Image(TEXT("ornaments/banner-pole-800")));
+				Parts[I]->SetUVRegion(FBox2f(FVector2f(U0[I], 0.f), FVector2f(U1[I], 1.f)));
+			}
+			return Parts[I].Get();
+		};
+		const float End = Height;  // a tenth of the 900 x 90 art
+		return SNew(SBox).WidthOverride(Width).HeightOverride(Height)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()[SNew(SBox).WidthOverride(End)[SNew(SImage).Image(Part(0))]]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[SNew(SImage).Image(Part(1))]
+				+ SHorizontalBox::Slot().AutoWidth()[SNew(SBox).WidthOverride(End)[SNew(SImage).Image(Part(2))]]
+			];
+	}
+
 	TSharedRef<SWidget> Arms(PlayerColor Col, Sigil S, float Height)
 	{
 		return Picture(Hall::ArmsName(Col, S), Height * 128.f / 150.f, Height);
@@ -592,8 +616,49 @@ namespace HallKit
 
 		TSharedRef<SOverlay> Body = SNew(SOverlay)
 			+ SOverlay::Slot()[SNew(SImage).Image(Hall::Image(InArgs._Cloth))];
+		if (InArgs._Embroidered)
+		{
+			// Zones of the menu cloth (render_ui.mjs menuCloth, y of 434): roundel centred at 128, the
+			// label between the rules at 198 and 256, the gloss under them.
+			const float Y = H / 434.f;
+			const float R = W * 0.46f;
+			bEmbroidered = true;
+			if (!InArgs._Charge.IsEmpty())
+			{
+				Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 128.f * Y - R * 0.5f, 0, 0)
+				[
+					SNew(SBox).WidthOverride(R).HeightOverride(R)
+					[
+						SNew(SOverlay)
+						+ SOverlay::Slot()[SNew(SImage).Image(Hall::Image(TEXT("ornaments/roundel")))]
+						+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Icon(InArgs._Charge, R * 0.56f)]
+					]
+				];
+			}
+			Body->AddSlot().VAlign(VAlign_Top).Padding(FMargin(W * 0.15f, 204.f * Y, W * 0.15f, 0))
+			[
+				SNew(SBox).HeightOverride(48.f * Y).HAlign(HAlign_Center).VAlign(VAlign_Center)
+				[
+					FitText(SNew(STextBlock).Text_Lambda([Label] { return FText::FromString(Label.Get()); }).Font(Hall::Label(InArgs._LabelPx))
+						.ColorAndOpacity_Lambda([this] { return FSlateColor(bHot() ? FLinearColor(1.f, 0.93f, 0.7f) : C::GoldLight); })
+						.ShadowOffset(FVector2D(2, 2)).ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)))
+				]
+			];
+			if (Gloss.IsBound() || !Gloss.Get().IsEmpty())
+			{
+				Body->AddSlot().VAlign(VAlign_Top).Padding(FMargin(W * 0.11f, 264.f * Y, W * 0.11f, 0))
+				[
+					SNew(SBox).HeightOverride(40.f * Y).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					[
+						FitText(SNew(STextBlock).Text_Lambda([Gloss] { return FText::FromString(Gloss.Get()); })
+							.Font(Hall::Italic(FMath::Max(18.f, InArgs._LabelPx * 0.62f))).ColorAndOpacity(C::OnDark)
+							.ShadowOffset(FVector2D(1, 2)).ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)))
+					]
+				];
+			}
+		}
 		// Charge (menu) in a gold roundel, or the player's arms, about a quarter down the cloth.
-		if (!InArgs._Charge.IsEmpty())
+		else if (!InArgs._Charge.IsEmpty())
 		{
 			const float R = W * 0.58f;
 			Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, H * 0.17f, 0, 0)
@@ -622,11 +687,11 @@ namespace HallKit
 		// name needs; a name too long for its room shrinks rather than being cut (FitText).
 		const float Px = InArgs._LabelPx;
 		const float Reach = bShort ? 0.32f : 0.45f;  // player banners stand close together on the pole
-		Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(-W * Reach, H * RibbonAt, -W * Reach, 0))
+		if (!bEmbroidered) Body->AddSlot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(-W * Reach, H * RibbonAt, -W * Reach, 0))
 		[
 			RibbonPlate(SNew(STextBlock).Text_Lambda([Label] { return FText::FromString(Label.Get()); }).Font(Hall::Label(Px)).ColorAndOpacity(C::Ink), Px, 0.f)
 		];
-		if (Gloss.IsBound() || !Gloss.Get().IsEmpty())
+		if (!bEmbroidered && (Gloss.IsBound() || !Gloss.Get().IsEmpty()))
 		{
 			// Under the ribbon. On the short player banners it falls over the swallowtail and the board
 			// behind, so it sits on a small dark plate there.
@@ -684,7 +749,8 @@ namespace HallKit
 	{
 		SCompoundWidget::Tick(G, Time, Dt);
 		if (!Cloth) return;
-		const float Goal = bHot() ? -10.f : (Lit.Get(false) ? -4.f : 0.f);
+		// A menu banner's loops hang on the rod, so it only stirs; a player banner lifts.
+		const float Goal = bEmbroidered ? (bHot() ? -5.f : 0.f) : bHot() ? -10.f : (Lit.Get(false) ? -4.f : 0.f);
 		Lift += (Goal - Lift) * FMath::Min(1.f, Dt * 10.f);
 		const float Sway = Hall::bReduceMotion ? 0.f : FMath::DegreesToRadians(0.6f * FMath::Sin(static_cast<float>(Time) * 1.3f + Seed) + 0.25f * FMath::Sin(static_cast<float>(Time) * 2.9f + Seed * 1.7f));
 		Cloth->SetRenderTransform(FSlateRenderTransform(FQuat2f(Sway), FVector2f(0, Hall::bReduceMotion ? 0.f : Lift)));

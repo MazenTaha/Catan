@@ -72,7 +72,7 @@ namespace Hall
 
 		float RenderScale(const FString& Name)
 		{
-			if (Name.StartsWith(TEXT("banners/menu-"))) return 3.f;
+			if (Name.StartsWith(TEXT("banners/menu-"))) return 3.f;  // also the title's menu-cloth-*
 			if (Name.StartsWith(TEXT("cards/")) || Name.StartsWith(TEXT("textures/"))) return 1.f;
 			return 2.f;
 		}

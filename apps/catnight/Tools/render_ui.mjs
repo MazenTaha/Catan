@@ -152,6 +152,70 @@ const GLYPH = {
   'key-arrows': keycap('← →', 130), 'key-tab': keycap('Tab', 120), 'key-l': keycap('L'), 'key-f6': keycap('F6'),
 };
 
+// The title menu's banners: wider cloth hung by loops over the rod, a gold border and damask, and
+// two embroidered rules that frame the label, which Slate letters in gold on the cloth (no paper
+// ribbon to outgrow). SBanner's Embroidered mode places the roundel, label and gloss by the zones
+// marked here (y of 434): rod 12, roundel 128, label band 202-252, gloss 268-300, point 404.
+function menuCloth(cloth) {
+  const deep = shade(cloth, 0.62), light = shade(cloth, 1.25);
+  const body = 'M8 26 H192 C194 120 190 250 192 340 L100 404 L8 340 C10 250 6 120 8 26 Z';
+  const inner = 'M18 40 H182 V330 L100 390 L18 330 Z';
+  const tabs = [34, 78, 122, 166]
+    .map((x) => `<path d="M${x - 12} 34 V9 Q${x - 12} 0 ${x} 0 Q${x + 12} 0 ${x + 12} 9 V34 Z" fill="${cloth}" stroke="#1a120b" stroke-width="1.4"/>
+    <path d="M${x - 12} 34 V9 Q${x - 12} 0 ${x} 0 Q${x + 12} 0 ${x + 12} 9 V34 Z" fill="url(#tab)"/>
+    <path d="M${x - 9} 30 V10" stroke="#d9a93f" stroke-width="1" stroke-dasharray="2 2" opacity=".7"/><path d="M${x + 9} 30 V10" stroke="#d9a93f" stroke-width="1" stroke-dasharray="2 2" opacity=".7"/>`)
+    .join('');
+  // A rule of gold thread: two lines, a lozenge in the middle, small knots at the ends.
+  const rule = (y) => `<g stroke="#1a120b" stroke-width=".8">
+    <path d="M38 ${y} H86 M114 ${y} H162" stroke="#1a120b" stroke-width="4.4" opacity=".6"/>
+    <path d="M38 ${y} H86 M114 ${y} H162" stroke="#e2b552" stroke-width="2.4"/>
+    <path d="M46 ${y + 4} H84 M116 ${y + 4} H154" stroke="#d9a93f" stroke-width="1" stroke-dasharray="3 2" opacity=".8"/>
+    <path d="M100 ${y - 9} L110 ${y} L100 ${y + 9} L90 ${y} Z" fill="url(#gold)"/>
+    <circle cx="100" cy="${y}" r="2.4" fill="${deep}"/>
+    <circle cx="33" cy="${y}" r="3.4" fill="url(#gold)"/><circle cx="167" cy="${y}" r="3.4" fill="url(#gold)"/>
+  </g>`;
+  const fringe = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24;
+    fringe.push([8 + t * 92, 340 + t * 64], [192 - t * 92, 340 + t * 64]);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 434" width="200" height="434"><defs>
+  <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.30  0 0 0 0 0.20  0 0 0 0 0.10  0 0 0 0.7 -0.28"/></filter>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d77e"/><stop offset=".45" stop-color="#c9962f"/><stop offset=".7" stop-color="#f0cf6e"/><stop offset="1" stop-color="#9c6d1c"/></linearGradient>
+  <linearGradient id="fold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".1" stop-color="#000" stop-opacity=".08"/><stop offset=".24" stop-color="#fff" stop-opacity=".12"/><stop offset=".37" stop-color="#000" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity=".1"/><stop offset=".63" stop-color="#000" stop-opacity=".2"/><stop offset=".78" stop-color="#fff" stop-opacity=".09"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset=".1" stop-color="#000" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>
+  <linearGradient id="tab" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".35" stop-color="#000" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  <linearGradient id="band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset=".2" stop-color="#000" stop-opacity=".3"/><stop offset=".8" stop-color="#000" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+  <pattern id="weave" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 4 L4 0" stroke="#000" stroke-width=".6" opacity=".25"/><path d="M0 0 L4 4" stroke="#fff" stroke-width=".4" opacity=".08"/></pattern>
+  <pattern id="damask" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M13 3 L23 13 L13 23 L3 13 Z" fill="none" stroke="${light}" stroke-width="1" opacity=".22"/><circle cx="13" cy="13" r="1.6" fill="#d9a93f" opacity=".28"/><circle cx="0" cy="0" r="1.2" fill="#d9a93f" opacity=".2"/><circle cx="26" cy="26" r="1.2" fill="#d9a93f" opacity=".2"/></pattern>
+  <clipPath id="c"><path d="${body}"/></clipPath><clipPath id="i"><path d="${inner}"/></clipPath>
+  </defs>
+  <path d="${body}" fill="#000" opacity=".45" transform="translate(5,8)"/>
+  ${tabs}
+  <path d="${body}" fill="${cloth}"/>
+  <g clip-path="url(#c)">
+    <rect width="200" height="434" fill="url(#weave)"/>
+    <g clip-path="url(#i)"><rect width="200" height="434" fill="url(#damask)"/></g>
+    <rect width="200" height="434" filter="url(#grain)" opacity=".5"/>
+    <rect x="0" y="194" width="200" height="66" fill="url(#band)"/>
+    <rect width="200" height="434" fill="url(#fold)"/>
+    <rect width="200" height="434" fill="url(#shade)"/>
+  </g>
+  <path d="M8 26 H192 V34 H8 Z" fill="#000" opacity=".35"/>
+  <path d="M18 48 H182 M18 54 H182" stroke="#e2b552" stroke-width="1.6"/>
+  <path d="${inner}" fill="none" stroke="#1a120b" stroke-width="5" opacity=".5"/>
+  <path d="${inner}" fill="none" stroke="url(#gold)" stroke-width="3"/>
+  <path d="M24 46 H176 V327 L100 383 L24 327 Z" fill="none" stroke="#f3d27a" stroke-width="1" stroke-dasharray="3 3" opacity=".75"/>
+  ${rule(198)}${rule(256)}
+  <path d="${body}" fill="none" stroke="#1a120b" stroke-width="2" stroke-linejoin="round"/>
+  ${fringe.map(([x, y]) => `<path d="M${x.toFixed(1)} ${y.toFixed(1)} v9" stroke="#d9a93f" stroke-width="1.7"/>`).join('')}
+  <path d="M100 404 V411" stroke="#8a6018" stroke-width="2"/>
+  <circle cx="100" cy="414" r="5" fill="url(#gold)" stroke="#1a120b" stroke-width="1"/>
+  <path d="M95 418 L91 433 H109 L105 418 Z" fill="#d9a93f" stroke="#8a6018" stroke-width="1"/>
+  <path d="M96 420 L94 432 M99 420 V432 M102 420 V432 M105 420 L107 432" stroke="#8a6018" stroke-width=".8"/>
+</svg>`;
+}
+
 // --- jobs ----------------------------------------------------------------------------------
 const jobs = [];
 const svgFile = (p) => readFileSync(join(kit, p), 'utf8');
@@ -159,6 +223,7 @@ const add = (name, svg) => jobs.push({ name, svg });
 
 for (const f of ['play', 'continue', 'settings', 'how-to-play', 'character', 'my-kingdom']) add(`banners/menu-${f}`, svgFile(`banners/banner-${f}.svg`));
 for (const [k] of Object.entries(TINCTURE)) add(`banners/plain-${k}`, svgFile(`banners/banner-plain-${k}.svg`));
+for (const [k, v] of Object.entries(TINCTURE)) add(`banners/menu-cloth-${k}`, menuCloth(v));
 const template = svgFile('banners/banner-player-1-template.svg');
 for (const [k, [cloth, fold]] of Object.entries(CLOTH)) add(`banners/player-${k}`, template.replaceAll('#8a1a16', cloth).replaceAll('#6e1210', fold));
 for (const c of Object.keys(PLAYER)) for (const s of Object.keys(SIGIL)) add(`arms/${c}-${s}`, arms(c, s));

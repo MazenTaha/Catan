@@ -15,7 +15,8 @@ if (-not $NoBuild) {
   if ($LASTEXITCODE -ne 0) { throw "build failed ($LASTEXITCODE)" }
 }
 $log = Join-Path $PSScriptRoot 'Saved/Logs/automation.log'
-& (Join-Path $Engine 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe') $project "-ExecCmds=Automation RunTests $Filter" '-TestExit=Automation Test Queue Empty' -unattended -nopause -nullrhi -nosplash -nosound "-abslog=$log" | Out-Null
+# Game tests do not need experimental editor toolsets or a second listener on the user's MCP port.
+& (Join-Path $Engine 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe') $project "-ExecCmds=Automation RunTests $Filter" '-TestExit=Automation Test Queue Empty' '-DisablePlugins=AllToolsets,ModelContextProtocol' -unattended -nopause -nullrhi -nosplash -nosound "-abslog=$log" | Out-Null
 $lines = Select-String -Path $log -Pattern 'Test Completed|CATNIGHT |LogAutomationController: Error' | ForEach-Object { $_.Line -replace '^\[[^\]]*\]\[[^\]]*\]', '' }
 $lines | ForEach-Object { Write-Host $_ }
 $done = @($lines | Where-Object { $_ -match 'Test Completed' })
